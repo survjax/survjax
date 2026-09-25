@@ -1,0 +1,27 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.9
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+        exclude: ^spec/
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-toml
+      - id: check-case-conflict
+      - id: check-added-large-files
+      - id: debug-statements
+      - id: detect-private-key
+  - repo: local
+    hooks:
+      - id: mypy-core
+        name: mypy core source
+        entry: uv run --no-sync mypy src
+        language: system
+        pass_filenames: false
+        types: [python]

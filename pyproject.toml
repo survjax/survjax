@@ -1,0 +1,34 @@
+[build-system]
+requires = ["uv_build>=0.11.19,<0.12"]
+build-backend = "uv_build"
+
+[project]
+name = "chronox-jax"
+version = "0.0.1.dev0"
+description = "Survival analysis in JAX"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Wouter A.C. van Amsterdam" }]
+dependencies = ["jax>=0.11.2", "numpy>=2.5.3"]
+
+[dependency-groups]
+test = ["pytest>=9.1.1", "mpmath>=1.4.1", "hypothesis>=6.168.1"]
+dev = [
+    { include-group = "test" },
+    "ruff>=0.16.9",
+    "mypy>=2.3.1",
+    "pre-commit>=4.6.2",
+]
+
+[tool.ruff]
+line-length = 88
+extend-exclude = ["spec"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP"]
+ignore = ["E501"]
+
+[tool.mypy]
+files = ["src"]
+check_untyped_defs = true
