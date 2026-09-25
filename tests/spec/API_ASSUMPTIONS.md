@@ -46,6 +46,7 @@ on it. Guessed exception types and call shapes are centralised in
   default warning filter. A single call warns once even when several fields
   arrive as float64. Tests count only warnings whose filename is the test file.
 - **Depends:** `test_float64_input_warns_once_per_call`,
+  `test_pandas_float64_series_converts_to_float32_with_one_warning`,
   `test_repeated_calls_from_one_call_site_warn_once`,
   `test_two_call_sites_warn_once_each`.
 
@@ -186,3 +187,28 @@ on it. Guessed exception types and call shapes are centralised in
 - **Depends:** every test in `test_a3_static_metadata.py`,
   `test_data_passes_through_jit_unchanged`,
   `test_indexing_carries_every_leaf_including_issue_bitfield`.
+
+## Q-015: "passing its default value" for truncation arguments
+
+- **Checked:** 3.1 (signatures: `left_trunc=None, right_trunc=None`), 3.2
+  (`left_trunc` "`0` when absent", `right_trunc` "`+inf` when absent"), 3.3
+  (amended in 91f5f62).
+- **Resolved (maintainer, 2026-09-25):** the default value is the constructor
+  default `None`. `0` and `+inf` are the values the constructed object stores.
+- **Remaining note:** read this way, the sentence only says that
+  `left_trunc=None` behaves like omitting the argument, which Python already
+  guarantees. Passing Python `0` or `inf` explicitly gives the omitted dtype
+  because of the weak-typing sentence, not this one. Passing a strongly typed
+  zero (for example `np.zeros(n)` float64 next to float32 time under 64-bit
+  mode) promotes to float64 under JAX promotion, which differs from omitting
+  the argument. The spec allows this, and no test asserts otherwise.
+- **Depends:** `test_passing_none_truncation_matches_omitting_it`. The Python
+  `0`/`inf` tests now cite the weak-typing sentence.
+
+## Q-016: pandas input accepted directly
+
+- **Checked:** 3.1, 3.3 ("Array input with dtype float64 (NumPy, pandas,
+  JAX)").
+- **Resolved (maintainer, 2026-09-25):** a `pandas.Series` is accepted
+  directly. The warning attribution still follows Q-004.
+- **Depends:** `test_pandas_float64_series_converts_to_float32_with_one_warning`.
