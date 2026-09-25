@@ -1,6 +1,6 @@
 # Slice A, step A1 — SurvivalData representation and dtype policy
 
-Status: **A1 and its review fix-up implemented on `a1-survivaldata`; awaiting maintainer review**.
+Status: **A1 and its constructor-docstring fix-up implemented on `a1-survivaldata`; awaiting maintainer review**.
 The maintainer approved one A1 commit despite the code-and-test diff exceeding
 the preferred roughly 300 lines, because splitting the coupled constructor
 and dtype work would leave the A1 acceptance gate failing between commits.
@@ -100,3 +100,26 @@ Spec coverage: 3.2 (shape and normalized exact bounds), 3.3 (JAX promotion and
 warning policy), 10.2 (unchanged export), and 12.2 (A1 gate). Run Ruff format
 and lint, mypy, `scripts/run_tests.sh`, and `scripts/check.sh --through A1` in
 both configured dtype processes. No dependencies or protected paths change.
+
+## A1 maintainer docstring fix-up (requested 2026-09-25)
+
+The maintainer requested clearer constructor documentation, including the
+relationship to R's `survival::Surv`. This review instruction authorizes a
+separate documentation-only fix-up commit on `a1-survivaldata`.
+
+Files to change:
+
+- `src/chronox_jax/data.py`: expand the class, flag-constructor and
+  `from_bounds` docstrings with argument meanings, shape/broadcast rules,
+  endpoint and truncation conventions, short examples, and the precise mapping
+  to R's `Surv(time, event)`, `type="interval"`, and `type="interval2"`.
+- `REVIEW.md`: overwrite with the reading order, documentation invariants,
+  exact checks, and any uncertainty.
+- `PLAN.md`: record this fix-up and its public API boundary.
+
+Public API touched: documentation of `SurvivalData(...)` and
+`SurvivalData.from_bounds(...)`; signatures and runtime behavior remain the
+same. Spec coverage: 3.1 (constructor semantics), 3.2 (stored fields and
+shapes), 3.3 (bounds and dtype), and 10.2 (public export). No new tests are
+needed for documentation-only changes. Run Ruff format/lint, mypy, and
+`scripts/check.sh --through A1` before the fix-up commit.

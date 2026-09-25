@@ -74,10 +74,12 @@ def _to_shape(value: ArrayLike, shape: tuple[int, ...], dtype: DTypeLike) -> jax
 
 @dataclass(frozen=True, eq=False, init=False)
 class SurvivalData:
-    """Observation-shaped arrays for exact and censored times (spec 3.2).
+    """Exact and censored observations stored as aligned arrays (spec 3.2).
 
-    All six leaves have the shape of ``time`` or ``lower``. Grid conventions do
-    not apply to this observation container.
+    Unlike R's ``survival::Surv`` matrix with a type attribute, this PyTree
+    stores five public fields: ``exact``, ``lower``, ``upper``, ``left_trunc``,
+    and ``right_trunc``. Each has the shape of the first time argument; a
+    private issue-bitfield leaf has that shape too. There is no time-grid axis.
     """
 
     exact: jax.Array
@@ -102,6 +104,28 @@ class SurvivalData:
         right_trunc: ArrayLike | None = None,
         dtype: DTypeLike | None = None,
     ) -> None:
+        """Build observations from event status or censoring flags (spec 3.1).
+
+        ``SurvivalData(time, event)`` follows R's ``Surv(time, event)``:
+        the second positional argument is 1/True for an exact event and
+        0/False for right censoring. No R-style 1/2 coding is inferred.
+        With no status or flags, every row is exact. To mix kinds, use the
+        keyword flags ``right_censored``, ``left_censored``, and
+        ``interval_censored``; a row with all flags false is exact. Choose
+        either ``event`` or flags, and set at most one flag per row.
+
+        ``time`` is the exact time, one-sided censoring time, or interval's
+        lower endpoint. ``time2`` supplies the upper endpoint only for
+        interval-censored rows. Unlike ``Surv(time, time2, event)`` with its
+        counting-process default, ``time2`` here does not mean a stop time.
+        Missing truncation bounds mean ``left_trunc=0`` and
+        ``right_trunc=+inf``. ``dtype`` selects a common floating dtype.
+        All inputs must broadcast to ``time.shape`` without enlarging it.
+
+        Examples:
+            ``SurvivalData([2.0, 3.0], [1, 0])`` stores an event at 2 and
+            right censoring at 3.
+        """
         common = _time_dtype(
             {
                 "time": time,
@@ -163,7 +187,26 @@ class SurvivalData:
         right_trunc: ArrayLike | None = None,
         dtype: DTypeLike | None = None,
     ) -> "SurvivalData":
-        """Store valid lower/upper observations without inferring exact rows."""
+        """Build observation sets from endpoints (spec 3.1–3.2).
+
+        This corresponds to R's ``Surv(lower, upper, type="interval2")``
+        form, with an explicit ``exact`` mask. A censored row means
+        ``lower < T <= upper``; use ``upper=+inf`` for right censoring and
+        ``lower=0`` for left censoring. Mark exact rows with ``exact=True``:
+        their event time is ``lower``, and their supplied ``upper`` may equal
+        ``lower`` or be NaN; the stored upper becomes ``lower``. Equal
+        endpoints alone never imply an exact event. Unlike R's ``interval2``
+        input, do not use NA for an unbounded censored endpoint.
+
+        ``lower`` fixes the observation shape; other inputs must broadcast
+        to it without enlargement. Omitted ``left_trunc`` and
+        ``right_trunc`` become 0 and +inf. ``dtype`` selects a common float.
+
+        Example:
+            ``SurvivalData.from_bounds([2.0, 0.0], [2.0, 3.0],
+            exact=[True, False])`` stores an event at 2 and left censoring
+            at 3.
+        """
         common = _time_dtype(
             {
                 "lower": lower,
