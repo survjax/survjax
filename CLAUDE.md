@@ -40,9 +40,21 @@ The maintainer reviews all code, so optimise for reviewability over speed.
 6. **Report honestly.** State exactly which checks you ran and their output. If a
    check was not run (for example R is unavailable), say so. Never claim a
    property is verified because it is plausible.
-7. **Commits:** imperative subject line, body says why. One step per commit. No
-   force-pushes, no history rewriting, no publishing, no remote setup or
-   credentials (spec 12.2: separate actions).
+7. **Git rules.** The maintainer creates the step branch (`a1-survivaldata`,
+   `a2-...`). You work only on that branch and commit to it. Never commit to
+   `main`, never merge, never rebase or amend published commits, never
+   force-push, never touch tags. Commit messages: imperative subject, body says
+   why, one step per commit (fix-ups after review are extra commits on the same
+   branch). No publishing, no remote setup or credentials (spec 12.2: separate
+   actions).
+8. **Deviations.** Anything the spec does not settle, or that you believe is
+   wrong, goes into `DEVIATIONS.md` as an entry with: id (`D-001`...), step,
+   spec section, what the spec says, what you did or propose, and status
+   `open`. The maintainer resolves entries. You never mark them resolved.
+9. **Spec tests are not yours.** `tests/spec/` is written by an independent
+   author from the spec alone and is read-only for you (see "Spec tests"
+   below). If one fails and you think the test is wrong, add a `DEVIATIONS.md`
+   entry. Do not edit, skip or xfail it.
 
 ## Code style (optimised for a human reader)
 
@@ -98,17 +110,21 @@ each numerical step.
 spec/                     GOALS.md, SPECIFICATION.md (copied, read-only)
 CLAUDE.md                 this file (AGENTS.md is a symlink to it)
 PLAN.md  REVIEW.md  DEVIATIONS.md
+roles/                    prompts for the independent tester and reviewer
+                          (not for you; do not act on them)
 pyproject.toml  uv.lock  .python-version  .pre-commit-config.yaml
 .gitignore  LICENSE
 src/chronox_jax/          layout of spec 10.2; only modules Slice A needs
 tests/
-    conftest.py           dtype handling, shared helpers
-    tolerances.py         the only place tolerances are defined
-    unit/                 hand-derived and analytical cases
-    property/             hypothesis identity tests
-    reference/            comparisons against committed fixtures
+    conftest.py           dtype handling, shared helpers (yours)
+    tolerances.py         tolerances for your tests (yours)
+    unit/                 hand-derived and analytical cases (yours)
+    property/             hypothesis identity tests (yours)
+    reference/            comparisons against committed fixtures (yours)
     fixtures/             committed synthetic data and R outputs (see below)
     install/              wheel/sdist smoke test, run outside the source tree
+    spec/                 independent acceptance tests: READ-ONLY for you,
+                          self-contained (own conftest and tolerances)
 scripts/
     run_tests.sh          runs the suite once per dtype mode (see below)
     fixtures/             R generator scripts (only these need R)
@@ -135,8 +151,13 @@ Standard commands (keep these working at every commit):
 ```bash
 uv run ruff format --check . && uv run ruff check .
 uv run mypy src
-scripts/run_tests.sh            # both dtype modes
+scripts/run_tests.sh            # your tests, both dtype modes
+scripts/check.sh --through A3   # everything above plus tests/spec up to step A3
 ```
+
+`scripts/check.sh` exists from the start and is the maintainer's gate; you only
+run it. Step A0 must make `scripts/run_tests.sh`, `ruff` and `mypy` work so that
+`check.sh` passes on the empty package.
 
 ## Testing conventions
 
@@ -182,6 +203,21 @@ that hides which case failed.
 are reproducible. They express the identities in spec 12.1, not implementation
 details.
 
+**Spec tests (`tests/spec/`).** Written from the spec alone by an author who has
+never seen `src/`; they encode the maintainer's reading of the spec, not yours.
+
+- Read-only for you: no edits, no skips, no xfails, no new files there. They
+  arrive only through `scripts/sync_spec_tests.sh`, on a `spectests-*` branch
+  that the maintainer creates.
+- Files are named `test_a<N>_<topic>.py` and marked with the step they belong
+  to. `SPEC_THROUGH=A3` runs only steps A0 to A3, so tests for later steps do
+  not fail now. Each test states the spec revision it derives from.
+- They use only the public API of spec sections 3, 4, 6, 7 and 10.2. If you make
+  a different but reasonable API choice, the test fails. That is the signal:
+  record it as a deviation, do not adapt the test.
+- Your own tests (`tests/unit`, etc.) remain your responsibility and must pass
+  independently of them.
+
 **Fixtures (spec 10.4).**
 
 - Synthetic data only. No patient rows, no row-level output derived from patient
@@ -208,7 +244,7 @@ a `REVIEW.md` and a stop.
 
 | Step | Content | Spec |
 | --- | --- | --- |
-| A0 | Scaffold: git init, uv project, tools, pre-commit, empty package with `py.typed`, `run_tests.sh`, one import smoke test | 10.1 to 10.3 |
+| A0 | Scaffold (the git repo and `main` already exist; do not `git init`): uv project, tools, pre-commit, `.gitignore`, LICENSE, empty package with `py.typed`, `scripts/run_tests.sh` (both dtype modes), one import smoke test. Must leave `scripts/check.sh --through A0` passing | 10.1 to 10.3 |
 | A1 | `SurvivalData` fields, pytree registration, dtype policy | 3.2, 3.3 |
 | A2 | Constructors (flag and bounds), boundary rules, `DataIssues` bitfield | 3.1, 3.3, 6.2 |
 | A3 | Indexing and slicing, static metadata, compile-count test | 3.2 |
