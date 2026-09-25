@@ -1,49 +1,54 @@
-# Review: A1 constructor docstrings
+# Review: A1 round-two weak-typing fix-up
 
 Read in this order:
 
-1. `PLAN.md`, final section, for the maintainer's documentation request and
-   the public API boundary.
-2. `src/chronox_jax/data.py`: the `SurvivalData` class docstring, `__init__`
-   docstring, and `from_bounds` docstring. No executable code changed.
-3. R's [`survival::Surv` manual](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/Surv.html)
-   for the comparison used in those docstrings.
+1. `~/dev/chronox-dev-review/.review/a-r2.md`, especially R1–R3. The
+   review inspected `f663fd9`; this branch also includes the later
+   constructor-docstring commit `92a5d63`.
+2. `PLAN.md`, final section, for this fix-up's limited scope.
+3. `src/chronox_jax/data.py` (`_input_dtype` and `_time_dtype`) and the new
+   cases in `tests/unit/test_data_dtype.py`.
+4. `DEVIATIONS.md` D-002, now citing the landed spec change `3041ebd`.
 
-## Documentation invariants
+## Invariants and disposition
 
-- The flag constructor explains that the second positional argument is the
-  event indicator, as in `Surv(time, event)`: 1/True means exact event,
-  0/False means right censoring. It explains the alternative per-row
-  censoring flags, the role of `time2`, shape/broadcast rules, truncation
-  defaults, and dtype selection.
-- R's `Surv(time, time2, event)` defaults to counting-process data when all
-  three arguments are present. Chronox's `time2` instead names an interval
-  upper endpoint selected by `interval_censored`.
-- `from_bounds` is related to `Surv(..., type="interval2")` but requires an
-  explicit `exact` mask. It explains `(lower, upper]`, `0`/`+inf` censored
-  endpoints, exact-row normalization, and that an equal endpoint pair alone
-  does not mark an exact event. R accepts NA for an unbounded endpoint;
-  Chronox documents the numeric bounds in spec 3.1.
-- The class docstring describes Chronox's five aligned arrays and issue leaf
-  alongside R's matrix-with-type representation. All observations retain the
-  shape of the first time argument; there is no time-grid axis.
+- **R1 fixed:** A JAX array or tracer with `weak_type=True` contributes its
+  value to `jnp.result_type`, preserving JAX's weak promotion. A strong JAX
+  array still contributes its dtype. The check rejects boolean and other
+  nonnumeric time dtypes before returning a weak JAX value. No tracer is
+  converted to NumPy.
+- **R2 fixed:** A bare Python `True` time raises, rather than being treated as
+  weak integer 1. The existing rejected-input test now covers it.
+- **R3 fixed:** D-002 cites section 3.3 as changed in `3041ebd`. Its status
+  remains `open`; only the maintainer resolves deviations.
+- The review's section 4.2 formatting note concerns protected spec text. No
+  `spec/` or `tests/spec/` file changed in this fix-up.
 
-## Checks and limits
+## Tests and checks
 
-No tests were added because this fix-up changes docstrings only. The existing
-tests remain the evidence for spec 3.1–3.3 behavior; the full A1 gate was
-rerun with `UV_CACHE_DIR=/private/tmp/chronox-uv-cache`:
+| Requirement | Evidence |
+| --- | --- |
+| Weak eager JAX bound adopts float32 time (spec 3.3) | `test_weak_jax_bound_preserves_float32_time_dtype` |
+| Python float becomes a weak tracer under `jit` (spec 3.3) | `test_jitted_weak_float_bound_preserves_float32_time_dtype` |
+| Boolean scalar time is rejected (spec 3.3) | `test_nonreal_time_input_is_rejected` includes `True` |
+| Earlier A1 contract remains intact | `scripts/check.sh --through A1`, including independent A1 tests in both modes |
 
+Final `scripts/check.sh --through A1` output, with
+`UV_CACHE_DIR=/private/tmp/chronox-uv-cache`:
+
+- Guard: `ok (a1-survivaldata)`.
 - Ruff format: `13 files already formatted`; Ruff lint: `All checks passed!`.
 - mypy: `Success: no issues found in 2 source files`.
-- Own tests: x64 enabled `19 passed, 3 skipped`; x64 disabled `22 passed`.
+- Own tests: x64 enabled `22 passed, 3 skipped`; x64 disabled `25 passed`.
 - Independent A1 tests: x64 enabled `41 passed, 8 skipped, 196 deselected`;
   x64 disabled `45 passed, 4 skipped, 196 deselected`.
-- Final output: `check: all gates passed through A1`.
+- Final line: `check: all gates passed through A1`.
 - `git diff --check`: passed with no output.
 
-The docstrings describe the specified valid-input contract. A1's current
-constructors do not yet enforce every indicator, endpoint, and truncation
-rule; A2 adds those checks and the issue bitfield behavior. A3 adds indexing
-and value-derived static metadata. No R runtime, fixture, wheel, or install
-check was run for this documentation-only fix-up.
+The own `jit` construction test verifies A1 promotion now. A3 will require
+ordinary traced construction to raise and will introduce `with_issues`; move
+this transformation check to that route when A3 is implemented. The
+independent A1 suite predates the updated section 3.3 wording, so the new
+R1/R2 cases are currently evidenced by implementer tests. No R, fixture,
+wheel or install check was run. A2 validation and A3 indexing/metadata remain
+outside this fix-up.

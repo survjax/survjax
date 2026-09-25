@@ -9,7 +9,9 @@ import numpy as np
 from jax.typing import ArrayLike, DTypeLike
 
 
-def _input_dtype(value: ArrayLike, name: str) -> tuple[np.dtype | int | float, bool]:
+def _input_dtype(
+    value: ArrayLike, name: str
+) -> tuple[np.dtype | int | float | jax.Array, bool]:
     """Keep Python scalars weak and inspect typed inputs without host copies."""
     try:
         if isinstance(value, (int, float)) and not isinstance(
@@ -18,7 +20,9 @@ def _input_dtype(value: ArrayLike, name: str) -> tuple[np.dtype | int | float, b
             return value, False
         if hasattr(value, "dtype"):
             raw = jnp.dtype(value.dtype)
-            warn_float64 = raw == jnp.dtype(jnp.float64)
+            warn_float64 = raw == jnp.dtype(jnp.float64) and not (
+                isinstance(value, jax.Array) and value.weak_type
+            )
         else:
             # spec 3.3 / D-002: JAX gives Python lists their default array dtype.
             raw = jnp.asarray(value).dtype
@@ -27,6 +31,9 @@ def _input_dtype(value: ArrayLike, name: str) -> tuple[np.dtype | int | float, b
         raise TypeError(f"{name} must contain real numeric times") from exc
     if not (jnp.issubdtype(raw, jnp.integer) or jnp.issubdtype(raw, jnp.floating)):
         raise TypeError(f"{name} must contain real numeric times")
+    if isinstance(value, jax.Array) and value.weak_type:
+        # spec 3.3: a dtype alone loses the array's weak JAX promotion.
+        return value, False
     return jax.dtypes.canonicalize_dtype(raw), warn_float64
 
 

@@ -1,6 +1,6 @@
 # Slice A, step A1 — SurvivalData representation and dtype policy
 
-Status: **A1 and its constructor-docstring fix-up implemented on `a1-survivaldata`; awaiting maintainer review**.
+Status: **A1 and its round-two review fix-up implemented on `a1-survivaldata`; awaiting maintainer review**.
 The maintainer approved one A1 commit despite the code-and-test diff exceeding
 the preferred roughly 300 lines, because splitting the coupled constructor
 and dtype work would leave the A1 acceptance gate failing between commits.
@@ -123,3 +123,27 @@ same. Spec coverage: 3.1 (constructor semantics), 3.2 (stored fields and
 shapes), 3.3 (bounds and dtype), and 10.2 (public export). No new tests are
 needed for documentation-only changes. Run Ruff format/lint, mypy, and
 `scripts/check.sh --through A1` before the fix-up commit.
+
+## A1 round-two review fix-up (requested 2026-09-25)
+
+The independent re-review is at `~/dev/chronox-dev-review/.review/a-r2.md`.
+Fix R1 now rather than carry it into A3. This is a small additional commit on
+`a1-survivaldata`; public constructor signatures and exports do not change.
+
+Files to change:
+
+- `src/chronox_jax/data.py`: preserve JAX's `weak_type` for `jax.Array` inputs,
+  including tracers, when selecting a common dtype; continue rejecting
+  nonnumeric time dtypes and warning only for strong typed float64 inputs.
+- `tests/unit/test_data_dtype.py`: add float32 time plus eager weak JAX bound,
+  a `jit`ted Python-float bound, and Python-bool scalar rejection.
+- `DEVIATIONS.md`: update D-002 to cite the landed section 3.3 spec commit
+  `3041ebd`, while leaving its status `open` for maintainer resolution.
+- `REVIEW.md`: overwrite with the fix-up reading order, invariants, exact
+  checks, and remaining A2/A3 work.
+- `PLAN.md`: record this fix-up.
+
+Spec coverage: section 3.3 JAX promotion and bool-time rejection, plus 3.2
+observation storage. Run Ruff format/lint, mypy, both dtype modes of own tests,
+and `scripts/check.sh --through A1`. Do not edit the protected spec or spec
+tests; the review's section 4.2 formatting note is for a future `spec-*` branch.

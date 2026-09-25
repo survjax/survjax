@@ -54,6 +54,26 @@ def test_python_scalar_time_uses_default_float(x64_enabled: bool) -> None:
     assert data.lower.dtype == (jnp.float64 if x64_enabled else jnp.float32)
 
 
+def test_weak_jax_bound_preserves_float32_time_dtype() -> None:
+    """Spec 3.3: an eager weak JAX scalar adopts the strong array dtype."""
+    time = np.array([1, 2], dtype=np.float32)
+    data = SurvivalData(time, left_trunc=jnp.asarray(0.5))
+    assert data.lower.dtype == jnp.float32
+    assert data.left_trunc.dtype == jnp.float32
+
+
+def test_jitted_weak_float_bound_preserves_float32_time_dtype() -> None:
+    """Spec 3.3: a Python float becomes a weak tracer inside jit."""
+    time = np.array([1, 2], dtype=np.float32)
+
+    @jax.jit
+    def lower_from_bound(bound: jax.Array) -> jax.Array:
+        return SurvivalData(time, left_trunc=bound).lower
+
+    result = lower_from_bound(0.5)
+    assert result.dtype == jnp.float32
+
+
 def test_numpy_float64_scalar_truncation_is_strong(x64_enabled: bool) -> None:
     """Spec 3.3 / D-002: a NumPy scalar carries chosen float64 precision."""
     time = np.array([1, 2], dtype=np.float32)
@@ -107,9 +127,9 @@ def test_explicit_unavailable_float64_fails(x64_enabled: bool) -> None:
 
 @pytest.mark.parametrize(
     "value",
-    [np.array([True]), np.array([1 + 0j]), np.array(["1"]), np.array([1, None])],
+    [True, np.array([True]), np.array([1 + 0j]), np.array(["1"]), np.array([1, None])],
 )
-def test_nonreal_time_input_is_rejected(value: np.ndarray) -> None:
+def test_nonreal_time_input_is_rejected(value: np.ndarray | bool) -> None:
     """Spec 3.3: bool, complex, string, and object times are invalid."""
     with pytest.raises((TypeError, ValueError)):
         SurvivalData(value)
