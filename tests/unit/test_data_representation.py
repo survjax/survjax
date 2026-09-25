@@ -40,6 +40,25 @@ def test_bounds_constructor_keeps_shape_and_truncation() -> None:
     np.testing.assert_array_equal(data.right_trunc, np.full((2, 2), 10))
 
 
+def test_flag_cannot_enlarge_observation_shape() -> None:
+    """Spec 3.2: a column flag cannot enlarge a vector of observations."""
+    with pytest.raises(ValueError, match="enlarge"):
+        SurvivalData(
+            jnp.array([1, 2], dtype=jnp.float32),
+            right_censored=jnp.array([[False], [True]]),
+        )
+
+
+def test_exact_bounds_replace_nan_upper_with_lower() -> None:
+    """Spec 3.2: the exact row's stored upper always equals its lower."""
+    data = SurvivalData.from_bounds(
+        jnp.array([2, 1], dtype=jnp.float32),
+        jnp.array([jnp.nan, 3], dtype=jnp.float32),
+        exact=[True, False],
+    )
+    np.testing.assert_array_equal(data.upper, [2, 3])
+
+
 def test_pytree_has_six_leaves_and_crosses_jit() -> None:
     """Spec 3.2: the registered PyTree contains five fields and one issue leaf."""
     data = SurvivalData(jnp.array([1, 2], dtype=jnp.float32), [True, False])
@@ -66,3 +85,12 @@ def test_unflatten_bypasses_normalization() -> None:
     assert isinstance(rebuilt, SurvivalData)
     with pytest.raises(AttributeError):
         data.lower = jnp.array(2)
+
+
+def test_data_equality_uses_identity() -> None:
+    """Spec 3.2: array fields do not produce ambiguous dataclass equality."""
+    data = SurvivalData(jnp.array([1, 2], dtype=jnp.float32))
+    rebuilt = jax.tree.map(lambda value: value, data)
+    assert data == data
+    assert data != rebuilt
+    assert isinstance(hash(data), int)

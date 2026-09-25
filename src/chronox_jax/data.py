@@ -9,29 +9,31 @@ import numpy as np
 from jax.typing import ArrayLike, DTypeLike
 
 
-def _input_dtype(value: ArrayLike, name: str) -> np.dtype:
-    """Inspect a dtype without moving traced values to the host."""
+def _input_dtype(value: ArrayLike, name: str) -> tuple[np.dtype | int | float, bool]:
+    """Keep Python scalars weak and inspect typed inputs without host copies."""
     try:
+        if isinstance(value, (int, float)) and not isinstance(
+            value, (bool, np.generic)
+        ):
+            return value, False
         if hasattr(value, "dtype"):
-            raw = value.dtype
-        elif any(isinstance(leaf, jax.core.Tracer) for leaf in jax.tree.leaves(value)):
-            raw = jnp.asarray(value).dtype
+            raw = jnp.dtype(value.dtype)
+            warn_float64 = raw == jnp.dtype(jnp.float64)
         else:
-            raw = np.asarray(value).dtype
-        result = jnp.dtype(raw)
+            # spec 3.3 / D-002: JAX gives Python lists their default array dtype.
+            raw = jnp.asarray(value).dtype
+            warn_float64 = False
     except (TypeError, ValueError) as exc:
         raise TypeError(f"{name} must contain real numeric times") from exc
-    if not (
-        jnp.issubdtype(result, jnp.integer) or jnp.issubdtype(result, jnp.floating)
-    ):
+    if not (jnp.issubdtype(raw, jnp.integer) or jnp.issubdtype(raw, jnp.floating)):
         raise TypeError(f"{name} must contain real numeric times")
-    return result
+    return jax.dtypes.canonicalize_dtype(raw), warn_float64
 
 
 def _time_dtype(
     values: dict[str, ArrayLike | None], dtype: DTypeLike | None
 ) -> np.dtype:
-    raw_dtypes = [
+    inputs = [
         _input_dtype(value, name) for name, value in values.items() if value is not None
     ]
     if dtype is not None:
@@ -42,16 +44,21 @@ def _time_dtype(
             raise ValueError("float64 requires JAX_ENABLE_X64=1")
         return jnp.result_type(requested, jnp.float32)
 
-    if not jax.config.jax_enable_x64 and jnp.dtype(jnp.float64) in raw_dtypes:
+    if not jax.config.jax_enable_x64 and any(warn for _, warn in inputs):
         warnings.warn(
             "float64 time input converted to float32 because JAX 64-bit mode is disabled",
             RuntimeWarning,
             stacklevel=3,
         )
-    canonical = [jax.dtypes.canonicalize_dtype(raw) for raw in raw_dtypes]
-    if any(jnp.issubdtype(raw, jnp.floating) for raw in canonical):
-        common = jnp.result_type(*canonical, jnp.float32)
+    contributions = [value for value, _ in inputs]
+    strong_float = any(
+        isinstance(value, np.dtype) and jnp.issubdtype(value, jnp.floating)
+        for value in contributions
+    )
+    if strong_float:
+        common = jnp.result_type(*contributions, jnp.float32)
     else:
+        # spec 3.3 / D-002: integer-only and weak-scalar-only input uses the default float.
         common = jnp.asarray(0.0).dtype
     return common
 
@@ -65,7 +72,7 @@ def _to_shape(value: ArrayLike, shape: tuple[int, ...], dtype: DTypeLike) -> jax
     return jnp.broadcast_to(array, shape)
 
 
-@dataclass(frozen=True, init=False)
+@dataclass(frozen=True, eq=False, init=False)
 class SurvivalData:
     """Observation-shaped arrays for exact and censored times (spec 3.2).
 
@@ -79,6 +86,7 @@ class SurvivalData:
     left_trunc: jax.Array
     right_trunc: jax.Array
     _issue_bits: jax.Array
+    # spec 3.2: exact, right, left, interval, left truncation, right truncation.
     _may_contain: tuple[bool, bool, bool, bool, bool, bool]
 
     def __init__(
@@ -205,20 +213,13 @@ class SurvivalData:
         issue_bits: jax.Array,
         may_contain: tuple[bool, ...] = (True,) * 6,
     ) -> None:
-        for name, value in zip(
-            (
-                "exact",
-                "lower",
-                "upper",
-                "left_trunc",
-                "right_trunc",
-                "_issue_bits",
-                "_may_contain",
-            ),
-            (exact, lower, upper, left_trunc, right_trunc, issue_bits, may_contain),
-            strict=True,
-        ):
-            object.__setattr__(self, name, value)
+        object.__setattr__(self, "exact", exact)
+        object.__setattr__(self, "lower", lower)
+        object.__setattr__(self, "upper", upper)
+        object.__setattr__(self, "left_trunc", left_trunc)
+        object.__setattr__(self, "right_trunc", right_trunc)
+        object.__setattr__(self, "_issue_bits", issue_bits)
+        object.__setattr__(self, "_may_contain", may_contain)
 
     def tree_flatten(self) -> tuple[tuple[jax.Array, ...], tuple[bool, ...]]:
         """Keep the issue bitfield as an array leaf (spec 3.2)."""

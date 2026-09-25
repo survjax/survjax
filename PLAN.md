@@ -1,6 +1,6 @@
 # Slice A, step A1 — SurvivalData representation and dtype policy
 
-Status: **implemented and committed on `a1-survivaldata`; awaiting maintainer review**.
+Status: **A1 and its review fix-up implemented on `a1-survivaldata`; awaiting maintainer review**.
 The maintainer approved one A1 commit despite the code-and-test diff exceeding
 the preferred roughly 300 lines, because splitting the coupled constructor
 and dtype work would leave the A1 acceptance gate failing between commits.
@@ -70,3 +70,33 @@ After implementation, run `uv run ruff format --check .`, `uv run ruff check .`,
 `scripts/check.sh --through A1`. Report each exact result in `REVIEW.md`.
 If the step exceeds roughly 300 handwritten lines including tests, stop and
 propose a narrower split before committing.
+
+## A1 review fix-up (maintainer requested 2026-09-25)
+
+The independent review was found at
+`~/dev/chronox-dev-review/.review/a.md` (`a1.md` does not exist there).
+The maintainer's instruction to implement it authorizes this fix-up on the
+same branch as a separate commit. Keep the existing A1 public constructor
+signatures and export unchanged.
+
+Files to change:
+
+- `src/chronox_jax/data.py`: follow JAX weak typing for bare Python scalars;
+  give lists/tuples JAX's default array dtype; warn only for typed float64
+  inputs in 32-bit mode; disable dataclass array equality; simplify field
+  assignment; document the conservative metadata tuple's positions.
+- `tests/unit/test_data_dtype.py`: cover weak scalar bounds in both modes,
+  omitted versus explicitly default truncation, list and scalar defaults,
+  typed NumPy float64 scalars, and one warning for several float64 fields.
+- `tests/unit/test_data_representation.py`: reject a field that enlarges the
+  observation shape; normalize an exact bounds row whose supplied upper is
+  NaN to `upper == lower`.
+- `DEVIATIONS.md`: add D-002 for the maintainer-decided weak typing and warning
+  rules pending the proposed section 3.3 spec change. Leave status open.
+- `REVIEW.md`: overwrite with the fix-up reading order, invariants, test map,
+  exact results, and remaining A2/A3 boundaries.
+
+Spec coverage: 3.2 (shape and normalized exact bounds), 3.3 (JAX promotion and
+warning policy), 10.2 (unchanged export), and 12.2 (A1 gate). Run Ruff format
+and lint, mypy, `scripts/run_tests.sh`, and `scripts/check.sh --through A1` in
+both configured dtype processes. No dependencies or protected paths change.
