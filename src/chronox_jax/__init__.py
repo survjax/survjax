@@ -1,3 +1,5 @@
 """Survival analysis in JAX."""
 
-__all__: list[str] = []
+from chronox_jax.data import SurvivalData
+
+__all__ = ["SurvivalData"]

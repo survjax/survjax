@@ -1,50 +1,72 @@
-# Slice A implementation plan
+# Slice A, step A1 — SurvivalData representation and dtype policy
 
-Status: **A0 implemented; awaiting maintainer review before A1.**
+Status: **implemented and committed on `a1-survivaldata`; awaiting maintainer review**.
+The maintainer approved one A1 commit despite the code-and-test diff exceeding
+the preferred roughly 300 lines, because splitting the coupled constructor
+and dtype work would leave the A1 acceptance gate failing between commits.
 
-The maintainer also requested moving the read-only source documents from the
-repository root to `spec/`. This changes their paths without editing their
-contents. The initial Git commit already exists, so A0 does not reinitialize Git.
+## Scope and step boundary
 
-## Step A0 — package and quality-tool scaffold
+Build the normalized `SurvivalData` storage object: five public observation-shaped
+fields, one private `int32` issue-bitfield leaf, immutable PyTree reconstruction,
+and the time/bound dtype policy. The A1 acceptance tests construct data through
+both public constructors, so this step must also provide their valid-input paths
+and row-wise normalization. A2 will add complete indicator, endpoint, and
+truncation validation, descriptive eager errors, and issue-bit setting. A3 will
+add indexing/slicing and value-derived static metadata. Until A3, auxiliary
+metadata will conservatively say every kind/truncation may be present.
 
-One concept: make an empty `chronox-jax` package installable and establish the
-required local checks. End the step with one commit and `REVIEW.md`, then stop.
+## Files and public API
 
-Files to create:
+- `src/chronox_jax/data.py` (new): frozen, typed `SurvivalData`; the specified
+  flag and `from_bounds` signatures for valid inputs; shape-preserving
+  normalization; common floating dtype selection; six-leaf PyTree flattening
+  and reconstruction that bypasses public construction. Keep normalization
+  helpers private in this module.
+- `src/chronox_jax/__init__.py`: export `SurvivalData` and list it in `__all__`.
+- `tests/conftest.py` (new): read the dtype mode from the process environment
+  for A1 tests; do not modify JAX's global configuration.
+- `tests/unit/test_data_representation.py` (new): check each normalized kind,
+  absent and supplied truncation, scalar and multidimensional shapes, six leaf
+  dtypes/shapes, immutability, PyTree round-trip, `jit`, `vmap`, and bypass of
+  normalization on unflatten. Expected field values are direct consequences of
+  the table in spec 3.2.
+- `tests/unit/test_data_dtype.py` (new): check integer/default, float16 and
+  bfloat16, mixed float/int and float32/float64 promotion, explicit dtype,
+  float64 conversion and caller-site warning in 32-bit mode, and rejection of
+  boolean, complex, string and object time/bound arrays.
+- `tests/unit/test_import.py`: update the A0 smoke test to expect the newly
+  exported public name.
+- `DEVIATIONS.md`: record D-001 concerning inactive `time2` entries in mixed
+  observations; leave it open for maintainer resolution.
+- `REVIEW.md`: after implementation, overwrite with reading order, invariants,
+  requirement-to-test mapping, exact check results, and uncertainties.
 
-- `spec/GOALS.md` and `spec/SPECIFICATION.md`: move the existing read-only
-  documents unchanged to the documented layout.
-- `pyproject.toml`: version `0.0.1.dev0`, Python 3.12, `uv_build`, Apache-2.0
-  metadata, runtime dependencies (`jax`, `numpy`), test and development groups,
-  Ruff rules, and mypy settings. Select compatible dependency bounds during the
-  step, record the actual versions, and justify lower bounds with checks.
-- `uv.lock` and `.python-version`: locked CPU environment and Python 3.12.
-- `.pre-commit-config.yaml`: the section 10.1 hooks, including a local mypy
-  hook through uv.
-- `.gitignore` and `LICENSE`: generated-file exclusions and Apache-2.0 text.
-- `src/chronox_jax/__init__.py` and `src/chronox_jax/py.typed`: empty public
-  package and typing marker. No feature modules yet.
-- `scripts/run_tests.sh`: run the same test suite in separate processes with
-  `JAX_ENABLE_X64=1` and `JAX_ENABLE_X64=0`.
-- `tests/unit/test_import.py`: one installed-package import smoke test.
+No dependency or configuration changes are planned. `tests/spec/`, `spec/`,
+`AGENTS.md`, and `CLAUDE.md` remain untouched.
 
-Public API touched: the `chronox_jax` import namespace only; no names exported
-from `__init__.py` yet.
+## Implementation invariants
 
-Checks for the step: `uv run ruff format --check .`, `uv run ruff check .`,
-`uv run mypy src`, `scripts/run_tests.sh`, and a package build/import check.
-Report exact results and selected versions in `REVIEW.md`. The generated lockfile
-may exceed the usual 300-line step target; the handwritten code and configuration
-should stay small.
+- The first time/lower input fixes the observation shape; other arrays may
+  broadcast to it but never enlarge it. All six leaves retain that shape.
+- `exact` is bool; all four time/bound fields share one JAX-promoted floating
+  dtype of at least float32; the issue leaf is `int32` and initially zero for
+  valid inputs. Integer-only inputs use JAX's configured default float dtype.
+- In 32-bit mode, implicit float64 input converts once with one warning at the
+  caller's line; explicitly requesting float64 raises. Library code never
+  changes `jax_enable_x64` or converts tracers to NumPy.
+- PyTree unflattening sets stored fields directly, without running the public
+  constructor. Static metadata is conservative until A3.
+- Inactive `time2` values are ignored during normalization, pending D-001.
 
-Spec coverage: 10.1 (build, license, quality tools), 10.2 (name, layout, version,
-explicit exports), 10.3 (Python, dependencies, typing marker, two dtype modes),
-and the installation foundation for 12.2 Slice A. This step establishes the
-scaffold only; later steps supply the Slice A behavior and its evidence.
+## Specification and checks
 
-## Next steps after A0 review
+Primary sections: 3.2 (fields, shapes, storage, PyTree) and 3.3 (dtype policy).
+The valid-input normalization path also uses the signatures and kind meanings
+from 3.1. Section 10.2 governs the public export; section 12.2 defines Slice A.
 
-Follow the A1–A9 sequence in `CLAUDE.md`. Write a fresh, concrete plan for each
-step and wait for approval before its code changes. Each step ends with its own
-commit and an overwritten `REVIEW.md`.
+After implementation, run `uv run ruff format --check .`, `uv run ruff check .`,
+`uv run mypy src`, `scripts/run_tests.sh`, and
+`scripts/check.sh --through A1`. Report each exact result in `REVIEW.md`.
+If the step exceeds roughly 300 handwritten lines including tests, stop and
+propose a narrower split before committing.

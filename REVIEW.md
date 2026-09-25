@@ -1,56 +1,64 @@
-# Review: A0 package scaffold
+# Review: A1 SurvivalData storage and dtype policy
 
 Read in this order:
 
-1. `PLAN.md` for the approved scope and requested document move.
-2. `pyproject.toml`, `.pre-commit-config.yaml`, and `scripts/run_tests.sh` for
-   package metadata, tools, and dtype-mode execution.
-3. `src/chronox_jax/__init__.py`, `src/chronox_jax/py.typed`, and
-   `tests/unit/test_import.py` for the empty public package and smoke test.
-4. `LICENSE`, `.python-version`, `.gitignore`, and generated `uv.lock`.
-5. The Git rename diff for `spec/GOALS.md` and `spec/SPECIFICATION.md`.
+1. `PLAN.md` for the approved A1 boundary and the size exception approved in
+   conversation on 2026-09-25.
+2. `src/chronox_jax/data.py` for normalization, dtype selection and PyTree
+   reconstruction; `src/chronox_jax/__init__.py` for the public export.
+3. `tests/unit/test_data_representation.py`, `tests/unit/test_data_dtype.py`,
+   `tests/conftest.py`, and the updated `tests/unit/test_import.py`.
+4. `DEVIATIONS.md` D-001 for the agreed handling of inactive `time2` values.
 
 ## Invariants
 
-- Distribution name is `chronox-jax`; import name is `chronox_jax`; there is no
-  top-level `chronox` package. `__all__` is empty until a later step adds API.
-- The package contains `py.typed` and includes the Apache-2.0 license in the
-  wheel. The notice names Wouter A.C. van Amsterdam, as confirmed by the
-  maintainer.
-- `scripts/run_tests.sh` starts separate Python processes with
-  `JAX_ENABLE_X64=1` and `JAX_ENABLE_X64=0`.
-- The two specification documents were moved without content changes. Their
-  Git blob hashes match the initial commit.
-- `spec/` is excluded from Ruff formatting because its read-only Python code
-  examples do not match the formatter's current style.
+- The first time/lower array fixes the observation shape; every public field
+  and the private issue-bitfield leaf has that shape. The five public fields
+  follow the normalized meanings in spec 3.2.
+- `exact` is bool, the issue leaf is `int32`, and four time/bound fields have
+  one common floating dtype of at least float32. Integer-only input uses the
+  configured JAX default float. Raw input dtypes are inspected without
+  converting tracers to NumPy.
+- In 32-bit mode, implicit float64 input emits one Chronox warning at the
+  caller's line and converts to float32. Explicit float64 requests fail.
+  Construction does not change JAX's global dtype setting.
+- Tree unflattening assigns supplied leaves directly, including arbitrary
+  sentinel objects, without rerunning public normalization. The six-leaf
+  structure is stable; static metadata is conservatively all true until A3.
+- A1 covers valid-input normalization. Full indicator, time, interval and
+  truncation validation, plus issue-bit setting, belong to A2. Indexing and
+  value-derived static metadata belong to A3.
 
 ## Evidence
 
-| Check | Result | Requirement |
-| --- | --- | --- |
-| `uv lock` and `uv sync --dev` | 33 packages resolved; environment installed | spec 10.3 |
-| `uv run ruff format --check .` | `5 files already formatted` | spec 10.1 |
-| `uv run ruff check .` | `All checks passed!` | spec 10.1 |
-| `uv run mypy src` | `Success: no issues found in 1 source file` | spec 10.3 |
-| `scripts/run_tests.sh` | `1 passed` in each of two dtype modes | spec 10.2–10.3; `test_public_package_imports` checks the package import and current exports |
-| `pre-commit run --all-files` | All 11 hooks passed | spec 10.1 |
-| `uv build` | Wheel and source archive built | spec 10.1–10.2 |
-| Fresh environment outside the source tree, wheel installed with `--no-deps` | Import, version, exports, `py.typed`, and absence of a top-level `chronox` import passed | spec 10.2–10.3 |
-| Git blob hashes for both moved documents | Both match the initial commit | Read-only source preservation |
+| Requirement | Tests / check |
+| --- | --- |
+| Field meanings, shapes, truncation defaults and supplied bounds (spec 3.2) | `test_mixed_kinds_have_meaningful_bounds`, `test_bounds_constructor_keeps_shape_and_truncation`; independent `tests/spec/test_a1_representation.py` |
+| Six leaves, dtype and PyTree behavior (spec 3.2) | `test_pytree_has_six_leaves_and_crosses_jit`, `test_unflatten_bypasses_normalization`; independent `test_a1_representation.py` |
+| Common float dtype, integer default, promotion, warnings and invalid dtypes (spec 3.3) | `tests/unit/test_data_dtype.py`; independent `tests/spec/test_a1_dtype.py` |
+| Public export (spec 10.2) | `test_public_package_imports` |
 
-The test runs used Python 3.12.9 on macOS ARM. The locked direct dependencies
-are JAX 0.11.2, NumPy 2.5.3, pytest 9.1.1, mpmath 1.4.1, Hypothesis 6.168.1,
-Ruff 0.16.9, mypy 2.3.1, and pre-commit 4.6.2. Those tested versions are the
-declared lower bounds. The build check used uv 0.11.19, matching the declared
-`uv_build` lower bound. No other Python/JAX combination was checked.
+Final check output, with `UV_CACHE_DIR=/private/tmp/chronox-uv-cache`:
 
-## Uncertainty and remaining work
+- `scripts/check.sh --through A1`: guard OK; Ruff format `13 files already
+  formatted`; Ruff lint `All checks passed!`; mypy `Success: no issues found in
+  2 source files`; own tests 64-bit `11 passed, 2 skipped`, 32-bit `13 passed`;
+  independent A1 tests 64-bit `41 passed, 8 skipped, 196 deselected`, 32-bit
+  `45 passed, 4 skipped, 196 deselected`; `check: all gates passed through A1`.
+- `git diff --check`: passed with no output.
 
-- This is the empty A0 package. It does not establish any numerical or data
-  behavior from the rest of Slice A.
-- The source archive and wheel build, but the full wheel smoke test in A9 is
-  still required. The temporary A0 environment installed the wheel without
-  dependencies to check only the package contents and import.
-- No R fixture generation or R checks were run; they belong to A8.
-- A Linux CI job is still required by spec 10.3 because this repository has a
-  remote. It needs its own approved step before Slice A is complete.
+No R, fixture or installation check was run; none belongs to A1. The final A1
+gate emitted no warnings. The two own-test skips are dtype-specific tests whose
+behavior applies only in 32-bit mode; the independent suite has its own
+mode-specific skips.
+
+## Uncertainty and next-step boundary
+
+- D-001 remains formally open under the repository rule, although the
+  maintainer approved the proposed behavior in conversation. A2 must validate
+  active `time2` values and set issue bits; A1 only normalizes valid inputs.
+- The A1 acceptance tests exercise both constructors and dtype policy. This
+  made the coherent code-plus-test change larger than the preferred roughly
+  300 lines. The maintainer explicitly approved one A1 commit on 2026-09-25.
+- A1 is not evidence of A2/A3 structural validation, indexing or compile-count
+  behavior, nor of later Slice A numerical requirements.
