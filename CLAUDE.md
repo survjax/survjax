@@ -126,7 +126,8 @@ tests/
     spec/                 independent acceptance tests: READ-ONLY for you,
                           self-contained (own conftest and tolerances)
 scripts/
-    run_tests.sh          runs the suite once per dtype mode (see below)
+    run_tests.sh          runs your tests once per dtype mode, excluding
+                          tests/spec (see below)
     fixtures/             R generator scripts (only these need R)
 examples/                 tiny synthetic example for Slice A
 docs/
@@ -162,8 +163,11 @@ run it. Step A0 must make `scripts/run_tests.sh`, `ruff` and `mypy` work so that
 ## Testing conventions
 
 **Two dtype modes, separate processes.** JAX's 64-bit mode cannot be toggled
-reliably inside one process. `scripts/run_tests.sh` runs the whole suite twice:
-once with `JAX_ENABLE_X64=1` and once without. Tests read the mode from the
+reliably inside one process. `scripts/run_tests.sh` runs your tests twice: once
+with `JAX_ENABLE_X64=1` and once without. It passes `--ignore=tests/spec`
+and must keep doing so: the spec tests run only through `check.sh`, which
+selects them by step with `SPEC_THROUGH`; without it, tests for steps not yet
+built would fail. Tests read the mode from the
 environment via a fixture in `conftest.py` and never set it themselves. Tests
 that are only meaningful in one mode are skipped in the other with an explicit
 reason (for example, mpmath tail checks at float64 precision).
