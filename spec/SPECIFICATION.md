@@ -236,12 +236,17 @@ different tree structures and compile separately.
 Dtype policy:
 
 - Time and bound fields normalize to a common floating dtype using JAX
-  promotion, at least float32. Integer-only input uses the configured default
-  floating dtype. Boolean times, complex values, strings and object or mixed-None
-  arrays are rejected.
-- float64 input when JAX's 64-bit mode is disabled is converted to float32, as
-  JAX does, with one warning per call site. It is not an error; most data arrive
-  as float64 from NumPy or pandas.
+  promotion, including JAX's weak typing: Python scalars adopt the dtype of
+  the array inputs, and Python lists behave as `jnp.asarray` of the list. The
+  result is at least float32, and integer-only or scalar-only input uses the
+  configured default floating dtype. Omitting a truncation argument and
+  passing its default value give the same dtype. Boolean times, complex
+  values, strings and object or mixed-None arrays are rejected.
+- Array input with dtype float64 (NumPy, pandas, JAX) when JAX's 64-bit mode
+  is disabled is converted to float32, as JAX does, with one warning per call
+  site. It is not an error; most data arrive as float64 from NumPy or pandas.
+  Python scalars and lists carry no chosen precision and convert without a
+  warning.
 - An **explicit** request for an unavailable dtype (`dtype=jnp.float64` with
   64-bit mode disabled) fails clearly.
 - Distribution parameters follow the same policy while keeping their structured
@@ -329,7 +334,7 @@ automatic subclass registration.
 
 | Member | Contract |
 | --- | --- |
-| `log_survival(t)` | `log P(T>t)`. Must keep relative precision when `|log S|` is small (compute it as `-H`, `log1p(-F)` with an accurate `F`, or a stable special function), because the default `log_cdf` depends on it. Must return correct limits at `t=0` and `t=+inf`. |
+| `log_survival(t)` | `log P(T>t)`. Must keep relative precision when `|log S|` is small (compute it as `-H`,`log1p(-F)` with an accurate `F`, or a stable special function), because the default`log_cdf` depends on it. Must return correct limits at `t=0` and `t=+inf`. |
 | `reference_time()` | A positive finite time per batch entry: the input substituted for inactive density evaluations (section 7.2) and the scale `s` for summary quadrature and the inverse-cumulative-hazard solver. |
 
 **Optional overrides, with generic defaults:**
@@ -337,7 +342,7 @@ automatic subclass registration.
 | Member | Default |
 | --- | --- |
 | `log_prob(t)` | `log(-∂t log S(t)) + log S(t)` by forward-mode autodiff. Accurate wherever the hazard is representable in linear space; review measurements: ≤5e-16 in float64 for Weibull and log-normal over `t` in [1e-6, 1e8]. |
-| `log_cdf(t)` | `log(-expm1(log S(t)))`. Accurate until `|log S|` underflows (`F` below ~1e-38 in float32, ~1e-308 in float64). Override for CDF-natural families or when the far lower tail matters in float32. |
+| `log_cdf(t)` | `log(-expm1(log S(t)))`. Accurate until `|log S|`underflows (`F` below ~1e-38 in float32, ~1e-308 in float64). Override for CDF-natural families or when the far lower tail matters in float32. |
 | `log_hazard(t)`, `cumulative_hazard(t)` | `log(-∂t log S)`, `-log S`. Built-ins override analytically; the generic `exp(log_prob - log_survival)` form cancels badly when `H` is large. |
 | `log_interval_prob(lower, upper)` | Stable log difference with tail selection: `log_survival` when `upper=+inf`, `log_cdf` when `lower=0`, otherwise the better-conditioned of the two differences via `log1mexp`. |
 | `log_conditional_interval_prob(lower, upper, left_trunc, right_trunc)` | Generic `log P(max(lower,L)<T<=min(upper,U)) - log Z`. Families override it to simplify terms that would otherwise cancel (for example, Weibull cumulative-hazard increments). The likelihood never dispatches on family type. |
