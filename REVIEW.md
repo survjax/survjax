@@ -1,56 +1,54 @@
-# Review: A0 package scaffold
+# Review: A1 round-two weak-typing fix-up
 
 Read in this order:
 
-1. `PLAN.md` for the approved scope and requested document move.
-2. `pyproject.toml`, `.pre-commit-config.yaml`, and `scripts/run_tests.sh` for
-   package metadata, tools, and dtype-mode execution.
-3. `src/chronox_jax/__init__.py`, `src/chronox_jax/py.typed`, and
-   `tests/unit/test_import.py` for the empty public package and smoke test.
-4. `LICENSE`, `.python-version`, `.gitignore`, and generated `uv.lock`.
-5. The Git rename diff for `spec/GOALS.md` and `spec/SPECIFICATION.md`.
+1. `~/dev/chronox-dev-review/.review/a-r2.md`, especially R1–R3. The
+   review inspected `f663fd9`; this branch also includes the later
+   constructor-docstring commit `92a5d63`.
+2. `PLAN.md`, final section, for this fix-up's limited scope.
+3. `src/chronox_jax/data.py` (`_input_dtype` and `_time_dtype`) and the new
+   cases in `tests/unit/test_data_dtype.py`.
+4. `DEVIATIONS.md` D-002, now citing the landed spec change `3041ebd`.
 
-## Invariants
+## Invariants and disposition
 
-- Distribution name is `chronox-jax`; import name is `chronox_jax`; there is no
-  top-level `chronox` package. `__all__` is empty until a later step adds API.
-- The package contains `py.typed` and includes the Apache-2.0 license in the
-  wheel. The notice names Wouter A.C. van Amsterdam, as confirmed by the
-  maintainer.
-- `scripts/run_tests.sh` starts separate Python processes with
-  `JAX_ENABLE_X64=1` and `JAX_ENABLE_X64=0`.
-- The two specification documents were moved without content changes. Their
-  Git blob hashes match the initial commit.
-- `spec/` is excluded from Ruff formatting because its read-only Python code
-  examples do not match the formatter's current style.
+- **R1 fixed:** A JAX array or tracer with `weak_type=True` contributes its
+  value to `jnp.result_type`, preserving JAX's weak promotion. A strong JAX
+  array still contributes its dtype. The check rejects boolean and other
+  nonnumeric time dtypes before returning a weak JAX value. No tracer is
+  converted to NumPy.
+- **R2 fixed:** A bare Python `True` time raises, rather than being treated as
+  weak integer 1. The existing rejected-input test now covers it.
+- **R3 fixed:** D-002 cites section 3.3 as changed in `3041ebd`. Its status
+  remains `open`; only the maintainer resolves deviations.
+- The review's section 4.2 formatting note concerns protected spec text. No
+  `spec/` or `tests/spec/` file changed in this fix-up.
 
-## Evidence
+## Tests and checks
 
-| Check | Result | Requirement |
-| --- | --- | --- |
-| `uv lock` and `uv sync --dev` | 33 packages resolved; environment installed | spec 10.3 |
-| `uv run ruff format --check .` | `5 files already formatted` | spec 10.1 |
-| `uv run ruff check .` | `All checks passed!` | spec 10.1 |
-| `uv run mypy src` | `Success: no issues found in 1 source file` | spec 10.3 |
-| `scripts/run_tests.sh` | `1 passed` in each of two dtype modes | spec 10.2–10.3; `test_public_package_imports` checks the package import and current exports |
-| `pre-commit run --all-files` | All 11 hooks passed | spec 10.1 |
-| `uv build` | Wheel and source archive built | spec 10.1–10.2 |
-| Fresh environment outside the source tree, wheel installed with `--no-deps` | Import, version, exports, `py.typed`, and absence of a top-level `chronox` import passed | spec 10.2–10.3 |
-| Git blob hashes for both moved documents | Both match the initial commit | Read-only source preservation |
+| Requirement | Evidence |
+| --- | --- |
+| Weak eager JAX bound adopts float32 time (spec 3.3) | `test_weak_jax_bound_preserves_float32_time_dtype` |
+| Python float becomes a weak tracer under `jit` (spec 3.3) | `test_jitted_weak_float_bound_preserves_float32_time_dtype` |
+| Boolean scalar time is rejected (spec 3.3) | `test_nonreal_time_input_is_rejected` includes `True` |
+| Earlier A1 contract remains intact | `scripts/check.sh --through A1`, including independent A1 tests in both modes |
 
-The test runs used Python 3.12.9 on macOS ARM. The locked direct dependencies
-are JAX 0.11.2, NumPy 2.5.3, pytest 9.1.1, mpmath 1.4.1, Hypothesis 6.168.1,
-Ruff 0.16.9, mypy 2.3.1, and pre-commit 4.6.2. Those tested versions are the
-declared lower bounds. The build check used uv 0.11.19, matching the declared
-`uv_build` lower bound. No other Python/JAX combination was checked.
+Final `scripts/check.sh --through A1` output, with
+`UV_CACHE_DIR=/private/tmp/chronox-uv-cache`:
 
-## Uncertainty and remaining work
+- Guard: `ok (a1-survivaldata)`.
+- Ruff format: `13 files already formatted`; Ruff lint: `All checks passed!`.
+- mypy: `Success: no issues found in 2 source files`.
+- Own tests: x64 enabled `22 passed, 3 skipped`; x64 disabled `25 passed`.
+- Independent A1 tests: x64 enabled `41 passed, 8 skipped, 196 deselected`;
+  x64 disabled `45 passed, 4 skipped, 196 deselected`.
+- Final line: `check: all gates passed through A1`.
+- `git diff --check`: passed with no output.
 
-- This is the empty A0 package. It does not establish any numerical or data
-  behavior from the rest of Slice A.
-- The source archive and wheel build, but the full wheel smoke test in A9 is
-  still required. The temporary A0 environment installed the wheel without
-  dependencies to check only the package contents and import.
-- No R fixture generation or R checks were run; they belong to A8.
-- A Linux CI job is still required by spec 10.3 because this repository has a
-  remote. It needs its own approved step before Slice A is complete.
+The own `jit` construction test verifies A1 promotion now. A3 will require
+ordinary traced construction to raise and will introduce `with_issues`; move
+this transformation check to that route when A3 is implemented. The
+independent A1 suite predates the updated section 3.3 wording, so the new
+R1/R2 cases are currently evidenced by implementer tests. No R, fixture,
+wheel or install check was run. A2 validation and A3 indexing/metadata remain
+outside this fix-up.
