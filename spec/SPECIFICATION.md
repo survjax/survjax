@@ -1,7 +1,7 @@
 # Chronox v0: specification
 
-- **Revision:** 4, 2026-09-25. Incorporates the independent review of revision 3
-  and its dispositions.
+- **Revision:** 5, 2026-09-28. Amends revision 4 to clarify right censoring
+  at entry and upper-endpoint diagnostics.
 - **Status:** Accepted design. Not implemented. Slice A may begin when the user
   instructs implementation.
 - **Companions:** [GOALS.md](GOALS.md) (direction and priorities),
@@ -117,12 +117,18 @@ Structural cases:
 
 - **Empty intersection** (for example, right-censored at `c>=U`, or an interval
   ending at or before `L`): invalid data.
-- **Right-censored at or before entry** (`c<=L`): invalid data
-  (`censored_before_entry`). This matches R's `Surv(start, stop, event)`, which
-  rejects `stop<=start`, and catches a common data-entry error.
+- **Right-censored before entry** (`c<L`): invalid data
+  (`censored_before_entry`). This data-quality rule applies to any censored
+  row with upper bound `+inf`, however it was constructed. R's counting-process
+  `Surv(start, stop, event)` also rejects equality, but Chronox's conditional
+  likelihood permits a row censored exactly at entry.
+- **Right-censored at entry** (`c=L`): valid and `uninformative`. The observed
+  set contains the entire inclusion window, so its numerator equals `Z` and
+  its log-likelihood contribution is exactly zero, for any valid `L` and `U`.
 - **Other censored sets covering the whole window** (left-censored at `c>=U`,
-  an interval containing `(L,U]`): valid, contributing exactly zero log
-  likelihood, and reported by the non-fatal `uninformative` issue mask.
+  a finite-upper-bound interval containing `(L,U]`): valid, contributing
+  exactly zero log likelihood, and reported by the non-fatal `uninformative`
+  issue mask.
 - **Zero probability from the family's support** is a different case
   (section 7).
 
@@ -172,8 +178,8 @@ exactness):
 - Censored rows mean `lower < T <= upper`. `upper=+inf` expresses right
   censoring and `lower=0` left censoring.
 - Exact rows are marked by the explicit `exact` mask; their time is `lower`, and
-  their `upper` must equal `lower` or be NaN. Equal endpoints on a non-exact row
-  are invalid.
+  their `upper` must equal `lower` or be NaN. A NaN upper on an exact row
+  normalizes to `lower`. Equal endpoints on a non-exact row are invalid.
 
 `outside_interval_censored` is recognized only to raise an explicit
 unsupported-feature error; it is not in the normal signature.
@@ -227,9 +233,10 @@ different tree structures and compile separately.
   `L<t<=U`.
 - Censoring endpoints are nonnegative. `lower` is finite; `upper` may be
   `+inf`. In the flag constructor, right censoring at `+inf` and left censoring
-  at `+inf` are both invalid (`invalid_time`). A censored set `(0, +inf]`
-  (right censoring at 0, or `from_bounds(0, inf)`) is valid and flagged
-  `uninformative`.
+  at `+inf` are both invalid (`invalid_time`). A right-censored set
+  `(c, +inf]` with `c=L` is valid and flagged `uninformative`, including
+  `c=L=0` and finite right truncation. If `c<L`, it is invalid. Thus
+  `from_bounds(0, inf)` is uninformative when `L=0` and invalid when `L>0`.
 - Lower truncation must be finite and nonnegative; upper truncation may be
   `+inf`; `L<U` is required.
 
@@ -556,9 +563,31 @@ DataIssues.raise_if_invalid()            # explicit host-only checkpoint
 `DataIssues` fields: `invalid_indicator`, `conflicting_indicators`,
 `missing_time2`, `invalid_time`, `invalid_time2`, `invalid_interval`,
 `invalid_truncation`, `exact_outside_truncation`, `censored_before_entry`,
-`empty_observation`. Their union is `invalid_rows`; `ok` is the scalar
-reduction. `uninformative` is reported separately and is **not** part of
-`invalid_rows` (section 2).
+`empty_observation`. The `censored_before_entry` mask applies to censored
+rows with `upper=+inf` and `lower<L`, not `lower=L`. Their union is
+`invalid_rows`; `ok` is the scalar reduction. `uninformative` is reported
+separately and is **not** part of `invalid_rows` (section 2).
+
+Upper-endpoint issue attribution for interval `time2` and `from_bounds`
+`upper` is:
+
+- `missing_time2`: an active interval row has omitted or NaN `time2`, or a
+  non-exact `from_bounds` row has NaN `upper`. An exact `from_bounds` row
+  may have NaN `upper` and does not set this issue.
+- `invalid_time2`: an active interval `time2` or a supplied `from_bounds`
+  upper is negative or `-inf`; also, an exact `from_bounds` row supplies an
+  upper other than its lower or NaN.
+- `invalid_interval`: an explicitly interval-censored row or a non-exact
+  `from_bounds` row has `lower >= upper` after both endpoints pass presence
+  and domain checks. A `+inf` interval `time2` or non-exact bounds upper is
+  valid.
+
+The one-sided `time` argument uses `invalid_time` for an invalid endpoint
+(section 3.3). Evaluate presence and endpoint domains before interval order,
+so one malformed upper is not also labelled a reversed interval. Independent
+problems, such as invalid truncation, may still set multiple issue masks on one
+row. Inputs with nonnumeric time/bound fields or incompatible shapes cannot
+form an object and raise instead of setting a row mask.
 
 Likelihood and metric diagnostics share calculations with the ordinary paths.
 `LikelihoodIssues` fields: `invalid_data`, `invalid_parameters`,
@@ -1235,9 +1264,9 @@ requirement in section 4.1 already works around it.
 
 **Settled in drafting revision 4, open to user override** (listed in the
 disposition log): the treatment of full-coverage censored rows other than
-censoring before entry (valid, flagged `uninformative`); the `_with_info` suffix
-and `SurvivalData.with_issues` names; `LogNormal(meanlog, sdlog)` naming; the
-`CensoringWeights` container.
+censoring strictly before entry (valid, flagged `uninformative`); the
+`_with_info` suffix and `SurvivalData.with_issues` names;
+`LogNormal(meanlog, sdlog)` naming; the `CensoringWeights` container.
 
 **Implementation work under the accepted contracts:** compatible version pins;
 stable family formulas and reference times; the synthetic fixture generators and
@@ -1256,6 +1285,11 @@ Revision 3 received an independent review on 2026-09-24 ([claude-review.md](clau
 Every finding, clarification and discussion point was settled on 2026-09-25;
 [REVIEW-DISPOSITIONS.md](REVIEW-DISPOSITIONS.md) maps each to its decision and
 to the sections above. Slice A may begin when the user instructs implementation.
+Revision 5 resolves the right-censoring-at-entry conflict (`c=L` is valid
+and uninformative; `c<L` is invalid) and assigns upper-endpoint issue masks.
+The decisions and their rationale are recorded in
+[D-003](../DEVIATIONS.md#d-003-right-censoring-at-entry) and
+[D-004](../DEVIATIONS.md#d-004-attribution-of-invalid_time2).
 Later revisions should record new decisions in the disposition log or in the
 design notebook's decision records.
 

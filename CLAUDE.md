@@ -5,7 +5,7 @@ evaluation. Distribution name `chronox-jax`, import `chronox_jax as cx`. There i
 no top-level `chronox` import.
 
 The goals are in `spec/GOALS.md`. The normative contract is
-`spec/SPECIFICATION.md` (revision 4). **Both are read-only for you.** If the spec
+`spec/SPECIFICATION.md` (revision 5). **Both are read-only for you.** If the spec
 is ambiguous, wrong or awkward to implement, do not fix it and do not silently
 choose: log it in `DEVIATIONS.md` (spec section, what you did, why) and ask.
 
