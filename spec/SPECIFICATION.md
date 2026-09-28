@@ -587,8 +587,10 @@ Upper-endpoint issue attribution for interval `time2` and `from_bounds`
 
 The flag constructor's `time` uses `invalid_time` when its active value
 violates section 3.3 on any row, including an interval row's lower endpoint.
-The `from_bounds` `lower` uses the same mask: exact times must be finite and
-positive; censored lower bounds must be finite and nonnegative. Evaluate
+A NaN `time` sets `invalid_time`, since this required first endpoint has no
+separate missing-value issue mask. The `from_bounds` `lower` uses the same mask,
+including when it is NaN: exact times must be finite and positive; censored
+lower bounds must be finite and nonnegative. Evaluate
 presence and endpoint domains before interval order, so a malformed lower or
 upper is not also labelled a reversed interval. Independent problems, such as
 invalid truncation, may still set multiple issue masks on one row. Inputs with

@@ -87,6 +87,9 @@ Entries are added by the implementer and resolved by the maintainer. Format:
   in `from_bounds` `lower`. Exact times must be finite and positive;
   censored lower endpoints must be finite and nonnegative. Check endpoint
   presence and domains before interval ordering, so a bad lower does not
-  also produce `invalid_interval`. Nonnumeric fields and incompatible shapes
-  still cannot form an object and raise.
+  also produce `invalid_interval`. A NaN `time` or `from_bounds` lower uses
+  `invalid_time`: both are required first endpoints, and there is no separate
+  missing-time mask. This differs from the optional active upper endpoint,
+  whose omitted or NaN value uses `missing_time2`. Nonnumeric fields and
+  incompatible shapes still cannot form an object and raise.
 - Status: resolved by maintainer, 2026-09-28; specification revision 5
