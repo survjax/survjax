@@ -1,7 +1,7 @@
 # Chronox v0: specification
 
 - **Revision:** 5, 2026-09-28. Amends revision 4 to clarify right censoring
-  at entry and upper-endpoint diagnostics.
+  at entry and endpoint diagnostics.
 - **Status:** Accepted design. Not implemented. Slice A may begin when the user
   instructs implementation.
 - **Companions:** [GOALS.md](GOALS.md) (direction and priorities),
@@ -585,12 +585,15 @@ Upper-endpoint issue attribution for interval `time2` and `from_bounds`
   and domain checks. A `+inf` interval `time2` or non-exact bounds upper is
   valid.
 
-The one-sided `time` argument uses `invalid_time` for an invalid endpoint
-(section 3.3). Evaluate presence and endpoint domains before interval order,
-so one malformed upper is not also labelled a reversed interval. Independent
-problems, such as invalid truncation, may still set multiple issue masks on one
-row. Inputs with nonnumeric time/bound fields or incompatible shapes cannot
-form an object and raise instead of setting a row mask.
+The flag constructor's `time` uses `invalid_time` when its active value
+violates section 3.3 on any row, including an interval row's lower endpoint.
+The `from_bounds` `lower` uses the same mask: exact times must be finite and
+positive; censored lower bounds must be finite and nonnegative. Evaluate
+presence and endpoint domains before interval order, so a malformed lower or
+upper is not also labelled a reversed interval. Independent problems, such as
+invalid truncation, may still set multiple issue masks on one row. Inputs with
+nonnumeric time/bound fields or incompatible shapes cannot form an object and
+raise instead of setting a row mask.
 
 Likelihood and metric diagnostics share calculations with the ordinary paths.
 `LikelihoodIssues` fields: `invalid_data`, `invalid_parameters`,
@@ -1289,7 +1292,7 @@ Every finding, clarification and discussion point was settled on 2026-09-25;
 [REVIEW-DISPOSITIONS.md](REVIEW-DISPOSITIONS.md) maps each to its decision and
 to the sections above. Slice A may begin when the user instructs implementation.
 Revision 5 resolves the right-censoring-at-entry conflict (`c=L` is valid
-and uninformative; `c<L` is invalid) and assigns upper-endpoint issue masks.
+and uninformative; `c<L` is invalid) and assigns endpoint issue masks.
 At entry, the right-censoring numerator equals the truncation denominator, so
 the log contribution is zero. Endpoint issue masks distinguish missing or
 out-of-domain values from incorrect interval order. R's counting-process

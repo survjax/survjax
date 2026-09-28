@@ -75,3 +75,18 @@ Entries are added by the implementer and resolved by the maintainer. Format:
   faults may set multiple masks. Nonnumeric fields and incompatible shapes
   cannot form an object and raise.
 - Status: resolved by maintainer, 2026-09-28; specification revision 5
+
+## D-005 Attribution of invalid first endpoints
+- Step: A2
+- Spec: sections 3.3 and 6.2
+- Gap: revision 5 assigned `invalid_time` to a one-sided `time` argument
+  but did not say which mask reports an invalid interval-flag `time` (the
+  lower endpoint) or an invalid `from_bounds` lower.
+- Decision: `invalid_time` reports a section 3.3 violation in the flag
+  constructor's active `time` on every row, including interval rows, and
+  in `from_bounds` `lower`. Exact times must be finite and positive;
+  censored lower endpoints must be finite and nonnegative. Check endpoint
+  presence and domains before interval ordering, so a bad lower does not
+  also produce `invalid_interval`. Nonnumeric fields and incompatible shapes
+  still cannot form an object and raise.
+- Status: resolved by maintainer, 2026-09-28; specification revision 5
