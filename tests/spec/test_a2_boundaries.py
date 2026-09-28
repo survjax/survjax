@@ -2,9 +2,6 @@
 
 The eager constructor raises on invalid rows (spec 6.2) and accepts valid ones.
 Which DataIssues field reports each rule is tested in A3.
-
-Right censoring at 0 without truncation and ``from_bounds(0, inf)`` are not
-tested: sections 2 and 3.3 disagree about them (API_ASSUMPTIONS Q-008).
 """
 
 import numpy as np
@@ -230,16 +227,76 @@ def test_exact_time_strictly_inside_window_is_accepted():
 
 @pytest.mark.step("A2")
 def test_right_censoring_before_entry_is_rejected():
-    """spec 2, rev 4: right-censored at c<=L is invalid (censored_before_entry); here c<L."""
+    """spec 2, rev 5: right-censored before entry (c<L) is invalid (censored_before_entry)."""
     with pytest.raises(REJECTED):
         _right(0.5, left_trunc=1.0)
 
 
 @pytest.mark.step("A2")
-def test_right_censoring_at_entry_is_rejected():
-    """spec 2, rev 4: right-censored at c<=L is invalid (censored_before_entry); here c=L>0."""
+def test_right_censoring_at_entry_is_accepted():
+    """spec 2/3.3, rev 5: right-censored at entry (c=L>0) is valid (uninformative)."""
+    assert_fields(_right(1.0, left_trunc=1.0), exact=[False], lower=[1.0], upper=[INF])
+
+
+@pytest.mark.step("A2")
+def test_right_censoring_at_zero_without_truncation_is_accepted():
+    """spec 3.3, rev 5: `(c, +inf]` with c=L=0 is valid (uninformative)."""
+    assert_fields(_right(0.0), exact=[False], lower=[0.0], upper=[INF], left_trunc=[0.0])
+
+
+@pytest.mark.step("A2")
+def test_right_censoring_at_entry_with_finite_right_truncation_is_accepted():
+    """spec 3.3, rev 5: `(c, +inf]` with c=L is valid including finite right truncation."""
+    data = _right(1.0, left_trunc=1.0, right_trunc=3.0)
+    assert_fields(data, exact=[False], lower=[1.0], upper=[INF], right_trunc=[3.0])
+
+
+@pytest.mark.step("A2")
+def test_interval_with_infinite_time2_starting_before_entry_is_rejected():
+    """spec 3.1, rev 5: an interval-flag row with `time2=+inf` and `time<L` is invalid (censored_before_entry)."""
     with pytest.raises(REJECTED):
-        _right(1.0, left_trunc=1.0)
+        _interval(0.5, INF, left_trunc=1.0)
+
+
+@pytest.mark.step("A2")
+def test_interval_with_infinite_time2_starting_at_entry_is_accepted():
+    """spec 3.1, rev 5: an interval-flag row with `time2=+inf` and `time=L` is valid (uninformative)."""
+    assert_fields(_interval(1.0, INF, left_trunc=1.0), exact=[False], lower=[1.0], upper=[INF])
+
+
+@pytest.mark.step("A2")
+def test_interval_with_infinite_time2_at_entry_with_finite_right_truncation_is_accepted():
+    """spec 3.1, rev 5: `time2=+inf` with `time=L` is valid for any valid truncation window (here finite U)."""
+    data = _interval(1.0, INF, left_trunc=1.0, right_trunc=3.0)
+    assert_fields(data, exact=[False], lower=[1.0], upper=[INF], right_trunc=[3.0])
+
+
+@pytest.mark.step("A2")
+def test_bounds_zero_to_infinity_without_truncation_is_accepted():
+    """spec 3.3, rev 5: `from_bounds(0, inf)` is uninformative (valid) when L=0."""
+    data = cx.SurvivalData.from_bounds(f([0.0]), f([INF]))
+    assert_fields(data, exact=[False], lower=[0.0], upper=[INF])
+
+
+@pytest.mark.step("A2")
+def test_bounds_zero_to_infinity_with_left_truncation_is_rejected():
+    """spec 3.3, rev 5: `from_bounds(0, inf)` is invalid when L>0."""
+    with pytest.raises(REJECTED):
+        cx.SurvivalData.from_bounds(f([0.0]), f([INF]), left_trunc=f([1.0]))
+
+
+@pytest.mark.step("A2")
+def test_bounds_right_censoring_before_entry_is_rejected():
+    """spec 2, rev 5: c<L is invalid for any censored row with upper +inf, however it was constructed."""
+    with pytest.raises(REJECTED):
+        cx.SurvivalData.from_bounds(f([0.5]), f([INF]), left_trunc=f([1.0]))
+
+
+@pytest.mark.step("A2")
+def test_bounds_right_censoring_at_entry_is_accepted():
+    """spec 2/3.3, rev 5: `from_bounds(L, inf)` is right censoring at entry, which is valid."""
+    data = cx.SurvivalData.from_bounds(f([1.0]), f([INF]), left_trunc=f([1.0]))
+    assert_fields(data, exact=[False], lower=[1.0], upper=[INF], left_trunc=[1.0])
 
 
 @pytest.mark.step("A2")

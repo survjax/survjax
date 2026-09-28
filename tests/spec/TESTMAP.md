@@ -1,8 +1,9 @@
 # Test map
 
-Spec revision 4, including the dtype-policy amendment of commit 91f5f62 (the
-spec did not bump its revision number; A1 rows citing 3.3 dtype quote the
-amended text). Steps follow the mapping in API_ASSUMPTIONS Q-001. Test names
+Spec revision 5. Revision 4 plus the dtype-policy amendment of commit 91f5f62
+(A1 rows citing 3.3 dtype quote the amended text); revision 5 changed right
+censoring at entry and upper-endpoint issue attribution, and only the tests for
+those requirements carry `rev 5` tags. Steps follow the mapping in API_ASSUMPTIONS Q-001. Test names
 are relative to `tests/spec/`. None of these tests has ever been executed.
 
 ## A1: representation and dtype policy (`test_a1_representation.py`, `test_a1_dtype.py`)
@@ -82,27 +83,29 @@ tested in A3.
 | 3.1 | "R-style 1/2 event coding is not inferred" | `test_r_style_one_two_event_coding_is_not_inferred` |
 | 3.1 | "Missing required values are invalid. There is no implicit dropping or imputation" | `test_interval_without_time2_is_rejected`, `test_interval_with_nan_time2_is_rejected`, `test_nan_exact_time_is_rejected`, `test_nan_right_censoring_time_is_rejected`, `test_nan_lower_is_rejected`, `test_nan_upper_on_censored_row_is_rejected`, `test_one_invalid_row_rejects_the_whole_eager_construction` |
 | 3.1 | bounds: "Censored rows mean `lower < T <= upper`. `upper=+inf` expresses right censoring and `lower=0` left censoring" | `test_finite_bounds_row_is_interval_censored`, `test_infinite_upper_expresses_right_censoring`, `test_zero_lower_expresses_left_censoring`, `test_reversed_bounds_are_rejected` |
-| 3.1 | bounds: "Exact rows are marked by the explicit `exact` mask; their time is `lower`, and their `upper` must equal `lower` or be NaN" | `test_exact_mask_row_uses_lower_as_time`, `test_exact_row_with_nan_upper_normalizes_upper_to_lower`, `test_exact_row_with_different_upper_is_rejected` |
+| 3.1 | bounds: "Exact rows are marked by the explicit `exact` mask; their time is `lower`, and their `upper` must equal `lower` or be NaN. A NaN upper on an exact row normalizes to `lower`" | `test_exact_mask_row_uses_lower_as_time`, `test_exact_row_with_nan_upper_normalizes_upper_to_lower`, `test_exact_row_with_different_upper_is_rejected` |
 | 3.1 | bounds: "without inferring exactness ... Equal endpoints on a non-exact row are invalid" | `test_omitted_exact_mask_means_no_exact_rows`, `test_equal_endpoints_on_non_exact_row_are_rejected`, `test_equal_endpoints_without_exact_mask_are_rejected` |
 | 3.1 | bounds: `left_trunc`, `right_trunc` keywords | `test_bounds_truncation_is_stored`, `test_bounds_truncation_defaults` |
 | 3.1 | "`outside_interval_censored` is recognized only to raise an explicit unsupported-feature error" | `test_outside_interval_censored_raises_unsupported`, `test_all_false_outside_interval_censored_still_raises_unsupported` |
 | 3.2 | "The first time argument determines the observation shape. Every other field must broadcast to that shape without enlarging it" | `test_scalar_event_broadcasts_to_time_shape`, `test_scalar_truncation_broadcasts_to_time_shape`, `test_trailing_axis_truncation_broadcasts_over_multidimensional_time`, `test_scalar_upper_broadcasts_to_lower_shape`, `test_column_event_cannot_enlarge_vector_time`, `test_column_censoring_flag_cannot_enlarge_vector_time`, `test_column_truncation_cannot_enlarge_vector_time`, `test_vector_event_cannot_enlarge_scalar_time`, `test_column_time2_cannot_enlarge_vector_time`, `test_column_upper_cannot_enlarge_vector_lower`, `test_column_exact_mask_cannot_enlarge_vector_lower` |
-| 3.2 | "Right/left/interval 'kinds' are derived views (`upper==inf`, `lower==0`)" | `test_interval_with_infinite_time2_normalizes_as_right_censoring`, `test_interval_with_zero_time_normalizes_as_left_censoring` |
+| 3.2 | "Right/left/interval 'kinds' are derived views (`upper==inf`, `lower==0`)" | `test_interval_with_zero_time_normalizes_as_left_censoring` |
+| 3.1 | "An interval-flag row with `time2=+inf` normalizes to right censoring at `c=time`. It is valid and `uninformative` when `time=L`, and invalid with `censored_before_entry` when `time<L`, for any valid truncation window" | `test_interval_with_infinite_time2_normalizes_as_right_censoring`, `test_interval_with_infinite_time2_starting_at_entry_is_accepted`, `test_interval_with_infinite_time2_at_entry_with_finite_right_truncation_is_accepted`, `test_interval_with_infinite_time2_starting_before_entry_is_rejected` |
 | 12.1 | "both constructors normalize identically" | `test_exact_rows_normalize_identically`, `test_right_censored_rows_normalize_identically`, `test_left_censored_rows_normalize_identically`, `test_interval_rows_normalize_identically`, `test_mixed_truncated_rows_normalize_identically`, `test_constructors_normalize_identically_property` (hypothesis, `derandomize=True`) |
 | 3.3 | "Exact times must be finite and strictly positive. Zero, negative and infinite exact times are invalid; no epsilon is added" | `test_exact_time_zero_is_rejected`, `test_negative_exact_time_is_rejected`, `test_infinite_exact_time_is_rejected`, `test_tiny_positive_exact_time_is_kept_unchanged`, `test_exact_row_at_zero_is_rejected` |
 | 3.3 | "Truncation membership is `L<t<=U`" | `test_exact_time_equal_to_left_truncation_is_rejected`, `test_exact_time_below_left_truncation_is_rejected`, `test_exact_time_equal_to_right_truncation_is_accepted`, `test_exact_time_above_right_truncation_is_rejected`, `test_exact_time_strictly_inside_window_is_accepted` |
 | 3.3 | "Censoring endpoints are nonnegative. `lower` is finite; `upper` may be `+inf`" | `test_negative_right_censoring_time_is_rejected`, `test_negative_left_censoring_time_is_rejected`, `test_negative_interval_lower_endpoint_is_rejected`, `test_negative_lower_is_rejected`, `test_infinite_lower_is_rejected`, `test_interval_with_infinite_upper_endpoint_is_accepted` |
 | 3.3 | "right censoring at `+inf` and left censoring at `+inf` are both invalid" | `test_right_censoring_at_infinity_is_rejected`, `test_left_censoring_at_infinity_is_rejected` |
 | 3.3, 3.2 | "Lower truncation must be finite and nonnegative; upper truncation may be `+inf`; `L<U` is required"; "NaN truncation bounds are invalid" | `test_negative_left_truncation_is_rejected`, `test_infinite_left_truncation_is_rejected`, `test_nan_left_truncation_is_rejected`, `test_nan_right_truncation_is_rejected`, `test_equal_truncation_bounds_are_rejected`, `test_reversed_truncation_bounds_are_rejected`, `test_infinite_right_truncation_is_accepted`, `test_explicit_zero_left_truncation_is_accepted` |
-| 2 | "Right-censored at or before entry (`c<=L`): invalid data" (with L>0) | `test_right_censoring_before_entry_is_rejected`, `test_right_censoring_at_entry_is_rejected`, `test_right_censoring_after_entry_is_accepted` |
+| 2 | "Right-censored before entry (`c<L`): invalid data ... applies to any censored row with upper bound `+inf`, however it was constructed" | `test_right_censoring_before_entry_is_rejected`, `test_bounds_right_censoring_before_entry_is_rejected`, `test_right_censoring_after_entry_is_accepted` |
+| 2, 3.3 | "Right-censored at entry (`c=L`): valid and `uninformative`"; "including `c=L=0` and finite right truncation" | `test_right_censoring_at_entry_is_accepted`, `test_right_censoring_at_zero_without_truncation_is_accepted`, `test_right_censoring_at_entry_with_finite_right_truncation_is_accepted`, `test_bounds_right_censoring_at_entry_is_accepted` |
+| 3.3 | "`from_bounds(0, inf)` is uninformative when `L=0` and invalid when `L>0`" | `test_bounds_zero_to_infinity_without_truncation_is_accepted`, `test_bounds_zero_to_infinity_with_left_truncation_is_rejected` |
+| 6.2 | bounds: "`missing_time2`: ... a non-exact `from_bounds` row has NaN `upper`"; "`invalid_time2`: ... a supplied `from_bounds` upper is negative or `-inf`" (rejection only, Q-009) | `test_nan_upper_on_censored_row_is_rejected`, `test_negative_upper_is_rejected`, `test_minus_infinite_upper_is_rejected`, `test_exact_row_with_different_upper_is_rejected` |
 | 2 | "Empty intersection (for example, right-censored at `c>=U`, or an interval ending at or before `L`): invalid data" | `test_right_censoring_at_upper_truncation_is_rejected`, `test_right_censoring_beyond_upper_truncation_is_rejected`, `test_left_censoring_at_left_truncation_is_rejected`, `test_left_censoring_before_left_truncation_is_rejected`, `test_interval_ending_at_left_truncation_is_rejected`, `test_interval_starting_at_right_truncation_is_rejected`, `test_left_censoring_at_zero_is_rejected` |
 | 2 | "Partial overlap with the truncation window is allowed" | `test_right_censoring_after_entry_is_accepted`, `test_left_censoring_inside_window_is_accepted`, `test_interval_straddling_left_truncation_is_accepted`, `test_interval_straddling_right_truncation_is_accepted` |
 | 2 | "Other censored sets covering the whole window (left-censored at `c>=U`, an interval containing `(L,U]`): valid" | `test_left_censoring_at_upper_truncation_is_accepted`, `test_left_censoring_beyond_upper_truncation_is_accepted`, `test_interval_containing_window_is_accepted`, `test_interval_equal_to_window_is_accepted` |
 
 ### A2: deliberately not tested
 
-- **Right censoring at 0 with no truncation, `from_bounds(0, inf)`, and
-  `(a, +inf]` with `a <= L`:** sections 2 and 3.3 contradict each other (Q-008).
 - **Error message content** ("reporting counts and the first offending
   indices", 6.2): the format is open; only the raise is asserted.
 - **The `exact` mask of `from_bounds` given as 0/1 numbers or with invalid
@@ -126,13 +129,17 @@ tested in A3.
 | 6.2 | "per-rule masks with the data shape, an invalid-row union and a scalar validity reduction" | `test_issue_masks_have_observation_shape`, `test_issue_masks_keep_multidimensional_observation_shape`, `test_ok_is_a_scalar`, `test_valid_data_has_no_issues` |
 | 6.2, 3.1 | `invalid_indicator` (indicator codes, NaN, R-style 1/2) | `test_event_code_two_sets_invalid_indicator`, `test_r_style_coding_flags_each_two_as_invalid_indicator`, `test_nan_event_sets_invalid_indicator`, `test_fractional_flag_sets_invalid_indicator` |
 | 6.2, 3.1 | `conflicting_indicators` ("At most one flag may be true per row") | `test_two_true_flags_set_conflicting_indicators` |
-| 6.2, 3.1 | `missing_time2` | `test_nan_time2_on_interval_row_sets_missing_time2` |
-| 6.2, 3.3 | `invalid_time` ("right censoring at `+inf` and left censoring at `+inf` are both invalid (`invalid_time`)"; exact-time and nonnegativity rules, Q-010) | `test_right_censoring_at_infinity_sets_invalid_time`, `test_left_censoring_at_infinity_sets_invalid_time`, `test_zero_exact_time_sets_invalid_time`, `test_negative_exact_time_sets_invalid_time`, `test_infinite_exact_time_sets_invalid_time`, `test_negative_censoring_time_sets_invalid_time`, `test_nan_exact_time_is_an_invalid_row` |
-| 6.2, 3.1 | `invalid_interval` ("interval rows require `time < time2`", Q-010) | `test_equal_interval_endpoints_set_invalid_interval`, `test_reversed_interval_endpoints_set_invalid_interval` |
+| 6.2 | `missing_time2` ("an active interval row has omitted or NaN `time2`") | `test_nan_time2_on_interval_row_sets_missing_time2`, `test_omitted_time2_on_interval_row_sets_missing_time2`, `test_nan_time2_on_inactive_rows_does_not_set_missing_time2` |
+| 6.2 | `invalid_time2` ("an active interval `time2` ... is negative or `-inf`") | `test_negative_time2_sets_invalid_time2`, `test_minus_infinite_time2_sets_invalid_time2` |
+| 6.2 | "Evaluate presence and endpoint domains before interval order, so a malformed lower or upper is not also labelled a reversed interval" | `test_nan_time2_is_not_also_invalid_interval`, `test_negative_time2_is_not_also_invalid_interval`, `test_minus_infinite_time2_is_not_also_invalid_interval_or_missing`, `test_infinite_interval_lower_endpoint_is_not_also_invalid_interval`, `test_negative_interval_lower_endpoint_is_not_also_invalid_interval`, `test_nan_interval_lower_endpoint_is_not_also_invalid_interval` |
+| 6.2 | "Inputs with nonnumeric time/bound fields or incompatible shapes cannot form an object and raise instead of setting a row mask" | `test_with_issues_raises_on_nonnumeric_time`, `test_with_issues_raises_on_incompatible_shapes` |
+| 6.2, 3.3 | `invalid_time` ("right censoring at `+inf` and left censoring at `+inf` are both invalid (`invalid_time`)"; "The flag constructor's `time` uses `invalid_time` when its active value violates section 3.3 on any row, including an interval row's lower endpoint"; "A NaN `time` sets `invalid_time`") | `test_right_censoring_at_infinity_sets_invalid_time`, `test_left_censoring_at_infinity_sets_invalid_time`, `test_zero_exact_time_sets_invalid_time`, `test_negative_exact_time_sets_invalid_time`, `test_infinite_exact_time_sets_invalid_time`, `test_negative_censoring_time_sets_invalid_time`, `test_negative_interval_lower_endpoint_sets_invalid_time`, `test_infinite_interval_lower_endpoint_sets_invalid_time`, `test_nan_exact_time_sets_invalid_time`, `test_nan_right_censoring_time_sets_invalid_time`, `test_nan_interval_lower_endpoint_sets_invalid_time` |
+| 6.2, 3.1 | `invalid_interval` ("an explicitly interval-censored row ... has `lower >= upper`"; "A `+inf` interval `time2` ... is valid") | `test_equal_interval_endpoints_set_invalid_interval`, `test_reversed_interval_endpoints_set_invalid_interval`, `test_infinite_time2_is_a_valid_interval_upper` |
 | 6.2, 3.3, 3.2 | `invalid_truncation` | `test_negative_left_truncation_sets_invalid_truncation`, `test_infinite_left_truncation_sets_invalid_truncation`, `test_nan_left_truncation_sets_invalid_truncation`, `test_nan_right_truncation_sets_invalid_truncation`, `test_equal_truncation_bounds_set_invalid_truncation`, `test_reversed_truncation_bounds_set_invalid_truncation` |
 | 6.2, 3.3 | `exact_outside_truncation` ("Truncation membership is `L<t<=U`") | `test_exact_time_at_left_truncation_sets_exact_outside_truncation`, `test_exact_time_below_left_truncation_sets_exact_outside_truncation`, `test_exact_time_above_right_truncation_sets_exact_outside_truncation`, `test_exact_time_at_right_truncation_is_valid` |
-| 6.2, 2 | `censored_before_entry` ("Right-censored at or before entry (`c<=L`)") | `test_right_censoring_before_entry_sets_censored_before_entry`, `test_right_censoring_at_entry_sets_censored_before_entry` |
+| 6.2, 2 | `censored_before_entry` ("applies to censored rows with `upper=+inf` and `lower<L`, not `lower=L`") | `test_right_censoring_before_entry_sets_censored_before_entry`, `test_interval_to_infinity_before_entry_sets_censored_before_entry`, `test_right_censoring_at_entry_does_not_set_censored_before_entry` |
 | 6.2, 2 | `empty_observation` ("Empty intersection ... invalid data", Q-010) | `test_right_censoring_at_upper_truncation_sets_empty_observation`, `test_left_censoring_at_left_truncation_sets_empty_observation`, `test_interval_ending_at_left_truncation_sets_empty_observation`, `test_interval_starting_at_right_truncation_sets_empty_observation` |
+| 6.2, 2, 3.3 | "Right-censored at entry (`c=L`): valid and `uninformative`" (incl. `c=L=0` and finite `U`); 3.1 "interval-flag row with `time2=+inf` ... valid and `uninformative` when `time=L` ... for any valid truncation window" | `test_right_censoring_at_entry_is_uninformative_and_valid`, `test_right_censoring_at_zero_without_truncation_is_uninformative_and_valid`, `test_right_censoring_at_entry_with_finite_right_truncation_is_uninformative_and_valid`, `test_interval_to_infinity_at_entry_is_uninformative_and_valid`, `test_interval_to_infinity_at_entry_with_finite_right_truncation_is_uninformative_and_valid` |
 | 6.2, 2 | "`uninformative` is reported separately and is **not** part of `invalid_rows`" | `test_left_censoring_at_upper_truncation_is_uninformative_and_valid`, `test_left_censoring_beyond_upper_truncation_is_uninformative_and_valid`, `test_interval_containing_window_is_uninformative_and_valid`, `test_partially_overlapping_rows_are_not_uninformative`, `test_uninformative_is_not_part_of_invalid_rows`, `test_eager_constructor_accepts_uninformative_rows` |
 | 6.2 | "Their union is `invalid_rows`; `ok` is the scalar reduction" | `test_invalid_rows_is_the_union_of_the_ten_rule_masks`, `test_ok_is_false_when_any_row_is_invalid`, `test_ok_is_true_with_only_uninformative_rows` |
 | 3.2, 12.1 | "one `int32` issue bitfield ... `DataIssues` decodes the bitfield"; "issue bitfield decoding" | `test_distinct_rules_on_distinct_rows_decode_independently`, `test_two_rules_on_one_row_are_both_decoded` |
@@ -148,21 +155,23 @@ tested in A3.
 
 ### A3: deliberately not tested
 
-- **`invalid_time2`:** the spec names the field but no input that sets it
-  rather than `missing_time2` or `invalid_interval` (Q-010).
-- **Clear masks on a broken row:** rules may overlap (for example t=0 is both
-  an invalid time and outside `(0, inf]`), and the spec does not say whether
-  DataIssues masks overlap (it says so only for `LikelihoodIssues`).
-- **Which field reports NaN times:** "missing required values are invalid",
-  but the field is not given; only `invalid_rows` is asserted.
+- **Endpoint attribution on `from_bounds` rows** (`invalid_time` for `lower`,
+  `missing_time2`, `invalid_time2` for an exact row's wrong upper,
+  `invalid_interval`): there is
+  no pure bounds route to `DataIssues` (Q-009); only the eager rejection is
+  tested (A2).
+- **Clear masks on a broken row, beyond the rev 5 orderings:** "independent
+  problems ... may still set multiple issue masks on one row", so apart from
+  the malformed-`time2` and `c=L` cases other masks are not asserted clear.
 - **Normalized field values on invalid rows:** unspecified; "A returned data
   object alone is not a validity certificate". Tests only require eager and jit
   to agree.
 - **Error message content** of the eager constructor and `raise_if_invalid`
   ("counts and the first offending indices"): format open.
 - **Decoding the bitfield of sliced or rebuilt data:** no public API (Q-013).
-- **`with_issues` with static misuse** (event with flags, missing `time2`
-  argument, enlarging shapes): whether it raises is not stated (Q-009).
+- **`with_issues` with `event` combined with flags:** whether it raises is not
+  stated (Q-009). (Missing `time2` and enlarging shapes are settled by rev 5
+  and tested.)
 - **A pure `from_bounds` route to issues:** none named (Q-009).
 - **Pruning branches by metadata and identical pruned results** (3.2, 7.2):
   likelihood behaviour, Slice B.
@@ -173,4 +182,5 @@ tested in A3.
   "argument supplied".
 - **Left truncation versus right truncation giving different flags:** the
   spec may use one combined flag (Q-014).
-- **Rows with the `(0, +inf]` set or `(a, +inf]` with `a <= L`:** see Q-008.
+- **`uninformative` on `from_bounds` rows:** observable only as acceptance by
+  the eager constructor (Q-009); tested in A2.

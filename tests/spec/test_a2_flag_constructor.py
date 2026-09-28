@@ -99,7 +99,7 @@ def test_integer_flags_zero_and_one_are_accepted():
 
 @pytest.mark.step("A2")
 def test_interval_with_infinite_time2_normalizes_as_right_censoring():
-    """spec 3.2, rev 4: kinds are derived views; interval (c, +inf] normalizes like right censoring at c."""
+    """spec 3.1, rev 5: an interval-flag row with `time2=+inf` normalizes to right censoring at `c=time`."""
     interval = cx.SurvivalData(f([2.0]), interval_censored=b([True]), time2=f([INF]))
     right = cx.SurvivalData(f([2.0]), right_censored=b([True]))
     assert_same_fields(interval, right)
