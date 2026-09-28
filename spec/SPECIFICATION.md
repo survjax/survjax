@@ -166,6 +166,9 @@ Flag constructor (names follow R's `Surv(time, time2, event)`):
 - `time` is the exact time, the one-sided censoring time, or an interval's lower
   endpoint. `time2` is an interval's upper endpoint. Kind is never inferred from
   equal or nearly equal endpoints; interval rows require `time < time2`.
+  An interval-flag row with `time2=+inf` normalizes to right censoring at
+  `c=time`. It is valid and `uninformative` when `time=L`, and invalid with
+  `censored_before_entry` when `time<L`, for any valid truncation window.
 - Indicators accept booleans or numbers exactly equal to 0 or 1, validated
   before conversion. Missing values, NaN, infinity, other codes and strings are
   rejected. R-style 1/2 event coding is not inferred.
@@ -1287,9 +1290,10 @@ Every finding, clarification and discussion point was settled on 2026-09-25;
 to the sections above. Slice A may begin when the user instructs implementation.
 Revision 5 resolves the right-censoring-at-entry conflict (`c=L` is valid
 and uninformative; `c<L` is invalid) and assigns upper-endpoint issue masks.
-The decisions and their rationale are recorded in
-[D-003](../DEVIATIONS.md#d-003-right-censoring-at-entry) and
-[D-004](../DEVIATIONS.md#d-004-attribution-of-invalid_time2).
+At entry, the right-censoring numerator equals the truncation denominator, so
+the log contribution is zero. Endpoint issue masks distinguish missing or
+out-of-domain values from incorrect interval order. R's counting-process
+input rule for equal start and stop is separate from this likelihood identity.
 Later revisions should record new decisions in the disposition log or in the
 design notebook's decision records.
 
