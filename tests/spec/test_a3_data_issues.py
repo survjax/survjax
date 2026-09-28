@@ -4,7 +4,9 @@ Each attribution test builds three rows: two valid exact rows and one row that
 breaks a single rule, and checks the rule's mask and ``invalid_rows``. Other
 masks are not asserted false on the broken row, because one bad row can break
 several rules at once (for example t=0 is both an invalid time and outside
-(0, inf]).
+(0, inf]). The exceptions are the orderings rev 5 fixes: a malformed interval
+lower or upper endpoint is not also ``invalid_interval``, and right censoring at
+entry is not ``censored_before_entry``.
 """
 
 import jax
@@ -88,6 +90,20 @@ def test_with_issues_does_not_raise_on_invalid_rows():
     """spec 6.2, rev 4: with_issues is pure: invalid rows give issues, not exceptions, even eagerly."""
     _, issues = with_issues(f([1.0, -1.0, 2.0]), np.array([1, 2, 0], dtype=np.int32))
     assert not bool(np.asarray(issues.ok))
+
+
+@pytest.mark.step("A3")
+def test_with_issues_raises_on_nonnumeric_time():
+    """spec 6.2, rev 5: nonnumeric time fields cannot form an object and raise instead of setting a row mask."""
+    with pytest.raises(REJECTED):
+        with_issues(np.array(["1.0", "2.0"]))
+
+
+@pytest.mark.step("A3")
+def test_with_issues_raises_on_incompatible_shapes():
+    """spec 6.2/3.2, rev 5: incompatible shapes cannot form an object and raise instead of setting a row mask."""
+    with pytest.raises(REJECTED):
+        with_issues(f([1.0, 2.0, 3.0]), right_censored=b([[True], [False], [True]]))
 
 
 @pytest.mark.step("A3")
@@ -175,6 +191,60 @@ def test_nan_time2_on_interval_row_sets_missing_time2():
     _assert_rule(issues, "missing_time2")
 
 
+@pytest.mark.step("A3")
+def test_omitted_time2_on_interval_row_sets_missing_time2():
+    """spec 6.2, rev 5: an active interval row with omitted `time2` sets `missing_time2`."""
+    _, issues = with_issues(f([1.0, 2.0, 3.0]), interval_censored=b([False, True, False]))
+    _assert_rule(issues, "missing_time2")
+
+
+@pytest.mark.step("A3")
+def test_nan_time2_on_inactive_rows_does_not_set_missing_time2():
+    """spec 6.2, rev 5: `missing_time2` is for active interval rows only."""
+    issues = _flags([1.0, 2.0, 3.0], interval=b([False, True, False]), time2=[NAN, 4.0, NAN])[1]
+    assert_mask(issues, "missing_time2", NONE)
+
+
+@pytest.mark.step("A3")
+def test_nan_time2_is_not_also_invalid_interval():
+    """spec 6.2, rev 5: presence is evaluated before interval order, so a missing upper is not a reversed interval."""
+    issues = _flags([1.0, 2.0, 3.0], interval=b([False, True, False]), time2=[NAN, NAN, NAN])[1]
+    assert_mask(issues, "invalid_interval", NONE)
+
+
+# ----------------------------------------------------------- invalid_time2
+
+
+@pytest.mark.step("A3")
+def test_negative_time2_sets_invalid_time2():
+    """spec 6.2, rev 5: an active interval `time2` that is negative sets `invalid_time2`."""
+    issues = _flags([1.0, 2.0, 3.0], interval=b([False, True, False]), time2=[NAN, -1.0, NAN])[1]
+    _assert_rule(issues, "invalid_time2")
+
+
+@pytest.mark.step("A3")
+def test_minus_infinite_time2_sets_invalid_time2():
+    """spec 6.2, rev 5: an active interval `time2` of `-inf` sets `invalid_time2`."""
+    issues = _flags([1.0, 2.0, 3.0], interval=b([False, True, False]), time2=[NAN, -INF, NAN])[1]
+    _assert_rule(issues, "invalid_time2")
+
+
+@pytest.mark.step("A3")
+def test_negative_time2_is_not_also_invalid_interval():
+    """spec 6.2, rev 5: endpoint domains are evaluated before interval order; one malformed upper is not a reversed interval."""
+    issues = _flags([1.0, 2.0, 3.0], interval=b([False, True, False]), time2=[NAN, -1.0, NAN])[1]
+    assert_mask(issues, "invalid_interval", NONE)
+    assert_mask(issues, "missing_time2", NONE)
+
+
+@pytest.mark.step("A3")
+def test_minus_infinite_time2_is_not_also_invalid_interval_or_missing():
+    """spec 6.2, rev 5: `-inf` is a domain error in `time2`, neither missing nor a reversed interval."""
+    issues = _flags([1.0, 2.0, 3.0], interval=b([False, True, False]), time2=[NAN, -INF, NAN])[1]
+    assert_mask(issues, "invalid_interval", NONE)
+    assert_mask(issues, "missing_time2", NONE)
+
+
 # ------------------------------------------------------------ invalid_time
 
 
@@ -194,37 +264,86 @@ def test_left_censoring_at_infinity_sets_invalid_time():
 
 @pytest.mark.step("A3")
 def test_zero_exact_time_sets_invalid_time():
-    """spec 3.3, rev 4: a zero exact time is invalid; reported as `invalid_time` (Q-010)."""
+    """spec 3.3/6.2, rev 5: a zero exact time violates 3.3 and sets `invalid_time`."""
     _, issues = with_issues(f([1.0, 0.0, 3.0]))
     _assert_rule(issues, "invalid_time")
 
 
 @pytest.mark.step("A3")
 def test_negative_exact_time_sets_invalid_time():
-    """spec 3.3, rev 4: a negative exact time is invalid; reported as `invalid_time` (Q-010)."""
+    """spec 3.3/6.2, rev 5: a negative exact time violates 3.3 and sets `invalid_time`."""
     _, issues = with_issues(f([1.0, -1.0, 3.0]))
     _assert_rule(issues, "invalid_time")
 
 
 @pytest.mark.step("A3")
 def test_infinite_exact_time_sets_invalid_time():
-    """spec 3.3, rev 4: an infinite exact time is invalid; reported as `invalid_time` (Q-010)."""
+    """spec 3.3/6.2, rev 5: an infinite exact time violates 3.3 and sets `invalid_time`."""
     _, issues = with_issues(f([1.0, INF, 3.0]))
     _assert_rule(issues, "invalid_time")
 
 
 @pytest.mark.step("A3")
 def test_negative_censoring_time_sets_invalid_time():
-    """spec 3.3, rev 4: censoring endpoints are nonnegative; reported as `invalid_time` (Q-010)."""
+    """spec 3.3/6.2, rev 5: a negative censoring time violates 3.3 and sets `invalid_time`."""
     _, issues = with_issues(f([1.0, -1.0, 3.0]), b([True, False, True]))
     _assert_rule(issues, "invalid_time")
 
 
 @pytest.mark.step("A3")
-def test_nan_exact_time_is_an_invalid_row():
-    """spec 3.1, rev 4: missing required values are invalid (field not fixed by the spec)."""
+def test_negative_interval_lower_endpoint_sets_invalid_time():
+    """spec 6.2, rev 5: `time` uses `invalid_time` on any row, including an interval row's lower endpoint."""
+    issues = _flags([1.0, -1.0, 3.0], interval=b([False, True, False]), time2=[NAN, 2.0, NAN])[1]
+    _assert_rule(issues, "invalid_time")
+
+
+@pytest.mark.step("A3")
+def test_infinite_interval_lower_endpoint_sets_invalid_time():
+    """spec 6.2/3.3, rev 5: censored lower bounds must be finite; an interval row's `time=+inf` sets `invalid_time`."""
+    issues = _flags([1.0, INF, 3.0], interval=b([False, True, False]), time2=[NAN, INF, NAN])[1]
+    _assert_rule(issues, "invalid_time")
+
+
+@pytest.mark.step("A3")
+def test_infinite_interval_lower_endpoint_is_not_also_invalid_interval():
+    """spec 6.2, rev 5: domains are evaluated before order, so a malformed lower is not a reversed interval (inf >= inf)."""
+    issues = _flags([1.0, INF, 3.0], interval=b([False, True, False]), time2=[NAN, INF, NAN])[1]
+    assert_mask(issues, "invalid_interval", NONE)
+
+
+@pytest.mark.step("A3")
+def test_negative_interval_lower_endpoint_is_not_also_invalid_interval():
+    """spec 6.2, rev 5: a malformed lower endpoint is not also labelled a reversed interval (here -1 > -2)."""
+    issues = _flags([1.0, -1.0, 3.0], interval=b([False, True, False]), time2=[NAN, -2.0, NAN])[1]
+    assert_mask(issues, "invalid_interval", NONE)
+
+
+@pytest.mark.step("A3")
+def test_nan_exact_time_sets_invalid_time():
+    """spec 6.2, rev 5: a NaN `time` sets `invalid_time` (no separate missing-value mask for the first endpoint)."""
     _, issues = with_issues(f([1.0, NAN, 3.0]))
-    assert_mask(issues, "invalid_rows", ROW1)
+    _assert_rule(issues, "invalid_time")
+
+
+@pytest.mark.step("A3")
+def test_nan_right_censoring_time_sets_invalid_time():
+    """spec 6.2, rev 5: a NaN `time` sets `invalid_time` on a censored row too."""
+    issues = _flags([1.0, NAN, 3.0], right=b([False, True, False]))[1]
+    _assert_rule(issues, "invalid_time")
+
+
+@pytest.mark.step("A3")
+def test_nan_interval_lower_endpoint_sets_invalid_time():
+    """spec 6.2, rev 5: a NaN `time` sets `invalid_time`, including an interval row's lower endpoint."""
+    issues = _flags([1.0, NAN, 3.0], interval=b([False, True, False]), time2=[NAN, 2.0, NAN])[1]
+    _assert_rule(issues, "invalid_time")
+
+
+@pytest.mark.step("A3")
+def test_nan_interval_lower_endpoint_is_not_also_invalid_interval():
+    """spec 6.2, rev 5: presence is evaluated before order, so a NaN lower is not a reversed interval."""
+    issues = _flags([1.0, NAN, 3.0], interval=b([False, True, False]), time2=[NAN, 2.0, NAN])[1]
+    assert_mask(issues, "invalid_interval", NONE)
 
 
 # -------------------------------------------------------- invalid_interval
@@ -232,16 +351,24 @@ def test_nan_exact_time_is_an_invalid_row():
 
 @pytest.mark.step("A3")
 def test_equal_interval_endpoints_set_invalid_interval():
-    """spec 3.1, rev 4: interval rows require time < time2; reported as `invalid_interval` (Q-010)."""
+    """spec 3.1/6.2, rev 5: an interval row with `lower >= upper` (here equal) sets `invalid_interval`."""
     issues = _flags([1.0, 2.0, 3.0], interval=b([False, True, False]), time2=[NAN, 2.0, NAN])[1]
     _assert_rule(issues, "invalid_interval")
 
 
 @pytest.mark.step("A3")
 def test_reversed_interval_endpoints_set_invalid_interval():
-    """spec 3.1, rev 4: interval rows require time < time2; reported as `invalid_interval` (Q-010)."""
+    """spec 3.1/6.2, rev 5: an interval row with `lower >= upper` (here reversed) sets `invalid_interval`."""
     issues = _flags([1.0, 2.0, 3.0], interval=b([False, True, False]), time2=[NAN, 1.5, NAN])[1]
     _assert_rule(issues, "invalid_interval")
+
+
+@pytest.mark.step("A3")
+def test_infinite_time2_is_a_valid_interval_upper():
+    """spec 6.2, rev 5: a `+inf` interval `time2` is valid."""
+    issues = _flags([1.0, 2.0, 3.0], interval=b([False, True, False]), time2=[NAN, INF, NAN])[1]
+    assert_mask(issues, "invalid_interval", NONE)
+    assert_mask(issues, "invalid_rows", NONE)
 
 
 # ------------------------------------------------------ invalid_truncation
@@ -326,16 +453,25 @@ def test_exact_time_at_right_truncation_is_valid():
 
 @pytest.mark.step("A3")
 def test_right_censoring_before_entry_sets_censored_before_entry():
-    """spec 2, rev 4: right-censored at c<L is invalid (`censored_before_entry`)."""
+    """spec 2/6.2, rev 5: right-censored at c<L is invalid (`censored_before_entry`)."""
     issues = _flags([1.0, 0.5, 3.0], right=b([False, True, False]), lt=[0.0, 1.0, 0.0])[1]
     _assert_rule(issues, "censored_before_entry")
 
 
 @pytest.mark.step("A3")
-def test_right_censoring_at_entry_sets_censored_before_entry():
-    """spec 2, rev 4: right-censored at c=L>0 is invalid (`censored_before_entry`)."""
-    issues = _flags([1.0, 1.0, 3.0], right=b([False, True, False]), lt=[0.0, 1.0, 0.0])[1]
+def test_interval_to_infinity_before_entry_sets_censored_before_entry():
+    """spec 3.1/6.2, rev 5: an interval-flag row with `time2=+inf` and `time<L` sets `censored_before_entry`."""
+    issues = _flags(
+        [1.0, 0.5, 3.0], interval=b([False, True, False]), time2=[NAN, INF, NAN], lt=[0.0, 1.0, 0.0]
+    )[1]
     _assert_rule(issues, "censored_before_entry")
+
+
+@pytest.mark.step("A3")
+def test_right_censoring_at_entry_does_not_set_censored_before_entry():
+    """spec 6.2, rev 5: `censored_before_entry` applies to `lower<L`, not `lower=L`."""
+    issues = _flags([1.0, 1.0, 3.0], right=b([False, True, False]), lt=[0.0, 1.0, 0.0])[1]
+    assert_mask(issues, "censored_before_entry", NONE)
 
 
 # -------------------------------------------------------- empty_observation
@@ -374,6 +510,51 @@ def test_interval_starting_at_right_truncation_sets_empty_observation():
 
 
 # ------------------------------------------------------------ uninformative
+
+
+@pytest.mark.step("A3")
+def test_right_censoring_at_entry_is_uninformative_and_valid():
+    """spec 2/6.2, rev 5: right-censored at c=L>0 is valid and flagged `uninformative`."""
+    issues = _flags([1.0, 1.0, 3.0], right=b([False, True, False]), lt=[0.0, 1.0, 0.0])[1]
+    _assert_uninformative(issues)
+
+
+@pytest.mark.step("A3")
+def test_right_censoring_at_zero_without_truncation_is_uninformative_and_valid():
+    """spec 3.3, rev 5: `(c, +inf]` with c=L=0 is valid and flagged `uninformative`."""
+    issues = _flags([1.0, 0.0, 3.0], right=b([False, True, False]))[1]
+    _assert_uninformative(issues)
+
+
+@pytest.mark.step("A3")
+def test_right_censoring_at_entry_with_finite_right_truncation_is_uninformative_and_valid():
+    """spec 3.3, rev 5: `(c, +inf]` with c=L is uninformative including finite right truncation."""
+    issues = _flags(
+        [1.0, 1.0, 3.0], right=b([False, True, False]), lt=[0.0, 1.0, 0.0], rt=[INF, 3.0, INF]
+    )[1]
+    _assert_uninformative(issues)
+
+
+@pytest.mark.step("A3")
+def test_interval_to_infinity_at_entry_is_uninformative_and_valid():
+    """spec 3.1, rev 5: an interval-flag row with `time2=+inf` and `time=L` is valid and `uninformative`."""
+    issues = _flags(
+        [1.0, 1.0, 3.0], interval=b([False, True, False]), time2=[NAN, INF, NAN], lt=[0.0, 1.0, 0.0]
+    )[1]
+    _assert_uninformative(issues)
+
+
+@pytest.mark.step("A3")
+def test_interval_to_infinity_at_entry_with_finite_right_truncation_is_uninformative_and_valid():
+    """spec 3.1, rev 5: `time2=+inf` with `time=L` is `uninformative` for any valid truncation window (here finite U)."""
+    issues = _flags(
+        [1.0, 1.0, 3.0],
+        interval=b([False, True, False]),
+        time2=[NAN, INF, NAN],
+        lt=[0.0, 1.0, 0.0],
+        rt=[INF, 3.0, INF],
+    )[1]
+    _assert_uninformative(issues)
 
 
 @pytest.mark.step("A3")

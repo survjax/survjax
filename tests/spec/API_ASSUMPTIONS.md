@@ -65,6 +65,11 @@ on it. Guessed exception types and call shapes are centralised in
   left-censored rows when an array `time2` is supplied for mixed data.
 - **Guess:** NaN is accepted there and ignored (R's `Surv(type="interval")`
   convention). Tests never put a finite non-NaN `time2` on a non-interval row.
+- **Rev 5 note:** 6.2 now says `missing_time2` and `invalid_time2` concern an
+  *active* interval row's `time2`, so a NaN on an inactive row does not set
+  `missing_time2` (tested: `test_nan_time2_on_inactive_rows_does_not_set_missing_time2`).
+  Whether such a row is otherwise valid, and what a finite value there means,
+  is still unstated.
 - **Depends:** `_mixed()` in `test_a1_representation.py` and all tests using it,
   `test_fields_are_usable_under_vmap`; in A2 `test_all_flags_false_row_is_exact`,
   `test_event_with_all_false_interval_flag_is_rejected` (NaN there must not
@@ -86,20 +91,17 @@ on it. Guessed exception types and call shapes are centralised in
 
 ## Q-008: right censoring at or before entry when the set is `(0, +inf]` (spec inconsistency)
 
-- **Checked:** 2 (structural cases), 3.2 (derived kinds), 3.3.
-- **Conflict:** section 2 says right censoring at `c <= L` is invalid
-  (`censored_before_entry`). With no truncation `L = 0`, so right censoring at
-  `c = 0` satisfies `c <= L`. Section 3.3 says the same row ("right censoring
-  at 0, or `from_bounds(0, inf)`") is valid and flagged `uninformative`.
-- **Related:** kinds are derived views (`upper == inf` means right), so
-  `from_bounds(0, inf)` and an interval `(a, +inf]` with `a <= L` are also
-  "right censored at or before entry" under section 2 and "a censored set
-  covering the whole window" under section 2's uninformative bullet. The spec
-  does not say which rule wins, or whether the 3.3 exception applies only when
-  `L = 0`.
-- **Tests:** none assert either outcome. `test_a2_boundaries.py` and
-  `test_a3_data_issues.py` test censored-before-entry only with `L > 0` and
-  finite `c`, and uninformative only for left-censored or finite-interval rows.
+- **Status:** resolved by spec rev 5 (sections 2, 3.3, 6.2; D-003). `c<L` is
+  invalid (`censored_before_entry`) for any censored row with `upper=+inf`,
+  however constructed; `c=L` is valid and `uninformative`, including `c=L=0`
+  and finite right truncation; `from_bounds(0, inf)` is uninformative when
+  `L=0` and invalid when `L>0`.
+- **Previously (rev 4):** section 2 made `c<=L` invalid, while 3.3 made right
+  censoring at 0 with no truncation valid and uninformative.
+- **Depends:** now tested directly: the censored-before-entry block in
+  `test_a2_boundaries.py`, and the `censored_before_entry` and `uninformative`
+  blocks in `test_a3_data_issues.py`. `uninformative` on `from_bounds` rows is
+  still only observable as "not rejected" (Q-009).
 
 ## Q-009: `SurvivalData.with_issues` signature, and no bounds counterpart
 
@@ -110,9 +112,13 @@ on it. Guessed exception types and call shapes are centralised in
   right_trunc=..., dtype=...)`, and returns a 2-tuple (`helpers.with_issues`).
 - **Gap:** the spec names no pure counterpart for `from_bounds` (for example
   `from_bounds_with_issues`). Bounds-constructor rows are therefore tested
-  only through the eager constructor. Also unstated: whether `with_issues`
-  raises (static misuse) or reports issues for `event` combined with flags, or
-  for `interval_censored` without `time2`; not tested.
+  only through the eager constructor, so the rev 5 `from_bounds` attribution
+  rules (`missing_time2`, `invalid_time2`, `invalid_interval` on bounds rows)
+  are tested only as rejections. Also unstated: whether `with_issues` raises
+  (static misuse) or reports issues for `event` combined with flags; not
+  tested. Rev 5 settles two former gaps: an omitted `time2` on an active
+  interval row sets `missing_time2`, and nonnumeric fields or incompatible
+  shapes raise.
 - **Depends:** every test in `test_a3_data_issues.py`,
   `test_indexing_carries_every_leaf_including_issue_bitfield`, and
   `_traced`/`test_eager_with_issues_computes_flags_from_values` in
@@ -120,26 +126,25 @@ on it. Guessed exception types and call shapes are centralised in
 
 ## Q-010: which DataIssues field reports each rule
 
-- **Checked:** 2, 3.1, 3.3, 6.2. The spec names the fields but assigns only
-  some rules to a field explicitly (`invalid_time` for right/left censoring at
-  +inf; `censored_before_entry` for `c<=L`; `uninformative` for full coverage).
-- **Guess (mapping by field name):**
+- **Checked:** 2, 3.1, 3.3, 6.2 (rev 5, including D-005 in 20f9359). The spec
+  now fixes `invalid_time` for any 3.3 violation by the flag constructor's
+  `time` on any row (including an interval's lower endpoint) and by
+  `from_bounds` `lower`;
+  `censored_before_entry` for `upper=+inf` and `lower<L`; `uninformative` for
+  full coverage; and `missing_time2`, `invalid_time2`, `invalid_interval` for
+  upper endpoints, with presence and domain checked before interval order.
+- **Still guessed (mapping by field name):**
   - `invalid_indicator`: an indicator not exactly 0/1 (including NaN);
   - `conflicting_indicators`: more than one true flag on a row;
-  - `missing_time2`: interval row whose `time2` is NaN;
-  - `invalid_time`: exact time zero, negative or infinite; negative censoring
-    time; censoring at +inf;
-  - `invalid_interval`: interval row with `time >= time2`;
   - `invalid_truncation`: `L` negative, infinite or NaN; `U` NaN; `L >= U`;
   - `exact_outside_truncation`: exact `t` outside `L<t<=U`;
-  - `censored_before_entry`: right censoring at `c <= L` (with `L > 0`);
   - `empty_observation`: a censored set whose intersection with `(L, U]` is
     empty (right at `c>=U`, left at `c<=L`, interval `b<=L` or `a>=U`).
-  Tests assert the named mask is set on the offending row and never assert
-  that other masks are clear there (rules may overlap). NaN exact time is
-  tested only through `invalid_rows`. `invalid_time2` has no test: the spec
-  does not say which input sets it rather than `missing_time2` or
-  `invalid_interval`.
+  Tests assert the named mask is set on the offending row. Other masks are
+  asserted clear only where rev 5 fixes the ordering (a malformed lower or
+  upper endpoint is not `invalid_interval`; `c=L` is not
+  `censored_before_entry`). A NaN `time` or `from_bounds` `lower` sets
+  `invalid_time` (settled in b682059).
 - **Depends:** the tests in `test_a3_data_issues.py` whose docstrings cite
   Q-010, plus `test_distinct_rules_on_distinct_rows_decode_independently` and
   `test_two_rules_on_one_row_are_both_decoded`.

@@ -50,7 +50,7 @@ def test_exact_mask_row_uses_lower_as_time():
 
 @pytest.mark.step("A2")
 def test_exact_row_with_nan_upper_normalizes_upper_to_lower():
-    """spec 3.1/3.2, rev 4: an exact row's `upper` may be NaN; the normalized `upper` equals `lower`."""
+    """spec 3.1, rev 5: a NaN upper on an exact row normalizes to `lower`."""
     data = cx.SurvivalData.from_bounds(f([1.5]), f([NAN]), exact=b([True]))
     assert_fields(data, exact=[True], lower=[1.5], upper=[1.5])
 
@@ -147,9 +147,23 @@ def test_nan_lower_is_rejected():
 
 @pytest.mark.step("A2")
 def test_nan_upper_on_censored_row_is_rejected():
-    """spec 3.1, rev 4: missing required values are invalid; NaN `upper` is allowed only on exact rows."""
+    """spec 3.1/6.2, rev 5: a non-exact `from_bounds` row with NaN `upper` is invalid (`missing_time2`)."""
     with pytest.raises(REJECTED):
         cx.SurvivalData.from_bounds(f([1.0]), f([NAN]))
+
+
+@pytest.mark.step("A2")
+def test_negative_upper_is_rejected():
+    """spec 6.2, rev 5: a supplied `from_bounds` upper that is negative is invalid (`invalid_time2`)."""
+    with pytest.raises(REJECTED):
+        cx.SurvivalData.from_bounds(f([0.0]), f([-1.0]))
+
+
+@pytest.mark.step("A2")
+def test_minus_infinite_upper_is_rejected():
+    """spec 6.2, rev 5: a supplied `from_bounds` upper of `-inf` is invalid (`invalid_time2`)."""
+    with pytest.raises(REJECTED):
+        cx.SurvivalData.from_bounds(f([0.0]), f([-INF]))
 
 
 @pytest.mark.step("A2")
