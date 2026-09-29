@@ -15,10 +15,12 @@ import pytest
 from helpers import (
     FIELDS,
     INF,
+    INVALID_DATA,
     MASK_FIELDS,
+    MISUSE,
     NAN,
-    REJECTED,
     RULE_FIELDS,
+    TRACED_INPUT,
     assert_mask,
     b,
     f,
@@ -94,15 +96,15 @@ def test_with_issues_does_not_raise_on_invalid_rows():
 
 @pytest.mark.step("A3")
 def test_with_issues_raises_on_nonnumeric_time():
-    """spec 6.2, rev 5: nonnumeric time fields cannot form an object and raise instead of setting a row mask."""
-    with pytest.raises(REJECTED):
+    """spec 6.2, rev 7: nonnumeric time fields cannot form an object and raise instead of setting a row mask."""
+    with pytest.raises(MISUSE):
         with_issues(np.array(["1.0", "2.0"]))
 
 
 @pytest.mark.step("A3")
 def test_with_issues_raises_on_incompatible_shapes():
-    """spec 6.2/3.2, rev 5: incompatible shapes cannot form an object and raise instead of setting a row mask."""
-    with pytest.raises(REJECTED):
+    """spec 6.2/3.2, rev 7: incompatible shapes cannot form an object and raise instead of setting a row mask."""
+    with pytest.raises(MISUSE):
         with_issues(f([1.0, 2.0, 3.0]), right_censored=b([[True], [False], [True]]))
 
 
@@ -203,6 +205,21 @@ def test_nan_time2_on_inactive_rows_does_not_set_missing_time2():
     """spec 6.2, rev 5: `missing_time2` is for active interval rows only."""
     issues = _flags([1.0, 2.0, 3.0], interval=b([False, True, False]), time2=[NAN, 4.0, NAN])[1]
     assert_mask(issues, "missing_time2", NONE)
+
+
+@pytest.mark.step("A3")
+def test_time2_values_on_non_interval_rows_set_no_issue():
+    """spec 3.1, rev 7: `time2` values on non-interval rows (finite, negative, -inf, NaN) are ignored and set no issue."""
+    _, issues = with_issues(
+        f([1.0, 2.0, 3.0, 1.0, 1.5]),
+        right_censored=b([False, True, False, False, False]),
+        left_censored=b([False, False, True, False, False]),
+        interval_censored=b([False, False, False, True, False]),
+        time2=f([7.0, -1.0, -INF, 4.0, NAN]),
+    )
+    for name in MASK_FIELDS:
+        assert_mask(issues, name, np.zeros(5, dtype=bool))
+    assert bool(np.asarray(issues.ok))
 
 
 @pytest.mark.step("A3")
@@ -691,10 +708,22 @@ def test_ok_is_true_with_only_uninformative_rows():
 
 
 @pytest.mark.step("A3")
+def test_invalid_data_error_is_a_public_value_error():
+    """spec 6.2, rev 7: invalid rows raise `chronox_jax.InvalidDataError`, a subclass of `ValueError`."""
+    assert issubclass(cx.InvalidDataError, ValueError)
+
+
+@pytest.mark.step("A3")
+def test_traced_input_error_is_a_public_type_error():
+    """spec 6.2, rev 7: traced inputs to an ordinary constructor raise `chronox_jax.TracedInputError`, a `TypeError`."""
+    assert issubclass(cx.TracedInputError, TypeError)
+
+
+@pytest.mark.step("A3")
 def test_raise_if_invalid_raises_for_invalid_rows():
-    """spec 6.2, rev 4: `DataIssues.raise_if_invalid()` is an explicit host-only checkpoint."""
+    """spec 6.2, rev 7: `DataIssues.raise_if_invalid()` is an explicit host-only checkpoint."""
     _, issues = _one_rule_per_row()
-    with pytest.raises(REJECTED):
+    with pytest.raises(INVALID_DATA):
         issues.raise_if_invalid()
 
 
@@ -731,22 +760,22 @@ def _build(time, right, left, lt):
 
 @pytest.mark.step("A3")
 def test_ordinary_constructor_under_jit_raises_pointing_to_with_issues():
-    """spec 6.2, rev 4: called with traced values the constructor raises at trace time and points to `with_issues` (Q-012)."""
-    with pytest.raises(Exception, match="with_issues"):
+    """spec 6.2, rev 7: a traced observation input makes the flag constructor raise `TracedInputError` at trace time, naming `with_issues`."""
+    with pytest.raises(TRACED_INPUT, match="with_issues"):
         jax.jit(lambda t: cx.SurvivalData(t).lower)(f([1.0, 2.0]))
 
 
 @pytest.mark.step("A3")
 def test_ordinary_constructor_under_vmap_raises_pointing_to_with_issues():
-    """spec 6.2, rev 4: traced observation values under vmap also raise at trace time (Q-012)."""
-    with pytest.raises(Exception, match="with_issues"):
+    """spec 6.2, rev 7: traced observation inputs under vmap also raise `TracedInputError` at trace time, naming `with_issues`."""
+    with pytest.raises(TRACED_INPUT, match="with_issues"):
         jax.vmap(lambda t: cx.SurvivalData(t).lower)(f([[1.0, 2.0], [3.0, 4.0]]))
 
 
 @pytest.mark.step("A3")
-def test_bounds_constructor_under_jit_raises_pointing_to_with_issues():
-    """spec 6.2, rev 4: the eager constructors raise at trace time and point to `with_issues` (Q-012)."""
-    with pytest.raises(Exception, match="with_issues"):
+def test_bounds_constructor_under_jit_raises_pointing_to_from_bounds_with_issues():
+    """spec 6.2, rev 7: `from_bounds` with traced inputs raises `TracedInputError` at trace time, naming `from_bounds_with_issues`."""
+    with pytest.raises(TRACED_INPUT, match="from_bounds_with_issues"):
         jax.jit(lambda lo, hi: cx.SurvivalData.from_bounds(lo, hi).lower)(f([1.0]), f([2.0]))
 
 

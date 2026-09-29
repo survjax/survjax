@@ -5,9 +5,12 @@ module and names its API_ASSUMPTIONS.md entry, so resolving a question means
 editing one line.
 """
 
+import contextlib
+
 import jax
 import jax.numpy as jnp
 import numpy as np
+import pytest
 
 import chronox_jax as cx
 
@@ -18,10 +21,23 @@ X64 = FLOAT == np.dtype(np.float64)
 INF = np.inf
 NAN = np.nan
 
-# Q-003: exception types of the eager constructors for invalid data or misuse.
-REJECTED = (ValueError, TypeError)
-# Q-007: the explicit unsupported-feature error for outside_interval_censored.
-UNSUPPORTED = NotImplementedError
+
+class _NoInvalidDataError(Exception):
+    """Stand-in when chronox_jax lacks InvalidDataError; never raised, so only tests expecting it fail."""
+
+
+class _NoTracedInputError(Exception):
+    """Stand-in when chronox_jax lacks TracedInputError; never raised, so only tests expecting it fail."""
+
+
+# Spec 6.2 "Exception types": invalid observation rows, argument misuse, traced
+# observation inputs to an ordinary constructor, and an explicit dtype request
+# that cannot be honoured.
+INVALID_DATA = getattr(cx, "InvalidDataError", _NoInvalidDataError)
+MISUSE = TypeError
+TRACED_INPUT = getattr(cx, "TracedInputError", _NoTracedInputError)
+DTYPE_REQUEST = ValueError
+
 # Q-005: assigning to a field of the immutable SurvivalData.
 IMMUTABLE = AttributeError
 
@@ -56,8 +72,13 @@ def b(values):
 
 
 def with_issues(*args, **kwargs):
-    """Q-009: ``SurvivalData.with_issues`` takes the flag constructor's arguments."""
+    """Spec 6.2 (rev 6): ``SurvivalData.with_issues`` takes exactly the flag constructor's arguments."""
     return cx.SurvivalData.with_issues(*args, **kwargs)
+
+
+def from_bounds_with_issues(*args, **kwargs):
+    """Spec 6.2 (rev 6): ``SurvivalData.from_bounds_with_issues`` takes exactly ``from_bounds``'s arguments."""
+    return cx.SurvivalData.from_bounds_with_issues(*args, **kwargs)
 
 
 def field(data, name):
@@ -78,6 +99,15 @@ def assert_same_fields(left, right):
         assert a.shape == c.shape, name
         assert a.dtype == c.dtype, name
         np.testing.assert_array_equal(np.asarray(a), np.asarray(c), err_msg=name)
+
+
+def assert_same_leaves(left, right):
+    """Identical tree structure and identical leaves, including the issue bitfield (spec 3.2)."""
+    assert treedef(left) == treedef(right)
+    for a, c in zip(leaves(left), leaves(right), strict=True):
+        assert a.shape == c.shape
+        assert a.dtype == c.dtype
+        np.testing.assert_array_equal(np.asarray(a), np.asarray(c))
 
 
 def mask(issues, name):
@@ -102,3 +132,19 @@ def treedef(tree):
 
 def leaves(tree):
     return jax.tree_util.tree_leaves(tree)
+
+
+@contextlib.contextmanager
+def raises_dtype_request():
+    """Spec 3.3/6.2: ValueError for an unavailable dtype request, and not InvalidDataError."""
+    with pytest.raises(DTYPE_REQUEST) as info:
+        yield info
+    assert not isinstance(info.value, INVALID_DATA)
+
+
+@contextlib.contextmanager
+def raises_misuse():
+    """Spec 6.2: argument misuse raises TypeError, and not TracedInputError (misuse is checked first)."""
+    with pytest.raises(MISUSE) as info:
+        yield info
+    assert not isinstance(info.value, TRACED_INPUT)

@@ -7,7 +7,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from helpers import FLOAT, REJECTED, TIME_FIELDS, X64, b, f
+from helpers import FLOAT, MISUSE, TIME_FIELDS, X64, b, f, raises_dtype_request
 
 import chronox_jax as cx
 
@@ -391,16 +391,16 @@ def test_python_scalar_truncation_with_float32_array_does_not_warn():
 @pytest.mark.step("A1")
 @requires_x32
 def test_explicit_float64_request_fails_under_32bit_mode():
-    """spec 3.3, rev 4: an explicit request for an unavailable dtype fails clearly."""
-    with pytest.raises(REJECTED):
+    """spec 3.3, rev 7: an explicit request for an unavailable dtype fails clearly."""
+    with raises_dtype_request():
         cx.SurvivalData(f([1.0, 2.0]), dtype=jnp.float64)
 
 
 @pytest.mark.step("A1")
 @requires_x32
 def test_explicit_float64_request_fails_in_from_bounds_under_32bit_mode():
-    """spec 3.3, rev 4: an explicit request for an unavailable dtype fails clearly (bounds constructor)."""
-    with pytest.raises(REJECTED):
+    """spec 3.3, rev 7: an explicit request for an unavailable dtype fails clearly (bounds constructor)."""
+    with raises_dtype_request():
         cx.SurvivalData.from_bounds(f([1.0]), f([2.0]), dtype=jnp.float64)
 
 
@@ -424,57 +424,57 @@ def test_explicit_float64_request_gives_float64_fields_under_64bit_mode():
 
 @pytest.mark.step("A1")
 def test_boolean_time_is_rejected():
-    """spec 3.3, rev 4: boolean times are rejected."""
-    with pytest.raises(REJECTED):
+    """spec 3.3, rev 7: boolean times are rejected."""
+    with pytest.raises(MISUSE):
         cx.SurvivalData(b([True, False]))
 
 
 @pytest.mark.step("A1")
 def test_boolean_time2_is_rejected():
-    """spec 3.3, rev 4: boolean times are rejected (interval upper endpoint)."""
-    with pytest.raises(REJECTED):
+    """spec 3.3, rev 7: boolean times are rejected (interval upper endpoint)."""
+    with pytest.raises(MISUSE):
         cx.SurvivalData(f([0.0]), interval_censored=b([True]), time2=b([True]))
 
 
 @pytest.mark.step("A1")
 def test_boolean_lower_bound_is_rejected():
-    """spec 3.3, rev 4: boolean times are rejected (bounds constructor)."""
-    with pytest.raises(REJECTED):
+    """spec 3.3, rev 7: boolean times are rejected (bounds constructor)."""
+    with pytest.raises(MISUSE):
         cx.SurvivalData.from_bounds(b([False]), f([2.0]))
 
 
 @pytest.mark.step("A1")
 def test_boolean_truncation_is_rejected():
-    """spec 3.3, rev 4: boolean values are rejected for bound fields."""
-    with pytest.raises(REJECTED):
+    """spec 3.3, rev 7: boolean values are rejected for bound fields."""
+    with pytest.raises(MISUSE):
         cx.SurvivalData(f([2.0]), left_trunc=b([True]))
 
 
 @pytest.mark.step("A1")
 def test_complex_time_is_rejected():
-    """spec 3.3, rev 4: complex values are rejected."""
-    with pytest.raises(REJECTED):
+    """spec 3.3, rev 7: complex values are rejected."""
+    with pytest.raises(MISUSE):
         cx.SurvivalData(np.array([1.0 + 0.0j, 2.0 + 0.0j]))
 
 
 @pytest.mark.step("A1")
 def test_complex_truncation_is_rejected():
-    """spec 3.3, rev 4: complex values are rejected for bound fields."""
-    with pytest.raises(REJECTED):
+    """spec 3.3, rev 7: complex values are rejected for bound fields."""
+    with pytest.raises(MISUSE):
         cx.SurvivalData(f([2.0]), right_trunc=np.array([5.0 + 0.0j]))
 
 
 @pytest.mark.step("A1")
 def test_string_time_is_rejected():
-    """spec 3.3, rev 4: strings are rejected."""
-    with pytest.raises(REJECTED):
+    """spec 3.3, rev 7: strings are rejected."""
+    with pytest.raises(MISUSE):
         cx.SurvivalData(np.array(["1.0", "2.0"]))
 
 
 @pytest.mark.step("A1")
 def test_object_array_with_none_time_is_rejected():
-    """spec 3.3, rev 4: object or mixed-None arrays are rejected."""
-    with pytest.raises(REJECTED):
+    """spec 3.3, rev 7: object or mixed-None arrays are rejected."""
+    with pytest.raises(MISUSE):
         cx.SurvivalData(np.array([1.0, None], dtype=object))
 
 
@@ -494,7 +494,7 @@ def test_construction_does_not_change_global_64bit_setting():
 @pytest.mark.step("A1")
 @requires_x32
 def test_failed_float64_request_does_not_enable_64bit_mode():
-    """spec 3.3, rev 4: Chronox never changes JAX's global 64-bit setting, even on an explicit request."""
-    with pytest.raises(REJECTED):
+    """spec 3.3, rev 7: Chronox never changes JAX's global 64-bit setting, even on an explicit request."""
+    with raises_dtype_request():
         cx.SurvivalData(f([1.0]), dtype=jnp.float64)
     assert not bool(jax.config.jax_enable_x64)

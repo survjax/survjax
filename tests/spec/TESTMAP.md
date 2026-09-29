@@ -1,9 +1,14 @@
 # Test map
 
-Spec revision 5. Revision 4 plus the dtype-policy amendment of commit 91f5f62
+Spec revision 7. Revision 4 plus the dtype-policy amendment of commit 91f5f62
 (A1 rows citing 3.3 dtype quote the amended text); revision 5 changed right
-censoring at entry and upper-endpoint issue attribution, and only the tests for
-those requirements carry `rev 5` tags. Steps follow the mapping in API_ASSUMPTIONS Q-001. Test names
+censoring at entry and endpoint issue attribution; revision 6 added
+`from_bounds_with_issues`, the traced-input classification, argument misuse in
+all four constructors, and value-based static metadata inside transformations;
+revision 7 named the exception types, added `data.issues()`, ignored `time2` on
+non-interval rows, separated the truncation flags, ordered misuse before the
+traced-input check and removed outside-interval censoring. Only tests for
+requirements that changed carry `rev 5`, `rev 6` or `rev 7` tags. Steps follow the mapping in API_ASSUMPTIONS Q-001. Test names
 are relative to `tests/spec/`. None of these tests has ever been executed.
 
 ## A1: representation and dtype policy (`test_a1_representation.py`, `test_a1_dtype.py`)
@@ -78,6 +83,7 @@ tested in A3.
 | 3.1 | "At most one flag may be true per row" | `test_right_and_left_flags_on_one_row_are_rejected`, `test_left_and_interval_flags_on_one_row_are_rejected` |
 | 3.1 | "Supplying `event` together with any non-None censoring flag is rejected, even if the flag contains only false values" | `test_event_with_all_false_right_flag_is_rejected`, `test_event_with_all_false_left_flag_is_rejected`, `test_event_with_all_false_interval_flag_is_rejected` |
 | 3.1 | "`time` is ... an interval's lower endpoint. `time2` is an interval's upper endpoint" | `test_interval_flag_uses_time_and_time2_as_endpoints` |
+| 3.1 | "`time2` is read only on interval rows; its values on other rows are ignored and set no issue" (rev 7) | `test_time2_values_on_non_interval_rows_are_ignored`, `test_time2_values_on_non_interval_rows_set_no_issue`, `test_nan_time2_on_inactive_rows_does_not_set_missing_time2` |
 | 3.1 | "Kind is never inferred from equal or nearly equal endpoints; interval rows require `time < time2`" | `test_interval_with_equal_endpoints_is_rejected_not_made_exact`, `test_interval_with_reversed_endpoints_is_rejected` |
 | 3.1 | "Indicators accept booleans or numbers exactly equal to 0 or 1 ... Missing values, NaN, infinity, other codes and strings are rejected" | `test_event_code_two_is_rejected`, `test_negative_event_code_is_rejected`, `test_fractional_event_value_is_rejected`, `test_nan_event_is_rejected`, `test_infinite_event_is_rejected`, `test_string_event_is_rejected`, `test_object_event_with_none_is_rejected`, `test_censoring_flag_code_two_is_rejected` |
 | 3.1 | "R-style 1/2 event coding is not inferred" | `test_r_style_one_two_event_coding_is_not_inferred` |
@@ -86,7 +92,6 @@ tested in A3.
 | 3.1 | bounds: "Exact rows are marked by the explicit `exact` mask; their time is `lower`, and their `upper` must equal `lower` or be NaN. A NaN upper on an exact row normalizes to `lower`" | `test_exact_mask_row_uses_lower_as_time`, `test_exact_row_with_nan_upper_normalizes_upper_to_lower`, `test_exact_row_with_different_upper_is_rejected` |
 | 3.1 | bounds: "without inferring exactness ... Equal endpoints on a non-exact row are invalid" | `test_omitted_exact_mask_means_no_exact_rows`, `test_equal_endpoints_on_non_exact_row_are_rejected`, `test_equal_endpoints_without_exact_mask_are_rejected` |
 | 3.1 | bounds: `left_trunc`, `right_trunc` keywords | `test_bounds_truncation_is_stored`, `test_bounds_truncation_defaults` |
-| 3.1 | "`outside_interval_censored` is recognized only to raise an explicit unsupported-feature error" | `test_outside_interval_censored_raises_unsupported`, `test_all_false_outside_interval_censored_still_raises_unsupported` |
 | 3.2 | "The first time argument determines the observation shape. Every other field must broadcast to that shape without enlarging it" | `test_scalar_event_broadcasts_to_time_shape`, `test_scalar_truncation_broadcasts_to_time_shape`, `test_trailing_axis_truncation_broadcasts_over_multidimensional_time`, `test_scalar_upper_broadcasts_to_lower_shape`, `test_column_event_cannot_enlarge_vector_time`, `test_column_censoring_flag_cannot_enlarge_vector_time`, `test_column_truncation_cannot_enlarge_vector_time`, `test_vector_event_cannot_enlarge_scalar_time`, `test_column_time2_cannot_enlarge_vector_time`, `test_column_upper_cannot_enlarge_vector_lower`, `test_column_exact_mask_cannot_enlarge_vector_lower` |
 | 3.2 | "Right/left/interval 'kinds' are derived views (`upper==inf`, `lower==0`)" | `test_interval_with_zero_time_normalizes_as_left_censoring` |
 | 3.1 | "An interval-flag row with `time2=+inf` normalizes to right censoring at `c=time`. It is valid and `uninformative` when `time=L`, and invalid with `censored_before_entry` when `time<L`, for any valid truncation window" | `test_interval_with_infinite_time2_normalizes_as_right_censoring`, `test_interval_with_infinite_time2_starting_at_entry_is_accepted`, `test_interval_with_infinite_time2_at_entry_with_finite_right_truncation_is_accepted`, `test_interval_with_infinite_time2_starting_before_entry_is_rejected` |
@@ -99,7 +104,7 @@ tested in A3.
 | 2 | "Right-censored before entry (`c<L`): invalid data ... applies to any censored row with upper bound `+inf`, however it was constructed" | `test_right_censoring_before_entry_is_rejected`, `test_bounds_right_censoring_before_entry_is_rejected`, `test_right_censoring_after_entry_is_accepted` |
 | 2, 3.3 | "Right-censored at entry (`c=L`): valid and `uninformative`"; "including `c=L=0` and finite right truncation" | `test_right_censoring_at_entry_is_accepted`, `test_right_censoring_at_zero_without_truncation_is_accepted`, `test_right_censoring_at_entry_with_finite_right_truncation_is_accepted`, `test_bounds_right_censoring_at_entry_is_accepted` |
 | 3.3 | "`from_bounds(0, inf)` is uninformative when `L=0` and invalid when `L>0`" | `test_bounds_zero_to_infinity_without_truncation_is_accepted`, `test_bounds_zero_to_infinity_with_left_truncation_is_rejected` |
-| 6.2 | bounds: "`missing_time2`: ... a non-exact `from_bounds` row has NaN `upper`"; "`invalid_time2`: ... a supplied `from_bounds` upper is negative or `-inf`" (rejection only, Q-009) | `test_nan_upper_on_censored_row_is_rejected`, `test_negative_upper_is_rejected`, `test_minus_infinite_upper_is_rejected`, `test_exact_row_with_different_upper_is_rejected` |
+| 6.2 | bounds: "`missing_time2`: ... a non-exact `from_bounds` row has NaN `upper`"; "`invalid_time2`: ... a supplied `from_bounds` upper is negative or `-inf`" (eager rejection; attribution in A3 `test_a3_bounds_issues.py`) | `test_nan_upper_on_censored_row_is_rejected`, `test_negative_upper_is_rejected`, `test_minus_infinite_upper_is_rejected`, `test_exact_row_with_different_upper_is_rejected` |
 | 2 | "Empty intersection (for example, right-censored at `c>=U`, or an interval ending at or before `L`): invalid data" | `test_right_censoring_at_upper_truncation_is_rejected`, `test_right_censoring_beyond_upper_truncation_is_rejected`, `test_left_censoring_at_left_truncation_is_rejected`, `test_left_censoring_before_left_truncation_is_rejected`, `test_interval_ending_at_left_truncation_is_rejected`, `test_interval_starting_at_right_truncation_is_rejected`, `test_left_censoring_at_zero_is_rejected` |
 | 2 | "Partial overlap with the truncation window is allowed" | `test_right_censoring_after_entry_is_accepted`, `test_left_censoring_inside_window_is_accepted`, `test_interval_straddling_left_truncation_is_accepted`, `test_interval_straddling_right_truncation_is_accepted` |
 | 2 | "Other censored sets covering the whole window (left-censored at `c>=U`, an interval containing `(L,U]`): valid" | `test_left_censoring_at_upper_truncation_is_accepted`, `test_left_censoring_beyond_upper_truncation_is_accepted`, `test_interval_containing_window_is_accepted`, `test_interval_equal_to_window_is_accepted` |
@@ -111,17 +116,14 @@ tested in A3.
 - **The `exact` mask of `from_bounds` given as 0/1 numbers or with invalid
   codes:** the indicator rules in 3.1 sit under the flag constructor; whether
   they apply to `exact` is not stated.
-- **What `time2` must hold on non-interval rows** (for example a finite value
-  that differs from `time`): not stated (Q-006).
 - **`time` of shape (1,) with flags (1,1):** the spec's example is qualified
   "for N>1", so the N=1 case is left open.
-- **`outside_interval_censored` passed to `from_bounds`:** not stated (Q-007).
 - **Truncation of rows from `from_bounds` against uninformative/empty rules:**
   the rules are properties of the normalized fields, so they are tested once,
   through the flag constructor. The bounds constructor's equivalence is covered
   by the identical-normalization tests.
 
-## A3: DataIssues, eager versus traced construction, indexing, static metadata (`test_a3_data_issues.py`, `test_a3_indexing.py`, `test_a3_static_metadata.py`)
+## A3: DataIssues, eager versus traced construction, indexing, static metadata (`test_a3_data_issues.py`, `test_a3_bounds_issues.py`, `test_a3_issue_decoding.py`, `test_a3_tracing.py`, `test_a3_indexing.py`, `test_a3_static_metadata.py`)
 
 | Spec section | Requirement | Tests |
 | --- | --- | --- |
@@ -143,44 +145,60 @@ tested in A3.
 | 6.2, 2 | "`uninformative` is reported separately and is **not** part of `invalid_rows`" | `test_left_censoring_at_upper_truncation_is_uninformative_and_valid`, `test_left_censoring_beyond_upper_truncation_is_uninformative_and_valid`, `test_interval_containing_window_is_uninformative_and_valid`, `test_partially_overlapping_rows_are_not_uninformative`, `test_uninformative_is_not_part_of_invalid_rows`, `test_eager_constructor_accepts_uninformative_rows` |
 | 6.2 | "Their union is `invalid_rows`; `ok` is the scalar reduction" | `test_invalid_rows_is_the_union_of_the_ten_rule_masks`, `test_ok_is_false_when_any_row_is_invalid`, `test_ok_is_true_with_only_uninformative_rows` |
 | 3.2, 12.1 | "one `int32` issue bitfield ... `DataIssues` decodes the bitfield"; "issue bitfield decoding" | `test_distinct_rules_on_distinct_rows_decode_independently`, `test_two_rules_on_one_row_are_both_decoded` |
+| 6.2, 3.2 | "`data.issues()` decodes the issue bitfield of any `SurvivalData` ... It is pure and works under `jit`. For data from a pure constructor it returns the same masks as that constructor's `DataIssues`" (rev 7) | `test_issues_returns_a_data_issues_container`, `test_issues_matches_with_issues_on_fresh_data`, `test_issues_matches_from_bounds_with_issues_on_fresh_data`, `test_issues_under_jit_matches_eager`, `test_issues_of_data_returned_from_jit_matches_construction`, `test_issues_of_data_rebuilt_from_leaves_matches_original` |
+| 6.2 | "For `data[idx]`, each per-row mask equals the parent's mask indexed by `idx`, and `ok` reduces over the indexed rows only" | `test_issues_of_a_slice_index_the_parent_masks`, `test_issues_of_an_integer_array_index_the_parent_masks`, `test_issues_of_a_boolean_mask_index_the_parent_masks`, `test_issues_of_an_integer_index_give_scalar_masks`, `test_issues_of_tree_map_slice_index_the_parent_masks`, `test_ok_of_a_slice_reduces_over_the_slice_only` |
+| 6.2, 3.3 | "Exception types. Invalid observation rows raise `chronox_jax.InvalidDataError`, a subclass of `ValueError` ... Argument misuse raises `TypeError`. An explicit dtype request that cannot be honoured raises `ValueError`, not `InvalidDataError`" (rev 7) | `test_invalid_data_error_is_a_public_value_error`; every rejection test asserts its kind: `pytest.raises(INVALID_DATA)` (59), `pytest.raises(MISUSE)` (29), `raises_dtype_request()` (3) |
+| 6.2 | "raises `chronox_jax.TracedInputError` at trace time, and its message names the pure counterpart"; "A traced observation input to an ordinary constructor raises `chronox_jax.TracedInputError`, a subclass of `TypeError`"; misuse raises "`TypeError`, not `TracedInputError`" (rev 7) | `test_traced_input_error_is_a_public_type_error`; every trace-time rejection test uses `pytest.raises(TRACED_INPUT, match=<counterpart>)`; the two misuse-first tests use `raises_misuse()` |
+| 6.2 | "Data from an ordinary constructor can carry only the `uninformative` bit" | `test_ordinary_constructor_data_carries_only_the_uninformative_bit` |
 | 6.2 | "`DataIssues.raise_if_invalid()` # explicit host-only checkpoint" | `test_raise_if_invalid_raises_for_invalid_rows`, `test_raise_if_invalid_passes_for_valid_data`, `test_raise_if_invalid_passes_for_uninformative_rows` |
-| 6.2, 12.1 | "Called with traced observation values, it raises at trace time and points to `with_issues`"; "eager and traced construction" | `test_ordinary_constructor_under_jit_raises_pointing_to_with_issues`, `test_ordinary_constructor_under_vmap_raises_pointing_to_with_issues`, `test_bounds_constructor_under_jit_raises_pointing_to_with_issues`, `test_with_issues_under_jit_matches_eager`, `test_with_issues_under_vmap_matches_eager_per_dataset` |
+| 6.2, 12.1 | "If any observation input is traced, the ordinary constructor raises at trace time and names its pure counterpart"; "rejection when any observation input, or a list element of one, is traced" | `test_ordinary_constructor_under_jit_raises_pointing_to_with_issues`, `test_ordinary_constructor_under_vmap_raises_pointing_to_with_issues`, `test_bounds_constructor_under_jit_raises_pointing_to_from_bounds_with_issues`, `test_traced_time_is_rejected_naming_with_issues`, `test_traced_event_is_rejected_naming_with_issues`, `test_traced_right_censored_flag_is_rejected_naming_with_issues`, `test_traced_left_censored_flag_is_rejected_naming_with_issues`, `test_traced_interval_censored_flag_is_rejected_naming_with_issues`, `test_traced_time2_is_rejected_naming_with_issues`, `test_traced_left_trunc_is_rejected_naming_with_issues`, `test_traced_right_trunc_is_rejected_naming_with_issues`, `test_traced_lower_is_rejected_naming_from_bounds_with_issues`, `test_traced_upper_is_rejected_naming_from_bounds_with_issues`, `test_traced_exact_mask_is_rejected_naming_from_bounds_with_issues`, `test_traced_bounds_left_trunc_is_rejected_naming_from_bounds_with_issues`, `test_traced_bounds_right_trunc_is_rejected_naming_from_bounds_with_issues` |
+| 6.2 | "An input is traced if it is a JAX tracer, or if it is a Python list or tuple containing a tracer at any nesting depth"; "Arrays created with `jax.numpy` inside the function are traced, even when their values are constant" | `test_list_containing_a_tracer_is_rejected`, `test_tuple_containing_a_tracer_is_rejected`, `test_nested_list_containing_a_tracer_is_rejected`, `test_jnp_array_created_inside_jit_is_rejected` |
+| 6.2, 12.1 | "Inside a transformed function, the following are non-traced: NumPy arrays; Python scalars; lists and tuples of those; concrete JAX arrays created outside the function"; "When none is, normalization and validation run eagerly, also during tracing"; "ordinary construction from non-traced inputs inside `jit`, including raising on invalid rows" | `test_ordinary_constructor_accepts_numpy_inputs_inside_jit`, `test_ordinary_constructor_inside_jit_matches_outside`, `test_ordinary_constructor_accepts_python_scalars_inside_jit`, `test_ordinary_constructor_accepts_python_lists_inside_jit`, `test_ordinary_constructor_accepts_concrete_jax_array_from_outside_jit`, `test_bounds_constructor_accepts_numpy_inputs_inside_jit`, `test_ordinary_constructor_raises_on_invalid_numpy_rows_inside_jit`, `test_bounds_constructor_raises_on_invalid_numpy_rows_inside_jit`, `test_ordinary_constructor_raises_on_invalid_rows_inside_jit_with_other_traced_args` |
+| 6.2, 12.1 | "Argument misuse raises in all four constructors, independent of values and of tracing"; "argument misuse raising in the pure constructors" | `test_with_issues_raises_on_event_with_censoring_flag`, `test_with_issues_raises_on_event_with_censoring_flag_under_jit`, `test_with_issues_raises_on_nonnumeric_time`, `test_with_issues_raises_on_incompatible_shapes`, `test_from_bounds_with_issues_raises_on_nonnumeric_lower`, `test_from_bounds_with_issues_raises_on_incompatible_shapes`, `test_from_bounds_with_issues_raises_on_incompatible_shapes_under_jit` |
+| 6.2 | "Argument misuse is checked before the traced-input check, so misuse raises the misuse error in every constructor, also when observation inputs are traced" (rev 7) | `test_ordinary_constructor_raises_misuse_error_before_traced_input_error`, `test_bounds_constructor_raises_misuse_error_before_traced_input_error` |
+| 6.2 | "`SurvivalData.from_bounds_with_issues(...) -> (data, DataIssues)` # pure; works under jit"; "For inputs accepted by the ordinary constructor, both yield identical fields and issue bits" | `test_from_bounds_with_issues_returns_data_and_issues_pair`, `test_from_bounds_with_issues_matches_from_bounds_on_valid_input`, `test_from_bounds_with_issues_matches_from_bounds_on_uninformative_input`, `test_from_bounds_with_issues_does_not_raise_on_invalid_rows`, `test_from_bounds_with_issues_valid_data_has_no_issues`, `test_from_bounds_with_issues_under_jit_matches_eager` |
+| 6.2, 3.3 | bounds: "The `from_bounds` `lower` uses the same mask [`invalid_time`], including when it is NaN" | `test_bounds_negative_lower_sets_invalid_time`, `test_bounds_infinite_lower_sets_invalid_time`, `test_bounds_nan_lower_sets_invalid_time`, `test_bounds_exact_lower_at_zero_sets_invalid_time`, `test_bounds_infinite_lower_is_not_also_invalid_interval` |
+| 6.2 | bounds: `missing_time2` ("a non-exact `from_bounds` row has NaN `upper`. An exact `from_bounds` row may have NaN `upper` and does not set this issue") | `test_bounds_nan_upper_on_censored_row_sets_missing_time2`, `test_bounds_nan_upper_on_exact_row_sets_no_issue`, `test_bounds_nan_upper_is_not_also_invalid_interval` |
+| 6.2 | bounds: `invalid_time2` ("a supplied `from_bounds` upper is negative or `-inf`; also, an exact `from_bounds` row supplies an upper other than its lower or NaN") | `test_bounds_negative_upper_sets_invalid_time2`, `test_bounds_minus_infinite_upper_sets_invalid_time2`, `test_bounds_exact_row_with_different_upper_sets_invalid_time2`, `test_bounds_negative_upper_is_not_also_invalid_interval_or_missing` |
+| 6.2 | bounds: `invalid_interval` ("a non-exact `from_bounds` row has `lower >= upper` ... A `+inf` ... non-exact bounds upper is valid") | `test_bounds_equal_endpoints_on_censored_row_set_invalid_interval`, `test_bounds_reversed_endpoints_set_invalid_interval`, `test_bounds_infinite_upper_is_valid` |
+| 2, 3.3, 6.2 | bounds: `censored_before_entry` and `uninformative` ("`from_bounds(0, inf)` is uninformative when `L=0` and invalid when `L>0`"; `c=L` valid) | `test_bounds_right_censoring_before_entry_sets_censored_before_entry`, `test_bounds_zero_to_infinity_with_left_truncation_sets_censored_before_entry`, `test_bounds_zero_to_infinity_without_truncation_is_uninformative_and_valid`, `test_bounds_right_censoring_at_entry_is_uninformative_and_valid` |
 | 6.3 | "Every diagnostic container (`DataIssues`, ...) ... is a registered PyTree ... accessed by field name" | `test_data_issues_is_a_pytree_returned_from_jit`, `test_with_issues_under_jit_matches_eager` |
 | 3.2 | "`data[idx]` and `jax.tree.map` slicing over observation axes are supported and tested" | `test_integer_index_gives_scalar_observation`, `test_negative_integer_index`, `test_slice_index`, `test_strided_slice_index`, `test_integer_array_index_for_minibatch`, `test_boolean_mask_index_for_split`, `test_indexing_multidimensional_observations`, `test_tree_map_slicing_matches_indexing`, `test_slicing_inside_jit`, `test_indexing_commutes_with_fields_property` (hypothesis, `derandomize=True`) |
 | 3.2 | "every leaf has the observation shape" (bitfield carried by indexing) | `test_indexing_carries_every_leaf_including_issue_bitfield` |
-| 3.2 | "auxiliary data carries 'may contain' flags: which derived kinds are present and whether any left or right truncation is present. They are computed when data are built eagerly from concrete values" | `test_same_kinds_with_different_values_share_tree_structure`, `test_adding_a_right_censored_row_changes_tree_structure`, `test_adding_a_left_censored_row_changes_tree_structure`, `test_adding_an_interval_row_changes_tree_structure`, `test_each_censored_kind_gives_a_distinct_tree_structure`, `test_left_truncation_changes_tree_structure`, `test_right_truncation_changes_tree_structure`, `test_both_constructors_give_the_same_tree_structure`, `test_eager_with_issues_computes_flags_from_values` |
-| 3.2 | "... and are all true when built under tracing" | `test_traced_construction_sets_all_flags`, `test_traced_construction_of_full_data_matches_eager_structure` |
+| 3.2 | "auxiliary data carries 'may contain' flags: which derived kinds are present, whether any left truncation is present (any `left_trunc > 0`), and, as a separate flag, whether any right truncation is present (any `right_trunc < +inf`)"; "The auxiliary data holds only these flags; datasets with equal flags have equal tree structures" (rev 7); "When no observation input is traced, the flags are computed from the normalized fields of all rows" | `test_left_and_right_truncation_give_different_tree_structures`, `test_equal_flags_with_different_row_counts_share_tree_structure`, `test_explicit_zero_and_infinite_truncation_give_the_same_flags_as_absent`, `test_eager_from_bounds_with_issues_computes_flags_from_values`, `test_same_kinds_with_different_values_share_tree_structure`, `test_adding_a_right_censored_row_changes_tree_structure`, `test_adding_a_left_censored_row_changes_tree_structure`, `test_adding_an_interval_row_changes_tree_structure`, `test_each_censored_kind_gives_a_distinct_tree_structure`, `test_left_truncation_changes_tree_structure`, `test_right_truncation_changes_tree_structure`, `test_both_constructors_give_the_same_tree_structure`, `test_eager_with_issues_computes_flags_from_values` |
+| 3.2 | "This includes rows with issue bits, and applies also when construction happens inside a transformed function"; "metadata for non-traced ... inputs" | `test_flags_include_rows_with_issue_bits`, `test_ordinary_construction_inside_jit_computes_flags_from_values`, `test_pure_construction_from_non_traced_inputs_inside_jit_computes_flags_from_values`, `test_ordinary_construction_inside_jit_with_other_traced_args_computes_flags_from_values` |
+| 3.2 | "When any observation input is traced, which is possible only with a pure constructor, all flags are true" | `test_traced_construction_sets_all_flags`, `test_traced_construction_of_full_data_matches_eager_structure`, `test_single_traced_observation_input_sets_all_flags`, `test_traced_bounds_construction_sets_all_flags` |
 | 3.2 | "Slices inherit them unchanged" | `test_slice_inherits_parent_flags`, `test_integer_index_inherits_parent_flags` |
 | 3.2, 12.1 | "datasets with different flags have different tree structures and compile separately"; "compile-count tests for static metadata" | `test_same_flags_compile_once`, `test_different_flags_compile_separately`, `test_traced_and_eager_all_flag_data_share_one_compilation`, `test_slice_reuses_parent_flags_for_compilation` |
 
+### A3: tests sensitive to JAX behaviour
+
+- **`test_jnp_array_created_inside_jit_is_rejected`:** spec 6.2 defines
+  "traced" as "is a JAX tracer" and gives constant `jax.numpy` arrays built
+  inside a transformed function as an example. That holds because current JAX
+  stages every such operation as a tracer. A JAX release that returned a
+  concrete array here would fail this test without any change in Chronox, so
+  check the JAX version first if it fails. Kept by maintainer decision
+  (2026-09-29); the spec wording stays as it is.
+
 ### A3: deliberately not tested
 
-- **Endpoint attribution on `from_bounds` rows** (`invalid_time` for `lower`,
-  `missing_time2`, `invalid_time2` for an exact row's wrong upper,
-  `invalid_interval`): there is
-  no pure bounds route to `DataIssues` (Q-009); only the eager rejection is
-  tested (A2).
 - **Clear masks on a broken row, beyond the rev 5 orderings:** "independent
   problems ... may still set multiple issue masks on one row", so apart from
-  the malformed-`time2` and `c=L` cases other masks are not asserted clear.
-- **Normalized field values on invalid rows:** unspecified; "A returned data
-  object alone is not a validity certificate". Tests only require eager and jit
-  to agree.
+  the malformed-endpoint and `c=L` cases other masks are not asserted clear.
+- **Normalized field values on rows with invalid inputs:** unspecified; "A
+  returned data object alone is not a validity certificate". Tests only require
+  eager and jit to agree. Rows whose inputs are individually valid but break a
+  truncation or coverage rule are read as normalizing by the 3.2 table ("no
+  placeholder values"); `test_flags_include_rows_with_issue_bits` relies on
+  this for a right-censored row at `c=U` (maintainer decision, 2026-09-29: no
+  spec change).
 - **Error message content** of the eager constructor and `raise_if_invalid`
   ("counts and the first offending indices"): format open.
-- **Decoding the bitfield of sliced or rebuilt data:** no public API (Q-013).
-- **`with_issues` with `event` combined with flags:** whether it raises is not
-  stated (Q-009). (Missing `time2` and enlarging shapes are settled by rev 5
-  and tested.)
-- **A pure `from_bounds` route to issues:** none named (Q-009).
 - **Pruning branches by metadata and identical pruned results** (3.2, 7.2):
   likelihood behaviour, Slice B.
 - **`LikelihoodIssues`, status `IntEnum`, other result containers** (6.2,
   6.3): outside A1–A3.
-- **Explicit zero truncation giving the same flags as absent truncation:**
-  plausible from "computed ... from concrete values", but "present" could mean
-  "argument supplied".
-- **Left truncation versus right truncation giving different flags:** the
-  spec may use one combined flag (Q-014).
-- **`uninformative` on `from_bounds` rows:** observable only as acceptance by
-  the eager constructor (Q-009); tested in A2.
+- **Tracing via transformations other than `jit` and `vmap`** (`grad`,
+  `scan`, ...): the classification is by input type, so `jit` and `vmap`
+  stand for all of them.

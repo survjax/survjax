@@ -7,7 +7,7 @@ different flags have different tree structures and compile separately.
 
 import jax
 import pytest
-from helpers import INF, NAN, b, f, treedef, with_issues
+from helpers import INF, NAN, b, f, from_bounds_with_issues, treedef, with_issues
 
 import chronox_jax as cx
 
@@ -51,7 +51,7 @@ def _full():
 
 
 def _traced(**kw):
-    """Build data under jit from the given flag-constructor inputs."""
+    """Build data under jit from the given flag-constructor inputs, passed as traced jit arguments."""
     names = list(kw)
 
     def build(*values):
@@ -99,16 +99,40 @@ def test_each_censored_kind_gives_a_distinct_tree_structure():
 
 @pytest.mark.step("A3")
 def test_left_truncation_changes_tree_structure():
-    """spec 3.2, rev 4: auxiliary data records whether any left truncation is present."""
+    """spec 3.2, rev 7: auxiliary data records whether any left truncation is present (any `left_trunc > 0`)."""
     truncated = cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0]), left_trunc=f([0.0, 0.5, 0.0, 0.0]))
     assert treedef(truncated) != treedef(_exact_only())
 
 
 @pytest.mark.step("A3")
 def test_right_truncation_changes_tree_structure():
-    """spec 3.2, rev 4: auxiliary data records whether any right truncation is present."""
+    """spec 3.2, rev 7: auxiliary data records whether any right truncation is present (any `right_trunc < +inf`)."""
     truncated = cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0]), right_trunc=f([INF, 5.0, INF, INF]))
     assert treedef(truncated) != treedef(_exact_only())
+
+
+@pytest.mark.step("A3")
+def test_left_and_right_truncation_give_different_tree_structures():
+    """spec 3.2, rev 7: left and right truncation are separate flags."""
+    left_only = cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0]), left_trunc=f([0.0, 0.5, 0.0, 0.0]))
+    right_only = cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0]), right_trunc=f([INF, 5.0, INF, INF]))
+    assert treedef(left_only) != treedef(right_only)
+
+
+@pytest.mark.step("A3")
+def test_equal_flags_with_different_row_counts_share_tree_structure():
+    """spec 3.2, rev 7: the auxiliary data holds only the flags, so equal flags give equal tree structures."""
+    assert treedef(_exact_only((1.0, 2.0))) == treedef(_exact_only((1.0, 2.0, 3.0, 4.0, 5.0)))
+    assert treedef(_exact_and("right")) == treedef(
+        cx.SurvivalData(f([1.0, 2.0]), right_censored=b([False, True]))
+    )
+
+
+@pytest.mark.step("A3")
+def test_explicit_zero_and_infinite_truncation_give_the_same_flags_as_absent():
+    """spec 3.2, rev 6: flags come from normalized fields; explicit L=0 and U=+inf normalize like absent truncation."""
+    explicit = cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0]), left_trunc=f([0.0] * 4), right_trunc=f([INF] * 4))
+    assert treedef(explicit) == treedef(_exact_only())
 
 
 @pytest.mark.step("A3")
@@ -123,9 +147,70 @@ def test_both_constructors_give_the_same_tree_structure():
 
 @pytest.mark.step("A3")
 def test_eager_with_issues_computes_flags_from_values():
-    """spec 3.2, rev 4: flags are computed when data are built eagerly from concrete values, by either route."""
+    """spec 3.2, rev 6: with no traced observation input, flags are computed from the normalized fields, by either route."""
     eager, _ = with_issues(f([1.0, 2.0, 3.0, 4.0]))
     assert treedef(eager) == treedef(_exact_only())
+
+
+@pytest.mark.step("A3")
+def test_eager_from_bounds_with_issues_computes_flags_from_values():
+    """spec 3.2, rev 6: the pure bounds constructor with non-traced inputs computes flags from values."""
+    eager, _ = from_bounds_with_issues(f([1.0, 2.0, 3.0, 4.0]), f([NAN, NAN, NAN, NAN]), exact=b([True] * 4))
+    assert treedef(eager) == treedef(_exact_only())
+
+
+@pytest.mark.step("A3")
+def test_flags_include_rows_with_issue_bits():
+    """spec 3.2, rev 6: flags are computed from the normalized fields of all rows, including rows with issue bits.
+
+    Row 3 is right-censored at c=U=5 (empty intersection, invalid). Its inputs
+    are individually valid; only its relation to U breaks a rule. Spec 3.2 says
+    "There are no placeholder values: every field is meaningful on every row",
+    and its normalization table gives a right-censored row only one meaning
+    (lower=c, upper=+inf). So row 3 normalizes as right censoring with U=5, and
+    the flags match a valid dataset with a right-censored row and right
+    truncation.
+    """
+    invalid, issues = with_issues(
+        f([1.0, 2.0, 3.0, 5.0]), right_censored=b([False, False, False, True]), right_trunc=f([INF, INF, INF, 5.0])
+    )
+    assert not bool(issues.ok)
+    valid = cx.SurvivalData(
+        f([1.0, 2.0, 3.0, 4.0]), right_censored=b([False, False, False, True]), right_trunc=f([INF, INF, INF, 5.0])
+    )
+    assert treedef(invalid) == treedef(valid)
+
+
+# ------------------------------------------- non-traced construction inside jit
+
+
+@pytest.mark.step("A3")
+def test_ordinary_construction_inside_jit_computes_flags_from_values():
+    """spec 3.2, rev 6: with no traced observation input, flags are computed from values even inside a transformed function."""
+    inside = jax.jit(lambda: cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0])))()
+    assert treedef(inside) == treedef(_exact_only())
+    assert treedef(inside) != treedef(_full())
+
+
+@pytest.mark.step("A3")
+def test_pure_construction_from_non_traced_inputs_inside_jit_computes_flags_from_values():
+    """spec 3.2, rev 6: pure constructors classify inputs as in 6.2; non-traced inputs inside jit give value-based flags."""
+    inside = jax.jit(lambda: with_issues(f([1.0, 2.0, 3.0, 4.0]))[0])()
+    assert treedef(inside) == treedef(_exact_only())
+
+
+@pytest.mark.step("A3")
+def test_ordinary_construction_inside_jit_with_other_traced_args_computes_flags_from_values():
+    """spec 3.2, rev 6: traced arguments that are not observation inputs do not force all flags true."""
+    structures = []
+
+    def fn(scale):
+        data = cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0]))
+        structures.append(treedef(data))
+        return data.lower * scale
+
+    jax.jit(fn)(f(2.0))
+    assert structures == [treedef(_exact_only())]
 
 
 # ------------------------------------------------------- slices inherit
@@ -151,8 +236,22 @@ def test_integer_index_inherits_parent_flags():
 
 
 @pytest.mark.step("A3")
+def test_single_traced_observation_input_sets_all_flags():
+    """spec 3.2, rev 6: any one traced observation input (here only `left_trunc`) makes all flags true."""
+    data = jax.jit(lambda lt: with_issues(f([1.0, 2.0, 3.0, 4.0]), left_trunc=lt)[0])(f([0.0, 0.0, 0.0, 0.0]))
+    assert treedef(data) == treedef(_full())
+
+
+@pytest.mark.step("A3")
+def test_traced_bounds_construction_sets_all_flags():
+    """spec 3.2, rev 6: the pure bounds constructor with a traced observation input gives all flags true."""
+    data = jax.jit(lambda lo: from_bounds_with_issues(lo, f([1.0, 2.0]), exact=b([True, True]))[0])(f([1.0, 2.0]))
+    assert treedef(data) == treedef(_full())
+
+
+@pytest.mark.step("A3")
 def test_traced_construction_sets_all_flags():
-    """spec 3.2, rev 4: flags are all true when built under tracing, whatever the values."""
+    """spec 3.2, rev 6: when any observation input is traced (pure constructor), all flags are true, whatever the values."""
     full = _full()
     traced_exact_only = _traced(time=f([1.0, 2.0, 3.0, 4.0]))
     assert treedef(traced_exact_only) == treedef(full)
@@ -160,7 +259,7 @@ def test_traced_construction_sets_all_flags():
 
 @pytest.mark.step("A3")
 def test_traced_construction_of_full_data_matches_eager_structure():
-    """spec 3.2, rev 4: eager data containing every kind and both truncations has all flags true, as traced data does."""
+    """spec 3.2, rev 6: eager data containing every kind and both truncations has all flags true, as traced data does."""
     assert treedef(_traced(**_full_inputs())) == treedef(_full())
 
 
@@ -198,7 +297,7 @@ def test_different_flags_compile_separately():
 
 @pytest.mark.step("A3")
 def test_traced_and_eager_all_flag_data_share_one_compilation():
-    """spec 3.2, rev 4: traced-built data (all flags true) and eager data with every kind share one compilation."""
+    """spec 3.2, rev 6: traced-built data (all flags true) and eager data with every kind share one compilation."""
     total, traces = _counting_jit()
     total(_full())
     total(_traced(time=f([1.0, 2.0, 3.0, 4.0])))

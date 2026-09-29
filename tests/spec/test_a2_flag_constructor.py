@@ -4,9 +4,9 @@ import numpy as np
 import pytest
 from helpers import (
     INF,
+    INVALID_DATA,
+    MISUSE,
     NAN,
-    REJECTED,
-    UNSUPPORTED,
     assert_fields,
     assert_same_fields,
     b,
@@ -98,6 +98,21 @@ def test_integer_flags_zero_and_one_are_accepted():
 
 
 @pytest.mark.step("A2")
+def test_time2_values_on_non_interval_rows_are_ignored():
+    """spec 3.1, rev 7: `time2` is read only on interval rows; values on other rows are ignored."""
+    flags = {
+        "right_censored": b([False, True, False, False]),
+        "left_censored": b([False, False, True, False]),
+        "interval_censored": b([False, False, False, True]),
+    }
+    time = f([1.0, 2.0, 3.0, 1.0])
+    leftover = cx.SurvivalData(time, time2=f([7.0, -1.0, -INF, 4.0]), **flags)
+    blank = cx.SurvivalData(time, time2=f([NAN, NAN, NAN, 4.0]), **flags)
+    assert_same_fields(leftover, blank)
+    assert_fields(leftover, lower=[1.0, 2.0, 0.0, 1.0], upper=[1.0, INF, 3.0, 4.0])
+
+
+@pytest.mark.step("A2")
 def test_interval_with_infinite_time2_normalizes_as_right_censoring():
     """spec 3.1, rev 5: an interval-flag row with `time2=+inf` normalizes to right censoring at `c=time`."""
     interval = cx.SurvivalData(f([2.0]), interval_censored=b([True]), time2=f([INF]))
@@ -126,22 +141,22 @@ def test_event_form_and_right_flag_form_normalize_identically():
 
 @pytest.mark.step("A2")
 def test_event_with_all_false_right_flag_is_rejected():
-    """spec 3.1, rev 4: `event` together with any non-None censoring flag is rejected, even if all false."""
-    with pytest.raises(REJECTED):
+    """spec 3.1, rev 7: `event` together with any non-None censoring flag is rejected, even if all false."""
+    with pytest.raises(MISUSE):
         cx.SurvivalData(f([1.0, 2.0]), b([True, False]), right_censored=b([False, False]))
 
 
 @pytest.mark.step("A2")
 def test_event_with_all_false_left_flag_is_rejected():
-    """spec 3.1, rev 4: `event` together with any non-None censoring flag is rejected, even if all false."""
-    with pytest.raises(REJECTED):
+    """spec 3.1, rev 7: `event` together with any non-None censoring flag is rejected, even if all false."""
+    with pytest.raises(MISUSE):
         cx.SurvivalData(f([1.0, 2.0]), b([True, False]), left_censored=b([False, False]))
 
 
 @pytest.mark.step("A2")
 def test_event_with_all_false_interval_flag_is_rejected():
-    """spec 3.1, rev 4: `event` together with any non-None censoring flag is rejected, even if all false."""
-    with pytest.raises(REJECTED):
+    """spec 3.1, rev 7: `event` together with any non-None censoring flag is rejected, even if all false."""
+    with pytest.raises(MISUSE):
         cx.SurvivalData(
             f([1.0, 2.0]),
             b([True, False]),
@@ -152,15 +167,15 @@ def test_event_with_all_false_interval_flag_is_rejected():
 
 @pytest.mark.step("A2")
 def test_right_and_left_flags_on_one_row_are_rejected():
-    """spec 3.1, rev 4: at most one flag may be true per row."""
-    with pytest.raises(REJECTED):
+    """spec 3.1, rev 7: at most one flag may be true per row."""
+    with pytest.raises(INVALID_DATA):
         cx.SurvivalData(f([1.0, 2.0]), right_censored=b([False, True]), left_censored=b([False, True]))
 
 
 @pytest.mark.step("A2")
 def test_left_and_interval_flags_on_one_row_are_rejected():
-    """spec 3.1, rev 4: at most one flag may be true per row."""
-    with pytest.raises(REJECTED):
+    """spec 3.1, rev 7: at most one flag may be true per row."""
+    with pytest.raises(INVALID_DATA):
         cx.SurvivalData(
             f([1.0]), left_censored=b([True]), interval_censored=b([True]), time2=f([2.0])
         )
@@ -171,29 +186,29 @@ def test_left_and_interval_flags_on_one_row_are_rejected():
 
 @pytest.mark.step("A2")
 def test_interval_with_equal_endpoints_is_rejected_not_made_exact():
-    """spec 3.1, rev 4: kind is never inferred from equal endpoints; interval rows require time < time2."""
-    with pytest.raises(REJECTED):
+    """spec 3.1, rev 7: kind is never inferred from equal endpoints; interval rows require time < time2."""
+    with pytest.raises(INVALID_DATA):
         cx.SurvivalData(f([2.0]), interval_censored=b([True]), time2=f([2.0]))
 
 
 @pytest.mark.step("A2")
 def test_interval_with_reversed_endpoints_is_rejected():
-    """spec 3.1, rev 4: interval rows require time < time2."""
-    with pytest.raises(REJECTED):
+    """spec 3.1, rev 7: interval rows require time < time2."""
+    with pytest.raises(INVALID_DATA):
         cx.SurvivalData(f([3.0]), interval_censored=b([True]), time2=f([2.0]))
 
 
 @pytest.mark.step("A2")
 def test_interval_without_time2_is_rejected():
-    """spec 3.1, rev 4: `time2` is required for interval rows; missing required values are invalid."""
-    with pytest.raises(REJECTED):
+    """spec 3.1, rev 7: `time2` is required for interval rows; missing required values are invalid."""
+    with pytest.raises(INVALID_DATA):
         cx.SurvivalData(f([1.0]), interval_censored=b([True]))
 
 
 @pytest.mark.step("A2")
 def test_interval_with_nan_time2_is_rejected():
-    """spec 3.1, rev 4: missing required values are invalid; there is no implicit dropping or imputation."""
-    with pytest.raises(REJECTED):
+    """spec 3.1, rev 7: missing required values are invalid; there is no implicit dropping or imputation."""
+    with pytest.raises(INVALID_DATA):
         cx.SurvivalData(f([1.0, 1.0]), interval_censored=b([False, True]), time2=f([NAN, NAN]))
 
 
@@ -202,64 +217,64 @@ def test_interval_with_nan_time2_is_rejected():
 
 @pytest.mark.step("A2")
 def test_event_code_two_is_rejected():
-    """spec 3.1, rev 4: other indicator codes are rejected."""
-    with pytest.raises(REJECTED):
+    """spec 3.1, rev 7: other indicator codes are rejected."""
+    with pytest.raises(INVALID_DATA):
         cx.SurvivalData(f([1.0, 2.0]), np.array([1, 2], dtype=np.int32))
 
 
 @pytest.mark.step("A2")
 def test_r_style_one_two_event_coding_is_not_inferred():
-    """spec 3.1, rev 4: R-style 1/2 event coding is not inferred; the 2s are invalid codes."""
-    with pytest.raises(REJECTED):
+    """spec 3.1, rev 7: R-style 1/2 event coding is not inferred; the 2s are invalid codes."""
+    with pytest.raises(INVALID_DATA):
         cx.SurvivalData(f([1.0, 2.0, 3.0]), np.array([1, 2, 2], dtype=np.int32))
 
 
 @pytest.mark.step("A2")
 def test_negative_event_code_is_rejected():
-    """spec 3.1, rev 4: indicators accept only numbers exactly equal to 0 or 1."""
-    with pytest.raises(REJECTED):
+    """spec 3.1, rev 7: indicators accept only numbers exactly equal to 0 or 1."""
+    with pytest.raises(INVALID_DATA):
         cx.SurvivalData(f([1.0, 2.0]), np.array([1, -1], dtype=np.int32))
 
 
 @pytest.mark.step("A2")
 def test_fractional_event_value_is_rejected():
-    """spec 3.1, rev 4: indicators accept only numbers exactly equal to 0 or 1."""
-    with pytest.raises(REJECTED):
+    """spec 3.1, rev 7: indicators accept only numbers exactly equal to 0 or 1."""
+    with pytest.raises(INVALID_DATA):
         cx.SurvivalData(f([1.0, 2.0]), f([1.0, 0.5]))
 
 
 @pytest.mark.step("A2")
 def test_nan_event_is_rejected():
-    """spec 3.1, rev 4: missing values and NaN indicators are rejected."""
-    with pytest.raises(REJECTED):
+    """spec 3.1, rev 7: missing values and NaN indicators are rejected."""
+    with pytest.raises(INVALID_DATA):
         cx.SurvivalData(f([1.0, 2.0]), f([1.0, NAN]))
 
 
 @pytest.mark.step("A2")
 def test_infinite_event_is_rejected():
-    """spec 3.1, rev 4: infinite indicators are rejected."""
-    with pytest.raises(REJECTED):
+    """spec 3.1, rev 7: infinite indicators are rejected."""
+    with pytest.raises(INVALID_DATA):
         cx.SurvivalData(f([1.0, 2.0]), f([1.0, INF]))
 
 
 @pytest.mark.step("A2")
 def test_string_event_is_rejected():
-    """spec 3.1, rev 4: string indicators are rejected."""
-    with pytest.raises(REJECTED):
+    """spec 3.1, rev 7: string indicators are rejected."""
+    with pytest.raises(MISUSE):
         cx.SurvivalData(f([1.0, 2.0]), np.array(["1", "0"]))
 
 
 @pytest.mark.step("A2")
 def test_object_event_with_none_is_rejected():
-    """spec 3.1, rev 4: missing indicator values are rejected."""
-    with pytest.raises(REJECTED):
+    """spec 3.1, rev 7: missing indicator values are rejected."""
+    with pytest.raises(MISUSE):
         cx.SurvivalData(f([1.0, 2.0]), np.array([1, None], dtype=object))
 
 
 @pytest.mark.step("A2")
 def test_censoring_flag_code_two_is_rejected():
-    """spec 3.1, rev 4: censoring flags accept only booleans or numbers exactly 0 or 1."""
-    with pytest.raises(REJECTED):
+    """spec 3.1, rev 7: censoring flags accept only booleans or numbers exactly 0 or 1."""
+    with pytest.raises(INVALID_DATA):
         cx.SurvivalData(f([1.0, 2.0]), right_censored=np.array([0, 2], dtype=np.int32))
 
 
@@ -291,51 +306,34 @@ def test_trailing_axis_truncation_broadcasts_over_multidimensional_time():
 
 @pytest.mark.step("A2")
 def test_column_event_cannot_enlarge_vector_time():
-    """spec 3.2, rev 4: `time` (N,) with flags (N,1) is invalid for N>1."""
-    with pytest.raises(REJECTED):
+    """spec 3.2, rev 7: `time` (N,) with flags (N,1) is invalid for N>1."""
+    with pytest.raises(MISUSE):
         cx.SurvivalData(f([1.0, 2.0, 3.0]), b([[True], [False], [True]]))
 
 
 @pytest.mark.step("A2")
 def test_column_censoring_flag_cannot_enlarge_vector_time():
-    """spec 3.2, rev 4: `time` (N,) with flags (N,1) is invalid for N>1."""
-    with pytest.raises(REJECTED):
+    """spec 3.2, rev 7: `time` (N,) with flags (N,1) is invalid for N>1."""
+    with pytest.raises(MISUSE):
         cx.SurvivalData(f([1.0, 2.0, 3.0]), right_censored=b([[True], [False], [True]]))
 
 
 @pytest.mark.step("A2")
 def test_column_truncation_cannot_enlarge_vector_time():
-    """spec 3.2, rev 4: every other field must broadcast to the observation shape without enlarging it."""
-    with pytest.raises(REJECTED):
+    """spec 3.2, rev 7: every other field must broadcast to the observation shape without enlarging it."""
+    with pytest.raises(MISUSE):
         cx.SurvivalData(f([1.0, 2.0, 3.0]), left_trunc=f([[0.0], [0.0], [0.0]]))
 
 
 @pytest.mark.step("A2")
 def test_vector_event_cannot_enlarge_scalar_time():
-    """spec 3.2, rev 4: the first time argument determines the observation shape; fields cannot enlarge it."""
-    with pytest.raises(REJECTED):
+    """spec 3.2, rev 7: the first time argument determines the observation shape; fields cannot enlarge it."""
+    with pytest.raises(MISUSE):
         cx.SurvivalData(f(1.0), b([True, False]))
 
 
 @pytest.mark.step("A2")
 def test_column_time2_cannot_enlarge_vector_time():
-    """spec 3.2, rev 4: `time2` must broadcast to the shape of `time` without enlarging it."""
-    with pytest.raises(REJECTED):
+    """spec 3.2, rev 7: `time2` must broadcast to the shape of `time` without enlarging it."""
+    with pytest.raises(MISUSE):
         cx.SurvivalData(f([1.0, 1.0]), interval_censored=b([True, True]), time2=f([[2.0], [3.0]]))
-
-
-# ---------------------------------------------- outside-interval censoring
-
-
-@pytest.mark.step("A2")
-def test_outside_interval_censored_raises_unsupported():
-    """spec 3.1, rev 4: `outside_interval_censored` is recognized only to raise an unsupported-feature error."""
-    with pytest.raises(UNSUPPORTED):
-        cx.SurvivalData(f([1.0, 2.0]), outside_interval_censored=b([False, True]), time2=f([NAN, 3.0]))
-
-
-@pytest.mark.step("A2")
-def test_all_false_outside_interval_censored_still_raises_unsupported():
-    """spec 3.1, rev 4: `outside_interval_censored` is not in the normal signature; any use raises unsupported."""
-    with pytest.raises(UNSUPPORTED):
-        cx.SurvivalData(f([1.0, 2.0]), outside_interval_censored=b([False, False]))
