@@ -1,7 +1,8 @@
 # Chronox v0: specification
 
-- **Revision:** 6, 2026-09-29. Clarifies construction under transformations,
-  pure bounds construction, argument misuse, and static metadata.
+- **Revision:** 7, 2026-09-29. Amends revision 6: exception types, decoding
+  stored issues with `data.issues()`, `time2` on non-interval rows, separate
+  truncation flags, and misuse precedence; removes outside-interval censoring.
 - **Status:** Accepted design. Not implemented. Slice A may begin when the user
   instructs implementation.
 - **Companions:** [GOALS.md](GOALS.md) (direction and priorities),
@@ -67,9 +68,8 @@ interface and the generic numerical summaries are release requirements even
 though every built-in family has analytical summaries where they exist. Three
 runnable demos are required: classical, neural and Bayesian (section 11).
 
-**Outside v0** (deferrals, not additional commitments): outside-interval
-censoring; exact events recorded at zero; general missing-observation, padding,
-mask and weight helpers (KM's `where=` mask in section 9.3 is the only
+**Outside v0** (deferrals, not additional commitments): exact events recorded
+at zero; general missing-observation, padding, mask and weight helpers (KM's `where=` mask in section 9.3 is the only
 exception); conditional prediction interfaces other than truncation-conditioned
 sampling; an observation-simulation framework; Cox, time-varying-covariate and
 multi-state models; Royston–Parmar and M-spline families and the
@@ -164,8 +164,10 @@ Flag constructor (names follow R's `Surv(time, time2, event)`):
 - Supplying `event` together with any non-None censoring flag is rejected, even
   if the flag contains only false values.
 - `time` is the exact time, the one-sided censoring time, or an interval's lower
-  endpoint. `time2` is an interval's upper endpoint. Kind is never inferred from
-  equal or nearly equal endpoints; interval rows require `time < time2`.
+  endpoint. `time2` is an interval's upper endpoint. `time2` is read only on
+  interval rows; its values on other rows are ignored and set no issue. Kind is
+  never inferred from equal or nearly equal endpoints; interval rows require
+  `time < time2`.
   An interval-flag row with `time2=+inf` normalizes to right censoring at
   `c=time`. It is valid and `uninformative` when `time=L`, and invalid with
   `censored_before_entry` when `time<L`, for any valid truncation window.
@@ -183,9 +185,6 @@ exactness):
 - Exact rows are marked by the explicit `exact` mask; their time is `lower`, and
   their `upper` must equal `lower` or be NaN. A NaN upper on an exact row
   normalizes to `lower`. Equal endpoints on a non-exact row are invalid.
-
-`outside_interval_censored` is recognized only to raise an explicit
-unsupported-feature error; it is not in the normal signature.
 
 ### 3.2 Normalized representation, shapes, and storage
 
@@ -213,17 +212,20 @@ bounds are invalid.
 `SurvivalData` is an immutable registered PyTree. Its array leaves are the five
 fields plus one `int32` **issue bitfield** leaf with the observation shape,
 which preserves raw-input evidence (conflicting flags, invalid indicators, and
-so on) through normalization. `DataIssues` decodes the bitfield. New validation
-rules add bits, not leaves, so the PyTree structure stays stable. Reconstruction
-bypasses public normalization.
+so on) through normalization. `DataIssues` decodes the bitfield
+(`data.issues()`, section 6.2). New validation rules add bits, not leaves, so
+the PyTree structure stays stable. Reconstruction bypasses public
+normalization.
 
 **Indexing.** Because every leaf has the observation shape, `data[idx]` and
 `jax.tree.map` slicing over observation axes are supported and tested. This is
 how train/validation/test splits and minibatches are made.
 
 **Static metadata.** The PyTree's auxiliary data carries "may contain" flags:
-which derived kinds are present and whether any left or right truncation is
-present. Ordinary and pure constructors classify observation inputs as in
+which derived kinds are present, whether any left truncation is present (any
+`left_trunc > 0`), and, as a separate flag, whether any right truncation is
+present (any `right_trunc < +inf`). The auxiliary data holds only these flags;
+datasets with equal flags have equal tree structures. Ordinary and pure constructors classify observation inputs as in
 section 6.2. When no observation input is traced, the flags are computed from
 the normalized fields of all rows. This includes rows with issue bits, and
 applies also when construction happens inside a transformed function. When any
@@ -255,14 +257,15 @@ Dtype policy:
   result is at least float32, and integer-only or scalar-only input uses the
   configured default floating dtype. Omitting a truncation argument and
   passing its default value give the same dtype. Boolean times, complex
-  values, strings and object or mixed-None arrays are rejected.
+  values, strings and object or mixed-None arrays are rejected as argument
+  misuse (`TypeError`, section 6.2).
 - Array input with dtype float64 (NumPy, pandas, JAX) when JAX's 64-bit mode
   is disabled is converted to float32, as JAX does, with one warning per call
   site. It is not an error; most data arrive as float64 from NumPy or pandas.
   Python scalars and lists carry no chosen precision and convert without a
   warning.
 - An **explicit** request for an unavailable dtype (`dtype=jnp.float64` with
-  64-bit mode disabled) fails clearly.
+  64-bit mode disabled) fails clearly with `ValueError`.
 - Distribution parameters follow the same policy while keeping their structured
   dimensions. Likelihoods use the common promoted data/parameter dtype.
 - Integer counts inside calculations (KM, metrics) are cast to the data's
@@ -556,6 +559,7 @@ SurvivalData(...)                                   # eager; raises descriptive 
 SurvivalData.from_bounds(...)                       # eager; raises descriptive errors
 SurvivalData.with_issues(...) -> (data, DataIssues)               # pure; works under jit
 SurvivalData.from_bounds_with_issues(...) -> (data, DataIssues)   # pure; works under jit
+data.issues() -> DataIssues                         # decodes the stored bitfield; pure
 DataIssues.raise_if_invalid()                       # explicit host-only checkpoint
 ```
 
@@ -585,19 +589,37 @@ DataIssues.raise_if_invalid()                       # explicit host-only checkpo
   none is, normalization and validation run eagerly, also during tracing of a
   transformed function. Invalid observations raise the same descriptive errors
   as outside a transformation, with counts and the first offending indices. If
-  any observation input is traced, the ordinary constructor raises at trace
-  time and names its pure counterpart: `with_issues` for the flag form and
-  `from_bounds_with_issues` for the bounds form. Distribution constructors
+  any observation input is traced, the ordinary constructor raises
+  `chronox_jax.TracedInputError` at trace time, and its message names the pure
+  counterpart: `with_issues` for the flag form and `from_bounds_with_issues`
+  for the bounds form. Distribution constructors
   accept traced parameters.
 - **Argument misuse raises in all four constructors**, independent of values
   and of tracing. This includes:
   - `event` combined with any non-None censoring flag;
-  - `outside_interval_censored` in the flag form (section 3.1);
   - nonnumeric fields;
   - incompatible shapes.
 
+  Argument misuse is checked before the traced-input check, so misuse raises
+  the misuse error in every constructor, also when observation inputs are
+  traced.
+
   `conflicting_indicators` reports only rows on which more than one censoring
   flag is true.
+- **Exception types.** Invalid observation rows raise
+  `chronox_jax.InvalidDataError`, a subclass of `ValueError`, from the ordinary
+  constructors and from `DataIssues.raise_if_invalid()`. Argument misuse raises
+  `TypeError`, not `TracedInputError`. A traced observation input to an
+  ordinary constructor raises `chronox_jax.TracedInputError`, a subclass of
+  `TypeError`. An explicit dtype request that cannot be honoured raises
+  `ValueError`, not `InvalidDataError` (section 3.3).
+- `data.issues()` decodes the issue bitfield of any `SurvivalData`: freshly
+  built data, slices and other indexing results, data returned from
+  transformed functions, and data rebuilt from its leaves. It is pure and works
+  under `jit`. For data from a pure constructor it returns the same masks as
+  that constructor's `DataIssues`. For `data[idx]`, each per-row mask equals the
+  parent's mask indexed by `idx`, and `ok` reduces over the indexed rows only.
+  Data from an ordinary constructor can carry only the `uninformative` bit.
 - The pure constructors return normalized data plus issues without Python tests
   on traced values. A returned data object alone is not a validity certificate.
   Issue arrays do not halt execution; validate simulation output before
@@ -1267,7 +1289,7 @@ These are acceptance criteria, not claims of passing tests.
 
 | Area | Required evidence |
 | --- | --- |
-| Construction | every indicator and endpoint rule; both constructors normalize identically; dtype policy (float64 under 32-bit mode warns and converts; explicit request fails); ordinary construction from non-traced inputs inside `jit`, including raising on invalid rows; rejection when any observation input, or a list element of one, is traced; argument misuse raising in the pure constructors; metadata for non-traced and traced inputs; indexing and slicing; issue bitfield decoding |
+| Construction | every indicator and endpoint rule; both constructors normalize identically; dtype policy (float64 under 32-bit mode warns and converts; explicit request fails); ordinary construction from non-traced inputs inside `jit`, including raising on invalid rows; rejection when any observation input, or a list element of one, is traced; argument misuse raising in the pure constructors, and before the traced-input error; the exception type of each failure kind (`InvalidDataError`, `TypeError`, `TracedInputError`, `ValueError` for dtype requests); `time2` ignored on non-interval rows; metadata for non-traced and traced inputs, with separate left and right truncation flags; indexing and slicing; issue bitfield decoding with `data.issues()` on fresh, indexed, rebuilt and transformed data |
 | Likelihood mathematics | hand-derived exact/right/left/interval cases under absent/left/right/two-sided truncation; mixed data; partial, full and empty intersections; censored-before-entry and uninformative rows; a bounded-support family separating zero numerator from zero denominator |
 | Cross-kind identities (property-based) | interval `(c, +inf]` equals right-censored at `c`; `(0, c]` equals left-censored at `c`; `logaddexp` of adjacent intervals equals their union; full coverage gives exactly zero |
 | Numerical behaviour | tiny nonzero masses, both tails, narrow intervals, cancellation, boundaries, inactive branches; no floors; valid `-inf` versus invalid NaN; the likelihood suite run eagerly under `jax_debug_nans` on valid mixed batches |
@@ -1311,13 +1333,13 @@ v0 support. Publication, remote setup and credentials are separate actions.
 ([notes/log_ndtr-precision.md](notes/log_ndtr-precision.md)); the log-normal
 requirement in section 4.1 already works around it.
 
-**Settled in drafting revisions 4 and 6, open to user override** (revision 4
-items are listed in the disposition log): the treatment of full-coverage
+**Settled in drafting revisions 4, 6 and 7, open to user override** (revision
+4 items are listed in the disposition log): the treatment of full-coverage
 censored rows other than censoring strictly before entry (valid, flagged
-`uninformative`); the
-`_with_info` suffix, `SurvivalData.with_issues` and
-`SurvivalData.from_bounds_with_issues` names;
-`LogNormal(meanlog, sdlog)` naming; the `CensoringWeights` container.
+`uninformative`); the `_with_info` suffix, `SurvivalData.with_issues`,
+`SurvivalData.from_bounds_with_issues` and `data.issues()` names; the
+`InvalidDataError` and `TracedInputError` names; `LogNormal(meanlog, sdlog)`
+naming; the `CensoringWeights` container.
 
 **Implementation work under the accepted contracts:** compatible version pins;
 stable family formulas and reference times; the synthetic fixture generators and
@@ -1346,6 +1368,14 @@ Revision 6 clarifies which observation inputs count as traced, how ordinary
 construction works inside transformations, how both pure constructors report
 issues, and how static metadata is computed. Argument misuse raises in all
 four constructors.
+Revision 7 names the exception type of each failure kind, checks argument
+misuse before the traced-input check, adds `data.issues()` to decode the stored
+bitfield of any `SurvivalData`, ignores `time2` on non-interval rows, separates
+the left and right truncation flags and states that the auxiliary data holds
+only the flags. It removes outside-interval censoring from v0 and from the
+future designs: the estimand is usually avoided by conditioning on being
+event-free at entry, and it does not fit the `lower < T <= upper`
+representation.
 Later revisions should record new decisions in the disposition log or in the
 design notebook's decision records.
 
@@ -1364,4 +1394,4 @@ the historical basis for the parts of this document the review did not change:
 | v0 boundary and fallbacks | 0027, 0028 (algorithms superseded), 0029 |
 | Fitting, plotting and demonstrations | 0024, 0026, 0030, 0031 |
 | Tooling, license, section 6 handoff, naming | 0033, 0034, 0035, 0036 |
-| Accepted future designs excluded from v0 | NumPyro adapter 0004; outside-interval censoring 0009 |
+| Accepted future designs excluded from v0 | NumPyro adapter 0004 |
