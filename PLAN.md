@@ -7,6 +7,31 @@ Specification revision 5 now includes the first-endpoint and infinite-interval
 clarifications (`022d5eb`, `3f83d91`, `f7d2fff`). The corresponding independent
 tests were synced in `99f7629`.
 
+## A2a review fix-up: direct `row_issues` coverage
+
+The A2a tests exercise `row_issues` through eager constructor errors, but do
+not assert its per-row bitfield directly. Error-message checks can pass while
+one mask is assigned to the wrong bit or while independent masks are lost.
+Add a small follow-up commit on `a2-constructors` before A2b. The maintainer
+approved this fix-up in the current conversation; implementation and both-mode
+checks are complete.
+
+- `tests/unit/test_data_validation.py` (new): call the private `row_issues`
+  helper with hand-chosen arrays. Assert the ten rule masks from spec 6.2,
+  their observation shape and `int32` dtype, and simultaneous independent
+  faults. Cover interval order only after valid endpoints, invalid truncation,
+  exact `L < t <= U`, right censoring at versus before entry, and empty versus
+  nonempty censored intersections. Expected rows come from the stated set and
+  window inequalities, not from constructor output.
+- `src/chronox_jax/_data_validation.py`: change only if those tests expose a
+  real defect. No planned public API change or new dependency.
+- `REVIEW.md`: replace with the fix-up reading order, test-to-rule map, exact
+  results, and any remaining uncertainty. `PLAN.md` records this proposal.
+
+Run Ruff format/lint, mypy, `scripts/run_tests.sh`, and
+`scripts/check.sh --through A2`, in both configured dtype processes. Keep
+`tests/spec/` and `spec/` read-only. Stop after one fix-up commit and review.
+
 ## Scope and public API
 
 A1 supplied the two constructor signatures, valid-input normalization, dtype
