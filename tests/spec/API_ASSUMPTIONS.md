@@ -18,24 +18,39 @@ on it. Guessed exception types and call shapes are centralised in
   compile counts (3.2, 6.2, 6.3).
 - **Depends:** every `@pytest.mark.step(...)` in `test_a1_*`, `test_a2_*`,
   `test_a3_*`, and therefore `SPEC_THROUGH` filtering.
+- **Status (2026-09-29):** deferred by the maintainer. Fixing the step plan
+  needs a role change and a matching spec change, so the guess above stays in
+  force for now.
 
 ## Q-002: normalized fields are attributes
 
 - **Checked:** 3.2 ("five public fields" with names), 6.3.
 - **Guess:** `data.exact`, `data.lower`, `data.upper`, `data.left_trunc`,
   `data.right_trunc` are attributes returning arrays. The issue bitfield leaf
-  has no specified public name; tests reach it only through
-  `jax.tree_util.tree_leaves` (it is the one integer leaf).
+  has no specified public name; tests compare it only as one of the
+  `jax.tree_util.tree_leaves` and read its meaning through `data.issues()`
+  (Q-013, resolved).
 - **Depends:** nearly all tests (`helpers.field`, `helpers.assert_fields`).
 
 ## Q-003: exception type for rejected construction
 
-- **Checked:** 3.1, 3.3, 6.1, 6.2 ("raises descriptive structural errors";
-  "fails clearly"; static misuse "raises").
-- **Guess:** `ValueError` or `TypeError` (`helpers.REJECTED`). Tests accept
-  either and do not inspect messages.
-- **Depends:** every `pytest.raises(REJECTED)` in `test_a1_dtype.py`,
-  `test_a2_*.py`, and `test_raise_if_invalid_*` in `test_a3_data_issues.py`.
+- **Status:** resolved by spec rev 7 (maintainer
+  decision; 6.2 "Exception types", 3.3). Invalid observation rows raise
+  `chronox_jax.InvalidDataError` (a `ValueError` subclass) from the ordinary
+  constructors and `raise_if_invalid()`; argument misuse raises `TypeError`;
+  an unavailable explicit dtype request raises `ValueError`, not
+  `InvalidDataError`.
+- **In the tests:** `helpers.INVALID_DATA`, `helpers.MISUSE` and
+  `helpers.raises_dtype_request()`. `INVALID_DATA` falls back to a class that
+  is never raised if `chronox_jax.InvalidDataError` is missing, so only the
+  tests expecting it fail (plus `test_invalid_data_error_is_a_public_value_error`).
+  Messages are still not inspected.
+- **Classification calls made from the spec:** string and object-with-None
+  indicators are nonnumeric fields (misuse, `TypeError`); an omitted `time2`
+  on an interval row is a row issue (`missing_time2`, so `InvalidDataError`).
+- **Depends:** every `pytest.raises(INVALID_DATA)`, `pytest.raises(MISUSE)`
+  and `raises_dtype_request()` in `test_a1_dtype.py`, `test_a2_*.py` and
+  `test_a3_*.py`.
 
 ## Q-004: "one warning per call site" for float64 under 32-bit mode
 
@@ -59,35 +74,21 @@ on it. Guessed exception types and call shapes are centralised in
 
 ## Q-006: `time2` on rows that are not interval censored
 
-- **Checked:** 3.1 ("`time2` is an interval's upper endpoint"), 6.2
-  (`missing_time2`, `invalid_time2`).
-- **Gap:** the spec does not say what `time2` must hold on exact, right- or
-  left-censored rows when an array `time2` is supplied for mixed data.
-- **Guess:** NaN is accepted there and ignored (R's `Surv(type="interval")`
-  convention). Tests never put a finite non-NaN `time2` on a non-interval row.
-- **Rev 5 note:** 6.2 now says `missing_time2` and `invalid_time2` concern an
-  *active* interval row's `time2`, so a NaN on an inactive row does not set
-  `missing_time2` (tested: `test_nan_time2_on_inactive_rows_does_not_set_missing_time2`).
-  Whether such a row is otherwise valid, and what a finite value there means,
-  is still unstated.
-- **Depends:** `_mixed()` in `test_a1_representation.py` and all tests using it,
-  `test_fields_are_usable_under_vmap`; in A2 `test_all_flags_false_row_is_exact`,
-  `test_event_with_all_false_interval_flag_is_rejected` (NaN there must not
-  be the reason for rejection), `test_interval_with_nan_time2_is_rejected`
-  (row 0), `test_mixed_truncated_rows_normalize_identically`,
-  `test_constructors_normalize_identically_property`,
-  `test_outside_interval_censored_raises_unsupported`.
+- **Status:** resolved by spec rev 7 (3.1) (maintainer
+  decision): "`time2` is read only on interval rows; its values on other rows
+  are ignored and set no issue." The rev 4 guess (NaN accepted and ignored) is
+  now a special case of spec text.
+- **Depends:** now spec-backed: `test_time2_values_on_non_interval_rows_are_ignored`,
+  `test_time2_values_on_non_interval_rows_set_no_issue`, and the tests that put
+  NaN in `time2` on non-interval rows (`_mixed()` in
+  `test_a1_representation.py` and others).
 
-## Q-007: unsupported-feature error for `outside_interval_censored`
+## Q-007: withdrawn
 
-- **Checked:** 3.1 ("recognized only to raise an explicit unsupported-feature
-  error; it is not in the normal signature"), 1 (outside v0).
-- **Guess:** passing `outside_interval_censored=` as a keyword to
-  `SurvivalData(...)` raises `NotImplementedError` (`helpers.UNSUPPORTED`),
-  whatever its values. Whether `from_bounds` also recognizes it is not stated;
-  not tested.
-- **Depends:** `test_outside_interval_censored_raises_unsupported`,
-  `test_all_false_outside_interval_censored_still_raises_unsupported`.
+- **Status:** withdrawn by spec rev 7. The feature this entry concerned was
+  removed from the specification and the library by maintainer decision; it
+  has no special handling and no tests. The number is kept so that later
+  entries keep their numbers.
 
 ## Q-008: right censoring at or before entry when the set is `(0, +inf]` (spec inconsistency)
 
@@ -103,26 +104,22 @@ on it. Guessed exception types and call shapes are centralised in
   blocks in `test_a3_data_issues.py`. `uninformative` on `from_bounds` rows is
   still only observable as "not rejected" (Q-009).
 
-## Q-009: `SurvivalData.with_issues` signature, and no bounds counterpart
+## Q-009: pure constructors `with_issues` and `from_bounds_with_issues`
 
-- **Checked:** 6.2 (`SurvivalData.with_issues(...) -> (data, DataIssues)`), 3.1.
-- **Guess:** `with_issues` is a classmethod/staticmethod taking exactly the flag
-  constructor's arguments, `with_issues(time, event=None, *, right_censored=...,
-  left_censored=..., interval_censored=..., time2=..., left_trunc=...,
-  right_trunc=..., dtype=...)`, and returns a 2-tuple (`helpers.with_issues`).
-- **Gap:** the spec names no pure counterpart for `from_bounds` (for example
-  `from_bounds_with_issues`). Bounds-constructor rows are therefore tested
-  only through the eager constructor, so the rev 5 `from_bounds` attribution
-  rules (`missing_time2`, `invalid_time2`, `invalid_interval` on bounds rows)
-  are tested only as rejections. Also unstated: whether `with_issues` raises
-  (static misuse) or reports issues for `event` combined with flags; not
-  tested. Rev 5 settles two former gaps: an omitted `time2` on an active
-  interval row sets `missing_time2`, and nonnumeric fields or incompatible
-  shapes raise.
-- **Depends:** every test in `test_a3_data_issues.py`,
-  `test_indexing_carries_every_leaf_including_issue_bitfield`, and
-  `_traced`/`test_eager_with_issues_computes_flags_from_values` in
-  `test_a3_static_metadata.py`.
+- **Status:** resolved by spec rev 6 (6.2). Both pure constructors exist, take
+  exactly the arguments of their ordinary counterparts, and return
+  `(data, DataIssues)`; argument misuse (`event` with a censoring flag,
+  nonnumeric fields, incompatible shapes) raises
+  in all four constructors, independent of values and tracing.
+- **Remaining guess:** both are reached as attributes of `SurvivalData`
+  (`helpers.with_issues`, `helpers.from_bounds_with_issues`), as the spec's
+  dotted names suggest, and the pair is a Python `tuple`
+  (`test_with_issues_returns_data_and_issues_pair`,
+  `test_from_bounds_with_issues_returns_data_and_issues_pair`).
+- **Depends:** every test in `test_a3_data_issues.py` and
+  `test_a3_bounds_issues.py`, the pure-constructor tests in
+  `test_a3_tracing.py` and `test_a3_static_metadata.py`, and
+  `test_indexing_carries_every_leaf_including_issue_bitfield`.
 
 ## Q-010: which DataIssues field reports each rule
 
@@ -159,36 +156,42 @@ on it. Guessed exception types and call shapes are centralised in
   `test_ok_is_false_when_any_row_is_invalid`, `_assert_rule` and
   `_assert_uninformative` helpers in `test_a3_data_issues.py`.
 
-## Q-012: error for the ordinary constructor under tracing
+## Q-012: error type for the ordinary constructors under tracing
 
-- **Checked:** 6.2 ("raises at trace time and points to `with_issues`").
-- **Guess:** the exception type is open (tests accept any `Exception`); "points
-  to `with_issues`" means the message contains the text `with_issues`. The
-  spec says this of "the ordinary constructor"; the tests assume
-  `from_bounds` behaves the same.
-- **Depends:** `test_ordinary_constructor_under_jit_raises_pointing_to_with_issues`,
-  `test_ordinary_constructor_under_vmap_raises_pointing_to_with_issues`,
-  `test_bounds_constructor_under_jit_raises_pointing_to_with_issues`.
+- **Status:** resolved by spec rev 7 (6.2) (maintainer
+  decision). A traced observation input to an ordinary constructor raises
+  `chronox_jax.TracedInputError`, a subclass of `TypeError`, at trace time; its
+  message names the pure counterpart (`with_issues` or
+  `from_bounds_with_issues`). Argument misuse raises `TypeError`, not
+  `TracedInputError`.
+- **In the tests:** `helpers.TRACED_INPUT` (falls back to a class that is
+  never raised if `chronox_jax.TracedInputError` is missing) with a message
+  match on the counterpart's name; `helpers.raises_misuse()` expects
+  `TypeError` and rejects `TracedInputError`, so the two misuse-first tests now
+  distinguish the errors.
+- **Depends:** the trace-time rejection tests in `test_a3_tracing.py` and
+  `test_a3_data_issues.py`,
+  `test_ordinary_constructor_raises_misuse_error_before_traced_input_error`,
+  `test_bounds_constructor_raises_misuse_error_before_traced_input_error`,
+  `test_traced_input_error_is_a_public_type_error`.
 
 ## Q-013: decoding the bitfield of an existing SurvivalData
 
-- **Checked:** 3.2 ("`DataIssues` decodes the bitfield"), 6.2.
-- **Gap:** no public call is named that turns a `SurvivalData` (for example a
-  slice, or data rebuilt from leaves) back into `DataIssues`. Tests decode only
-  the `DataIssues` returned by `with_issues`, and check that indexing carries
-  the bitfield leaf along unchanged.
-- **Depends:** none (a gap, not a guess).
+- **Status:** resolved by spec rev 7 (maintainer
+  decision): `data.issues() -> DataIssues` decodes the bitfield of any
+  `SurvivalData`, including slices, data returned from transformed functions
+  and data rebuilt from leaves (3.2, 6.2).
+- **Depends:** every test in `test_a3_issue_decoding.py`.
 
 ## Q-014: observing static metadata
 
-- **Checked:** 3.2 (flags in PyTree auxiliary data; "datasets with different
-  flags have different tree structures and compile separately").
-- **Guess:** the auxiliary data holds nothing that varies with values other
-  than these flags, so equal flags mean equal `jax.tree_util.tree_structure`
-  (and one jit trace for equal shapes and dtypes). The flags have no public
-  accessor, and the tests do not read them. Left and right truncation are
-  tested separately against "none" but not against each other, because "whether
-  any left or right truncation is present" could be one flag or two.
+- **Status:** resolved by spec rev 7 (3.2) (maintainer
+  decision): "The auxiliary data holds only these flags; datasets with equal
+  flags have equal tree structures", and left and right truncation are
+  separate flags (any `left_trunc > 0`; any `right_trunc < +inf`).
+- **Still true:** the flags have no public accessor, so tests observe them
+  through `jax.tree_util.tree_structure` and jit retrace counts; that is now
+  spec-backed rather than guessed.
 - **Depends:** every test in `test_a3_static_metadata.py`,
   `test_data_passes_through_jit_unchanged`,
   `test_indexing_carries_every_leaf_including_issue_bitfield`.
