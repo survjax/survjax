@@ -37,7 +37,10 @@ def _input_dtype(
 
 
 def time_dtype(
-    values: dict[str, ArrayLike | None], dtype: DTypeLike | None
+    values: dict[str, ArrayLike | None],
+    dtype: DTypeLike | None,
+    *,
+    warning_stacklevel: int = 3,
 ) -> np.dtype:
     """Choose one floating dtype for all time and bound arrays."""
     inputs = [
@@ -55,7 +58,7 @@ def time_dtype(
         warnings.warn(
             "float64 time input converted to float32 because JAX 64-bit mode is disabled",
             RuntimeWarning,
-            stacklevel=3,
+            stacklevel=warning_stacklevel,
         )
     contributions = [value for value, _ in inputs]
     strong_float = any(
@@ -181,6 +184,84 @@ def row_issues(
     for position, mask in enumerate(masks):
         bits = bits | jnp.where(mask, jnp.int32(1 << position), jnp.int32(0))
     return bits
+
+
+def flag_fields(
+    time: ArrayLike,
+    event: ArrayLike | None,
+    right_censored: ArrayLike | None,
+    left_censored: ArrayLike | None,
+    interval_censored: ArrayLike | None,
+    time2: ArrayLike | None,
+    left_trunc: ArrayLike | None,
+    right_trunc: ArrayLike | None,
+    dtype: DTypeLike | None,
+) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array, jax.Array, jax.Array]:
+    """Normalize flag inputs and compute issue bits without a host checkpoint."""
+    common = time_dtype(
+        {
+            "time": time,
+            "time2": time2,
+            "left_trunc": left_trunc,
+            "right_trunc": right_trunc,
+        },
+        dtype,
+        warning_stacklevel=4,
+    )
+    first = jnp.asarray(time, dtype=common)
+    shape = first.shape
+    right, bad_right = indicator(right_censored, shape, "right_censored")
+    left, bad_left = indicator(left_censored, shape, "left_censored")
+    interval, bad_interval = indicator(interval_censored, shape, "interval_censored")
+    invalid_indicator = bad_right | bad_left | bad_interval
+    conflicting = (right.astype(jnp.int32) + left + interval) > 1
+    if event is None:
+        exact = ~(right | left | interval)
+    else:
+        exact, bad_event = indicator(event, shape, "event")
+        invalid_indicator = invalid_indicator | bad_event
+        if any(
+            flag is not None
+            for flag in (right_censored, left_censored, interval_censored)
+        ):
+            conflicting = jnp.ones(shape, dtype=bool)
+        right = ~exact
+    second = first if time2 is None else to_shape(time2, shape, common)
+    lower = jnp.where(left, jnp.zeros_like(first), first)
+    upper = jnp.where(
+        right, jnp.full_like(first, jnp.inf), jnp.where(interval, second, first)
+    )
+    lower_bound = (
+        jnp.zeros_like(first)
+        if left_trunc is None
+        else to_shape(left_trunc, shape, common)
+    )
+    upper_bound = (
+        jnp.full_like(first, jnp.inf)
+        if right_trunc is None
+        else to_shape(right_trunc, shape, common)
+    )
+    invalid_time = jnp.where(
+        exact,
+        (first <= 0) | ~jnp.isfinite(first),
+        (first < 0) | ~jnp.isfinite(first),
+    )
+    missing_time2 = interval & (time2 is None or jnp.isnan(second))
+    invalid_time2 = interval & ((second < 0) | jnp.isneginf(second))
+    bits = row_issues(
+        exact,
+        lower,
+        upper,
+        lower_bound,
+        upper_bound,
+        invalid_indicator=invalid_indicator,
+        conflicting_indicators=conflicting,
+        missing_time2=missing_time2,
+        invalid_time=invalid_time,
+        invalid_time2=invalid_time2,
+        check_interval=interval,
+    )
+    return exact, lower, upper, lower_bound, upper_bound, bits
 
 
 def raise_if_invalid(bits: jax.Array) -> None:

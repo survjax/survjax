@@ -1,7 +1,7 @@
 # Slice A, step A2 — constructors, boundaries, and DataIssues
 
-Status: **A2a implemented on `a2-constructors`; stop for maintainer review
-before A2b**.
+Status: **A2a confirmed by the maintainer; A2b implemented on
+`a2-constructors`; stop for review before A3**.
 Branch: `a2-constructors`, at the A2 spec-test merge (`5729f6b`).
 Specification revision 5 now includes the first-endpoint and infinite-interval
 clarifications (`022d5eb`, `3f83d91`, `f7d2fff`). The corresponding independent
@@ -177,8 +177,13 @@ each step for maintainer review.
    independent A3 diagnostic file, once per dtype mode. Record any actual
    spec-test disagreement in `DEVIATIONS.md`; do not edit those tests.
 
-The split and this updated A2a implementation were approved by the maintainer.
-Stop after the A2a commit and review handoff.
+   Keep the shared flag-constructor array normalization in
+   `_data_validation.py` so eager and pure paths use the same inputs and bit
+   assembly. Preserve the A1 caller-site float64 warning after this added
+   call layer. The ordinary constructor remains the only host checkpoint.
+
+The split and A2a were approved and confirmed by the maintainer. The current
+request authorizes A2b. Stop after its commit and review handoff.
 
 ## Specification and checks
 

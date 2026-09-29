@@ -7,12 +7,14 @@ import jax.numpy as jnp
 from jax.typing import ArrayLike, DTypeLike
 
 from chronox_jax._data_validation import (
+    flag_fields,
     indicator,
     raise_if_invalid,
     row_issues,
     time_dtype,
     to_shape,
 )
+from chronox_jax.diagnostics import DataIssues
 
 
 @dataclass(frozen=True, eq=False, init=False)
@@ -79,72 +81,61 @@ class SurvivalData:
         if kwargs:
             unknown = ", ".join(sorted(kwargs))
             raise TypeError(f"unexpected keyword argument(s): {unknown}")
-        common = time_dtype(
-            {
-                "time": time,
-                "time2": time2,
-                "left_trunc": left_trunc,
-                "right_trunc": right_trunc,
-            },
+        fields = flag_fields(
+            time,
+            event,
+            right_censored,
+            left_censored,
+            interval_censored,
+            time2,
+            left_trunc,
+            right_trunc,
             dtype,
         )
-        first = jnp.asarray(time, dtype=common)
-        shape = first.shape
-        right, bad_right = indicator(right_censored, shape, "right_censored")
-        left, bad_left = indicator(left_censored, shape, "left_censored")
-        interval, bad_interval = indicator(
-            interval_censored, shape, "interval_censored"
+        raise_if_invalid(fields[5])
+        self._assign(*fields)
+
+    @classmethod
+    def with_issues(
+        cls,
+        time: ArrayLike,
+        event: ArrayLike | None = None,
+        *,
+        right_censored: ArrayLike | None = None,
+        left_censored: ArrayLike | None = None,
+        interval_censored: ArrayLike | None = None,
+        time2: ArrayLike | None = None,
+        left_trunc: ArrayLike | None = None,
+        right_trunc: ArrayLike | None = None,
+        dtype: DTypeLike | None = None,
+        **kwargs: ArrayLike,
+    ) -> tuple["SurvivalData", DataIssues]:
+        """Return normalized data and per-row issues, including under jit (spec 6.2).
+
+        The fields and issue masks have ``time.shape``; ``ok`` is scalar.
+        Invalid numeric rows set issue masks without raising. Inputs that
+        cannot form an observation object still raise.
+        """
+        if "outside_interval_censored" in kwargs:
+            raise NotImplementedError("outside_interval_censored is not supported")
+        if kwargs:
+            unknown = ", ".join(sorted(kwargs))
+            raise TypeError(f"unexpected keyword argument(s): {unknown}")
+        fields = flag_fields(
+            time,
+            event,
+            right_censored,
+            left_censored,
+            interval_censored,
+            time2,
+            left_trunc,
+            right_trunc,
+            dtype,
         )
-        invalid_indicator = bad_right | bad_left | bad_interval
-        conflicting = (right.astype(jnp.int32) + left + interval) > 1
-        if event is None:
-            exact = ~(right | left | interval)
-        else:
-            exact, bad_event = indicator(event, shape, "event")
-            invalid_indicator = invalid_indicator | bad_event
-            if any(
-                flag is not None
-                for flag in (right_censored, left_censored, interval_censored)
-            ):
-                conflicting = jnp.ones(shape, dtype=bool)
-            right = ~exact
-        second = first if time2 is None else to_shape(time2, shape, common)
-        lower = jnp.where(left, jnp.zeros_like(first), first)
-        upper = jnp.where(
-            right, jnp.full_like(first, jnp.inf), jnp.where(interval, second, first)
-        )
-        lower_bound = (
-            jnp.zeros_like(first)
-            if left_trunc is None
-            else to_shape(left_trunc, shape, common)
-        )
-        upper_bound = (
-            jnp.full_like(first, jnp.inf)
-            if right_trunc is None
-            else to_shape(right_trunc, shape, common)
-        )
-        invalid_time = jnp.where(
-            exact,
-            (first <= 0) | ~jnp.isfinite(first),
-            (first < 0) | ~jnp.isfinite(first),
-        )
-        missing_time2 = interval & (time2 is None or jnp.isnan(second))
-        invalid_time2 = interval & ((second < 0) | jnp.isneginf(second))
-        bits = row_issues(
-            exact,
-            lower,
-            upper,
-            lower_bound,
-            upper_bound,
-            invalid_indicator=invalid_indicator,
-            conflicting_indicators=conflicting,
-            missing_time2=missing_time2,
-            invalid_time=invalid_time,
-            invalid_time2=invalid_time2,
-            check_interval=interval,
-        )
-        raise_if_invalid(bits)
-        self._assign(exact, lower, upper, lower_bound, upper_bound, bits)
+        data = object.__new__(cls)
+        data._assign(*fields)
+        issues = DataIssues._from_bits(*fields)
+        return data, issues
 
     @classmethod
     def from_bounds(
