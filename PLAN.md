@@ -7,6 +7,18 @@ Specification revision 5 now includes the first-endpoint and infinite-interval
 clarifications (`022d5eb`, `3f83d91`, `f7d2fff`). The corresponding independent
 tests were synced in `99f7629`.
 
+## A2b documentation fix-up
+
+The maintainer's current request authorizes a short description of how
+`flag_fields` and `row_issues` work together. Update only their docstrings in
+`src/chronox_jax/_data_validation.py`: the former normalizes flag inputs and
+passes fields plus input-fault masks to the latter; the latter adds the
+normalized interval, truncation, and window checks and packs all rule bits.
+Note that `from_bounds` also calls `row_issues`. Public APIs and runtime
+behavior do not change. Update `REVIEW.md`, run Ruff format/lint, mypy, and
+`scripts/check.sh --through A2`, then make one fix-up commit on
+`a2-constructors` and stop. No new test is needed for this docstring-only edit.
+
 ## A2a docstring review fix-up
 
 The maintainer's current request approves updating the `WA`-annotated

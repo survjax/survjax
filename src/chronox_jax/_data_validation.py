@@ -136,7 +136,11 @@ def row_issues(
     invalid_time2: jax.Array,
     check_interval: jax.Array,
 ) -> jax.Array:
-    """Assemble the ten section 6.2 invalid-rule bits, one int32 per row."""
+    """Add interval, truncation, and window checks; pack ten bits per row.
+
+    ``flag_fields`` and ``from_bounds`` call this with their stored fields and
+    raw-input fault masks (spec 6.2).
+    """
     # spec 6.2: only order endpoints after their presence and domains pass.
     valid_endpoints = ~(invalid_time | missing_time2 | invalid_time2)
     invalid_interval = check_interval & valid_endpoints & (lower >= upper)
@@ -197,7 +201,11 @@ def flag_fields(
     right_trunc: ArrayLike | None,
     dtype: DTypeLike | None,
 ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array, jax.Array, jax.Array]:
-    """Normalize flag inputs and compute issue bits without a host checkpoint."""
+    """Normalize flag inputs and compute issue bits without a host checkpoint.
+
+    Build the five stored fields and input-fault masks, then pass them to
+    ``row_issues``. Eager construction and ``with_issues`` share this result.
+    """
     common = time_dtype(
         {
             "time": time,
