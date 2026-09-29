@@ -1,7 +1,7 @@
 # Chronox v0: specification
 
-- **Revision:** 5, 2026-09-28. Amends revision 4 to clarify right censoring
-  at entry and endpoint diagnostics.
+- **Revision:** 6, 2026-09-29. Clarifies construction under transformations,
+  pure bounds construction, argument misuse, and static metadata.
 - **Status:** Accepted design. Not implemented. Slice A may begin when the user
   instructs implementation.
 - **Companions:** [GOALS.md](GOALS.md) (direction and priorities),
@@ -140,7 +140,7 @@ conditions on truncation only when asked explicitly (section 8.6).
 
 ### 3.1 Construction
 
-`SurvivalData` is the canonical observation object. Two constructors are
+`SurvivalData` is the canonical observation object. Two input forms are
 supported (`*` marks the keyword-only boundary; these are signatures, not
 executable calls):
 
@@ -223,11 +223,15 @@ how train/validation/test splits and minibatches are made.
 
 **Static metadata.** The PyTree's auxiliary data carries "may contain" flags:
 which derived kinds are present and whether any left or right truncation is
-present. They are computed when data are built eagerly from concrete values and
-are all true when built under tracing. Slices inherit them unchanged (a subset
-cannot contain kinds its parent lacks). The evaluator may use them to prune
-branches at trace time (section 7.2); datasets with different flags have
-different tree structures and compile separately.
+present. Ordinary and pure constructors classify observation inputs as in
+section 6.2. When no observation input is traced, the flags are computed from
+the normalized fields of all rows. This includes rows with issue bits, and
+applies also when construction happens inside a transformed function. When any
+observation input is traced, which is possible only with a pure constructor,
+all flags are true. Slices inherit them unchanged (a subset cannot contain
+kinds its parent lacks). The evaluator may use them to prune branches at trace
+time (section 7.2); datasets with different flags have different tree
+structures and compile separately.
 
 ### 3.3 Boundary and dtype rules
 
@@ -548,17 +552,54 @@ normalization and normalized fields afterwards. The result is per-rule masks
 with the data shape, an invalid-row union and a scalar validity reduction.
 
 ```text
-SurvivalData(...)                        # eager; raises descriptive errors
-SurvivalData.with_issues(...) -> (data, DataIssues)     # pure; works under jit
-DataIssues.raise_if_invalid()            # explicit host-only checkpoint
+SurvivalData(...)                                   # eager; raises descriptive errors
+SurvivalData.from_bounds(...)                       # eager; raises descriptive errors
+SurvivalData.with_issues(...) -> (data, DataIssues)               # pure; works under jit
+SurvivalData.from_bounds_with_issues(...) -> (data, DataIssues)   # pure; works under jit
+DataIssues.raise_if_invalid()                       # explicit host-only checkpoint
 ```
 
-- The ordinary constructor raises descriptive structural errors, reporting
-  counts and the first offending indices. Called with traced observation values,
-  it raises at trace time and points to `with_issues`. Distribution constructors
+- Each pure constructor takes exactly the arguments of its ordinary
+  counterpart. It applies the same normalization and issue rules. For inputs
+  accepted by the ordinary constructor, both yield identical fields and issue
+  bits.
+- **Observation inputs** are all constructor arguments except `dtype`:
+  - for the flag form: `time`, `event`, the censoring flags, `time2`,
+    `left_trunc` and `right_trunc`;
+  - for the bounds form: `lower`, `upper`, `exact`, `left_trunc` and
+    `right_trunc`.
+
+  An input is **traced** if it is a JAX tracer, or if it is a Python list or
+  tuple containing a tracer at any nesting depth. The classification is made on
+  the supplied inputs at constructor entry. Values that are already tracers
+  are not recovered by constant analysis. Inside a transformed function, the
+  following are non-traced:
+  - NumPy arrays;
+  - Python scalars;
+  - lists and tuples of those;
+  - concrete JAX arrays created outside the function.
+
+  Arrays created with `jax.numpy` inside the function are traced, even when
+  their values are constant.
+- **Ordinary constructors** require that no observation input is traced. When
+  none is, normalization and validation run eagerly, also during tracing of a
+  transformed function. Invalid observations raise the same descriptive errors
+  as outside a transformation, with counts and the first offending indices. If
+  any observation input is traced, the ordinary constructor raises at trace
+  time and names its pure counterpart: `with_issues` for the flag form and
+  `from_bounds_with_issues` for the bounds form. Distribution constructors
   accept traced parameters.
-- `with_issues` returns normalized data plus issues without Python tests on
-  traced values. A returned data object alone is not a validity certificate.
+- **Argument misuse raises in all four constructors**, independent of values
+  and of tracing. This includes:
+  - `event` combined with any non-None censoring flag;
+  - `outside_interval_censored` in the flag form (section 3.1);
+  - nonnumeric fields;
+  - incompatible shapes.
+
+  `conflicting_indicators` reports only rows on which more than one censoring
+  flag is true.
+- The pure constructors return normalized data plus issues without Python tests
+  on traced values. A returned data object alone is not a validity certificate.
   Issue arrays do not halt execution; validate simulation output before
   expensive fitting with a host checkpoint or explicit compiled orchestration.
 - Inputs that cannot form an object at all raise rather than manufacture data.
@@ -1226,7 +1267,7 @@ These are acceptance criteria, not claims of passing tests.
 
 | Area | Required evidence |
 | --- | --- |
-| Construction | every indicator and endpoint rule; both constructors normalize identically; dtype policy (float64 under 32-bit mode warns and converts; explicit request fails); eager and traced construction; indexing and slicing; issue bitfield decoding; static metadata |
+| Construction | every indicator and endpoint rule; both constructors normalize identically; dtype policy (float64 under 32-bit mode warns and converts; explicit request fails); ordinary construction from non-traced inputs inside `jit`, including raising on invalid rows; rejection when any observation input, or a list element of one, is traced; argument misuse raising in the pure constructors; metadata for non-traced and traced inputs; indexing and slicing; issue bitfield decoding |
 | Likelihood mathematics | hand-derived exact/right/left/interval cases under absent/left/right/two-sided truncation; mixed data; partial, full and empty intersections; censored-before-entry and uninformative rows; a bounded-support family separating zero numerator from zero denominator |
 | Cross-kind identities (property-based) | interval `(c, +inf]` equals right-censored at `c`; `(0, c]` equals left-censored at `c`; `logaddexp` of adjacent intervals equals their union; full coverage gives exactly zero |
 | Numerical behaviour | tiny nonzero masses, both tails, narrow intervals, cancellation, boundaries, inactive branches; no floors; valid `-inf` versus invalid NaN; the likelihood suite run eagerly under `jax_debug_nans` on valid mixed batches |
@@ -1270,10 +1311,12 @@ v0 support. Publication, remote setup and credentials are separate actions.
 ([notes/log_ndtr-precision.md](notes/log_ndtr-precision.md)); the log-normal
 requirement in section 4.1 already works around it.
 
-**Settled in drafting revision 4, open to user override** (listed in the
-disposition log): the treatment of full-coverage censored rows other than
-censoring strictly before entry (valid, flagged `uninformative`); the
-`_with_info` suffix and `SurvivalData.with_issues` names;
+**Settled in drafting revisions 4 and 6, open to user override** (revision 4
+items are listed in the disposition log): the treatment of full-coverage
+censored rows other than censoring strictly before entry (valid, flagged
+`uninformative`); the
+`_with_info` suffix, `SurvivalData.with_issues` and
+`SurvivalData.from_bounds_with_issues` names;
 `LogNormal(meanlog, sdlog)` naming; the `CensoringWeights` container.
 
 **Implementation work under the accepted contracts:** compatible version pins;
@@ -1299,6 +1342,10 @@ At entry, the right-censoring numerator equals the truncation denominator, so
 the log contribution is zero. Endpoint issue masks distinguish missing or
 out-of-domain values from incorrect interval order. R's counting-process
 input rule for equal start and stop is separate from this likelihood identity.
+Revision 6 clarifies which observation inputs count as traced, how ordinary
+construction works inside transformations, how both pure constructors report
+issues, and how static metadata is computed. Argument misuse raises in all
+four constructors.
 Later revisions should record new decisions in the disposition log or in the
 design notebook's decision records.
 
