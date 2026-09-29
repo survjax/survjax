@@ -1,3 +1,38 @@
+# Metadata step — define Slice A steps for the blind spec tester
+
+Status: approved by the maintainer in the request to create a new branch and
+make the proposed role-contract changes. Branch: `meta-spectester-steps`.
+
+## Files and scope
+
+- `roles/TESTER.md`: give the blind tester the A0–A9 delivery schedule that is
+  currently available only in `CLAUDE.md`. Correct the reference to spec 12.2,
+  which defines slices but does not number Slice A steps. State how to assign
+  step markers when a test needs an API introduced in a later step.
+- `PLAN.md`: record this documentation step.
+- `REVIEW.md`: record the reading order, schedule invariants, checks, and the
+  separate correction needed in the independent test repository.
+
+No public API, implementation, dependencies, or executable tests change. Do
+not edit `tests/spec/` on this branch; the tester must correct its Q-001 step
+assumption, markers, and test map on a `spectests-*` branch.
+
+## Contract and evidence
+
+- `CLAUDE.md`, Slice A suggested step order: source of the A0–A9 schedule.
+- Specification sections 3.1–3.3, 4.1–4.2, 4.5, 5, 6.2–6.3, 7,
+  7.1–7.3, 10.1–10.4, 12.1–12.2: requirements assigned to steps; the
+  specification remains normative for test assertions.
+- The A1 plan refines its boundary: valid constructor paths may support A1
+  representation and dtype tests; full constructor validation and `DataIssues`
+  belong to A2.
+
+Verification: inspect the role diff against the step table, run
+`git diff --check`, and run the current `scripts/check.sh --through A1` gate.
+This is documentation only, so no new test is justified.
+
+## Previous A1 plan (retained for history)
+
 # Slice A, step A1 — SurvivalData representation and dtype policy
 
 Status: **A1 and its round-two review fix-up implemented on `a1-survivaldata`; awaiting maintainer review**.

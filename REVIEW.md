@@ -1,54 +1,41 @@
-# Review: A1 round-two weak-typing fix-up
+# Review: Slice A delivery steps for the blind spec tester
 
 Read in this order:
 
-1. `~/dev/chronox-dev-review/.review/a-r2.md`, especially R1–R3. The
-   review inspected `f663fd9`; this branch also includes the later
-   constructor-docstring commit `92a5d63`.
-2. `PLAN.md`, final section, for this fix-up's limited scope.
-3. `src/chronox_jax/data.py` (`_input_dtype` and `_time_dtype`) and the new
-   cases in `tests/unit/test_data_dtype.py`.
-4. `DEVIATIONS.md` D-002, now citing the landed spec change `3041ebd`.
+1. `roles/TESTER.md`, especially "Slice A delivery steps" and the corrected
+   `test_a<N>_<topic>.py` instruction.
+2. `CLAUDE.md`, "Slice A: suggested step order", to compare the A0–A9 schedule.
+3. `PLAN.md`, first section, for the narrow scope of this metadata step.
 
-## Invariants and disposition
+## Invariants
 
-- **R1 fixed:** A JAX array or tracer with `weak_type=True` contributes its
-  value to `jnp.result_type`, preserving JAX's weak promotion. A strong JAX
-  array still contributes its dtype. The check rejects boolean and other
-  nonnumeric time dtypes before returning a weak JAX value. No tracer is
-  converted to NumPy.
-- **R2 fixed:** A bare Python `True` time raises, rather than being treated as
-  weak integer 1. The existing rejected-input test now covers it.
-- **R3 fixed:** D-002 cites section 3.3 as changed in `3041ebd`. Its status
-  remains `open`; only the maintainer resolves deviations.
-- The review's section 4.2 formatting note concerns protected spec text. No
-  `spec/` or `tests/spec/` file changed in this fix-up.
+- Spec 12.2 defines Slice A's deliverable and completion gate. The numbered
+  A0–A9 steps are a maintainer delivery schedule, not new normative requirements.
+- The blind tester derives assertions from `spec/GOALS.md` and
+  `spec/SPECIFICATION.md` only. The schedule controls file names and step markers.
+- A1 may use valid constructor paths to check representation and dtype; A2
+  covers complete construction validation and `DataIssues`; A3 covers indexing
+  and static metadata. A test is marked at the first step with all required
+  public API available.
+- `roles/REVIEWER.md` needs no change: it already reads the step plan and checks
+  the spec gate. `tests/spec/` is read-only on this metadata branch.
 
-## Tests and checks
+## Evidence and checks
 
-| Requirement | Evidence |
-| --- | --- |
-| Weak eager JAX bound adopts float32 time (spec 3.3) | `test_weak_jax_bound_preserves_float32_time_dtype` |
-| Python float becomes a weak tracer under `jit` (spec 3.3) | `test_jitted_weak_float_bound_preserves_float32_time_dtype` |
-| Boolean scalar time is rejected (spec 3.3) | `test_nonreal_time_input_is_rejected` includes `True` |
-| Earlier A1 contract remains intact | `scripts/check.sh --through A1`, including independent A1 tests in both modes |
-
-Final `scripts/check.sh --through A1` output, with
-`UV_CACHE_DIR=/private/tmp/chronox-uv-cache`:
-
-- Guard: `ok (a1-survivaldata)`.
-- Ruff format: `13 files already formatted`; Ruff lint: `All checks passed!`.
-- mypy: `Success: no issues found in 2 source files`.
-- Own tests: x64 enabled `22 passed, 3 skipped`; x64 disabled `25 passed`.
-- Independent A1 tests: x64 enabled `41 passed, 8 skipped, 196 deselected`;
-  x64 disabled `45 passed, 4 skipped, 196 deselected`.
-- Final line: `check: all gates passed through A1`.
+- No public API or executable test changed. The role table was compared with
+  `CLAUDE.md` A0–A9 and the A1 boundary in the prior A1 plan.
 - `git diff --check`: passed with no output.
+- `scripts/check.sh --through A1`: guard passed; Ruff format said "13 files
+  already formatted"; Ruff lint said "All checks passed!"; mypy said
+  "Success: no issues found in 2 source files". Implementer tests: float64
+  22 passed, 3 skipped; float32 25 passed. Independent spec tests: float64
+  58 passed, 13 skipped, 313 deselected; float32 66 passed, 5 skipped,
+  313 deselected. Final line: "check: all gates passed through A1".
 
-The own `jit` construction test verifies A1 promotion now. A3 will require
-ordinary traced construction to raise and will introduce `with_issues`; move
-this transformation check to that route when A3 is implemented. The
-independent A1 suite predates the updated section 3.3 wording, so the new
-R1/R2 cases are currently evidenced by implementer tests. No R, fixture,
-wheel or install check was run. A2 validation and A3 indexing/metadata remain
-outside this fix-up.
+## Follow-up for the independent tester
+
+`tests/spec/API_ASSUMPTIONS.md` Q-001 currently assigns `DataIssues` to A3 and
+several A1 tests use constructor paths. The tester should compare existing
+markers and `TESTMAP.md` against the supplied schedule, retag or split tests as
+needed, and update Q-001 on a `spectests-*` branch. These protected files were
+not changed here. No uncertainty remains in the role text itself.
