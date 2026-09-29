@@ -7,6 +7,24 @@ Specification revision 5 now includes the first-endpoint and infinite-interval
 clarifications (`022d5eb`, `3f83d91`, `f7d2fff`). The corresponding independent
 tests were synced in `99f7629`.
 
+## A2a docstring review fix-up
+
+The maintainer's current request approves updating the `WA`-annotated
+docstrings in `src/chronox_jax/data.py`. The class docstring will describe the
+normalized object and PyTree fields without an R comparison. Each constructor
+docstring will explain its own inputs and rules first, then compare that form
+with the corresponding R `Surv` usage in a separate paragraph. Preserve the
+maintainer's manual clarification that `event` handles exact/right censoring
+and flags are used when left or interval censoring is needed. Remove the `WA`
+notes after addressing them.
+
+Files: `src/chronox_jax/data.py` (docstrings only), `PLAN.md`, and `REVIEW.md`.
+Public API and runtime behavior are unchanged; no new test is needed for this
+documentation-only change. Coverage: spec 3.1–3.2 and the A2a constructor
+interface. Run Ruff format/lint, mypy, and `scripts/check.sh --through A2`.
+Make one fix-up commit on `a2-constructors`, write the review handoff, and stop
+before A2b.
+
 ## A2a review fix-up: direct `row_issues` coverage
 
 The A2a tests exercise `row_issues` through eager constructor errors, but do

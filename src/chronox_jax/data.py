@@ -19,10 +19,10 @@ from chronox_jax._data_validation import (
 class SurvivalData:
     """Exact and censored observations stored as aligned arrays (spec 3.2).
 
-    Unlike R's ``survival::Surv`` matrix with a type attribute, this PyTree
-    stores five public fields: ``exact``, ``lower``, ``upper``, ``left_trunc``,
-    and ``right_trunc``. Each has the shape of the first time argument; a
-    private issue-bitfield leaf has that shape too. There is no time-grid axis.
+    The five public fields are ``exact``, ``lower``, ``upper``, ``left_trunc``,
+    and ``right_trunc``. Each has the shape of the first time argument. A
+    private issue-bitfield array is a sixth PyTree leaf with the same shape.
+    There is no time-grid axis.
     """
 
     exact: jax.Array
@@ -50,21 +50,25 @@ class SurvivalData:
     ) -> None:
         """Build observations from event status or censoring flags (spec 3.1).
 
-        ``SurvivalData(time, event)`` follows R's ``Surv(time, event)``:
-        the second positional argument is 1/True for an exact event and
-        0/False for right censoring. No R-style 1/2 coding is inferred.
-        With no status or flags, every row is exact. To mix kinds, use the
+        ``SurvivalData(time, event)`` uses 1/True for an exact event and
+        0/False for right censoring. With no status or flags, every row is
+        exact. To include left or interval censoring in a mixture, use the
         keyword flags ``right_censored``, ``left_censored``, and
-        ``interval_censored``; a row with all flags false is exact. Choose
+        ``interval_censored``. A row with all flags false is exact. Choose
         either ``event`` or flags, and set at most one flag per row.
 
         ``time`` is the exact time, one-sided censoring time, or interval's
         lower endpoint. ``time2`` supplies the upper endpoint only for
-        interval-censored rows. Unlike ``Surv(time, time2, event)`` with its
-        counting-process default, ``time2`` here does not mean a stop time.
-        Missing truncation bounds mean ``left_trunc=0`` and
-        ``right_trunc=+inf``. ``dtype`` selects a common floating dtype.
-        All inputs must broadcast to ``time.shape`` without enlarging it.
+        interval-censored rows. Missing truncation bounds mean
+        ``left_trunc=0`` and ``right_trunc=+inf``. ``dtype`` selects a common
+        floating dtype. All inputs must broadcast to ``time.shape`` without
+        enlarging it.
+
+        R comparison: the two-argument form uses the event convention of
+        ``survival::Surv(time, event)``. Unlike R's default
+        ``Surv(time, time2, event)`` counting-process form, ``time2`` here is
+        only an interval upper endpoint, never a stop time. R-style 1/2 event
+        codes are not inferred.
 
         Examples:
             ``SurvivalData([2.0, 3.0], [1, 0])`` stores an event at 2 and
@@ -155,18 +159,20 @@ class SurvivalData:
     ) -> "SurvivalData":
         """Build observation sets from endpoints (spec 3.1–3.2).
 
-        This corresponds to R's ``Surv(lower, upper, type="interval2")``
-        form, with an explicit ``exact`` mask. A censored row means
-        ``lower < T <= upper``; use ``upper=+inf`` for right censoring and
-        ``lower=0`` for left censoring. Mark exact rows with ``exact=True``:
-        their event time is ``lower``, and their supplied ``upper`` may equal
-        ``lower`` or be NaN; the stored upper becomes ``lower``. Equal
-        endpoints alone never imply an exact event. Unlike R's ``interval2``
-        input, do not use NA for an unbounded censored endpoint.
+        A censored row represents ``lower < T <= upper``. Use ``upper=+inf``
+        for right censoring and ``lower=0`` for left censoring. Mark exact
+        rows with ``exact=True``: their event time is ``lower``, and their
+        supplied ``upper`` may equal ``lower`` or be NaN. The stored upper
+        then becomes ``lower``. Equal endpoints alone do not mark an event.
 
         ``lower`` fixes the observation shape; other inputs must broadcast
         to it without enlargement. Omitted ``left_trunc`` and
         ``right_trunc`` become 0 and +inf. ``dtype`` selects a common float.
+
+        R comparison: this form resembles
+        ``survival::Surv(lower, upper, type="interval2")``, but exactness is
+        given by ``exact`` rather than inferred from equal endpoints. Use
+        ``+inf`` for an unbounded censored upper endpoint, not R's NA.
 
         Example:
             ``SurvivalData.from_bounds([2.0, 0.0], [2.0, 3.0],
