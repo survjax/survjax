@@ -206,6 +206,11 @@ def flag_fields(
     Build the five stored fields and input-fault masks, then pass them to
     ``row_issues``. Eager construction and ``with_issues`` share this result.
     """
+    if event is not None and any(
+        flag is not None for flag in (right_censored, left_censored, interval_censored)
+    ):
+        # spec 3.1 / D-006: argument-presence conflict is static misuse.
+        raise TypeError("event cannot be combined with censoring flags")
     common = time_dtype(
         {
             "time": time,
@@ -228,11 +233,6 @@ def flag_fields(
     else:
         exact, bad_event = indicator(event, shape, "event")
         invalid_indicator = invalid_indicator | bad_event
-        if any(
-            flag is not None
-            for flag in (right_censored, left_censored, interval_censored)
-        ):
-            conflicting = jnp.ones(shape, dtype=bool)
         right = ~exact
     second = first if time2 is None else to_shape(time2, shape, common)
     lower = jnp.where(left, jnp.zeros_like(first), first)
@@ -272,12 +272,16 @@ def flag_fields(
     return exact, lower, upper, lower_bound, upper_bound, bits
 
 
-def raise_if_invalid(bits: jax.Array) -> None:
+def raise_if_invalid(
+    bits: jax.Array,
+    *,
+    traced_hint: str = "use SurvivalData.with_issues for traced flag inputs",
+) -> None:
     """Eager constructor checkpoint with counts and first row indices."""
     if isinstance(bits, jax.core.Tracer):
         raise ValueError(
             "ordinary SurvivalData constructors require concrete observations; "
-            "use SurvivalData.with_issues for traced values"
+            + traced_hint
         )
     host_bits = np.asarray(bits)
     problems = []

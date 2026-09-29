@@ -21,15 +21,18 @@ def test_with_issues_matches_eager_fields_on_valid_rows() -> None:
     assert bool(np.asarray(issues.ok))
 
 
-def test_raw_indicator_and_conflict_masks_overlap() -> None:
-    """Spec 3.1/6.2: invalid codes and supplied flag conflicts survive together."""
+def test_raw_indicator_and_rowwise_conflict_masks_overlap() -> None:
+    """Spec 3.1/6.2: invalid codes and two true flags survive together."""
     data, issues = SurvivalData.with_issues(
-        [1.0, 2.0], [1, 2], right_censored=[False, False]
+        [2.0, 3.0],
+        right_censored=[1, 0],
+        left_censored=[1, 0],
+        interval_censored=[0.5, 0],
     )
-    np.testing.assert_array_equal(issues.invalid_indicator, [False, True])
-    np.testing.assert_array_equal(issues.conflicting_indicators, [True, True])
-    np.testing.assert_array_equal(issues.invalid_rows, [True, True])
-    np.testing.assert_array_equal(data._issue_bits, [2, 3])
+    np.testing.assert_array_equal(issues.invalid_indicator, [True, False])
+    np.testing.assert_array_equal(issues.conflicting_indicators, [True, False])
+    np.testing.assert_array_equal(issues.invalid_rows, [True, False])
+    np.testing.assert_array_equal(data._issue_bits, [3, 0])
     assert not bool(np.asarray(issues.ok))
 
 
@@ -96,6 +99,14 @@ def test_uninformative_rows_are_valid_and_separate_from_invalid_rows() -> None:
         issues.invalid_rows, [False, False, False, False, True]
     )
     assert not bool(np.asarray(issues.ok))
+
+
+def test_left_censoring_at_upper_truncation_is_uninformative() -> None:
+    """Spec 2/6.2: (0,U] contains the entire window (L,U]."""
+    _, issues = SurvivalData.with_issues([3.0], left_censored=[True], right_trunc=[3.0])
+    np.testing.assert_array_equal(issues.uninformative, [True])
+    np.testing.assert_array_equal(issues.invalid_rows, [False])
+    assert bool(np.asarray(issues.ok))
 
 
 def test_diagnostic_pytree_crosses_jit_and_vmap() -> None:

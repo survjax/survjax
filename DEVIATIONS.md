@@ -93,3 +93,56 @@ Entries are added by the implementer and resolved by the maintainer. Format:
   whose omitted or NaN value uses `missing_time2`. Nonnumeric fields and
   incompatible shapes still cannot form an object and raise.
 - Status: resolved by maintainer, 2026-09-28; specification revision 5
+
+## D-006 `event` combined with flags in `with_issues`
+- Step: A2 independent-review fix-up
+- Spec: sections 3.1, 6.1, and 6.2
+- Spec says: `event` together with any non-None censoring flag is rejected;
+  static misuse such as bad argument combinations raises; `with_issues`
+  reports invalid numeric rows without value-dependent exceptions. It does
+  not explicitly assign this argument-presence conflict to either category.
+- Did / propose: A2 returned `conflicting_indicators` on every row from
+  `with_issues`, while the eager constructor raised. The maintainer chose
+  `TypeError` in both paths in conversation on 2026-09-29, reserving the bit
+  for row-wise conflicts between true flags. Implement this in the A2 review
+  fix-up; the entry remains formally open for maintainer resolution.
+- Status: open
+
+## D-007 Concrete observation inputs captured inside `jit`
+- Step: A2 independent-review fix-up
+- Spec: sections 3.2 and 6.2
+- Spec says: ordinary construction with traced observation values raises at
+  trace time; static metadata is computed eagerly from concrete values. It
+  does not say whether concrete inputs captured by a jitted closure must be
+  accepted.
+- Did / propose: A2 checks the computed issue bits and therefore rejects
+  construction inside `jit` even when all observation inputs are concrete.
+  The reviewer recommends checking inputs for tracers and evaluating fully
+  concrete construction under `jax.ensure_compile_time_eval()`. Await
+  maintainer decision before changing this behavior.
+- Status: open
+
+## D-008 Pure bounds constructor name and signature
+- Step: A2 independent-review fix-up
+- Spec: sections 3.1 and 6.2
+- Spec says: `SurvivalData.with_issues(...)` is the pure constructor but only
+  gives the flag-form signature. Revision 5 assigns diagnostic masks to bounds
+  inputs without naming a pure bounds entry point.
+- Did / propose: The reviewer records a maintainer decision that a jit-safe
+  bounds counterpart is required, but its public name and signature still
+  need to be placed in the normative spec. A possible form is
+  `SurvivalData.from_bounds_with_issues(...)`. The maintainer will update the
+  spec before adding a public method (conversation, 2026-09-29).
+- Status: open
+
+## D-009 Unsupported outside-interval keyword in `from_bounds`
+- Step: A2 independent-review fix-up
+- Spec: section 3.1
+- Spec says: `outside_interval_censored` is recognized only to raise an
+  explicit unsupported-feature error, while the `from_bounds` signature does
+  not include that keyword. Its applicability to bounds construction is not
+  stated.
+- Did / propose: `from_bounds(..., outside_interval_censored=...)` currently
+  raises Python's `TypeError`. The maintainer will update the spec before a
+  change to this behavior (conversation, 2026-09-29).
+- Status: open

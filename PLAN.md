@@ -7,6 +7,46 @@ Specification revision 5 now includes the first-endpoint and infinite-interval
 clarifications (`022d5eb`, `3f83d91`, `f7d2fff`). The corresponding independent
 tests were synced in `99f7629`.
 
+## A2 independent-review fix-up (2026-09-29)
+
+The maintainer requested implementation of
+`../chronox-dev-review/.review/A2.md` on `a2-constructors`. Keep this review
+work in small commits, stopping after each for maintainer inspection.
+
+**First fix-up, authorized by the current request and implemented:**
+
+- `tests/unit/test_data_construction.py`: add hand-derived NaN and fractional
+  indicator cases (F-1/M6).
+- `tests/unit/test_data_boundaries.py`: add left-censoring at `+inf` (F-1/M4).
+- `tests/unit/test_data_issues.py`: assert `uninformative` when upper equals a
+  finite truncation bound (F-1/M5).
+- `tests/unit/test_data_dtype.py`: test weak traced promotion through the
+  public `SurvivalData.with_issues` path (N-4).
+- `tests/unit/test_data_construction.py`: assert a non-exact bounds NaN upper
+  reports `missing_time2` (F-1/M3), and a traced bounds error states that no
+  pure bounds form exists yet (F-3).
+- `src/chronox_jax/_data_validation.py`, `src/chronox_jax/data.py`: make the
+  traced bounds error accurate without changing validation behavior (F-3).
+- `src/chronox_jax/_data_validation.py` and constructor tests: apply the
+  maintainer's S-1 decision from this conversation: `event` plus any supplied
+  flag is static misuse and raises `TypeError` in both entry points; the
+  conflict bit remains for row-wise true-flag collisions.
+- `DEVIATIONS.md`: log S-1, F-2, S-2, and S-3 as open specification questions.
+- `REVIEW.md`: replace the latest narrow handoff with a consolidated A2a+A2b
+  reading order, invariants, requirement-to-test map, checks, and pending
+  decisions (F-4).
+
+No spec, independent-test, dependency, or public API edits. Coverage: spec 2,
+3.1–3.3, 6.2–6.3, and 12.1. Run Ruff format/lint, mypy,
+`scripts/run_tests.sh`, `scripts/check.sh --through A2`, and the targeted A3
+diagnostic tests in both dtype modes. Commit this fix-up and stop.
+
+**Later review work needs maintainer decisions:** F-2 (concrete inputs inside
+`jit`). The maintainer will update the spec before S-2 (pure bounds API) and
+S-3 (unsupported keyword in `from_bounds`) are implemented. The review
+suggests cleanup nits N-1–N-3 and N-5; consider them only with the relevant
+API decision or a separate small review step. Do not infer missing spec text.
+
 ## A2b documentation fix-up
 
 The maintainer's current request authorizes a short description of how

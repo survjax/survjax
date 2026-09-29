@@ -114,7 +114,8 @@ class SurvivalData:
 
         The fields and issue masks have ``time.shape``; ``ok`` is scalar.
         Invalid numeric rows set issue masks without raising. Inputs that
-        cannot form an observation object still raise.
+        cannot form an observation object still raise. Combining ``event``
+        with any censoring flag raises ``TypeError``.
         """
         if "outside_interval_censored" in kwargs:
             raise NotImplementedError("outside_interval_censored is not supported")
@@ -218,7 +219,13 @@ class SurvivalData:
             invalid_time2=invalid_time2,
             check_interval=~exact_mask,
         )
-        raise_if_invalid(bits)
+        raise_if_invalid(
+            bits,
+            traced_hint=(
+                "SurvivalData.with_issues accepts flag inputs only; "
+                "a pure bounds constructor is not specified yet"
+            ),
+        )
         result = object.__new__(cls)
         result._assign(
             exact_mask,

@@ -30,6 +30,12 @@ def test_right_censoring_before_entry_is_rejected() -> None:
         SurvivalData([1.0], [False], left_trunc=[2.0])
 
 
+def test_left_censoring_at_infinity_is_invalid_time() -> None:
+    """Spec 3.3/6.2: one-sided censoring time must be finite."""
+    with pytest.raises(ValueError, match="invalid_time: 1 row"):
+        SurvivalData([np.inf], left_censored=[True])
+
+
 def test_interval_infinite_upper_uses_right_censoring_entry_rule() -> None:
     """Spec 3.1: interval time2=+inf and time=L is valid."""
     data = SurvivalData(
