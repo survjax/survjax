@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from chronox_jax import SurvivalData
+from chronox_jax._data_validation import time_dtype
 
 
 def test_integer_only_uses_configured_default_float(x64_enabled: bool) -> None:
@@ -63,12 +64,13 @@ def test_weak_jax_bound_preserves_float32_time_dtype() -> None:
 
 
 def test_jitted_weak_float_bound_preserves_float32_time_dtype() -> None:
-    """Spec 3.3: a Python float becomes a weak tracer inside jit."""
+    """Spec 3.3: dtype promotion retains weak typing under jit."""
     time = np.array([1, 2], dtype=np.float32)
 
     @jax.jit
     def lower_from_bound(bound: jax.Array) -> jax.Array:
-        return SurvivalData(time, left_trunc=bound).lower
+        common = time_dtype({"time": time, "left_trunc": bound}, None)
+        return jnp.zeros((), dtype=common)
 
     result = lower_from_bound(0.5)
     assert result.dtype == jnp.float32

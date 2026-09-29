@@ -1,82 +1,18 @@
 """Normalized survival observations (spec 3.1–3.3)."""
 
-import warnings
 from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
-import numpy as np
 from jax.typing import ArrayLike, DTypeLike
 
-
-def _input_dtype(
-    value: ArrayLike, name: str
-) -> tuple[np.dtype | int | float | jax.Array, bool]:
-    """Keep Python scalars weak and inspect typed inputs without host copies."""
-    try:
-        if isinstance(value, (int, float)) and not isinstance(
-            value, (bool, np.generic)
-        ):
-            return value, False
-        if hasattr(value, "dtype"):
-            raw = jnp.dtype(value.dtype)
-            warn_float64 = raw == jnp.dtype(jnp.float64) and not (
-                isinstance(value, jax.Array) and value.weak_type
-            )
-        else:
-            # spec 3.3 / D-002: JAX gives Python lists their default array dtype.
-            raw = jnp.asarray(value).dtype
-            warn_float64 = False
-    except (TypeError, ValueError) as exc:
-        raise TypeError(f"{name} must contain real numeric times") from exc
-    if not (jnp.issubdtype(raw, jnp.integer) or jnp.issubdtype(raw, jnp.floating)):
-        raise TypeError(f"{name} must contain real numeric times")
-    if isinstance(value, jax.Array) and value.weak_type:
-        # spec 3.3: a dtype alone loses the array's weak JAX promotion.
-        return value, False
-    return jax.dtypes.canonicalize_dtype(raw), warn_float64
-
-
-def _time_dtype(
-    values: dict[str, ArrayLike | None], dtype: DTypeLike | None
-) -> np.dtype:
-    inputs = [
-        _input_dtype(value, name) for name, value in values.items() if value is not None
-    ]
-    if dtype is not None:
-        requested = jnp.dtype(dtype)
-        if not jnp.issubdtype(requested, jnp.floating):
-            raise TypeError("dtype must be floating")
-        if requested == jnp.dtype(jnp.float64) and not jax.config.jax_enable_x64:
-            raise ValueError("float64 requires JAX_ENABLE_X64=1")
-        return jnp.result_type(requested, jnp.float32)
-
-    if not jax.config.jax_enable_x64 and any(warn for _, warn in inputs):
-        warnings.warn(
-            "float64 time input converted to float32 because JAX 64-bit mode is disabled",
-            RuntimeWarning,
-            stacklevel=3,
-        )
-    contributions = [value for value, _ in inputs]
-    strong_float = any(
-        isinstance(value, np.dtype) and jnp.issubdtype(value, jnp.floating)
-        for value in contributions
-    )
-    if strong_float:
-        common = jnp.result_type(*contributions, jnp.float32)
-    else:
-        # spec 3.3 / D-002: integer-only and weak-scalar-only input uses the default float.
-        common = jnp.asarray(0.0).dtype
-    return common
-
-
-def _to_shape(value: ArrayLike, shape: tuple[int, ...], dtype: DTypeLike) -> jax.Array:
-    array = jnp.asarray(value, dtype=dtype)
-    if jnp.broadcast_shapes(array.shape, shape) != shape:
-        raise ValueError(
-            f"input shape {array.shape} would enlarge observation shape {shape}"
-        )
-    return jnp.broadcast_to(array, shape)
+from chronox_jax._data_validation import (
+    indicator,
+    raise_if_invalid,
+    row_issues,
+    time_dtype,
+    to_shape,
+)
 
 
 @dataclass(frozen=True, eq=False, init=False)
@@ -110,6 +46,7 @@ class SurvivalData:
         left_trunc: ArrayLike | None = None,
         right_trunc: ArrayLike | None = None,
         dtype: DTypeLike | None = None,
+        **kwargs: ArrayLike,
     ) -> None:
         """Build observations from event status or censoring flags (spec 3.1).
 
@@ -133,7 +70,12 @@ class SurvivalData:
             ``SurvivalData([2.0, 3.0], [1, 0])`` stores an event at 2 and
             right censoring at 3.
         """
-        common = _time_dtype(
+        if "outside_interval_censored" in kwargs:
+            raise NotImplementedError("outside_interval_censored is not supported")
+        if kwargs:
+            unknown = ", ".join(sorted(kwargs))
+            raise TypeError(f"unexpected keyword argument(s): {unknown}")
+        common = time_dtype(
             {
                 "time": time,
                 "time2": time2,
@@ -144,27 +86,25 @@ class SurvivalData:
         )
         first = jnp.asarray(time, dtype=common)
         shape = first.shape
-        right = (
-            jnp.zeros(shape, dtype=bool)
-            if right_censored is None
-            else _to_shape(right_censored, shape, bool)
+        right, bad_right = indicator(right_censored, shape, "right_censored")
+        left, bad_left = indicator(left_censored, shape, "left_censored")
+        interval, bad_interval = indicator(
+            interval_censored, shape, "interval_censored"
         )
-        left = (
-            jnp.zeros(shape, dtype=bool)
-            if left_censored is None
-            else _to_shape(left_censored, shape, bool)
-        )
-        interval = (
-            jnp.zeros(shape, dtype=bool)
-            if interval_censored is None
-            else _to_shape(interval_censored, shape, bool)
-        )
+        invalid_indicator = bad_right | bad_left | bad_interval
+        conflicting = (right.astype(jnp.int32) + left + interval) > 1
         if event is None:
             exact = ~(right | left | interval)
         else:
-            exact = _to_shape(event, shape, bool)
+            exact, bad_event = indicator(event, shape, "event")
+            invalid_indicator = invalid_indicator | bad_event
+            if any(
+                flag is not None
+                for flag in (right_censored, left_censored, interval_censored)
+            ):
+                conflicting = jnp.ones(shape, dtype=bool)
             right = ~exact
-        second = first if time2 is None else _to_shape(time2, shape, common)
+        second = first if time2 is None else to_shape(time2, shape, common)
         lower = jnp.where(left, jnp.zeros_like(first), first)
         upper = jnp.where(
             right, jnp.full_like(first, jnp.inf), jnp.where(interval, second, first)
@@ -172,16 +112,35 @@ class SurvivalData:
         lower_bound = (
             jnp.zeros_like(first)
             if left_trunc is None
-            else _to_shape(left_trunc, shape, common)
+            else to_shape(left_trunc, shape, common)
         )
         upper_bound = (
             jnp.full_like(first, jnp.inf)
             if right_trunc is None
-            else _to_shape(right_trunc, shape, common)
+            else to_shape(right_trunc, shape, common)
         )
-        self._assign(
-            exact, lower, upper, lower_bound, upper_bound, jnp.zeros(shape, jnp.int32)
+        invalid_time = jnp.where(
+            exact,
+            (first <= 0) | ~jnp.isfinite(first),
+            (first < 0) | ~jnp.isfinite(first),
         )
+        missing_time2 = interval & (time2 is None or jnp.isnan(second))
+        invalid_time2 = interval & ((second < 0) | jnp.isneginf(second))
+        bits = row_issues(
+            exact,
+            lower,
+            upper,
+            lower_bound,
+            upper_bound,
+            invalid_indicator=invalid_indicator,
+            conflicting_indicators=conflicting,
+            missing_time2=missing_time2,
+            invalid_time=invalid_time,
+            invalid_time2=invalid_time2,
+            check_interval=interval,
+        )
+        raise_if_invalid(bits)
+        self._assign(exact, lower, upper, lower_bound, upper_bound, bits)
 
     @classmethod
     def from_bounds(
@@ -214,7 +173,7 @@ class SurvivalData:
             exact=[True, False])`` stores an event at 2 and left censoring
             at 3.
         """
-        common = _time_dtype(
+        common = time_dtype(
             {
                 "lower": lower,
                 "upper": upper,
@@ -225,23 +184,44 @@ class SurvivalData:
         )
         first = jnp.asarray(lower, dtype=common)
         shape = first.shape
-        last = _to_shape(upper, shape, common)
-        exact_mask = (
-            jnp.zeros(shape, dtype=bool)
-            if exact is None
-            else _to_shape(exact, shape, bool)
-        )
+        last = to_shape(upper, shape, common)
+        exact_mask, invalid_indicator = indicator(exact, shape, "exact")
         normalized_upper = jnp.where(exact_mask, first, last)
         lower_bound = (
             jnp.zeros_like(first)
             if left_trunc is None
-            else _to_shape(left_trunc, shape, common)
+            else to_shape(left_trunc, shape, common)
         )
         upper_bound = (
             jnp.full_like(first, jnp.inf)
             if right_trunc is None
-            else _to_shape(right_trunc, shape, common)
+            else to_shape(right_trunc, shape, common)
         )
+        invalid_time = jnp.where(
+            exact_mask,
+            (first <= 0) | ~jnp.isfinite(first),
+            (first < 0) | ~jnp.isfinite(first),
+        )
+        missing_time2 = ~exact_mask & jnp.isnan(last)
+        invalid_time2 = (
+            (last < 0)
+            | jnp.isneginf(last)
+            | (exact_mask & ~jnp.isnan(last) & (last != first))
+        )
+        bits = row_issues(
+            exact_mask,
+            first,
+            normalized_upper,
+            lower_bound,
+            upper_bound,
+            invalid_indicator=invalid_indicator,
+            conflicting_indicators=jnp.zeros(shape, dtype=bool),
+            missing_time2=missing_time2,
+            invalid_time=invalid_time,
+            invalid_time2=invalid_time2,
+            check_interval=~exact_mask,
+        )
+        raise_if_invalid(bits)
         result = object.__new__(cls)
         result._assign(
             exact_mask,
@@ -249,7 +229,7 @@ class SurvivalData:
             normalized_upper,
             lower_bound,
             upper_bound,
-            jnp.zeros(shape, jnp.int32),
+            bits,
         )
         return result
 
