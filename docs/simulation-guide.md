@@ -43,10 +43,13 @@ import chronox_jax as cx
 
 N = 512  # example intended dataset size; keep it fixed for the pilot
 
+
 def nll(log_rate, data):
     return -cx.log_likelihood(cx.Exponential.from_log(log_rate=log_rate), data).sum()
 
+
 score = jax.grad(nll)
+
 
 @jax.jit
 def replicate(key, rate, censor_time):
@@ -60,9 +63,12 @@ def replicate(key, rate, censor_time):
 
     def fit(_):
         sol = optx.root_find(
-            score, optx.Newton(rtol=1e-6, atol=1e-6),
-            y0=jnp.zeros((), dtype=data.lower.dtype), args=data,
-            max_steps=64, throw=False,
+            score,
+            optx.Newton(rtol=1e-6, atol=1e-6),
+            y0=jnp.zeros((), dtype=data.lower.dtype),
+            args=data,
+            max_steps=64,
+            throw=False,
         )
         solver_ok = sol.result == optx.RESULTS.successful
         fit_ok = jnp.isfinite(sol.value) & (jnp.abs(score(sol.value, data)) < 1e-5)
@@ -72,11 +78,22 @@ def replicate(key, rate, censor_time):
     def skip(_):
         reason = jnp.where(issues.ok, 2, 1)
         # solver_result is meaningful only when attempted is true.
-        return jnp.full((), jnp.nan, dtype=data.lower.dtype), reason, optx.RESULTS.successful
+        return (
+            jnp.full((), jnp.nan, dtype=data.lower.dtype),
+            reason,
+            optx.RESULTS.successful,
+        )
 
     estimate, reason, solver_result = jax.lax.cond(attempt, fit, skip, None)
-    return dict(key=key, issues=issues, attempted=attempt, log_rate=estimate,
-                reason=reason, solver_result=solver_result)
+    return dict(
+        key=key,
+        issues=issues,
+        attempted=attempt,
+        log_rate=estimate,
+        reason=reason,
+        solver_result=solver_result,
+    )
+
 
 keys = jax.random.split(jax.random.key(2026), 16)  # example pilot for one scenario
 pilot = jax.jit(lambda ks: jax.lax.map(lambda k: replicate(k, 1.0, 2.0), ks))(keys)
