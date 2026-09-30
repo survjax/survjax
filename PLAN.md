@@ -40,6 +40,12 @@ only; label A3 indexing/static-metadata guarantees and later likelihood modes
 as planned. Revise this step plan, if needed, before writing its code and seek
 approval under the working agreement.
 
+The maintainer's follow-up authorizes DOC-2 and also asks for the commands to
+open the rendered HTML. Add those commands to `docs/index.md`. A locally edited
+playground currently contains exploratory cells and saved outputs: preserve its
+cell code, clear saved outputs for the committed source, and extend it with the
+new guide's working API. This is still the one documentation step below.
+
 Files to create or change:
 
 - `docs/survival-data.md`: executable synthetic examples for event/status,
