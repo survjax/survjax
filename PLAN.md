@@ -1,3 +1,35 @@
+# Specification revision 8 — pure SurvivalData construction
+
+Status: documentation revision completed; ready for maintainer review on the
+existing `spec-constructor` branch. This request authorizes editing
+the specification for this step despite the usual implementation-only rule.
+
+Files and public contract:
+
+- `spec/SPECIFICATION.md`: revise sections 3, 6, 10–15 for pure ordinary and
+  convenience constructors, the `data.issues` property, explicit host raising,
+  unchanged static misuse and likelihood rules, metadata, compatibility, and
+  acceptance evidence. Add strict and simulation workflows with an illustrative
+  compiled Newton solve using second parameter derivatives.
+- `DEVIATIONS.md`: record any remaining exception-lifecycle question as open.
+- `PLAN.md` and `REVIEW.md`: record scope, reading order, invariants, checks,
+  and implementation/test follow-up. Retain previous plans as history.
+
+Supporting user guidance belongs beside the normative API and in section 11.4;
+no new documentation framework is needed. No implementation, dependencies,
+independent tests, or project goals change. No executable tests are added.
+This is one coherent documentation step; the contract replacement and example
+may exceed the approximate 300-line target and will be reviewed as one revision.
+
+Verification: audit constructor/validation references, parse the illustrative
+Python, check Newton usage against primary Optimistix documentation, run
+`git diff --check` and the existing `scripts/check.sh --through A1` gate.
+The current implementation cannot execute the future-contract example; do not
+claim that this gate verifies revision 8. Commit this step, write `REVIEW.md`,
+and stop for review.
+
+## Previous plans (historical; superseded where revision 8 changes validation)
+
 # Metadata step — define Slice A steps for the blind spec tester
 
 Status: approved by the maintainer in the request to create a new branch and

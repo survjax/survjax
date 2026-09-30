@@ -1,5 +1,21 @@
 # Deviations and spec questions
 
+## D-006 Legacy diagnostic compatibility after pure construction
+- Step: specification revision 8 (`spec-constructor`)
+- Spec: sections 6.2, 10.2 and 13; revision 7 sections 6.2 and 13
+- Spec says: revision 7 uses `TracedInputError` for ordinary traced
+  construction and spells the diagnostic decoder `data.issues()`. Revision 8
+  accepts traced construction and requires the `data.issues` property plus an
+  explicit host-only `raise_if_invalid()` checkpoint.
+- Did / propose: remove the traced-construction rejection, without deciding
+  whether to retire or retain the legacy exception export or which exception
+  type to require for raising on traced diagnostics. The maintainer explicitly
+  requested leaving the exception lifecycle open on 2026-09-30. A callable
+  compatibility alias for `data.issues()` is also unspecified; this revision
+  requires only the property. Resolve these compatibility questions before
+  implementation/testing of the affected exception/alias surface.
+- Status: open
+
 Entries are added by the implementer and resolved by the maintainer. Format:
 
 ```
