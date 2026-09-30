@@ -1,9 +1,9 @@
 # Chronox v0: specification
 
-- **Revision:** 8, 2026-09-30. Pure observation construction everywhere;
-  `data.issues` diagnostic view, explicit host validation, and compiled
-  simulation-study guidance. Ordinary eager construction no longer raises
-  automatically for invalid observation values (sections 6.2 and 10.2).
+- **Revision:** 9, 2026-09-30. Only ordinary observation constructors;
+  diagnostics through `data.issues`. Removes the issue-returning convenience
+  methods retained in revision 8. Pure eager/traced construction and explicit
+  host validation remain (sections 6.2 and 10.2).
 - **Status:** Accepted design. Not implemented. Slice A may begin when the user
   instructs implementation.
 - **Companions:** [GOALS.md](GOALS.md) (direction and priorities),
@@ -233,10 +233,10 @@ how train/validation/test splits and minibatches are made.
 which derived kinds are present, whether any left truncation is present (any
 `left_trunc > 0`), and, as a separate flag, whether any right truncation is
 present (any `right_trunc < +inf`). The auxiliary data holds only these flags;
-datasets with equal flags have equal tree structures. All four constructor
-forms classify observation inputs as in section 6.2. When no observation input
-is traced, the flags are computed from
-the normalized fields of all rows. This includes rows with issue bits, and
+datasets with equal flags have equal tree structures. Both constructors
+classify observation inputs as in section 6.2. When no observation input is
+traced, the flags are computed from the normalized fields of all rows.
+This includes rows with issue bits, and
 applies also when construction happens inside a transformed function. When any
 observation input is traced, all flags are conservatively true, including for
 ordinary construction. This metadata difference does not change normalized
@@ -567,21 +567,18 @@ with the data shape, an invalid-row union and a scalar validity reduction.
 ```text
 SurvivalData(...) -> data                           # pure; eager, jit and vmap
 SurvivalData.from_bounds(...) -> data               # pure; eager, jit and vmap
-SurvivalData.with_issues(...) -> (data, data.issues)  # optional convenience
-SurvivalData.from_bounds_with_issues(...) -> (data, data.issues)
 data.issues -> DataIssues                           # pure diagnostic property
 data.issues.ok -> scalar bool array                 # usable in compiled control flow
 data.issues.raise_if_invalid()                      # explicit host-only checkpoint
 ```
 
-- **All construction is pure.** All four forms normalize and record invalid
+- **All construction is pure.** Both constructors normalize and record invalid
   observation values without value-dependent Python exceptions or Python tests
   on traced values. Valid and invalid values have the same validation semantics
   eagerly and under `jit`/`vmap`. There is no unchecked or `assume_valid` path.
-- Each convenience method takes exactly the arguments of its ordinary
-  counterpart and returns `(data, data.issues)`. Normalized fields, issue bits,
-  dtype policy and metadata semantics are identical for both valid and invalid
-  inputs with the same tracing classification.
+- These are the only public observation constructors. Each returns data;
+  diagnostics are accessed through `data.issues`. There are no separate
+  issue-returning constructor methods.
 - **Observation inputs** are all constructor arguments except `dtype`:
   - for the flag form: `time`, `event`, the censoring flags, `time2`,
     `left_trunc` and `right_trunc`;
@@ -605,7 +602,7 @@ data.issues.raise_if_invalid()                      # explicit host-only checkpo
   (section 3.2), never whether observation values can be validated. Concrete
   inputs inside transformed functions also return data with issues rather than
   raising for invalid rows. Distribution constructors accept traced parameters.
-- **Argument misuse raises in all four constructors**, independent of values
+- **Argument misuse raises in both constructors**, independent of values
   and of tracing. This includes:
   - `event` combined with any non-None censoring flag;
   - nonnumeric fields;
@@ -1129,15 +1126,19 @@ compiled extensions.
 things intended to stabilize are constructor keywords, the entry-point
 signatures of section 6.1 and result shapes.
 
-**Revision 8 compatibility change.** Ordinary eager `SurvivalData(...)` and
+**Revisions 8–9 compatibility changes.** Ordinary eager `SurvivalData(...)` and
 `from_bounds(...)` no longer raise automatically for invalid observation
 values. Migrate code that relied on that exception to construct data and then
 call `data.issues.raise_if_invalid()` explicitly on the host. Both ordinary
 forms now accept traced inputs. Use the `data.issues` property in place of the
-revision 7 `data.issues()` method spelling. Convenience methods remain optional
-and equivalent; static misuse errors and dtype-policy errors/warnings remain.
-This changes the design contract; implementation and independent acceptance
-tests must be updated separately, and are not claimed to support revision 8 yet.
+revision 7 `data.issues()` method spelling. Revision 9 removes
+`SurvivalData.with_issues(...)` and `SurvivalData.from_bounds_with_issues(...)`
+from the public API; replace their tuple unpacking with `SurvivalData(...)` or
+`SurvivalData.from_bounds(...)`, respectively, followed by
+`issues = data.issues`. Static misuse errors and dtype-policy errors/warnings
+remain. This changes the design contract; implementation and
+independent acceptance tests must be updated separately, and are not claimed
+to support revision 9 yet.
 
 ### 10.3 Environment, dependencies and verification tools
 
@@ -1360,7 +1361,7 @@ Fully compiled early stopping, using loop state and diagnostics to decide
 whether to generate further replicates, is an alternative to host checkpoints
 between compiled batches. Both approaches retain results already produced.
 
-The following illustrates the revision 8 contract, not currently executable
+The following illustrates the revision 9 contract, not currently executable
 package support. It uses only Slice A likelihood capabilities and JAX sampling.
 Optimistix remains an external example dependency (section 10.3).
 The scenario arguments `rate` and `censor_time` are finite, strictly positive
@@ -1445,8 +1446,8 @@ These are acceptance criteria, not claims of passing tests.
 
 | Area | Required evidence |
 | --- | --- |
-| Construction | every indicator and endpoint rule; flag and bounds forms normalize equivalent observations identically; eager/`jit`/`vmap` agreement of normalized fields and issue bits for valid and invalid values, without value-dependent exceptions; both ordinary forms accept every traced observation argument, including nested list/tuple elements, and concrete invalid inputs inside `jit`; unchanged dtype policy, `TypeError` for malformed calls/types/shapes and `ValueError` for unavailable explicit dtype requests in all four forms, including under tracing; `time2` ignored on non-interval rows |
-| Data diagnostics and metadata | `data.issues` is a `DataIssues` view and adds no data PyTree leaves; masks and scalar `ok` work under `jit` on fresh, indexed, rebuilt and transformed data; invalid rows raise `InvalidDataError` only at explicit host checkpoints, with counts/indices; valid and uninformative data pass that checkpoint; raising on traced diagnostics fails explicitly; convenience methods return `(data, data.issues)` with identical normalization, issue bits and metadata semantics on valid/invalid, concrete/traced inputs; concrete metadata derives from all normalized rows, traced metadata has all may-contain flags true; separate left/right truncation flags; slices inherit metadata and slice issue masks |
+| Construction | every indicator and endpoint rule; flag and bounds forms normalize equivalent observations identically; eager/`jit`/`vmap` agreement of normalized fields and issue bits for valid and invalid values, without value-dependent exceptions; both ordinary forms accept every traced observation argument, including nested list/tuple elements, and concrete invalid inputs inside `jit`; unchanged dtype policy, `TypeError` for malformed calls/types/shapes and `ValueError` for unavailable explicit dtype requests in both constructors, including under tracing; `time2` ignored on non-interval rows |
+| Data diagnostics and metadata | `data.issues` is a `DataIssues` view and adds no data PyTree leaves; masks and scalar `ok` work under `jit` on fresh, indexed, rebuilt and transformed data; invalid rows raise `InvalidDataError` only at explicit host checkpoints, with counts/indices; valid and uninformative data pass that checkpoint; raising on traced diagnostics fails explicitly; public construction offers only the flag and bounds forms returning data, with no issue-returning constructor methods; concrete metadata derives from all normalized rows, traced metadata has all may-contain flags true; separate left/right truncation flags; slices inherit metadata and slice issue masks |
 | Stored input issues | likelihood NaN and `invalid_data` propagate raw-input issues even when normalized fields appear valid, in every constructor form, under transformations and after indexing/reconstruction; no unchecked construction path; all-censored exponential data remain structurally valid despite no finite log-rate MLE |
 | Likelihood mathematics | hand-derived exact/right/left/interval cases under absent/left/right/two-sided truncation; mixed data; partial, full and empty intersections; censored-before-entry and uninformative rows; a bounded-support family separating zero numerator from zero denominator |
 | Cross-kind identities (property-based) | interval `(c, +inf]` equals right-censored at `c`; `(0, c]` equals left-censored at `c`; `logaddexp` of adjacent intervals equals their union; full coverage gives exactly zero |
@@ -1473,7 +1474,7 @@ bounds.
 
 | Slice | Deliverable | Completion gate |
 | --- | --- | --- |
-| A | Installable package; `SurvivalData` (pure ordinary constructors, optional issue-returning forms, all v0 kinds representable, dtype policy, issue bitfield, indexing, static metadata) and `data.issues` / `DataIssues` with explicit host raising; exponential and Weibull exact/right likelihoods without truncation; direct-method policy; survival grids; core extension interface (`register_family`, `log_survival` + `reference_time`, autodiff `log_prob` default); result containers | Construction, data diagnostics/metadata and stored-input-issue requirements of section 12.1; evaluation and shape checks; first and second derivatives; stable tails; boundary cases; independent math fixtures; committed synthetic `bc`-like per-row R fixtures; eager `jax_debug_nans` run; wheel smoke test; a tiny synthetic example |
+| A | Installable package; `SurvivalData` (both pure ordinary constructors, all v0 kinds representable, dtype policy, issue bitfield, indexing, static metadata) and `data.issues` / `DataIssues` with explicit host raising; exponential and Weibull exact/right likelihoods without truncation; direct-method policy; survival grids; core extension interface (`register_family`, `log_survival` + `reference_time`, autodiff `log_prob` default); result containers | Construction, data diagnostics/metadata and stored-input-issue requirements of section 12.1; evaluation and shape checks; first and second derivatives; stable tails; boundary cases; independent math fixtures; committed synthetic `bc`-like per-row R fixtures; eager `jax_debug_nans` run; wheel smoke test; a tiny synthetic example |
 | B | Left and interval censoring; all truncation combinations; `log_conditional_interval_prob` hook; static-metadata pruning | Full likelihood matrix and diagnostics; cross-kind property tests; synthetic flexsurv fixtures for every kind; transformed derivatives |
 | C | Classical demo: external BFGS fit and `bc` reproduction, with analytical summaries as needed | The checks and targets of section 11.1, including the independent optimum check |
 | D | Log-normal and log-logistic families; `HazardFamily`; PH and AFT wrappers; analytical and generic summaries (quadrature, solver, derivative rules); sampling including truncation; `check_family`; extension recipes | Summary convergence, failure and derivative checks; wrapper identities; sampling agreement and distribution tests |
@@ -1492,12 +1493,12 @@ v0 support. Publication, remote setup and credentials are separate actions.
 ([notes/log_ndtr-precision.md](notes/log_ndtr-precision.md)); the log-normal
 requirement in section 4.1 already works around it.
 
-**Settled in drafting revisions 4, 6, 7 and 8, open to user override** (revision
+**Settled in drafting revisions 4, 6, 7, 8 and 9, open to user override** (revision
 4 items are listed in the disposition log): the treatment of full-coverage
 censored rows other than censoring strictly before entry (valid, flagged
-`uninformative`); the `_with_info` suffix, `SurvivalData.with_issues`,
-`SurvivalData.from_bounds_with_issues` and `data.issues` property names; pure
-ordinary construction and explicit host-only `InvalidDataError` checkpoints;
+`uninformative`); the `_with_info` suffix and `data.issues` property name;
+only ordinary observation constructors, with pure eager/traced construction
+and explicit host-only `InvalidDataError` checkpoints;
 `LogNormal(meanlog, sdlog)` naming; the `CensoringWeights` container.
 
 **Open after revision 8:** the lifecycle/export of the revision 7
@@ -1533,8 +1534,8 @@ out-of-domain values from incorrect interval order. R's counting-process
 input rule for equal start and stop is separate from this likelihood identity.
 Revision 6 clarifies which observation inputs count as traced, how ordinary
 construction works inside transformations, how both pure constructors report
-issues, and how static metadata is computed. Argument misuse raises in all
-four constructors.
+issues, and how static metadata is computed. It required argument misuse to
+raise in each then-supported constructor; revision 9 simplifies that surface.
 Revision 7 names the exception type of each failure kind, checks argument
 misuse before the traced-input check, adds `data.issues()` to decode the stored
 bitfield of any `SurvivalData`, ignores `time2` on non-interval rows, separates
@@ -1545,12 +1546,17 @@ event-free at entry, and it does not fit the `lower < T <= upper`
 representation.
 Revision 8 supersedes revision 6/7's ordinary-constructor restrictions and
 automatic eager value errors: both constructors are pure, accept traced
-observations and expose stored issues through `data.issues`. The issue-returning
-methods remain equivalent conveniences. Static misuse, dtype policy, metadata
-classification and likelihood failure semantics are preserved. Strict tasks
-raise explicitly on the host; simulations may retain problematic replicates
-and control fitting and continuation using diagnostics. Section 11.4 documents
+observations and expose stored issues through `data.issues`. It retained
+issue-returning conveniences, subsequently removed in revision 9. Static misuse,
+dtype policy, metadata classification and likelihood failure semantics are
+preserved. Strict tasks raise explicitly on the host; simulations may retain
+problematic replicates and control fitting and continuation using diagnostics.
+Section 11.4 documents
 pilots, checkpoints and external Newton fitting with second derivatives.
+Revision 9 removes the issue-returning constructor methods from the public
+API. Both ordinary constructors return data eagerly and under transformations;
+all diagnostics use `data.issues`. Metadata wording, compatibility guidance and
+acceptance requirements now describe this single construction/diagnostic path.
 Implementation and independent acceptance tests are separate follow-up work.
 Later revisions should record new decisions in the disposition log or in the
 design notebook's decision records.
@@ -1561,6 +1567,8 @@ Revision 4 changes are traced in [REVIEW-DISPOSITIONS.md](REVIEW-DISPOSITIONS.md
 Revision 8 records the maintainer-approved pure-construction decision of
 2026-09-30 in sections 3.1–3.2, 6.1–6.2, 7.1, 10.2, 11.4 and 12.1–12.2;
 section 13 identifies the remaining compatibility questions.
+Revision 9 records the maintainer's follow-up decision of 2026-09-30 to remove
+issue-returning constructor methods, in sections 3.2, 6.2, 10.2 and 12.1–12.2.
 The decision records behind revisions 1–3 (paths relative to `docs/design/`) remain
 the historical basis for the parts of this document the review did not change:
 

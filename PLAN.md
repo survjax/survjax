@@ -1,3 +1,24 @@
+# Specification revision 9 — ordinary constructors and diagnostic property
+
+Status: completed under the maintainer's follow-up request on `spec-constructor`;
+ready for review.
+
+- `spec/SPECIFICATION.md`: remove both issue-returning convenience methods
+  from the public API, metadata/validation wording, acceptance criteria and
+  Slice A deliverable. Document migration to ordinary construction followed by
+  `data.issues`; bump the revision and mark prior decisions as superseded.
+- `PLAN.md` and `REVIEW.md`: record this documentation fix-up and checks.
+
+Public API: only `SurvivalData(...)` and `SurvivalData.from_bounds(...)` construct
+data; diagnostics use `data.issues`. Spec coverage: 3.1–3.2, 6.2, 10.2,
+11.4, 12.1–12.2 and 13–15. No implementation, dependencies or independent
+tests change; no executable tests are added. Existing examples already use the
+retained API. Verify all active references, parse the example blocks, and run
+`git diff --check`. The previous A1 gate covers unchanged code; do not repeat
+it or claim it verifies this new API. Commit this fix-up and stop for review.
+
+## Previous revision plan (historical; constructor surface superseded by revision 9)
+
 # Specification revision 8 — pure SurvivalData construction
 
 Status: documentation revision completed; ready for maintainer review on the
