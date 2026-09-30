@@ -76,8 +76,6 @@ class SurvivalData:
             ``SurvivalData([2.0, 3.0], [1, 0])`` stores an event at 2 and
             right censoring at 3.
         """
-        if "outside_interval_censored" in kwargs:
-            raise NotImplementedError("outside_interval_censored is not supported")
         if kwargs:
             unknown = ", ".join(sorted(kwargs))
             raise TypeError(f"unexpected keyword argument(s): {unknown}")
@@ -117,8 +115,6 @@ class SurvivalData:
         cannot form an observation object still raise. Combining ``event``
         with any censoring flag raises ``TypeError``.
         """
-        if "outside_interval_censored" in kwargs:
-            raise NotImplementedError("outside_interval_censored is not supported")
         if kwargs:
             unknown = ", ".join(sorted(kwargs))
             raise TypeError(f"unexpected keyword argument(s): {unknown}")

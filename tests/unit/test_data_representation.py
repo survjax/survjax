@@ -42,7 +42,7 @@ def test_bounds_constructor_keeps_shape_and_truncation() -> None:
 
 def test_flag_cannot_enlarge_observation_shape() -> None:
     """Spec 3.2: a column flag cannot enlarge a vector of observations."""
-    with pytest.raises(ValueError, match="enlarge"):
+    with pytest.raises(TypeError, match="enlarge"):
         SurvivalData(
             jnp.array([1, 2], dtype=jnp.float32),
             right_censored=jnp.array([[False], [True]]),

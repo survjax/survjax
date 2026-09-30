@@ -9,6 +9,10 @@ import numpy as np
 from chronox_jax._data_validation import ISSUE_NAMES
 
 
+class InvalidDataError(ValueError):
+    """An explicit host checkpoint found invalid observation values (spec 6.2)."""
+
+
 @dataclass(frozen=True, eq=False)
 class DataIssues:
     """Per-rule data masks with observation shape and scalar validity (spec 6.2)."""
@@ -73,7 +77,7 @@ class DataIssues:
                 first = tuple(int(index) for index in np.argwhere(host_mask)[0])
                 problems.append(f"{name}: {count} row(s), first index {first}")
         if problems:
-            raise ValueError("invalid SurvivalData: " + "; ".join(problems))
+            raise InvalidDataError("invalid SurvivalData: " + "; ".join(problems))
 
     def tree_flatten(self) -> tuple[tuple[jax.Array, ...], None]:
         """Keep every mask and the scalar reduction as PyTree leaves."""

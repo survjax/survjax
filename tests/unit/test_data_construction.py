@@ -38,7 +38,8 @@ def test_pure_event_and_supplied_false_flag_raise_type_error() -> None:
 def test_two_true_flags_conflict_on_same_row() -> None:
     """Spec 3.1: no row has two censoring kinds."""
     with pytest.raises(
-        ValueError, match=r"conflicting_indicators: 1 row\(s\), first index \(1,\)"
+        ValueError,
+        match=r"conflicting_indicators: 1 row\(s\), first index \(1,\)",
     ):
         SurvivalData(
             [1.0, 2.0], right_censored=[False, True], left_censored=[False, True]
@@ -79,10 +80,56 @@ def test_bounds_nan_upper_on_censored_row_reports_missing_time2() -> None:
         SurvivalData.from_bounds([1.0], [np.nan])
 
 
-def test_outside_interval_keyword_always_reports_unsupported() -> None:
-    """Spec 3.1: any use of the unsupported mode raises explicitly."""
-    with pytest.raises(NotImplementedError, match="outside_interval_censored"):
+def test_unknown_flag_keyword_is_argument_misuse() -> None:
+    """Spec 3.1/6.2: removed and unknown keywords raise TypeError."""
+    with pytest.raises(TypeError, match="outside_interval_censored"):
         SurvivalData([1.0], outside_interval_censored=[False])
+    with pytest.raises(TypeError, match="outside_interval_censored"):
+        SurvivalData.with_issues([1.0], outside_interval_censored=[False])
+
+
+@pytest.mark.parametrize("constructor", ["flag", "bounds"])
+@pytest.mark.parametrize("other_shape", [(2, 1), (3,)])
+def test_other_field_cannot_enlarge_or_conflict_with_shape(
+    constructor: str, other_shape: tuple[int, ...]
+) -> None:
+    """Spec 3.2/6.2: malformed observation shapes raise TypeError."""
+    other = jnp.ones(other_shape)
+    with pytest.raises(TypeError, match="shape"):
+        if constructor == "flag":
+            SurvivalData(jnp.ones(2), time2=other)
+        else:
+            SurvivalData.from_bounds(jnp.ones(2), other)
+
+
+def test_indicator_shape_misuse_raises_under_tracing() -> None:
+    """Spec 3.2/6.2: static shape misuse is rejected while tracing."""
+    with pytest.raises(TypeError, match="shape"):
+        jax.jit(lambda time, flag: SurvivalData.with_issues(time, right_censored=flag))(
+            jnp.ones(2), jnp.ones((2, 1))
+        )
+
+
+def test_bounds_shape_misuse_raises_under_tracing() -> None:
+    """Spec 3.2/6.2: bounds shapes are checked during tracing."""
+    with pytest.raises(TypeError, match="shape"):
+        jax.jit(lambda lower, upper: SurvivalData.from_bounds(lower, upper))(
+            jnp.ones(2), jnp.ones(3)
+        )
+
+
+def test_nonnumeric_bounds_and_indicators_are_argument_misuse() -> None:
+    """Spec 3.3/6.2: malformed field types raise TypeError."""
+    with pytest.raises(TypeError):
+        SurvivalData.from_bounds([1.0], ["2.0"])
+    with pytest.raises(TypeError):
+        SurvivalData([1.0], right_censored=["yes"])
+
+
+def test_unknown_bounds_keyword_is_argument_misuse() -> None:
+    """Spec 3.1/6.2: only documented bounds keywords are accepted."""
+    with pytest.raises(TypeError, match="unknown"):
+        SurvivalData.from_bounds([1.0], [2.0], unknown=True)
 
 
 def test_ordinary_constructor_rejects_traced_observations() -> None:

@@ -7,7 +7,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from chronox_jax import SurvivalData
+from chronox_jax import InvalidDataError, SurvivalData
 
 
 def test_integer_only_uses_configured_default_float(x64_enabled: bool) -> None:
@@ -123,8 +123,9 @@ def test_explicit_unavailable_float64_fails(x64_enabled: bool) -> None:
     """Spec 3.3: an unavailable explicit dtype must fail clearly."""
     if x64_enabled:
         pytest.skip("float64 is available with 64-bit mode enabled")
-    with pytest.raises(ValueError, match="float64"):
+    with pytest.raises(ValueError, match="float64") as error:
         SurvivalData([1, 2], dtype=jnp.float64)
+    assert not isinstance(error.value, InvalidDataError)
 
 
 @pytest.mark.parametrize(

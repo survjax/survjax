@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from chronox_jax import SurvivalData
+from chronox_jax import InvalidDataError, SurvivalData
 from chronox_jax.diagnostics import DataIssues
 
 
@@ -130,7 +130,7 @@ def test_raise_if_invalid_reports_counts_and_first_index() -> None:
     """Spec 6.2: explicit host checkpoint names each invalid rule."""
     _, issues = SurvivalData.with_issues([1.0, 0.0, 0.0])
     with pytest.raises(
-        ValueError, match=r"invalid_time: 2 row\(s\), first index \(1,\)"
+        InvalidDataError, match=r"invalid_time: 2 row\(s\), first index \(1,\)"
     ):
         issues.raise_if_invalid()
 
@@ -157,5 +157,5 @@ def test_structurally_invalid_time_still_raises() -> None:
 
 def test_structurally_invalid_shape_still_raises() -> None:
     """Spec 3.2/6.2: a flag may not enlarge the observation shape."""
-    with pytest.raises(ValueError, match="enlarge"):
+    with pytest.raises(TypeError, match="enlarge"):
         SurvivalData.with_issues([1.0, 2.0], right_censored=[[True], [False]])

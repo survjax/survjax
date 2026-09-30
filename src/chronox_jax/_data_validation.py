@@ -76,8 +76,14 @@ def time_dtype(
 def to_shape(value: ArrayLike, shape: tuple[int, ...], dtype: DTypeLike) -> jax.Array:
     """Broadcast an input without growing the observation shape."""
     array = jnp.asarray(value, dtype=dtype)
-    if jnp.broadcast_shapes(array.shape, shape) != shape:
-        raise ValueError(
+    try:
+        broadcast_shape = jnp.broadcast_shapes(array.shape, shape)
+    except ValueError as exc:
+        raise TypeError(
+            f"input shape {array.shape} is incompatible with observation shape {shape}"
+        ) from exc
+    if broadcast_shape != shape:
+        raise TypeError(
             f"input shape {array.shape} would enlarge observation shape {shape}"
         )
     return jnp.broadcast_to(array, shape)
@@ -113,8 +119,14 @@ def indicator(
         or jnp.issubdtype(raw.dtype, jnp.floating)
     ):
         raise TypeError(f"{name} must contain booleans or numeric 0/1 values")
-    if jnp.broadcast_shapes(raw.shape, shape) != shape:
-        raise ValueError(
+    try:
+        broadcast_shape = jnp.broadcast_shapes(raw.shape, shape)
+    except ValueError as exc:
+        raise TypeError(
+            f"{name} shape {raw.shape} is incompatible with observation shape {shape}"
+        ) from exc
+    if broadcast_shape != shape:
+        raise TypeError(
             f"{name} shape {raw.shape} would enlarge observation shape {shape}"
         )
     raw = jnp.broadcast_to(raw, shape)

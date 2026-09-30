@@ -1,48 +1,54 @@
-# Merge-resolution handoff — revision 9 on a2-constructors
+# A2-R1 review — exception contract
 
-Status: conflict resolution only; no revision 9 implementation performed and
-no claim that A2 now passes the new contract. The maintainer completes the merge.
+Branch: `a2-constructors`. This commit implements only A2-R1 from `PLAN.md`.
+The separately modified `PLAN.md` is left unstaged; it was present before this
+implementation. A2-R2 and A2-R3 remain for later approval and commits.
 
 ## Read first
 
-1. `PLAN.md`: replacement A2 migration proposal; approval is required before code.
-2. `spec/SPECIFICATION.md` sections 3.1–3.3, 6.2, 10.2 and 12.1: merged contract.
-3. `src/chronox_jax/data.py` and `diagnostics.py`: current implementation still
-   uses eager constructor checkpoints and the removed convenience method.
-4. `DEVIATIONS.md`: duplicate D-006 identifiers and older questions to reconcile.
+1. `src/chronox_jax/diagnostics.py` and `__init__.py`: the explicit checkpoint
+   now raises exported `InvalidDataError(ValueError)` for concrete invalid data.
+2. `src/chronox_jax/_data_validation.py`: malformed shapes, including JAX
+   broadcast errors, become `TypeError`.
+3. `src/chronox_jax/data.py`: the removed outside-interval keyword follows the
+   unknown-keyword `TypeError` path.
+4. Changed tests in `tests/unit/`: exception type, shape, keyword and tracing
+   cases. The implementation and test diff is 83 insertions, 21 deletions.
 
-## Resolution and invariants
+## Invariants and evidence
 
-The old PLAN.md and REVIEW.md conflicted because they describe different work:
-A2 implementation versus the specification revision. Both have been replaced
-with a current plan and this handoff, as requested. Previous text remains in Git.
-No runtime source, test or automatically merged file was edited during this
-resolution. The staged specification is revision 9. Only the two conflicted
-files are staged by this task.
+- Observation-value issues still occupy the same ten per-row bits; no
+  normalization rule or data leaf changed. The explicit host checkpoint counts
+  each rule and reports the first offending index. The issue tests cover
+  invalid, valid and uninformative diagnostics.
+- Shape checks use only array shapes, so malformed calls raise under tracing.
+  Construction tests cover enlarging and incompatible time/bounds/indicator
+  shapes, including flag and bounds misuse under `jit`.
+- Event-plus-flags, nonnumeric bounds/indicators and unknown keywords are
+  argument misuse. Construction tests cover these. The dtype test shows an
+  unavailable explicit float64 request stays `ValueError`, outside the new
+  `InvalidDataError` class. Import test checks the public export.
 
-The next implementation must preserve normalization, dtype rules and issue
-bits while making ordinary construction pure. Data diagnostics use the
-`data.issues` property; invalid values are distinct from static misuse. Metadata
-completion and likelihood implementation retain their A3/A6 step boundaries.
+## Checks
 
-## Checks for this resolution
+- `uv run ruff format --check .` (with `UV_CACHE_DIR=/private/tmp/chronox-uv-cache`):
+  `19 files already formatted`.
+- `uv run ruff check .`: `All checks passed!`.
+- `uv run mypy src`: `Success: no issues found in 4 source files`.
+- `scripts/run_tests.sh`: float64 `73 passed, 3 skipped`; float32 `76 passed`.
+- `scripts/check.sh --through A2`: guard, static checks and both own-test modes
+  passed. The float64 independent acceptance run ended with `55 failed, 123
+  passed, 13 skipped, 189 deselected`; float32 independent tests were not run
+  because the gate stopped. These failures are the still-automatic ordinary
+  constructor checks: revision 9 requires invalid rows to return data and
+  diagnostics. That migration is A2-R2.
+- `git diff --check`: passed with no output.
 
-- Initial `git status` / `git ls-files -u`: exactly PLAN.md and REVIEW.md unmerged.
-- Read the merged specification, working agreement, deviations, current source
-  and relevant own-test references to prepare the replacement plan.
-- `git diff --check` and `git diff --cached --check`: passed with no output.
-  After staging, `git ls-files -u` returned no output; `git status` reported
-  "All conflicts fixed but you are still merging."
-- No runtime checks, A2 acceptance gate, R checks or wheel builds were run for
-  these planning documents. No historical test counts are presented as current.
+## Uncertainties and next step
 
-## Remaining decisions
-
-The automatically merged deviations contain two distinct D-006 entries. Their
-identifiers/references need maintainer reconciliation; statuses remain untouched.
-Spec 13's exception-lifecycle and traced-checkpoint error questions remain open.
-
-CLAUDE.md's Git rule says agents must never merge, so no merge commit is made
-here. Once the resolution is staged, the maintainer can finish the existing
-merge with `git commit --no-edit`. CLAUDE.md's plan-first rule requires approval
-of the replacement PLAN.md before implementation begins.
+No new spec ambiguity arose. The traced host-checkpoint exception subtype and
+legacy diagnostic compatibility remain open as recorded in `PLAN.md` and
+`DEVIATIONS.md`; this step preserves the traced-checkpoint behavior. Ordinary
+constructors still raise automatically and reject traced observations until
+A2-R2. `with_issues` remains temporarily until A2-R3. Do not treat this
+intermediate checkpoint as completion of A2.
