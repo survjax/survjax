@@ -127,6 +127,15 @@ def test_ok_of_a_slice_reduces_over_the_slice_only():
     assert not bool(np.asarray(data[0:2].issues.ok))
 
 
+@pytest.mark.step("A3")
+def test_issues_has_no_callable_alias():
+    """spec 6.2/13, rev 10: the decoder is the `data.issues` property only; there is no callable `data.issues()` alias."""
+    data, _ = _mixed()
+    assert not callable(data.issues)
+    with pytest.raises(TypeError):
+        data.issues()
+
+
 # ------------------------------------------------------- transformations and rebuilding
 
 

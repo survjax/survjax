@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 from helpers import (
     INF,
+    INVALID_DATA,
     MASK_FIELDS,
     NAN,
     X64,
@@ -260,9 +261,18 @@ def test_compiled_ok_controls_branch_selection():
 
 @pytest.mark.step("A3")
 def test_traced_diagnostics_cannot_raise_at_host_checkpoint():
-    """spec 6.2, rev 9: calling raise_if_invalid on traced diagnostics fails explicitly."""
-    with pytest.raises(Exception):  # noqa: B017 - spec leaves the exception type open
+    """spec 6.2/13, rev 10: raise_if_invalid on traced diagnostics raises a plain ValueError, not InvalidDataError."""
+    with pytest.raises(ValueError) as caught:
         jax.jit(lambda t: cx.SurvivalData(t).issues.raise_if_invalid())(f([1.0]))
+    assert not isinstance(caught.value, INVALID_DATA)
+
+
+@pytest.mark.step("A3")
+def test_traced_invalid_diagnostics_misuse_is_not_invalid_data_error():
+    """spec 6.2/13, rev 10: traced checkpoint misuse is a plain ValueError even when the traced rows are invalid."""
+    with pytest.raises(ValueError) as caught:
+        jax.jit(lambda t: cx.SurvivalData(t).issues.raise_if_invalid())(f([0.0]))
+    assert not isinstance(caught.value, INVALID_DATA)
 
 
 @pytest.mark.step("A3")
@@ -271,3 +281,57 @@ def test_compiled_invalid_diagnostics_raise_at_explicit_host_checkpoint():
     data = jax.jit(lambda t: cx.SurvivalData(t))(f([1.0, 0.0]))
     with pytest.raises(cx.InvalidDataError):
         data.issues.raise_if_invalid()
+
+
+# ------------------------------------ compiled runtime path (spec 7.2, perf draft)
+
+
+def _walk_primitive_names(jaxpr):
+    """Primitive names in a jaxpr and every sub-jaxpr held in equation params."""
+    inner = getattr(jaxpr, "jaxpr", jaxpr)
+    for eqn in inner.eqns:
+        yield eqn.primitive.name
+        for param in eqn.params.values():
+            for sub in param if isinstance(param, (tuple, list)) else (param,):
+                if hasattr(sub, "eqns") or hasattr(getattr(sub, "jaxpr", None), "eqns"):
+                    yield from _walk_primitive_names(sub)
+
+
+def _construct_and_diagnose(time, right):
+    data = cx.SurvivalData(time, right_censored=right)
+    return data, data.issues
+
+
+@pytest.mark.step("A3")
+def test_compiled_construction_and_diagnostics_install_no_host_callback():
+    """spec 7.2, rev perf-draft: compiled construction and diagnostic access use no host callbacks."""
+    jaxpr = jax.make_jaxpr(_construct_and_diagnose)(f([1.0, 0.0, 2.0]), b([False, True, False]))
+    names = sorted(set(_walk_primitive_names(jaxpr)))
+    assert not [n for n in names if "callback" in n], names
+
+
+@pytest.mark.step("A3")
+def test_warm_compiled_construction_and_diagnostics_make_no_host_transfer():
+    """spec 7.2, rev perf-draft: warmed compiled construction and diagnostics run without library-induced host transfers."""
+    compiled = jax.jit(_construct_and_diagnose)
+    time = jax.device_put(f([1.0, 0.0, 2.0]))
+    right = jax.device_put(b([False, True, False]))
+    jax.block_until_ready(compiled(time, right))  # compile outside the guard
+    with jax.transfer_guard("disallow"):
+        out = compiled(time, right)
+        jax.block_until_ready(out)
+
+
+@pytest.mark.step("A3")
+def test_compiled_construction_reuses_compilation_for_new_observation_values():
+    """spec 7.2, rev perf-draft: changing observation values with unchanged shapes and dtypes reuses compilation."""
+    traces = []
+
+    @jax.jit
+    def build(time, right):
+        traces.append(None)
+        return cx.SurvivalData(time, right_censored=right).issues.ok
+
+    build(f([1.0, 2.0, 3.0]), b([False, True, False]))
+    build(f([4.0, 0.0, -1.0]), b([True, True, True]))  # invalid values are dynamic too
+    assert len(traces) == 1

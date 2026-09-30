@@ -1,8 +1,11 @@
 # Test map
 
-Spec revision 9 (2026-09-30). Existing A1 requirements retain their earlier
-revision tags; changed constructor and diagnostic requirements carry revision 9
-in their test docstrings. Tests are static acceptance tests and have never
+Spec: performance amendment draft (2026-09-30), including the revision 10
+diagnostic compatibility decision. Unchanged requirements keep their earlier
+revision tags. Tests from the revision 10 decision (sections 6.2, 10.2, 13) are
+tagged `rev 10`. Tests from the unaccepted performance amendment (section 7.2)
+are tagged `rev perf-draft` and should be retagged with the final revision
+number when the maintainer accepts it. Tests are static acceptance tests and have never
 been executed against Chronox. Test names below are relative to `tests/spec/`.
 
 ## A1: representation and dtype policy (`test_a1_representation.py`, `test_a1_dtype.py`)
@@ -312,6 +315,7 @@ been executed against Chronox. Test names below are relative to `tests/spec/`.
 | 6.2 | \`ok\` is the scalar validity reduction. | `test_ok_is_false_when_any_row_is_invalid` |
 | 6.2 | \`ok\` reduces \`invalid_rows\`, which excludes \`uninformative\` (Q-011). | `test_ok_is_true_with_only_uninformative_rows` |
 | 6.2 | invalid rows raise \`chronox_jax.InvalidDataError\`, a subclass of \`ValueError\`. | `test_invalid_data_error_is_a_public_value_error` |
+| 10.2/13 | "`TracedInputError` is retired and is not exported." | `test_traced_input_error_is_retired` |
 | 6.2 | \`DataIssues.raise_if_invalid()\` is an explicit host-only checkpoint. | `test_raise_if_invalid_raises_for_invalid_rows` |
 | 6.2 | an invalid host checkpoint reports counts and first offending indices. | `test_host_checkpoint_reports_count_and_first_offending_index` |
 | 6.2 | the checkpoint does not raise for valid data. | `test_raise_if_invalid_passes_for_valid_data` |
@@ -349,6 +353,7 @@ been executed against Chronox. Test names below are relative to `tests/spec/`.
 | 6.2 | a scalar observation decodes to scalar masks equal to the parent's row. | `test_issues_of_an_integer_index_give_scalar_masks` |
 | 3.2/6.2 | \`jax.tree.map\` slicing carries the bitfield, so decoding matches the parent's rows. | `test_issues_of_tree_map_slice_index_the_parent_masks` |
 | 6.2 | \`ok\` reduces over the indexed rows only; a slice of valid rows is ok though its parent is not. | `test_ok_of_a_slice_reduces_over_the_slice_only` |
+| 6.2/13 | "The decoder is the `data.issues` property only; there is no callable `data.issues()` compatibility alias." | `test_issues_has_no_callable_alias` |
 | 6.2 | \`data.issues\` is pure and works under jit. | `test_issues_under_jit_matches_eager` |
 | 3.2/6.2 | transformed data retain raw invalid-indicator evidence. | `test_issues_of_data_returned_from_jit_preserve_raw_indicator` |
 | 3.2/6.2 | data rebuilt from its leaves decode to the same issues. | `test_issues_of_data_rebuilt_from_leaves_matches_original` |
@@ -418,25 +423,36 @@ been executed against Chronox. Test names below are relative to `tests/spec/`.
 | 3.3/6.2 | a traced flag call cannot request unavailable float64. | `test_flag_unavailable_explicit_dtype_raises_under_tracing` |
 | 3.3/6.2 | a traced bounds call cannot request unavailable float64. | `test_bounds_unavailable_explicit_dtype_raises_under_tracing` |
 | 6.2 | data.issues.ok is a scalar bool usable in compiled control flow. | `test_compiled_ok_controls_branch_selection` |
-| 6.2 | calling raise_if_invalid on traced diagnostics fails explicitly. | `test_traced_diagnostics_cannot_raise_at_host_checkpoint` |
+| 6.2/13 | raise_if_invalid on traced diagnostics "raises a plain `ValueError` with a host-only message, not `InvalidDataError`". | `test_traced_diagnostics_cannot_raise_at_host_checkpoint` |
+| 6.2/13 | the same, when the traced rows are invalid. | `test_traced_invalid_diagnostics_misuse_is_not_invalid_data_error` |
 | 6.2 | concrete diagnostics returned from jit raise only at the host checkpoint. | `test_compiled_invalid_diagnostics_raise_at_explicit_host_checkpoint` |
+| 7.2 (draft) | compiled construction and diagnostic access run "without ... host callbacks". | `test_compiled_construction_and_diagnostics_install_no_host_callback` |
+| 7.2 (draft) | ... "without library-induced host transfers" once warmed. | `test_warm_compiled_construction_and_diagnostics_make_no_host_transfer` |
+| 7.2 (draft) | "Changing dynamic ... observation values must reuse compilation" (construction inside jit). | `test_compiled_construction_reuses_compilation_for_new_observation_values` |
 
 ## A2–A3: deliberately not tested
 
 - Exact punctuation and wording in `InvalidDataError` messages: section 6.2
   requires counts and first offending indices, tested as decimal integers
   (Q-017), while formatting remains open.
-- The exception subtype for `raise_if_invalid()` on traced diagnostics and the
-  export lifecycle of legacy `TracedInputError`: section 13 leaves both open.
-- A callable compatibility alias for `data.issues()`: section 13 leaves it open.
+- The host-only message text of the traced-checkpoint `ValueError` (6.2):
+  wording is not fixed.
+- Host synchronization (7.2) beyond the jaxpr callback and transfer-guard
+  checks: JAX offers no public, reliable way to observe it from a test.
+- Performance measurements, benchmarks, peak memory, accelerator execution
+  and documentation builds (10.3, 10.5, 12.3): these are recorded evidence and
+  review items, not acceptance assertions, and none has a pass/fail threshold.
+- Compilation reuse for likelihood and gradient evaluation (7.2, 12.3):
+  likelihood tests begin at A6.
 - Exact normalized field values on malformed observation inputs: sections 3.2
   and 6.2 require consistent eager/traced normalization and preserved issue
   evidence, but do not assign every malformed field a value.
 - Likelihood propagation of stored invalid-input bits and the all-censored
   exponential estimability example: section 12.1 requires these for Slice A,
   but likelihood tests begin at A6 under the maintainer's step schedule.
-- The simulation pilot, stopping policy and external Optimistix example in
-  section 11.4: study guidance and executable recipe validation extend beyond
-  the A1–A3 data tests.
+- The simulation study guide (11.4): non-normative since the performance
+  amendment. The 12.1 "Compiled composition" row (construction, diagnostics
+  and likelihood inside `jit`, with parameter derivatives) needs likelihoods,
+  so it belongs to A6/A9.
 - Branch pruning by static metadata (3.2, 7.2): likelihood behavior belongs
   to a later step/slice; A3 covers tree structures and compile counts.
