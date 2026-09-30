@@ -1,272 +1,85 @@
-# Slice A, step A2 — constructors, boundaries, and DataIssues
+# A2 follow-up — align construction with specification revision 9
 
-Status: **A2a confirmed by the maintainer; A2b implemented on
-`a2-constructors`; stop for review before A3**.
-Branch: `a2-constructors`, at the A2 spec-test merge (`5729f6b`).
-Specification revision 5 now includes the first-endpoint and infinite-interval
-clarifications (`022d5eb`, `3f83d91`, `f7d2fff`). The corresponding independent
-tests were synced in `99f7629`.
+Status: proposed plan, awaiting maintainer approval before implementation.
+Branch: `a2-constructors`. This file replaces the conflicting historical plans
+while integrating `main`; their history remains in Git. Resolving these files
+is not approval to begin the implementation below.
 
-## A2 independent-review fix-up (2026-09-29)
+## Current state and target
 
-The maintainer requested implementation of
-`../chronox-dev-review/.review/A2.md` on `a2-constructors`. Keep this review
-work in small commits, stopping after each for maintainer inspection.
+The merged specification requires ordinary flag and bounds construction to be
+pure for concrete and traced observations. Current A2 source still performs
+implicit host validation, rejects traced construction and exposes `with_issues`.
+The previous A2 test results are not evidence of revision 9 compliance.
 
-**First fix-up, authorized by the current request and implemented:**
+Target public surface:
 
-- `tests/unit/test_data_construction.py`: add hand-derived NaN and fractional
-  indicator cases (F-1/M6).
-- `tests/unit/test_data_boundaries.py`: add left-censoring at `+inf` (F-1/M4).
-- `tests/unit/test_data_issues.py`: assert `uninformative` when upper equals a
-  finite truncation bound (F-1/M5).
-- `tests/unit/test_data_dtype.py`: test weak traced promotion through the
-  public `SurvivalData.with_issues` path (N-4).
-- `tests/unit/test_data_construction.py`: assert a non-exact bounds NaN upper
-  reports `missing_time2` (F-1/M3), and a traced bounds error states that no
-  pure bounds form exists yet (F-3).
-- `src/chronox_jax/_data_validation.py`, `src/chronox_jax/data.py`: make the
-  traced bounds error accurate without changing validation behavior (F-3).
-- `src/chronox_jax/_data_validation.py` and constructor tests: apply the
-  maintainer's S-1 decision from this conversation: `event` plus any supplied
-  flag is static misuse and raises `TypeError` in both entry points; the
-  conflict bit remains for row-wise true-flag collisions.
-- `DEVIATIONS.md`: log S-1, F-2, S-2, and S-3 as open specification questions.
-- `REVIEW.md`: replace the latest narrow handoff with a consolidated A2a+A2b
-  reading order, invariants, requirement-to-test map, checks, and pending
-  decisions (F-4).
+- `SurvivalData(...)` and `SurvivalData.from_bounds(...)` return normalized data
+  with stored issue bits, even when observation values are invalid.
+- `data.issues` returns `DataIssues`; masks and scalar `ok` work under JIT.
+  The property adds no duplicate leaves to the data PyTree.
+- `data.issues.raise_if_invalid()` is the explicit host checkpoint.
+- Neither issue-returning convenience constructor is public.
+- Static misuse and dtype errors still raise as specified. Preserve endpoint
+  attribution, normalization, raw-input evidence and the six-leaf data tree.
 
-No spec, independent-test, dependency, or public API edits. Coverage: spec 2,
-3.1–3.3, 6.2–6.3, and 12.1. Run Ruff format/lint, mypy,
-`scripts/run_tests.sh`, `scripts/check.sh --through A2`, and the targeted A3
-diagnostic tests in both dtype modes. Commit this fix-up and stop.
+## Proposed implementation steps
 
-**Later review work needs maintainer decisions:** F-2 (concrete inputs inside
-`jit`). The maintainer will update the spec before S-2 (pure bounds API) and
-S-3 (unsupported keyword in `from_bounds`) are implemented. The review
-suggests cleanup nits N-1–N-3 and N-5; consider them only with the relevant
-API decision or a separate small review step. Do not infer missing spec text.
+Each step needs approval, its own code/tests commit and an updated REVIEW.md.
+Aim for approximately 300 changed lines per step; propose a narrower split if
+needed before implementation grows beyond that review size.
 
-## A2b documentation fix-up
+1. Pure constructors and diagnostic property (spec 3.1–3.3, 6.2–6.3).
+   - `src/chronox_jax/data.py`: remove automatic host checkpoints and
+     `with_issues`; expose `issues` using existing decoding; revise docstrings.
+     Do not add `from_bounds_with_issues`.
+   - `src/chronox_jax/_data_validation.py`: remove obsolete constructor-only
+     raising/traced-rejection plumbing and update helper descriptions while
+     preserving shared normalization and issue calculations.
+   - `tests/unit/test_data_construction.py`, `test_data_boundaries.py`,
+     `test_data_issues.py`, `test_data_dtype.py`, and where needed
+     `test_data_representation.py`: migrate own callers to ordinary construction
+     and `data.issues`; assert invalid masks rather than automatic exceptions.
+     Cover both forms on valid/invalid eager, JIT and vmap inputs, including
+     nested traced inputs and concrete inputs captured inside JIT; property
+     decoding after tree reconstruction; six unchanged data leaves; absence of
+     both removed methods. Keep expected values hand-derived.
+2. Exception and static-misuse alignment (spec 3.3, 6.2, 10.2, 12.1).
+   - `src/chronox_jax/diagnostics.py` and `__init__.py`: introduce the specified
+     top-level `InvalidDataError` for explicit host validation, retaining counts
+     and first indices. Resolve the open traced-checkpoint exception question
+     before assigning that error a new public type.
+   - `src/chronox_jax/_data_validation.py` and `data.py`: align incompatible
+     shapes and unknown/removed keywords with `TypeError`; retain explicit
+     dtype-policy errors and warnings. Remove obsolete special handling of
+     outside-interval censoring, which revision 7 removed from the design.
+   - Own construction, issue, dtype and import tests: check precise error types,
+     host-only raising, valid/uninformative checkpoints, and unchanged dtype
+     behavior. Do not silently choose an outcome for open exception questions.
 
-The maintainer's current request authorizes a short description of how
-`flag_fields` and `row_issues` work together. Update only their docstrings in
-`src/chronox_jax/_data_validation.py`: the former normalizes flag inputs and
-passes fields plus input-fault masks to the latter; the latter adds the
-normalized interval, truncation, and window checks and packs all rule bits.
-Note that `from_bounds` also calls `row_issues`. Public APIs and runtime
-behavior do not change. Update `REVIEW.md`, run Ruff format/lint, mypy, and
-`scripts/check.sh --through A2`, then make one fix-up commit on
-`a2-constructors` and stop. No new test is needed for this docstring-only edit.
+Indexing and value-derived metadata remain A3 work. The existing all-true
+metadata is conservative, but does not complete revision 9's concrete metadata
+requirement. Likelihood issue propagation remains A6 work. No distributions,
+optimizer dependencies or later-slice implementation belong to this follow-up.
 
-## A2a docstring review fix-up
+## Verification and independent tests
 
-The maintainer's current request approves updating the `WA`-annotated
-docstrings in `src/chronox_jax/data.py`. The class docstring will describe the
-normalized object and PyTree fields without an R comparison. Each constructor
-docstring will explain its own inputs and rules first, then compare that form
-with the corresponding R `Surv` usage in a separate paragraph. Preserve the
-maintainer's manual clarification that `event` handles exact/right censoring
-and flags are used when left or interval censoring is needed. Remove the `WA`
-notes after addressing them.
+For each implementation step run Ruff format/lint, mypy, `scripts/run_tests.sh`
+and `scripts/check.sh --through A2`, with both configured dtype processes.
+Report exact results and any intermediate incompatibilities. The independent
+author must align acceptance tests and step markers with revision 9 through the
+normal sync process. Do not edit, skip or xfail `tests/spec/`; inspect failures
+against their stated contract rather than assuming tests are stale.
 
-Files: `src/chronox_jax/data.py` (docstrings only), `PLAN.md`, and `REVIEW.md`.
-Public API and runtime behavior are unchanged; no new test is needed for this
-documentation-only change. Coverage: spec 3.1–3.2 and the A2a constructor
-interface. Run Ruff format/lint, mypy, and `scripts/check.sh --through A2`.
-Make one fix-up commit on `a2-constructors`, write the review handoff, and stop
-before A2b.
+## Follow-up before implementation
 
-## A2a review fix-up: direct `row_issues` coverage
-
-The A2a tests exercise `row_issues` through eager constructor errors, but do
-not assert its per-row bitfield directly. Error-message checks can pass while
-one mask is assigned to the wrong bit or while independent masks are lost.
-Add a small follow-up commit on `a2-constructors` before A2b. The maintainer
-approved this fix-up in the current conversation; implementation and both-mode
-checks are complete.
-
-- `tests/unit/test_data_validation.py` (new): call the private `row_issues`
-  helper with hand-chosen arrays. Assert the ten rule masks from spec 6.2,
-  their observation shape and `int32` dtype, and simultaneous independent
-  faults. Cover interval order only after valid endpoints, invalid truncation,
-  exact `L < t <= U`, right censoring at versus before entry, and empty versus
-  nonempty censored intersections. Expected rows come from the stated set and
-  window inequalities, not from constructor output.
-- `src/chronox_jax/_data_validation.py`: change only if those tests expose a
-  real defect. No planned public API change or new dependency.
-- `REVIEW.md`: replace with the fix-up reading order, test-to-rule map, exact
-  results, and any remaining uncertainty. `PLAN.md` records this proposal.
-
-Run Ruff format/lint, mypy, `scripts/run_tests.sh`, and
-`scripts/check.sh --through A2`, in both configured dtype processes. Keep
-`tests/spec/` and `spec/` read-only. Stop after one fix-up commit and review.
-
-## Scope and public API
-
-A1 supplied the two constructor signatures, valid-input normalization, dtype
-policy, and six-leaf PyTree. A2 will make construction enforce the full data
-contract. It will preserve the five stored public fields and all existing
-named constructor parameters. The flag constructor will accept `**kwargs`
-solely to recognize `outside_interval_censored` and reject it explicitly;
-other unknown keywords remain errors.
-
-- `SurvivalData(...)`: validate raw `event` and censoring flags before casting;
-  reject `event` combined with any supplied flag and conflicting true flags;
-  require `time2` only on active interval rows; reject invalid times, intervals,
-  truncation windows, and empty observation/window intersections. The ordinary
-  constructor raises with counts and first offending indices. Under traced
-  observation values it raises at trace time with a pointer to `with_issues`.
-  Any `outside_interval_censored` argument raises `NotImplementedError`, even
-  when all its flags are false (section 3.1).
-- `SurvivalData.from_bounds(...)`: validate `exact` before casting; check the
-  supplied upper endpoint on exact rows before normalization; report NaN upper
-  on non-exact rows as `missing_time2`; attribute invalid first endpoints to
-  `invalid_time`; then apply the same endpoint, truncation, and intersection
-  rules as the flag form.
-- `SurvivalData.with_issues(...)`: add the section 6.2 pure flag-constructor
-  counterpart, returning `(SurvivalData, DataIssues)` under eager, `jit`, and
-  `vmap` calls. Invalid rows set issue bits without value-dependent exceptions.
-  Inputs that cannot form an object (for example, wrong shapes or string
-  indicators) still raise.
-- `chronox_jax.diagnostics.DataIssues`: add a frozen, typed PyTree result with
-  the ten named invalid-rule masks, `uninformative`, `invalid_rows`, scalar
-  `ok`, and host-only `raise_if_invalid()`. Keep it discoverable in its module
-  as section 10.2 specifies; do not add a top-level export.
-
-The `int32` issue bitfield remains the sixth `SurvivalData` leaf and records
-raw indicator conflicts and missing active `time2` even after normalization.
-No indexing, slicing, or value-derived static metadata yet; those are A3.
-No distributions, likelihoods, or later Slice A features are included.
-
-## Files
-
-- `src/chronox_jax/data.py`: route both eager constructors and `with_issues`
-  through shared normalization and validation; preserve A1 dtype and PyTree
-  behavior.
-- `src/chronox_jax/_data_validation.py` (new, to keep modules near 300 lines):
-  existing private dtype and shape rules, indicator checks, pure array rules,
-  bit assembly, and eager error reporting, with no new public API.
-- `src/chronox_jax/diagnostics.py` (new): `DataIssues` decoding, reduction,
-  PyTree registration, and host error reporting.
-- `tests/unit/test_data_construction.py` (new): indicator codes, flag conflicts,
-  active and inactive `time2`, bounds exactness, missing values, and parity of
-  the two constructors, including mixed rows and broadcasting. Cover the
-  explicit unsupported argument.
-- `tests/unit/test_data_boundaries.py` (new): exact, censoring, interval, and
-  truncation boundaries; partial/full/empty intersections; right censoring at
-  entry under both constructors (including positive entry and finite `U`);
-  right censoring strictly before entry; interval `time2=+inf` before/at
-  entry; valid `uninformative` rows.
-- `tests/unit/test_data_dtype.py`: keep the A1 traced weak-type promotion
-  check at the private dtype helper, because A2 makes traced ordinary
-  construction reject observation values at trace time.
-- `tests/unit/test_data_issues.py` (new): each bit and decoded mask, row shape,
-  missing versus invalid upper endpoints in the flag path and the shared pure
-  validator used by `from_bounds` (which has no public `with_issues` form),
-  `invalid_time` for NaN or out-of-domain first endpoints on exact, one-sided,
-  interval, and bounds rows; interval order only after both endpoints pass
-  presence/domain checks; independent overlapping issue masks, invalid union
-  and scalar `ok`, PyTree preservation, `jit`/`vmap` behavior, eager error
-  summaries, and traced ordinary-constructor rejection.
-- `DEVIATIONS.md`: read the maintainer-resolved D-003/D-004/D-005 entries; make no
-  status changes. Add an entry only if implementation exposes a new ambiguity.
-- `REVIEW.md`: overwrite only after implementation with reading order,
-  invariants, requirement-to-test map, exact check output, and uncertainties.
-
-The existing `tests/spec/`, `spec/`, and working-agreement files are read-only.
-No dependency or configuration changes are planned.
-
-## Invariants and implementation order
-
-1. Inspect indicator dtype and values before boolean conversion, preserving
-   evidence in the issue bitfield. A selected kind alone controls which time
-   endpoints are active; inactive `time2` is ignored per D-001.
-2. Compute issue masks from raw inputs and normalized fields using JAX array
-   operations. Structural failures are distinguished from invalid rows: the
-   former raise in both paths; the latter remain data plus flags in
-   `with_issues`.
-3. Check both endpoint domains before interval order. A NaN or out-of-domain
-   active flag `time` or bounds `lower` sets `invalid_time`, including interval
-   lower endpoints (D-005). Absent/NaN active uppers set `missing_time2`;
-   negative or `-inf` active uppers and mismatched exact bounds uppers set
-   `invalid_time2`; otherwise equal/reversed censored intervals set
-   `invalid_interval` (D-004). A malformed endpoint does not also set
-   `invalid_interval`. An exact bounds row may supply NaN upper, which
-   normalizes to its lower.
-4. Apply `0 <= L < U`, exact membership `L < t <= U`, and nonempty censored
-   intersection with `(L, U]`. Any normalized right-censored row with `c=L`
-   is valid and `uninformative`, including `L>0` and finite `U`; `c<L` is
-   invalid and sets `censored_before_entry` (D-003). This includes interval
-   flags with `time2=+inf`; they normalize to right censoring and use the same
-   before/at-entry rule. Other full-window censored coverage is valid and
-   `uninformative`, outside `invalid_rows`.
-5. The eager path reduces masks on the host, reports counts and first indices,
-   and raises. The pure path never performs Python truth tests on tracers.
-   PyTree reconstruction bypasses both paths.
-
-## Proposed review steps
-
-The implementation and tests described above exceed the roughly 300-line
-review target. Split at the constructor-validation versus diagnostic-interface
-boundary, with one commit and a `REVIEW.md` update after each step. Stop after
-each step for maintainer review.
-
-1. **A2a — validated eager constructors.** Add shared private array rules and
-   issue-bit assembly; use them in both ordinary constructors. Cover raw
-   indicators, active endpoints, normalization, truncation, and observation
-   intersections in `test_data_construction.py` and `test_data_boundaries.py`.
-   The constructors report counts and first offending indices; traced calls
-   point to the planned `with_issues` method. Keep the six-leaf PyTree. Run
-   Ruff, mypy, `scripts/run_tests.sh`, and `scripts/check.sh --through A2`.
-   The synced A2 acceptance tests cover eager construction. Record that the
-   A2 diagnostic API remains incomplete at this intermediate commit.
-2. **A2b — pure diagnostics.** Add `DataIssues` in `diagnostics.py` and
-   `SurvivalData.with_issues(...)`, using the same normalization and bitfield
-   rules. Cover each issue mask, unions, reductions, PyTree behavior,
-   `jit`/`vmap`, host error reporting, and constructor parity in
-   `test_data_issues.py`. Run all checks listed below, including A2 and the
-   independent A3 diagnostic file, once per dtype mode. Record any actual
-   spec-test disagreement in `DEVIATIONS.md`; do not edit those tests.
-
-   Keep the shared flag-constructor array normalization in
-   `_data_validation.py` so eager and pure paths use the same inputs and bit
-   assembly. Preserve the A1 caller-site float64 warning after this added
-   call layer. The ordinary constructor remains the only host checkpoint.
-
-The split and A2a were approved and confirmed by the maintainer. The current
-request authorizes A2b. Stop after its commit and review handoff.
-
-## Specification and checks
-
-Coverage: section 2 structural observation cases; 3.1 constructors; 3.2
-normalization and issue-bit storage; 3.3 boundaries; 6.2 validation and
-`DataIssues` and revision 5 endpoint issue attribution; 6.3 diagnostic container shape;
-10.2 module/public API policy; 12.1 construction verification; and 12.2 Slice A
-scope. The independent suite labels `DataIssues` tests A3, while the working
-agreement assigns this API to A2. This plan follows the working agreement and
-runs both A2 and relevant A3 diagnostic tests once the API exists.
-
-After each implementation step, run `uv run ruff format --check .`,
-`uv run ruff check .`, `uv run mypy src`, `scripts/run_tests.sh`, and
-`scripts/check.sh --through A2`. For A2b, also run
-`JAX_ENABLE_X64=1 SPEC_THROUGH=A3 uv run pytest tests/spec/test_a3_data_issues.py -q`
-and the same command with `JAX_ENABLE_X64=0`. Report every command's exact
-result. The synced A2 and A3 diagnostic tests now cover revision 5; any
-failure requires investigation, not an assumed stale-test exception. Do not
-edit, skip, or xfail independent tests.
-
-## Settled A2 decisions
-
-- **D-003:** Right censoring at `c=L` is valid and uninformative for any
-  entry time; `c<L` is invalid.
-- **D-004:** Missing active upper endpoints set `missing_time2`; negative or
-  `-inf` active uppers and mismatched exact bounds uppers set `invalid_time2`;
-  otherwise valid but equal/reversed non-exact bounds set `invalid_interval`.
-  Presence/domain checks precede order checks; independent problems may set
-  multiple masks. See specification revision 5, section 6.2.
-- **D-005:** NaN and other invalid active flag `time` or bounds `lower` values
-  set `invalid_time`, including interval lower endpoints. Invalid first or
-  second endpoints do not also set `invalid_interval`. See specification
-  revision 5, section 6.2. The separate section 3.1 clarification makes
-  interval `time2=+inf` follow right-censoring entry rules.
+- The merged DEVIATIONS.md has two D-006 entries: legacy diagnostic compatibility
+  and the earlier event/flag conflict question. The specification refers to the
+  former. Reconcile identifiers and references with the maintainer; do not mark
+  any entry resolved here.
+- Review older D-007–D-009 against the new contract without carrying their old
+  proposed APIs forward. Preserve the explicitly open exception-lifecycle and
+  traced-host-checkpoint questions from spec 13.
+- The maintainer completes the pending merge. Then approve the first proposed
+  implementation step. This merge-resolution task changes no library code or
+  acceptance tests.

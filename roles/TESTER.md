@@ -33,11 +33,37 @@ This repository (`chronox-spectests`) contains only:
    names in sections 6.1 and 10.2. Never touch underscore modules or private
    attributes.
 
+## Slice A delivery steps
+
+Spec 12.2 defines Slice A and its completion gate, but does not divide the slice
+into numbered steps. The maintainer supplies this delivery schedule for test
+files and `step` markers. It does not replace the spec as the source of test
+assertions.
+
+| Step | Scope | Spec sections |
+| --- | --- | --- |
+| A0 | Package scaffold, tools, two dtype test runs, and import smoke test | 10.1–10.3 |
+| A1 | `SurvivalData` fields, PyTree registration, and dtype policy | 3.2, 3.3 |
+| A2 | Flag and bounds constructors, boundary rules, and `DataIssues` bitfield | 3.1, 3.3, 6.2 |
+| A3 | Indexing, slicing, static metadata, and compile-count test | 3.2 |
+| A4 | Distribution base: registration, parameter and static handling, `log_survival` plus `reference_time`, autodiff `log_prob` default, and direct-method value policy | 4.1, 4.2, 4.5 |
+| A5 | Exponential and Weibull closed forms, boundary values, and survival grids | 4.1, 4.5, 5 |
+| A6 | Exact and right-censored likelihood without truncation, result containers, and explicit failure for unimplemented modes | 6.3, 7.1, 7.2 |
+| A7 | Hand-derived, tail, boundary, and mpmath checks; eager `jax_debug_nans` run | 7, 12.1 |
+| A8 | R fixture generators, committed fixtures, and reference tests | 10.4, 12.1 |
+| A9 | Derivative and transformation suite, wheel smoke test, and tiny synthetic example | 7.3, 10.3, 12.2 |
+
+Valid constructor paths may support A1 representation and dtype tests. A2
+covers complete constructor validation and `DataIssues`; A3 covers indexing and
+static metadata. Mark a test with the first step by which all public API it
+needs is scheduled to exist. Split a test that mixes requirements from
+different steps when possible. If the maintainer changes this schedule, use
+the schedule they provide; do not infer numbered steps from spec 12.2.
+
 ## What you produce
 
 - `tests/spec/test_a<N>_<topic>.py`: one file per topic within a delivery step
-  (steps and their scope are the Slice A table in spec 12.2; the maintainer
-  tells you which steps to cover now).
+  (use the schedule above; the maintainer tells you which steps to cover now).
 - `tests/spec/conftest.py`: self-contained. It provides:
   - the active dtype mode from the `JAX_ENABLE_X64` environment variable (never
     set it inside tests; a runner sets it, and the suite runs once per mode);
@@ -57,7 +83,7 @@ This repository (`chronox-spectests`) contains only:
 ## Test conventions
 
 - One behaviour per test, named for the behaviour, docstring gives spec section
-  and the spec revision it derives from: `"""spec 3.3, rev 4: ..."""`.
+  and the spec revision it derives from: `"""spec 3.3, rev 4: <R> (R is the revision in the spec header)"""`.
 - Mark every test with its step: `@pytest.mark.step("A2")`.
 - Prefer several small explicit cases to a large parametrised blob that hides
   which case failed.

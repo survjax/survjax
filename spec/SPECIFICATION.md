@@ -1,8 +1,9 @@
 # Chronox v0: specification
 
-- **Revision:** 7, 2026-09-29. Amends revision 6: exception types, decoding
-  stored issues with `data.issues()`, `time2` on non-interval rows, separate
-  truncation flags, and misuse precedence; removes outside-interval censoring.
+- **Revision:** 9, 2026-09-30. Only ordinary observation constructors;
+  diagnostics through `data.issues`. Removes the issue-returning convenience
+  methods retained in revision 8. Pure eager/traced construction and explicit
+  host validation remain (sections 6.2 and 10.2).
 - **Status:** Accepted design. Not implemented. Slice A may begin when the user
   instructs implementation.
 - **Companions:** [GOALS.md](GOALS.md) (direction and priorities),
@@ -153,6 +154,12 @@ SurvivalData.from_bounds(lower, upper, *, exact=None, left_trunc=None,
                          right_trunc=None, dtype=None)
 ```
 
+Both forms accept concrete or traced observation inputs, normalize them and
+record issue bits, returning `SurvivalData`. Invalid observation values do not
+raise, eagerly or under JAX transformations. Construction is not a validity
+certificate. Inspect `data.issues`; use `data.issues.raise_if_invalid()` only
+at an explicit host checkpoint. Malformed API calls still raise (section 6.2).
+
 Flag constructor (names follow R's `Surv(time, time2, event)`):
 
 - `SurvivalData(time, event)` uses true/1 for exact events and false/0 for right
@@ -172,8 +179,9 @@ Flag constructor (names follow R's `Surv(time, time2, event)`):
   `c=time`. It is valid and `uninformative` when `time=L`, and invalid with
   `censored_before_entry` when `time<L`, for any valid truncation window.
 - Indicators accept booleans or numbers exactly equal to 0 or 1, validated
-  before conversion. Missing values, NaN, infinity, other codes and strings are
-  rejected. R-style 1/2 event coding is not inferred.
+  before conversion. Numeric missing values (NaN), infinity and other codes
+  set `invalid_indicator`; strings and unsupported types are argument misuse
+  and raise. R-style 1/2 event coding is not inferred.
 - Missing required values are invalid. There is no implicit dropping or
   imputation.
 
@@ -212,10 +220,10 @@ bounds are invalid.
 `SurvivalData` is an immutable registered PyTree. Its array leaves are the five
 fields plus one `int32` **issue bitfield** leaf with the observation shape,
 which preserves raw-input evidence (conflicting flags, invalid indicators, and
-so on) through normalization. `DataIssues` decodes the bitfield
-(`data.issues()`, section 6.2). New validation rules add bits, not leaves, so
-the PyTree structure stays stable. Reconstruction bypasses public
-normalization.
+so on) through normalization. The `data.issues` property returns a `DataIssues`
+view decoded from that bitfield (section 6.2), without duplicate stored leaves.
+New validation rules add bits, not leaves, so the PyTree structure stays stable.
+Reconstruction bypasses public normalization.
 
 **Indexing.** Because every leaf has the observation shape, `data[idx]` and
 `jax.tree.map` slicing over observation axes are supported and tested. This is
@@ -225,12 +233,14 @@ how train/validation/test splits and minibatches are made.
 which derived kinds are present, whether any left truncation is present (any
 `left_trunc > 0`), and, as a separate flag, whether any right truncation is
 present (any `right_trunc < +inf`). The auxiliary data holds only these flags;
-datasets with equal flags have equal tree structures. Ordinary and pure constructors classify observation inputs as in
-section 6.2. When no observation input is traced, the flags are computed from
-the normalized fields of all rows. This includes rows with issue bits, and
+datasets with equal flags have equal tree structures. Both constructors
+classify observation inputs as in section 6.2. When no observation input is
+traced, the flags are computed from the normalized fields of all rows.
+This includes rows with issue bits, and
 applies also when construction happens inside a transformed function. When any
-observation input is traced, which is possible only with a pure constructor,
-all flags are true. Slices inherit them unchanged (a subset cannot contain
+observation input is traced, all flags are conservatively true, including for
+ordinary construction. This metadata difference does not change normalized
+fields or issue bits. Slices inherit them unchanged (a subset cannot contain
 kinds its parent lacks). The evaluator may use them to prune branches at trace
 time (section 7.2); datasets with different flags have different tree
 structures and compile separately.
@@ -444,9 +454,9 @@ raise and carry no issue masks.
 | `S(t)=0` for `hazard` | analytic `log_hazard` where overridden, otherwise NaN |
 | summaries: `tau<0`; `p` outside `[0,1]` | NaN |
 
-This differs deliberately from observation validation, which rejects exact
-times at zero. Boundary values must also avoid NaN parameter gradients where the
-value is finite. Test cases: a survival grid starting at `t=0` with Weibull
+Observation validation records exact times at zero as `invalid_time`, without
+raising during construction. Boundary values must also avoid NaN parameter
+gradients where the value is finite. Test cases: a survival grid starting at `t=0` with Weibull
 `k=1` (the `bc` fixed vector `(1,10,-0.5,-1)` does this); the gradient of
 `S(0)` with respect to `k`.
 
@@ -545,7 +555,7 @@ This applies to `log_likelihood`, `concordance_index`, `kaplan_meier`,
   under `jit`: invalid runtime values give NaN plus issues; static misuse (bad
   argument combinations, types or shapes) raises. An eager raw-form call with,
   say, event code 2 returns NaN rather than raising; the documentation points to
-  `SurvivalData` for eager validation.
+  `SurvivalData(...).issues.raise_if_invalid()` for explicit host validation.
 
 ### 6.2 Validation
 
@@ -555,18 +565,20 @@ normalization and normalized fields afterwards. The result is per-rule masks
 with the data shape, an invalid-row union and a scalar validity reduction.
 
 ```text
-SurvivalData(...)                                   # eager; raises descriptive errors
-SurvivalData.from_bounds(...)                       # eager; raises descriptive errors
-SurvivalData.with_issues(...) -> (data, DataIssues)               # pure; works under jit
-SurvivalData.from_bounds_with_issues(...) -> (data, DataIssues)   # pure; works under jit
-data.issues() -> DataIssues                         # decodes the stored bitfield; pure
-DataIssues.raise_if_invalid()                       # explicit host-only checkpoint
+SurvivalData(...) -> data                           # pure; eager, jit and vmap
+SurvivalData.from_bounds(...) -> data               # pure; eager, jit and vmap
+data.issues -> DataIssues                           # pure diagnostic property
+data.issues.ok -> scalar bool array                 # usable in compiled control flow
+data.issues.raise_if_invalid()                      # explicit host-only checkpoint
 ```
 
-- Each pure constructor takes exactly the arguments of its ordinary
-  counterpart. It applies the same normalization and issue rules. For inputs
-  accepted by the ordinary constructor, both yield identical fields and issue
-  bits.
+- **All construction is pure.** Both constructors normalize and record invalid
+  observation values without value-dependent Python exceptions or Python tests
+  on traced values. Valid and invalid values have the same validation semantics
+  eagerly and under `jit`/`vmap`. There is no unchecked or `assume_valid` path.
+- These are the only public observation constructors. Each returns data;
+  diagnostics are accessed through `data.issues`. There are no separate
+  issue-returning constructor methods.
 - **Observation inputs** are all constructor arguments except `dtype`:
   - for the flag form: `time`, `event`, the censoring flags, `time2`,
     `left_trunc` and `right_trunc`;
@@ -585,53 +597,55 @@ DataIssues.raise_if_invalid()                       # explicit host-only checkpo
 
   Arrays created with `jax.numpy` inside the function are traced, even when
   their values are constant.
-- **Ordinary constructors** require that no observation input is traced. When
-  none is, normalization and validation run eagerly, also during tracing of a
-  transformed function. Invalid observations raise the same descriptive errors
-  as outside a transformation, with counts and the first offending indices. If
-  any observation input is traced, the ordinary constructor raises
-  `chronox_jax.TracedInputError` at trace time, and its message names the pure
-  counterpart: `with_issues` for the flag form and `from_bounds_with_issues`
-  for the bounds form. Distribution constructors
-  accept traced parameters.
-- **Argument misuse raises in all four constructors**, independent of values
+- **Ordinary constructors accept traced observation inputs**, including nested
+  list/tuple elements. Tracing classification governs only static metadata
+  (section 3.2), never whether observation values can be validated. Concrete
+  inputs inside transformed functions also return data with issues rather than
+  raising for invalid rows. Distribution constructors accept traced parameters.
+- **Argument misuse raises in both constructors**, independent of values
   and of tracing. This includes:
   - `event` combined with any non-None censoring flag;
   - nonnumeric fields;
   - incompatible shapes.
 
-  Argument misuse is checked before the traced-input check, so misuse raises
-  the misuse error in every constructor, also when observation inputs are
-  traced.
+  These checks use argument structure, types and shapes, not observation
+  validity. They also raise during tracing; there is no traced-input rejection.
 
   `conflicting_indicators` reports only rows on which more than one censoring
   flag is true.
-- **Exception types.** Invalid observation rows raise
-  `chronox_jax.InvalidDataError`, a subclass of `ValueError`, from the ordinary
-  constructors and from `DataIssues.raise_if_invalid()`. Argument misuse raises
-  `TypeError`, not `TracedInputError`. A traced observation input to an
-  ordinary constructor raises `chronox_jax.TracedInputError`, a subclass of
-  `TypeError`. An explicit dtype request that cannot be honoured raises
-  `ValueError`, not `InvalidDataError` (section 3.3).
-- `data.issues()` decodes the issue bitfield of any `SurvivalData`: freshly
+- **Exception types.** Argument misuse raises `TypeError`. An explicit dtype
+  request that cannot be honoured raises `ValueError`, not `InvalidDataError`
+  (section 3.3).
+- **Host checkpoint.** `DataIssues.raise_if_invalid()` returns normally for
+  valid data (including `uninformative` rows); otherwise it raises
+  `chronox_jax.InvalidDataError`, a subclass of `ValueError`, with counts and
+  first offending indices. Call it outside transformations on concrete
+  diagnostics, including results returned by compiled computations. Calling it
+  on traced diagnostics is unsupported and must fail explicitly; it must not
+  install a callback or silently do nothing. The exception type for that misuse
+  and the legacy `TracedInputError` lifecycle remain open (section 13).
+- `data.issues` decodes the issue bitfield of any `SurvivalData`: freshly
   built data, slices and other indexing results, data returned from
   transformed functions, and data rebuilt from its leaves. It is pure and works
-  under `jit`. For data from a pure constructor it returns the same masks as
-  that constructor's `DataIssues`. For `data[idx]`, each per-row mask equals the
-  parent's mask indexed by `idx`, and `ok` reduces over the indexed rows only.
-  Data from an ordinary constructor can carry only the `uninformative` bit.
-- The pure constructors return normalized data plus issues without Python tests
-  on traced values. A returned data object alone is not a validity certificate.
-  Issue arrays do not halt execution; validate simulation output before
-  expensive fitting with a host checkpoint or explicit compiled orchestration.
+  under `jit`, including `data.issues.ok`. It adds no PyTree leaves to data.
+  For `data[idx]`, each per-row mask equals the parent's mask indexed by `idx`,
+  and `ok` reduces over the indexed rows only.
 - Inputs that cannot form an object at all raise rather than manufacture data.
+
+Choose validation policy deliberately. **Strict validation** constructs data,
+inspects `data.issues`, and explicitly calls `raise_if_invalid()` at a host
+checkpoint when invalid observations should terminate the task.
+**Simulation studies** retain problematic replicates as informative outcomes,
+use diagnostics in compiled control flow to skip inappropriate fits, and decide
+continuation at the study level. One problematic replicate does not inherently
+abort the study. Section 11.4 gives pilot and checkpoint guidance.
 
 `DataIssues` fields: `invalid_indicator`, `conflicting_indicators`,
 `missing_time2`, `invalid_time`, `invalid_time2`, `invalid_interval`,
 `invalid_truncation`, `exact_outside_truncation`, `censored_before_entry`,
 `empty_observation`. The `censored_before_entry` mask applies to censored
 rows with `upper=+inf` and `lower<L`, not `lower=L`. Their union is
-`invalid_rows`; `ok` is the scalar reduction. `uninformative` is reported
+`invalid_rows`; `ok` is `~jnp.any(invalid_rows)`. `uninformative` is reported
 separately and is **not** part of `invalid_rows` (section 2).
 
 Upper-endpoint issue attribution for interval `time2` and `from_bounds`
@@ -693,6 +707,15 @@ log_likelihood_with_info(dist, data=None, *, time=None, event=None)
 Return per-observation log contributions with no implicit sum, average or
 weights. Callers use `-values.sum()` or `-values.mean()`. Multiplying invalid
 rows by zero does not make them valid.
+
+Evaluation propagates the stored raw-input issue bitfield as well as checking
+normalized fields. Every row in `data.issues.invalid_rows` yields NaN and
+`LikelihoodIssues.invalid_data`, even if normalization made its fields appear
+valid (for example, an invalid indicator converted to bool). This applies to
+every constructor form and to indexed, rebuilt and transformed data; raw-form
+entry points preserve the same evidence. Non-fatal `uninformative` bits alone
+do not invalidate a contribution. Pure construction changes none of these
+likelihood rules.
 
 | Situation | Result |
 | --- | --- |
@@ -1103,6 +1126,20 @@ compiled extensions.
 things intended to stabilize are constructor keywords, the entry-point
 signatures of section 6.1 and result shapes.
 
+**Revisions 8–9 compatibility changes.** Ordinary eager `SurvivalData(...)` and
+`from_bounds(...)` no longer raise automatically for invalid observation
+values. Migrate code that relied on that exception to construct data and then
+call `data.issues.raise_if_invalid()` explicitly on the host. Both ordinary
+forms now accept traced inputs. Use the `data.issues` property in place of the
+revision 7 `data.issues()` method spelling. Revision 9 removes
+`SurvivalData.with_issues(...)` and `SurvivalData.from_bounds_with_issues(...)`
+from the public API; replace their tuple unpacking with `SurvivalData(...)` or
+`SurvivalData.from_bounds(...)`, respectively, followed by
+`issues = data.issues`. Static misuse errors and dtype-policy errors/warnings
+remain. This changes the design contract; implementation and
+independent acceptance tests must be updated separately, and are not claimed
+to support revision 9 yet.
+
 ### 10.3 Environment, dependencies and verification tools
 
 Python 3.12 (`requires-python >=3.12`), a locked CPU environment and local Git,
@@ -1279,6 +1316,126 @@ settings and diagnostic thresholds with the demo.
   censoring times separately, form observed times and event flags; the same
   recipe builds replicated datasets for posterior predictive checks.
 
+#### Validation and simulation-study workflow
+
+Keep three outcomes distinct: structurally invalid observations (`DataIssues`),
+valid data for which the requested estimate does not exist, and optimizer
+failure on an attempted fit. For an untruncated exponential sample with total
+follow-up `Y>0` and `d` events, the log likelihood in log rate `eta` is
+`d*eta - exp(eta)*Y`. If every row is censored, `d=0` and the supremum occurs
+as `eta -> -inf`: no finite log-rate MLE exists. The data remain valid, with
+`data.issues.ok == True`. Estimability depends on the model and target, not
+on `DataIssues`; priors or a different target may change the conclusion.
+
+For strict validation, use an explicit host checkpoint:
+
+```python
+data = cx.SurvivalData(time=time, event=event)
+issues = data.issues  # inspect masks as needed
+issues.raise_if_invalid()  # outside jit; invalid data terminate this task
+```
+
+For a simulation study:
+
+1. Begin with a small compiled pilot at the intended dataset size, model,
+   optimizer, precision, tolerances and other numerical settings. Reduce the
+   number of replicates, not the number of observations in each dataset. For
+   example, 16 replicates per scenario can be a starting point, not a universal
+   requirement or guarantee of adequate coverage.
+2. Exercise every scenario. Summarize data issue counts, estimates that do not
+   exist, fits attempted, convergence and failure reasons. If every pilot
+   dataset is invalid, stop launching further work and inspect diagnostics.
+   Likewise investigate all attempted fits failing despite valid data; a pilot
+   with valid data but no estimable targets also calls for review of the design.
+3. Retain occasional failures, their reasons, scenario identifiers and
+   reproducible random keys, together with versions and settings. Do not
+   silently remove them from study denominators. Report attempted fits and
+   successful fits separately from total replicates.
+4. Continue in batches with checkpoints and a study-specific stopping policy.
+   Pilot results may remain in the study; record any subsequent design changes
+   so results from different settings are identifiable. Failure-rate thresholds
+   and pilot sizes are study choices. A successful pilot does not guarantee
+   that later replicates will succeed.
+
+Fully compiled early stopping, using loop state and diagnostics to decide
+whether to generate further replicates, is an alternative to host checkpoints
+between compiled batches. Both approaches retain results already produced.
+
+The following illustrates the revision 9 contract, not currently executable
+package support. It uses only Slice A likelihood capabilities and JAX sampling.
+Optimistix remains an external example dependency (section 10.3).
+The scenario arguments `rate` and `censor_time` are finite, strictly positive
+scalars; the study validates these settings before launching replicates.
+[Optimistix Newton](https://docs.kidger.site/optimistix/api/root_find/) solves
+for a zero of `grad(nll)`, so its Jacobian is the actual objective Hessian,
+computed by autodiff on each Newton step. This exercises second parameter
+derivatives during fitting. [BFGS](https://docs.kidger.site/optimistix/api/minimise/)
+updates a Hessian or inverse-Hessian approximation using gradients; it does not
+exercise those second derivatives in its steps. Neither choice implies a
+guarantee about differentiating through the solver itself (section 7.3).
+
+```python
+import jax
+import jax.numpy as jnp
+import optimistix as optx  # optional, outside the Chronox core
+import chronox_jax as cx
+
+N = 512  # example intended dataset size; keep it fixed for the pilot
+
+def nll(log_rate, data):
+    return -cx.log_likelihood(cx.Exponential.from_log(log_rate=log_rate), data).sum()
+
+score = jax.grad(nll)
+
+@jax.jit
+def replicate(key, rate, censor_time):
+    event_time = jax.random.exponential(key, (N,)) / rate
+    time = jnp.minimum(event_time, censor_time)
+    event = event_time <= censor_time
+    data = cx.SurvivalData(time=time, event=event)  # traced ordinary construction
+    issues = data.issues
+    # For this model, valid data with any event have a finite log-rate MLE.
+    attempt = issues.ok & jnp.any(data.exact)
+
+    def fit(_):
+        sol = optx.root_find(
+            score, optx.Newton(rtol=1e-6, atol=1e-6),
+            y0=jnp.zeros((), dtype=data.lower.dtype), args=data,
+            max_steps=64, throw=False,
+        )
+        solver_ok = sol.result == optx.RESULTS.successful
+        fit_ok = jnp.isfinite(sol.value) & (jnp.abs(score(sol.value, data)) < 1e-5)
+        reason = jnp.where(solver_ok, jnp.where(fit_ok, 0, 4), 3)
+        return sol.value, reason, sol.result
+
+    def skip(_):
+        reason = jnp.where(issues.ok, 2, 1)
+        # solver_result is meaningful only when attempted is true.
+        return jnp.full((), jnp.nan, dtype=data.lower.dtype), reason, optx.RESULTS.successful
+
+    estimate, reason, solver_result = jax.lax.cond(attempt, fit, skip, None)
+    return dict(key=key, issues=issues, attempted=attempt, log_rate=estimate,
+                reason=reason, solver_result=solver_result)
+
+keys = jax.random.split(jax.random.key(2026), 16)  # example pilot for one scenario
+pilot = jax.jit(lambda ks: jax.lax.map(lambda k: replicate(k, 1.0, 2.0), ks))(keys)
+pilot = jax.device_get(pilot)  # summarize and apply the study's policy on the host
+```
+
+The example's local reason codes are 0 accepted fit, 1 invalid observations,
+2 no finite log-rate MLE, 3 solver failure, and 4 failed post-fit check; they
+are not new Chronox statuses. Preserve `solver_result` for attempted fits to
+explain solver failures using [Optimistix diagnostics](https://docs.kidger.site/optimistix/api/solution/).
+`throw=False` returns numerical solver failures as results; it does not make
+malformed programs valid. Newton finds stationary points; this exponential
+objective has a unique minimum when an event is present. Other models need
+their own estimability and optimum checks. All tolerances and step limits above
+are illustrative and must be piloted with the intended numerical settings.
+Use fresh keys for subsequent batches and retain scenario settings alongside
+the returned records. `lax.map` keeps the condition scalar per replicate;
+[`vmap` over `lax.cond`](https://docs.jax.dev/en/latest/_autosummary/jax.lax.cond.html)
+can execute both branches and defeat fit skipping.
+
 Plotting uses an existing library outside core code.
 
 ## 12. Verification and implementation milestones
@@ -1289,7 +1446,9 @@ These are acceptance criteria, not claims of passing tests.
 
 | Area | Required evidence |
 | --- | --- |
-| Construction | every indicator and endpoint rule; both constructors normalize identically; dtype policy (float64 under 32-bit mode warns and converts; explicit request fails); ordinary construction from non-traced inputs inside `jit`, including raising on invalid rows; rejection when any observation input, or a list element of one, is traced; argument misuse raising in the pure constructors, and before the traced-input error; the exception type of each failure kind (`InvalidDataError`, `TypeError`, `TracedInputError`, `ValueError` for dtype requests); `time2` ignored on non-interval rows; metadata for non-traced and traced inputs, with separate left and right truncation flags; indexing and slicing; issue bitfield decoding with `data.issues()` on fresh, indexed, rebuilt and transformed data |
+| Construction | every indicator and endpoint rule; flag and bounds forms normalize equivalent observations identically; eager/`jit`/`vmap` agreement of normalized fields and issue bits for valid and invalid values, without value-dependent exceptions; both ordinary forms accept every traced observation argument, including nested list/tuple elements, and concrete invalid inputs inside `jit`; unchanged dtype policy, `TypeError` for malformed calls/types/shapes and `ValueError` for unavailable explicit dtype requests in both constructors, including under tracing; `time2` ignored on non-interval rows |
+| Data diagnostics and metadata | `data.issues` is a `DataIssues` view and adds no data PyTree leaves; masks and scalar `ok` work under `jit` on fresh, indexed, rebuilt and transformed data; invalid rows raise `InvalidDataError` only at explicit host checkpoints, with counts/indices; valid and uninformative data pass that checkpoint; raising on traced diagnostics fails explicitly; public construction offers only the flag and bounds forms returning data, with no issue-returning constructor methods; concrete metadata derives from all normalized rows, traced metadata has all may-contain flags true; separate left/right truncation flags; slices inherit metadata and slice issue masks |
+| Stored input issues | likelihood NaN and `invalid_data` propagate raw-input issues even when normalized fields appear valid, in every constructor form, under transformations and after indexing/reconstruction; no unchecked construction path; all-censored exponential data remain structurally valid despite no finite log-rate MLE |
 | Likelihood mathematics | hand-derived exact/right/left/interval cases under absent/left/right/two-sided truncation; mixed data; partial, full and empty intersections; censored-before-entry and uninformative rows; a bounded-support family separating zero numerator from zero denominator |
 | Cross-kind identities (property-based) | interval `(c, +inf]` equals right-censored at `c`; `(0, c]` equals left-censored at `c`; `logaddexp` of adjacent intervals equals their union; full coverage gives exactly zero |
 | Numerical behaviour | tiny nonzero masses, both tails, narrow intervals, cancellation, boundaries, inactive branches; no floors; valid `-inf` versus invalid NaN; the likelihood suite run eagerly under `jax_debug_nans` on valid mixed batches |
@@ -1303,6 +1462,7 @@ These are acceptance criteria, not claims of passing tests.
 | KM and metrics | hand-enumerated cases; all tie cases; delayed entry; `where` groups under `vmap`; beyond-follow-up NaN; unsupported rows; `G=0`; distribution versus array prediction inputs |
 | Extension and install | out-of-tree custom family; installed wheel and source archive; public exports and type marker; core imports without demo dependencies |
 | End-to-end | classical demo targets; neural training and held-out metrics; Bayesian wiring, diagnostics and posterior predictive check; recorded environments |
+| Simulation guidance | compiled ordinary construction followed by an external Newton solve of the likelihood gradient exercises second derivatives; distinguish data validity, estimate existence and solver failure; demonstrate fit skipping and retained reasons/keys, pilot summaries for every scenario and continuation policy; optimizer remains optional and outside core; executable recipe validation is separate implementation work |
 
 Ordinary finite-value targets: `atol=1e-10, rtol=1e-8` (float64) and
 `atol=1e-5, rtol=1e-4` (float32) on representative domains. Derivative and tail
@@ -1314,7 +1474,7 @@ bounds.
 
 | Slice | Deliverable | Completion gate |
 | --- | --- | --- |
-| A | Installable package; `SurvivalData` (both constructors, all v0 kinds representable, dtype policy, issue bitfield, indexing, static metadata) and `DataIssues`; exponential and Weibull exact/right likelihoods without truncation; direct-method policy; survival grids; core extension interface (`register_family`, `log_survival` + `reference_time`, autodiff `log_prob` default); result containers | Construction, evaluation and shape checks; first and second derivatives; stable tails; boundary cases; independent math fixtures; committed synthetic `bc`-like per-row R fixtures; eager `jax_debug_nans` run; wheel smoke test; a tiny synthetic example |
+| A | Installable package; `SurvivalData` (both pure ordinary constructors, all v0 kinds representable, dtype policy, issue bitfield, indexing, static metadata) and `data.issues` / `DataIssues` with explicit host raising; exponential and Weibull exact/right likelihoods without truncation; direct-method policy; survival grids; core extension interface (`register_family`, `log_survival` + `reference_time`, autodiff `log_prob` default); result containers | Construction, data diagnostics/metadata and stored-input-issue requirements of section 12.1; evaluation and shape checks; first and second derivatives; stable tails; boundary cases; independent math fixtures; committed synthetic `bc`-like per-row R fixtures; eager `jax_debug_nans` run; wheel smoke test; a tiny synthetic example |
 | B | Left and interval censoring; all truncation combinations; `log_conditional_interval_prob` hook; static-metadata pruning | Full likelihood matrix and diagnostics; cross-kind property tests; synthetic flexsurv fixtures for every kind; transformed derivatives |
 | C | Classical demo: external BFGS fit and `bc` reproduction, with analytical summaries as needed | The checks and targets of section 11.1, including the independent optimum check |
 | D | Log-normal and log-logistic families; `HazardFamily`; PH and AFT wrappers; analytical and generic summaries (quadrature, solver, derivative rules); sampling including truncation; `check_family`; extension recipes | Summary convergence, failure and derivative checks; wrapper identities; sampling agreement and distribution tests |
@@ -1333,13 +1493,21 @@ v0 support. Publication, remote setup and credentials are separate actions.
 ([notes/log_ndtr-precision.md](notes/log_ndtr-precision.md)); the log-normal
 requirement in section 4.1 already works around it.
 
-**Settled in drafting revisions 4, 6 and 7, open to user override** (revision
+**Settled in drafting revisions 4, 6, 7, 8 and 9, open to user override** (revision
 4 items are listed in the disposition log): the treatment of full-coverage
 censored rows other than censoring strictly before entry (valid, flagged
-`uninformative`); the `_with_info` suffix, `SurvivalData.with_issues`,
-`SurvivalData.from_bounds_with_issues` and `data.issues()` names; the
-`InvalidDataError` and `TracedInputError` names; `LogNormal(meanlog, sdlog)`
-naming; the `CensoringWeights` container.
+`uninformative`); the `_with_info` suffix and `data.issues` property name;
+only ordinary observation constructors, with pure eager/traced construction
+and explicit host-only `InvalidDataError` checkpoints;
+`LogNormal(meanlog, sdlog)` naming; the `CensoringWeights` container.
+
+**Open after revision 8:** the lifecycle/export of the revision 7
+`TracedInputError` name, and the precise exception type for misuse of
+`raise_if_invalid()` on traced diagnostics. Ordinary traced construction must
+succeed regardless of this choice. No callable compatibility alias for the
+old `data.issues()` spelling is specified; whether to offer one remains open.
+These compatibility questions are recorded in `DEVIATIONS.md` D-006; they do
+not reopen the approved construction semantics or introduce new fit APIs.
 
 **Implementation work under the accepted contracts:** compatible version pins;
 stable family formulas and reference times; the synthetic fixture generators and
@@ -1366,8 +1534,8 @@ out-of-domain values from incorrect interval order. R's counting-process
 input rule for equal start and stop is separate from this likelihood identity.
 Revision 6 clarifies which observation inputs count as traced, how ordinary
 construction works inside transformations, how both pure constructors report
-issues, and how static metadata is computed. Argument misuse raises in all
-four constructors.
+issues, and how static metadata is computed. It required argument misuse to
+raise in each then-supported constructor; revision 9 simplifies that surface.
 Revision 7 names the exception type of each failure kind, checks argument
 misuse before the traced-input check, adds `data.issues()` to decode the stored
 bitfield of any `SurvivalData`, ignores `time2` on non-interval rows, separates
@@ -1376,12 +1544,31 @@ only the flags. It removes outside-interval censoring from v0 and from the
 future designs: the estimand is usually avoided by conditioning on being
 event-free at entry, and it does not fit the `lower < T <= upper`
 representation.
+Revision 8 supersedes revision 6/7's ordinary-constructor restrictions and
+automatic eager value errors: both constructors are pure, accept traced
+observations and expose stored issues through `data.issues`. It retained
+issue-returning conveniences, subsequently removed in revision 9. Static misuse,
+dtype policy, metadata classification and likelihood failure semantics are
+preserved. Strict tasks raise explicitly on the host; simulations may retain
+problematic replicates and control fitting and continuation using diagnostics.
+Section 11.4 documents
+pilots, checkpoints and external Newton fitting with second derivatives.
+Revision 9 removes the issue-returning constructor methods from the public
+API. Both ordinary constructors return data eagerly and under transformations;
+all diagnostics use `data.issues`. Metadata wording, compatibility guidance and
+acceptance requirements now describe this single construction/diagnostic path.
+Implementation and independent acceptance tests are separate follow-up work.
 Later revisions should record new decisions in the disposition log or in the
 design notebook's decision records.
 
 ## 15. Decision traceability
 
 Revision 4 changes are traced in [REVIEW-DISPOSITIONS.md](REVIEW-DISPOSITIONS.md).
+Revision 8 records the maintainer-approved pure-construction decision of
+2026-09-30 in sections 3.1–3.2, 6.1–6.2, 7.1, 10.2, 11.4 and 12.1–12.2;
+section 13 identifies the remaining compatibility questions.
+Revision 9 records the maintainer's follow-up decision of 2026-09-30 to remove
+issue-returning constructor methods, in sections 3.2, 6.2, 10.2 and 12.1–12.2.
 The decision records behind revisions 1–3 (paths relative to `docs/design/`) remain
 the historical basis for the parts of this document the review did not change:
 
