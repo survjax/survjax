@@ -411,6 +411,7 @@ been executed against Chronox. Test names below are relative to `tests/spec/`.
 | 6.2 | traced bounds right truncation is accepted. | `test_traced_bounds_right_truncation_matches_eager` |
 | 6.2 | bounds inputs may contain a tracer inside nested tuples. | `test_bounds_nested_tuple_with_tracer_is_accepted` |
 | 6.2/12.1 | bounds construction agrees under vmap for valid and invalid rows. | `test_bounds_vmap_agrees_with_eager_for_valid_and_invalid_rows` |
+| 6.2 | "`ok` is `~jnp.any(invalid_rows)`"; a scalar over every row of data returned from vmap, and over the indexed rows only for `data[idx]`. | `test_ok_of_vmap_returned_data_reduces_over_all_rows` |
 | 6.2 | event combined with a censoring flag raises TypeError under jit. | `test_flag_misuse_still_raises_when_inputs_are_traced` |
 | 6.2 | incompatible bounds shapes raise TypeError under jit. | `test_bounds_shape_misuse_still_raises_when_inputs_are_traced` |
 | 6.2 | a nonnumeric field raises TypeError even when another input is traced. | `test_nonnumeric_field_misuse_raises_with_other_traced_input` |
