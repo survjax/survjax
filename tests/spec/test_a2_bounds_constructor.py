@@ -1,11 +1,11 @@
 """A2: the bounds constructor ``SurvivalData.from_bounds`` (spec 3.1, 3.2)."""
 
+import chronox_jax as cx
 import numpy as np
 import pytest
 from helpers import (
     FLOAT,
     INF,
-    INVALID_DATA,
     MISUSE,
     NAN,
     assert_fields,
@@ -15,8 +15,6 @@ from helpers import (
 )
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
-
-import chronox_jax as cx
 
 # ------------------------------------------------------------- semantics
 
@@ -91,92 +89,92 @@ def test_scalar_upper_broadcasts_to_lower_shape():
 
 
 @pytest.mark.step("A2")
-def test_equal_endpoints_on_non_exact_row_are_rejected():
-    """spec 3.1, rev 7: equal endpoints on a non-exact row are invalid."""
-    with pytest.raises(INVALID_DATA):
-        cx.SurvivalData.from_bounds(f([2.0]), f([2.0]), exact=b([False]))
+def test_equal_endpoints_on_non_exact_row_set_issue():
+    """spec 3.1, rev 9: equal endpoints on a non-exact row are invalid."""
+    data = cx.SurvivalData.from_bounds(f([2.0]), f([2.0]), exact=b([False]))
+    assert bool(np.asarray(data.issues.invalid_rows).any())
 
 
 @pytest.mark.step("A2")
-def test_equal_endpoints_without_exact_mask_are_rejected():
-    """spec 3.1, rev 7: exactness is not inferred from equal endpoints."""
-    with pytest.raises(INVALID_DATA):
-        cx.SurvivalData.from_bounds(f([2.0]), f([2.0]))
+def test_equal_endpoints_without_exact_mask_set_issue():
+    """spec 3.1, rev 9: exactness is not inferred from equal endpoints."""
+    data = cx.SurvivalData.from_bounds(f([2.0]), f([2.0]))
+    assert bool(np.asarray(data.issues.invalid_rows).any())
 
 
 @pytest.mark.step("A2")
-def test_reversed_bounds_are_rejected():
-    """spec 7.1, rev 7: reversed endpoints are invalid (censored rows mean lower < T <= upper)."""
-    with pytest.raises(INVALID_DATA):
-        cx.SurvivalData.from_bounds(f([3.0]), f([2.0]))
+def test_reversed_bounds_set_issue():
+    """spec 7.1, rev 9: reversed endpoints are invalid (censored rows mean lower < T <= upper)."""
+    data = cx.SurvivalData.from_bounds(f([3.0]), f([2.0]))
+    assert bool(np.asarray(data.issues.invalid_rows).any())
 
 
 @pytest.mark.step("A2")
-def test_exact_row_with_different_upper_is_rejected():
-    """spec 3.1, rev 7: an exact row's `upper` must equal `lower` or be NaN."""
-    with pytest.raises(INVALID_DATA):
-        cx.SurvivalData.from_bounds(f([1.5]), f([2.0]), exact=b([True]))
+def test_exact_row_with_different_upper_sets_issue():
+    """spec 3.1, rev 9: an exact row's `upper` must equal `lower` or be NaN."""
+    data = cx.SurvivalData.from_bounds(f([1.5]), f([2.0]), exact=b([True]))
+    assert bool(np.asarray(data.issues.invalid_rows).any())
 
 
 @pytest.mark.step("A2")
-def test_exact_row_at_zero_is_rejected():
-    """spec 3.3, rev 7: exact times must be strictly positive (bounds constructor)."""
-    with pytest.raises(INVALID_DATA):
-        cx.SurvivalData.from_bounds(f([0.0]), f([0.0]), exact=b([True]))
+def test_exact_row_at_zero_sets_issue():
+    """spec 3.3, rev 9: exact times must be strictly positive (bounds constructor)."""
+    data = cx.SurvivalData.from_bounds(f([0.0]), f([0.0]), exact=b([True]))
+    assert bool(np.asarray(data.issues.invalid_rows).any())
 
 
 @pytest.mark.step("A2")
-def test_negative_lower_is_rejected():
-    """spec 3.3, rev 7: censoring endpoints are nonnegative."""
-    with pytest.raises(INVALID_DATA):
-        cx.SurvivalData.from_bounds(f([-1.0]), f([2.0]))
+def test_negative_lower_sets_issue():
+    """spec 3.3, rev 9: censoring endpoints are nonnegative."""
+    data = cx.SurvivalData.from_bounds(f([-1.0]), f([2.0]))
+    assert bool(np.asarray(data.issues.invalid_rows).any())
 
 
 @pytest.mark.step("A2")
-def test_infinite_lower_is_rejected():
-    """spec 3.3, rev 7: `lower` is finite."""
-    with pytest.raises(INVALID_DATA):
-        cx.SurvivalData.from_bounds(f([INF]), f([INF]))
+def test_infinite_lower_sets_issue():
+    """spec 3.3, rev 9: `lower` is finite."""
+    data = cx.SurvivalData.from_bounds(f([INF]), f([INF]))
+    assert bool(np.asarray(data.issues.invalid_rows).any())
 
 
 @pytest.mark.step("A2")
-def test_nan_lower_is_rejected():
-    """spec 3.1, rev 7: missing required values are invalid."""
-    with pytest.raises(INVALID_DATA):
-        cx.SurvivalData.from_bounds(f([NAN]), f([2.0]))
+def test_nan_lower_sets_issue():
+    """spec 3.1, rev 9: missing required values are invalid."""
+    data = cx.SurvivalData.from_bounds(f([NAN]), f([2.0]))
+    assert bool(np.asarray(data.issues.invalid_rows).any())
 
 
 @pytest.mark.step("A2")
-def test_nan_upper_on_censored_row_is_rejected():
-    """spec 3.1/6.2, rev 7: a non-exact `from_bounds` row with NaN `upper` is invalid (`missing_time2`)."""
-    with pytest.raises(INVALID_DATA):
-        cx.SurvivalData.from_bounds(f([1.0]), f([NAN]))
+def test_nan_upper_on_censored_row_sets_issue():
+    """spec 3.1/6.2, rev 9: a non-exact `from_bounds` row with NaN `upper` is invalid (`missing_time2`)."""
+    data = cx.SurvivalData.from_bounds(f([1.0]), f([NAN]))
+    assert bool(np.asarray(data.issues.invalid_rows).any())
 
 
 @pytest.mark.step("A2")
-def test_negative_upper_is_rejected():
-    """spec 6.2, rev 7: a supplied `from_bounds` upper that is negative is invalid (`invalid_time2`)."""
-    with pytest.raises(INVALID_DATA):
-        cx.SurvivalData.from_bounds(f([0.0]), f([-1.0]))
+def test_negative_upper_sets_issue():
+    """spec 6.2, rev 9: a supplied `from_bounds` upper that is negative is invalid (`invalid_time2`)."""
+    data = cx.SurvivalData.from_bounds(f([0.0]), f([-1.0]))
+    assert bool(np.asarray(data.issues.invalid_rows).any())
 
 
 @pytest.mark.step("A2")
-def test_minus_infinite_upper_is_rejected():
-    """spec 6.2, rev 7: a supplied `from_bounds` upper of `-inf` is invalid (`invalid_time2`)."""
-    with pytest.raises(INVALID_DATA):
-        cx.SurvivalData.from_bounds(f([0.0]), f([-INF]))
+def test_minus_infinite_upper_sets_issue():
+    """spec 6.2, rev 9: a supplied `from_bounds` upper of `-inf` is invalid (`invalid_time2`)."""
+    data = cx.SurvivalData.from_bounds(f([0.0]), f([-INF]))
+    assert bool(np.asarray(data.issues.invalid_rows).any())
 
 
 @pytest.mark.step("A2")
 def test_column_upper_cannot_enlarge_vector_lower():
-    """spec 3.2, rev 7: fields must broadcast to the shape of `lower` without enlarging it."""
+    """spec 3.2, rev 9: fields must broadcast to the shape of `lower` without enlarging it."""
     with pytest.raises(MISUSE):
         cx.SurvivalData.from_bounds(f([1.0, 2.0, 3.0]), f([[4.0], [5.0], [6.0]]))
 
 
 @pytest.mark.step("A2")
 def test_column_exact_mask_cannot_enlarge_vector_lower():
-    """spec 3.2, rev 7: fields must broadcast to the shape of `lower` without enlarging it."""
+    """spec 3.2, rev 9: fields must broadcast to the shape of `lower` without enlarging it."""
     with pytest.raises(MISUSE):
         cx.SurvivalData.from_bounds(f([1.0, 2.0]), f([1.0, 2.0]), exact=b([[True], [True]]))
 

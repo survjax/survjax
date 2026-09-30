@@ -1,13 +1,22 @@
 """A3: indexing and slicing of SurvivalData (spec 3.2)."""
 
+import chronox_jax as cx
 import jax
 import numpy as np
 import pytest
-from helpers import FIELDS, INF, NAN, assert_same_fields, b, f, leaves, treedef, with_issues
+from helpers import (
+    FIELDS,
+    INF,
+    NAN,
+    assert_same_fields,
+    b,
+    f,
+    flag_data_and_issues,
+    leaves,
+    treedef,
+)
 from hypothesis import given, settings
 from hypothesis import strategies as st
-
-import chronox_jax as cx
 
 
 def _data():
@@ -99,7 +108,7 @@ def test_tree_map_slicing_matches_indexing():
 @pytest.mark.step("A3")
 def test_indexing_carries_every_leaf_including_issue_bitfield():
     """spec 3.2, rev 4: every leaf has the observation shape, so indexing slices each leaf, the bitfield included."""
-    data, _ = with_issues(f([1.0, -1.0, 2.0, 3.0]), np.array([1, 2, 0, 1], dtype=np.int32))
+    data, _ = flag_data_and_issues(f([1.0, -1.0, 2.0, 3.0]), np.array([1, 2, 0, 1], dtype=np.int32))
     idx = np.array([1, 3])
     sub = data[idx]
     assert treedef(sub) == treedef(data)

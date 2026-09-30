@@ -1,4 +1,4 @@
-"""A3: the pure bounds constructor ``SurvivalData.from_bounds_with_issues`` (spec 6.2, rev 6).
+"""A3: bounds constructor diagnostics (spec 6.2, rev 9).
 
 As in ``test_a3_data_issues.py``, each attribution test builds three rows: two
 valid rows and one row that breaks a single rule. Other masks are asserted
@@ -6,6 +6,7 @@ clear only where the spec fixes the ordering (a malformed endpoint is not also
 ``invalid_interval``; an exact row's NaN upper is not ``missing_time2``).
 """
 
+import chronox_jax as cx
 import jax
 import numpy as np
 import pytest
@@ -18,13 +19,11 @@ from helpers import (
     assert_mask,
     assert_same_leaves,
     b,
+    bounds_data_and_issues,
     f,
-    from_bounds_with_issues,
     mask,
     one_hot,
 )
-
-import chronox_jax as cx
 
 NONE = np.zeros(3, dtype=bool)
 ROW1 = one_hot(3, 1)
@@ -43,7 +42,7 @@ def _assert_uninformative(issues, expected=ROW1):
 
 
 def _bounds(lower, upper, *, exact=None, lt=None, rt=None):
-    """from_bounds_with_issues on three rows; rows 0 and 2 are valid censored rows by default."""
+    """Construct bounds data on three rows; rows 0 and 2 are valid by default."""
     kw = {}
     if exact is not None:
         kw["exact"] = b(exact)
@@ -51,48 +50,46 @@ def _bounds(lower, upper, *, exact=None, lt=None, rt=None):
         kw["left_trunc"] = f(lt)
     if rt is not None:
         kw["right_trunc"] = f(rt)
-    return from_bounds_with_issues(f(lower), f(upper), **kw)[1]
+    return bounds_data_and_issues(f(lower), f(upper), **kw)[1]
 
 
 # ------------------------------------------------------- container, parity
 
 
 @pytest.mark.step("A3")
-def test_from_bounds_with_issues_returns_data_and_issues_pair():
-    """spec 6.2, rev 6: `SurvivalData.from_bounds_with_issues(...) -> (data, DataIssues)`."""
-    result = from_bounds_with_issues(f([1.0, 2.0]), f([2.0, INF]))
-    assert isinstance(result, tuple)
-    assert len(result) == 2
-    assert isinstance(result[0], cx.SurvivalData)
+def test_bounds_constructor_returns_data_with_diagnostics_property():
+    """spec 6.2, rev 9: the bounds form returns data and exposes diagnostics through a property."""
+    data = cx.SurvivalData.from_bounds(f([1.0, 2.0]), f([2.0, INF]))
+    assert isinstance(data, cx.SurvivalData)
+    assert np.shape(data.issues.invalid_rows) == (2,)
 
-
-@pytest.mark.step("A3")
-def test_from_bounds_with_issues_matches_from_bounds_on_valid_input():
-    """spec 6.2, rev 6: for inputs the ordinary constructor accepts, both yield identical fields and issue bits."""
-    args = (f([1.0, 2.0, 0.0]), f([1.0, INF, 3.0]))
-    kw = {"exact": b([True, False, False]), "left_trunc": f([0.5, 0.5, 0.0]), "right_trunc": f([5.0, INF, 4.0])}
-    data, _ = from_bounds_with_issues(*args, **kw)
-    assert_same_leaves(data, cx.SurvivalData.from_bounds(*args, **kw))
 
 
 @pytest.mark.step("A3")
-def test_from_bounds_with_issues_matches_from_bounds_on_uninformative_input():
+def test_bounds_constructor_has_no_issue_returning_convenience():
+    """spec 6.2, rev 9: the bounds form is the only public bounds observation constructor."""
+    assert not hasattr(cx.SurvivalData, "from_bounds_with_issues")
+
+
+
+@pytest.mark.step("A3")
+def test_bounds_data_and_issues_matches_from_bounds_on_uninformative_input():
     """spec 6.2, rev 6: identical fields and issue bits also for accepted rows that carry the uninformative bit."""
     args = (f([0.0, 1.0]), f([INF, 2.0]))
-    data, issues = from_bounds_with_issues(*args)
+    data, issues = bounds_data_and_issues(*args)
     assert_mask(issues, "uninformative", one_hot(2, 0))
     assert_same_leaves(data, cx.SurvivalData.from_bounds(*args))
 
 
 @pytest.mark.step("A3")
-def test_from_bounds_with_issues_does_not_raise_on_invalid_rows():
-    """spec 6.2, rev 6: the pure constructor reports invalid rows as issues, not exceptions, even eagerly."""
-    _, issues = from_bounds_with_issues(f([1.0, 3.0]), f([2.0, 2.0]))
+def test_bounds_data_and_issues_does_not_raise_on_invalid_rows():
+    """spec 6.2, rev 9: the bounds constructor records invalid rows without raising."""
+    _, issues = bounds_data_and_issues(f([1.0, 3.0]), f([2.0, 2.0]))
     assert not bool(np.asarray(issues.ok))
 
 
 @pytest.mark.step("A3")
-def test_from_bounds_with_issues_valid_data_has_no_issues():
+def test_bounds_data_and_issues_valid_data_has_no_issues():
     """spec 6.2, rev 6: valid bounds data set no rule mask, no invalid row, and `ok` is true."""
     issues = _bounds([1.0, 2.0, 0.0], [1.0, INF, 3.0], exact=[True, False, False], lt=[0.5, 0.5, 0.0])
     for name in MASK_FIELDS:
@@ -101,12 +98,12 @@ def test_from_bounds_with_issues_valid_data_has_no_issues():
 
 
 @pytest.mark.step("A3")
-def test_from_bounds_with_issues_under_jit_matches_eager():
-    """spec 6.2, rev 6: the pure bounds constructor works under jit, with the same data and issues as eagerly."""
+def test_bounds_data_and_issues_under_jit_matches_eager():
+    """spec 6.2, rev 9: bounds construction and diagnostics agree eagerly and under jit."""
     inputs = (f([1.0, 3.0, 0.5, 1.0]), f([1.0, 2.0, NAN, INF]), b([True, False, False, False]), f([0.0, 0.0, 0.0, 2.0]))
 
     def build(lower, upper, exact, lt):
-        return from_bounds_with_issues(lower, upper, exact=exact, left_trunc=lt)
+        return bounds_data_and_issues(lower, upper, exact=exact, left_trunc=lt)
 
     eager_data, eager_issues = build(*inputs)
     jit_data, jit_issues = jax.jit(build)(*inputs)
@@ -260,21 +257,21 @@ def test_bounds_right_censoring_at_entry_is_uninformative_and_valid():
 
 
 @pytest.mark.step("A3")
-def test_from_bounds_with_issues_raises_on_nonnumeric_lower():
-    """spec 6.2, rev 7: argument misuse (nonnumeric fields) raises in all four constructors."""
+def test_bounds_data_and_issues_raises_on_nonnumeric_lower():
+    """spec 6.2, rev 7: argument misuse (nonnumeric fields) raises in both constructors."""
     with pytest.raises(MISUSE):
-        from_bounds_with_issues(np.array(["1.0", "2.0"]), f([2.0, 3.0]))
+        bounds_data_and_issues(np.array(["1.0", "2.0"]), f([2.0, 3.0]))
 
 
 @pytest.mark.step("A3")
-def test_from_bounds_with_issues_raises_on_incompatible_shapes():
-    """spec 6.2, rev 7: argument misuse (incompatible shapes) raises in all four constructors."""
+def test_bounds_data_and_issues_raises_on_incompatible_shapes():
+    """spec 6.2, rev 7: argument misuse (incompatible shapes) raises in both constructors."""
     with pytest.raises(MISUSE):
-        from_bounds_with_issues(f([1.0, 2.0, 3.0]), f([[4.0], [5.0], [6.0]]))
+        bounds_data_and_issues(f([1.0, 2.0, 3.0]), f([[4.0], [5.0], [6.0]]))
 
 
 @pytest.mark.step("A3")
-def test_from_bounds_with_issues_raises_on_incompatible_shapes_under_jit():
+def test_bounds_data_and_issues_raises_on_incompatible_shapes_under_jit():
     """spec 6.2, rev 7: argument misuse raises independent of tracing."""
     with pytest.raises(MISUSE):
-        jax.jit(lambda lo, hi: from_bounds_with_issues(lo, hi)[1].ok)(f([1.0, 2.0, 3.0]), f([[4.0], [5.0], [6.0]]))
+        jax.jit(lambda lo, hi: bounds_data_and_issues(lo, hi)[1].ok)(f([1.0, 2.0, 3.0]), f([[4.0], [5.0], [6.0]]))
