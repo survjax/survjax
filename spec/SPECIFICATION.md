@@ -646,10 +646,10 @@ data.issues.raise_if_invalid()                      # explicit host-only checkpo
 Choose validation policy deliberately. **Strict validation** constructs data,
 inspects `data.issues`, and explicitly calls `raise_if_invalid()` at a host
 checkpoint when invalid observations should terminate the task.
-**Simulation studies** retain problematic replicates as informative outcomes,
-use diagnostics in compiled control flow to skip inappropriate fits, and decide
-continuation at the study level. One problematic replicate does not inherently
-abort the study. Section 11.4 gives pilot and checkpoint guidance.
+**Simulation studies** may use diagnostics in compiled control flow to retain
+problematic replicates or skip inappropriate fits. Fitting and continuation
+policy belong to the caller. One problematic replicate does not inherently
+abort the study. Section 11.4 links to an illustrative workflow.
 
 `DataIssues` fields: `invalid_indicator`, `conflicting_indicators`,
 `missing_time2`, `invalid_time`, `invalid_time2`, `invalid_interval`,
@@ -1404,106 +1404,13 @@ issues = data.issues  # inspect masks as needed
 issues.raise_if_invalid()  # outside jit; invalid data terminate this task
 ```
 
-For a simulation study:
-
-1. Begin with a small compiled pilot at the intended dataset size, model,
-   optimizer, precision, tolerances and other numerical settings. Reduce the
-   number of replicates, not the number of observations in each dataset. For
-   example, 16 replicates per scenario can be a starting point, not a universal
-   requirement or guarantee of adequate coverage.
-2. Exercise every scenario. Summarize data issue counts, estimates that do not
-   exist, fits attempted, convergence and failure reasons. If every pilot
-   dataset is invalid, stop launching further work and inspect diagnostics.
-   Likewise investigate all attempted fits failing despite valid data; a pilot
-   with valid data but no estimable targets also calls for review of the design.
-3. Retain occasional failures, their reasons, scenario identifiers and
-   reproducible random keys, together with versions and settings. Do not
-   silently remove them from study denominators. Report attempted fits and
-   successful fits separately from total replicates.
-4. Continue in batches with checkpoints and a study-specific stopping policy.
-   Pilot results may remain in the study; record any subsequent design changes
-   so results from different settings are identifiable. Failure-rate thresholds
-   and pilot sizes are study choices. A successful pilot does not guarantee
-   that later replicates will succeed.
-
-Fully compiled early stopping, using loop state and diagnostics to decide
-whether to generate further replicates, is an alternative to host checkpoints
-between compiled batches. Both approaches retain results already produced.
-
-The following illustrates the revision 9 contract, not currently executable
-package support. It uses only Slice A likelihood capabilities and JAX sampling.
-Optimistix remains an external example dependency (section 10.3).
-The scenario arguments `rate` and `censor_time` are finite, strictly positive
-scalars; the study validates these settings before launching replicates.
-[Optimistix Newton](https://docs.kidger.site/optimistix/api/root_find/) solves
-for a zero of `grad(nll)`, so its Jacobian is the actual objective Hessian,
-computed by autodiff on each Newton step. This exercises second parameter
-derivatives during fitting. [BFGS](https://docs.kidger.site/optimistix/api/minimise/)
-updates a Hessian or inverse-Hessian approximation using gradients; it does not
-exercise those second derivatives in its steps. Neither choice implies a
-guarantee about differentiating through the solver itself (section 7.3).
-
-```python
-import jax
-import jax.numpy as jnp
-import optimistix as optx  # optional, outside the Chronox core
-import chronox_jax as cx
-
-N = 512  # example intended dataset size; keep it fixed for the pilot
-
-def nll(log_rate, data):
-    return -cx.log_likelihood(cx.Exponential.from_log(log_rate=log_rate), data).sum()
-
-score = jax.grad(nll)
-
-@jax.jit
-def replicate(key, rate, censor_time):
-    event_time = jax.random.exponential(key, (N,)) / rate
-    time = jnp.minimum(event_time, censor_time)
-    event = event_time <= censor_time
-    data = cx.SurvivalData(time=time, event=event)  # traced ordinary construction
-    issues = data.issues
-    # For this model, valid data with any event have a finite log-rate MLE.
-    attempt = issues.ok & jnp.any(data.exact)
-
-    def fit(_):
-        sol = optx.root_find(
-            score, optx.Newton(rtol=1e-6, atol=1e-6),
-            y0=jnp.zeros((), dtype=data.lower.dtype), args=data,
-            max_steps=64, throw=False,
-        )
-        solver_ok = sol.result == optx.RESULTS.successful
-        fit_ok = jnp.isfinite(sol.value) & (jnp.abs(score(sol.value, data)) < 1e-5)
-        reason = jnp.where(solver_ok, jnp.where(fit_ok, 0, 4), 3)
-        return sol.value, reason, sol.result
-
-    def skip(_):
-        reason = jnp.where(issues.ok, 2, 1)
-        # solver_result is meaningful only when attempted is true.
-        return jnp.full((), jnp.nan, dtype=data.lower.dtype), reason, optx.RESULTS.successful
-
-    estimate, reason, solver_result = jax.lax.cond(attempt, fit, skip, None)
-    return dict(key=key, issues=issues, attempted=attempt, log_rate=estimate,
-                reason=reason, solver_result=solver_result)
-
-keys = jax.random.split(jax.random.key(2026), 16)  # example pilot for one scenario
-pilot = jax.jit(lambda ks: jax.lax.map(lambda k: replicate(k, 1.0, 2.0), ks))(keys)
-pilot = jax.device_get(pilot)  # summarize and apply the study's policy on the host
-```
-
-The example's local reason codes are 0 accepted fit, 1 invalid observations,
-2 no finite log-rate MLE, 3 solver failure, and 4 failed post-fit check; they
-are not new Chronox statuses. Preserve `solver_result` for attempted fits to
-explain solver failures using [Optimistix diagnostics](https://docs.kidger.site/optimistix/api/solution/).
-`throw=False` returns numerical solver failures as results; it does not make
-malformed programs valid. Newton finds stationary points; this exponential
-objective has a unique minimum when an event is present. Other models need
-their own estimability and optimum checks. All tolerances and step limits above
-are illustrative and must be piloted with the intended numerical settings.
-Use fresh keys for subsequent batches and retain scenario settings alongside
-the returned records. `lax.map` keeps the condition scalar per replicate;
-[`vmap` over `lax.cond`](https://docs.jax.dev/en/latest/_autosummary/jax.lax.cond.html)
-can execute both branches and defeat fit skipping.
+The [simulation study guide](../docs/simulation-guide.md) illustrates pilots,
+external fitting, fit skipping, checkpoints and result bookkeeping. It is
+non-normative: the solver, loop primitive, study policy and example settings
+are caller choices, not library requirements or acceptance criteria. Verify
+Chronox's construction, diagnostics and parameter derivatives directly under
+sections 3, 6, 7.3 and 12.1; validating the illustrative recipe as runnable
+example documentation is separate work.
 
 Plotting uses an existing library outside core code.
 
@@ -1531,7 +1438,7 @@ These are acceptance criteria, not claims of passing tests.
 | KM and metrics | hand-enumerated cases; all tie cases; delayed entry; `where` groups under `vmap`; beyond-follow-up NaN; unsupported rows; `G=0`; distribution versus array prediction inputs |
 | Extension and install | out-of-tree custom family; installed wheel and source archive; public exports and type marker; core imports without demo dependencies |
 | End-to-end | classical demo targets; neural training and held-out metrics; Bayesian wiring, diagnostics and posterior predictive check; recorded environments |
-| Simulation guidance | compiled ordinary construction followed by an external Newton solve of the likelihood gradient exercises second derivatives; distinguish data validity, estimate existence and solver failure; demonstrate fit skipping and retained reasons/keys, pilot summaries for every scenario and continuation policy; optimizer remains optional and outside core; executable recipe validation is separate implementation work |
+| Compiled composition | ordinary construction, diagnostic access and likelihood evaluation compose inside `jit`; first and second parameter derivatives agree with direct evaluation on valid smooth interior cases within section 7.3's guarantees; verify these library capabilities directly, without requiring an external solver or simulation workflow |
 | Performance | recorded CPU baseline and compilation reuse as specified in section 12.3, covering prepared data and ordinary traced construction; accelerator claims require the configuration-specific evidence of section 10.3 |
 
 Ordinary finite-value targets: `atol=1e-10, rtol=1e-8` (float64) and
@@ -1589,10 +1496,9 @@ per-observation parameters to expose overhead and growth with batch size.
   in ordinary CI, and no new benchmark dependency is required.
 
 Extend the small benchmark with representative draw batches and prediction
-grids as they become available before v0. When profiling the simulation recipe
-of section 11.4, measure the chosen mapping and fit-skipping behavior together:
-`vmap` is not a performance requirement and must not be assumed to skip inactive
-fits. Preserve issue records, estimability checks and solver failure outcomes.
+grids as they become available before v0. Choose batching and control flow from
+measurements of the intended workload, preserving required numerical and
+diagnostic behavior. No particular mapping or loop primitive is required.
 Profile summaries or metrics when measurements identify a need; no exhaustive
 performance matrix is required. Parameter-storage changes, new chunking/masking
 APIs, solver and quadrature optimizations, and scalable metric algorithms remain
@@ -1665,8 +1571,8 @@ issue-returning conveniences, subsequently removed in revision 9. Static misuse,
 dtype policy, metadata classification and likelihood failure semantics are
 preserved. Strict tasks raise explicitly on the host; simulations may retain
 problematic replicates and control fitting and continuation using diagnostics.
-Section 11.4 documents
-pilots, checkpoints and external Newton fitting with second derivatives.
+Revision 8 also added simulation guidance to section 11.4; the illustrative
+workflow now lives in the [simulation study guide](../docs/simulation-guide.md).
 Revision 9 removes the issue-returning constructor methods from the public
 API. Both ordinary constructors return data eagerly and under transformations;
 all diagnostics use `data.issues`. Metadata wording, compatibility guidance and
@@ -1682,9 +1588,11 @@ The performance amendment (draft 2026-09-30) adapts the earlier performance
 proposal to pure ordinary construction, the `data.issues` property, stored-issue
 propagation and conservative traced metadata. It proposes a small CPU baseline
 from Slice A, evidence-based accelerator claims and optional scalable
-concordance work. The statistical API, simulation workflow and numerical
-contracts remain intact. Assign the final revision number on acceptance; this
-draft supplies no implementation measurements.
+concordance work. The statistical API and numerical contracts remain intact.
+The simulation recipe is now non-normative example documentation; acceptance
+checks compiled library composition directly, without prescribing an external
+solver, study workflow or loop primitive. Assign the final revision number on
+acceptance; this draft supplies no implementation measurements.
 
 ## 15. Decision traceability
 

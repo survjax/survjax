@@ -102,3 +102,19 @@ This authorizes edits to the normally read-only specification and goals.
   preservation of unrelated statistical/API sections and example code. Runtime
   tests and benchmarks are not run for this documentation-only step.
 - Commit this one documentation step on `spec-speed`; do not merge or publish.
+
+## Illustrative simulation guide on `spec-speed` (2026-09-30)
+
+The maintainer approved moving the simulation workflow out of the normative
+contract and removing recipe-specific acceptance requirements. This authorizes
+the following documentation step, including edits to the specification.
+
+- Move the detailed recipe into `docs/simulation-guide.md`, explicitly
+  illustrative and unverified; retain `lax.map` as one example choice.
+- Update specification sections 6.2, 11.4, 12.1, 12.3 and 14: retain library
+  guarantees, check compiled composition directly, and leave study workflow,
+  external solver and loop selection to callers and measurements.
+- Public API, goals, implementation, dependencies and tests remain unchanged.
+  Add no runtime tests; check whitespace, local links, moved example code and
+  preservation of unrelated contracts. Record results in `REVIEW.md`.
+- Commit this single documentation step on `spec-speed` and stop.
