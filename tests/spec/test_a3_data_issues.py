@@ -1,4 +1,4 @@
-"""A3: DataIssues, ``SurvivalData.with_issues`` and eager versus traced construction (spec 3.2, 6.2, 6.3).
+"""A3: DataIssues from the public flag constructor (spec 3.2, 6.2, 6.3).
 
 Each attribution test builds three rows: two valid exact rows and one row that
 breaks a single rule, and checks the rule's mask and ``invalid_rows``. Other
@@ -9,6 +9,9 @@ lower or upper endpoint is not also ``invalid_interval``, and right censoring at
 entry is not ``censored_before_entry``.
 """
 
+import re
+
+import chronox_jax as cx
 import jax
 import numpy as np
 import pytest
@@ -20,17 +23,14 @@ from helpers import (
     MISUSE,
     NAN,
     RULE_FIELDS,
-    TRACED_INPUT,
     assert_mask,
     b,
     f,
+    flag_data_and_issues,
     leaves,
     mask,
     one_hot,
-    with_issues,
 )
-
-import chronox_jax as cx
 
 NONE = np.zeros(3, dtype=bool)
 ROW1 = one_hot(3, 1)
@@ -49,7 +49,7 @@ def _assert_uninformative(issues, expected=ROW1):
 
 
 def _flags(time, *, right=None, left=None, interval=None, time2=None, lt=None, rt=None):
-    """with_issues via explicit flags; row kinds default to exact."""
+    """Construct through the public flag form; row kinds default to exact."""
     kw = {}
     if right is not None:
         kw["right_censored"] = np.asarray(right)
@@ -62,56 +62,53 @@ def _flags(time, *, right=None, left=None, interval=None, time2=None, lt=None, r
         kw["left_trunc"] = f(lt)
     if rt is not None:
         kw["right_trunc"] = f(rt)
-    return with_issues(f(time), **kw)
+    return flag_data_and_issues(f(time), **kw)
 
 
 # ------------------------------------------------------- container shape
 
 
 @pytest.mark.step("A3")
-def test_with_issues_returns_data_and_issues_pair():
-    """spec 6.2, rev 4: `SurvivalData.with_issues(...) -> (data, DataIssues)`."""
-    result = with_issues(f([1.0, 2.0]), b([True, False]))
-    assert isinstance(result, tuple)
-    assert len(result) == 2
-    assert isinstance(result[0], cx.SurvivalData)
+def test_flag_constructor_returns_data_with_diagnostics_property():
+    """spec 6.2, rev 9: the flag form returns data and exposes diagnostics through a property."""
+    data = cx.SurvivalData(f([1.0, 2.0]), b([True, False]))
+    assert isinstance(data, cx.SurvivalData)
+    assert np.shape(data.issues.invalid_rows) == (2,)
 
-
-@pytest.mark.step("A3")
-def test_with_issues_data_matches_ordinary_constructor_on_valid_input():
-    """spec 6.2, rev 4: with_issues returns normalized data, the same as the eager constructor for valid input."""
-    time, event, lt = f([1.0, 2.0, 3.0]), b([True, False, True]), f([0.5, 0.0, 1.0])
-    data, _ = with_issues(time, event, left_trunc=lt)
-    eager = cx.SurvivalData(time, event, left_trunc=lt)
-    for name in FIELDS:
-        np.testing.assert_array_equal(np.asarray(getattr(data, name)), np.asarray(getattr(eager, name)), err_msg=name)
 
 
 @pytest.mark.step("A3")
-def test_with_issues_does_not_raise_on_invalid_rows():
-    """spec 6.2, rev 4: with_issues is pure: invalid rows give issues, not exceptions, even eagerly."""
-    _, issues = with_issues(f([1.0, -1.0, 2.0]), np.array([1, 2, 0], dtype=np.int32))
+def test_flag_constructor_has_no_issue_returning_convenience():
+    """spec 6.2, rev 9: the flag form is the only public flag observation constructor."""
+    assert not hasattr(cx.SurvivalData, "with_issues")
+
+
+
+@pytest.mark.step("A3")
+def test_flag_data_and_issues_does_not_raise_on_invalid_rows():
+    """spec 6.2, rev 9: invalid rows give issues, without an eager exception."""
+    _, issues = flag_data_and_issues(f([1.0, -1.0, 2.0]), np.array([1, 2, 0], dtype=np.int32))
     assert not bool(np.asarray(issues.ok))
 
 
 @pytest.mark.step("A3")
-def test_with_issues_raises_on_nonnumeric_time():
+def test_flag_data_and_issues_raises_on_nonnumeric_time():
     """spec 6.2, rev 7: nonnumeric time fields cannot form an object and raise instead of setting a row mask."""
     with pytest.raises(MISUSE):
-        with_issues(np.array(["1.0", "2.0"]))
+        flag_data_and_issues(np.array(["1.0", "2.0"]))
 
 
 @pytest.mark.step("A3")
-def test_with_issues_raises_on_incompatible_shapes():
+def test_flag_data_and_issues_raises_on_incompatible_shapes():
     """spec 6.2/3.2, rev 7: incompatible shapes cannot form an object and raise instead of setting a row mask."""
     with pytest.raises(MISUSE):
-        with_issues(f([1.0, 2.0, 3.0]), right_censored=b([[True], [False], [True]]))
+        flag_data_and_issues(f([1.0, 2.0, 3.0]), right_censored=b([[True], [False], [True]]))
 
 
 @pytest.mark.step("A3")
 def test_issue_masks_have_observation_shape():
     """spec 6.2, rev 4: per-rule masks have the data shape."""
-    _, issues = with_issues(f([1.0, 2.0, 3.0]), b([True, False, True]))
+    _, issues = flag_data_and_issues(f([1.0, 2.0, 3.0]), b([True, False, True]))
     for name in MASK_FIELDS:
         assert np.shape(getattr(issues, name)) == (3,), name
 
@@ -119,7 +116,7 @@ def test_issue_masks_have_observation_shape():
 @pytest.mark.step("A3")
 def test_issue_masks_keep_multidimensional_observation_shape():
     """spec 6.2, rev 4: per-rule masks have the data shape, (2, 3) here."""
-    _, issues = with_issues(f([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]))
+    _, issues = flag_data_and_issues(f([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]))
     for name in MASK_FIELDS:
         assert np.shape(getattr(issues, name)) == (2, 3), name
 
@@ -127,14 +124,14 @@ def test_issue_masks_keep_multidimensional_observation_shape():
 @pytest.mark.step("A3")
 def test_ok_is_a_scalar():
     """spec 6.2, rev 4: `ok` is the scalar validity reduction."""
-    _, issues = with_issues(f([1.0, 2.0, 3.0]))
+    _, issues = flag_data_and_issues(f([1.0, 2.0, 3.0]))
     assert np.shape(issues.ok) == ()
 
 
 @pytest.mark.step("A3")
 def test_valid_data_has_no_issues():
     """spec 6.2, rev 4: valid data sets no rule mask, no invalid row, and `ok` is true."""
-    _, issues = with_issues(
+    _, issues = flag_data_and_issues(
         f([1.0, 2.0, 3.0]), b([True, False, True]), left_trunc=f([0.5, 0.5, 0.0]), right_trunc=f([5.0, INF, INF])
     )
     for name in MASK_FIELDS:
@@ -148,21 +145,21 @@ def test_valid_data_has_no_issues():
 @pytest.mark.step("A3")
 def test_event_code_two_sets_invalid_indicator():
     """spec 6.2/3.1, rev 4: other indicator codes set `invalid_indicator`."""
-    _, issues = with_issues(f([1.0, 2.0, 3.0]), np.array([1, 2, 0], dtype=np.int32))
+    _, issues = flag_data_and_issues(f([1.0, 2.0, 3.0]), np.array([1, 2, 0], dtype=np.int32))
     _assert_rule(issues, "invalid_indicator")
 
 
 @pytest.mark.step("A3")
 def test_r_style_coding_flags_each_two_as_invalid_indicator():
     """spec 3.1, rev 4: R-style 1/2 event coding is not inferred; each 2 is an invalid indicator."""
-    _, issues = with_issues(f([1.0, 2.0, 3.0]), np.array([1, 2, 2], dtype=np.int32))
+    _, issues = flag_data_and_issues(f([1.0, 2.0, 3.0]), np.array([1, 2, 2], dtype=np.int32))
     _assert_rule(issues, "invalid_indicator", one_hot(3, 1, 2))
 
 
 @pytest.mark.step("A3")
 def test_nan_event_sets_invalid_indicator():
     """spec 6.2/3.1, rev 4: a NaN indicator sets `invalid_indicator`."""
-    _, issues = with_issues(f([1.0, 2.0, 3.0]), f([1.0, NAN, 0.0]))
+    _, issues = flag_data_and_issues(f([1.0, 2.0, 3.0]), f([1.0, NAN, 0.0]))
     _assert_rule(issues, "invalid_indicator")
 
 
@@ -196,7 +193,7 @@ def test_nan_time2_on_interval_row_sets_missing_time2():
 @pytest.mark.step("A3")
 def test_omitted_time2_on_interval_row_sets_missing_time2():
     """spec 6.2, rev 5: an active interval row with omitted `time2` sets `missing_time2`."""
-    _, issues = with_issues(f([1.0, 2.0, 3.0]), interval_censored=b([False, True, False]))
+    _, issues = flag_data_and_issues(f([1.0, 2.0, 3.0]), interval_censored=b([False, True, False]))
     _assert_rule(issues, "missing_time2")
 
 
@@ -210,7 +207,7 @@ def test_nan_time2_on_inactive_rows_does_not_set_missing_time2():
 @pytest.mark.step("A3")
 def test_time2_values_on_non_interval_rows_set_no_issue():
     """spec 3.1, rev 7: `time2` values on non-interval rows (finite, negative, -inf, NaN) are ignored and set no issue."""
-    _, issues = with_issues(
+    _, issues = flag_data_and_issues(
         f([1.0, 2.0, 3.0, 1.0, 1.5]),
         right_censored=b([False, True, False, False, False]),
         left_censored=b([False, False, True, False, False]),
@@ -282,28 +279,28 @@ def test_left_censoring_at_infinity_sets_invalid_time():
 @pytest.mark.step("A3")
 def test_zero_exact_time_sets_invalid_time():
     """spec 3.3/6.2, rev 5: a zero exact time violates 3.3 and sets `invalid_time`."""
-    _, issues = with_issues(f([1.0, 0.0, 3.0]))
+    _, issues = flag_data_and_issues(f([1.0, 0.0, 3.0]))
     _assert_rule(issues, "invalid_time")
 
 
 @pytest.mark.step("A3")
 def test_negative_exact_time_sets_invalid_time():
     """spec 3.3/6.2, rev 5: a negative exact time violates 3.3 and sets `invalid_time`."""
-    _, issues = with_issues(f([1.0, -1.0, 3.0]))
+    _, issues = flag_data_and_issues(f([1.0, -1.0, 3.0]))
     _assert_rule(issues, "invalid_time")
 
 
 @pytest.mark.step("A3")
 def test_infinite_exact_time_sets_invalid_time():
     """spec 3.3/6.2, rev 5: an infinite exact time violates 3.3 and sets `invalid_time`."""
-    _, issues = with_issues(f([1.0, INF, 3.0]))
+    _, issues = flag_data_and_issues(f([1.0, INF, 3.0]))
     _assert_rule(issues, "invalid_time")
 
 
 @pytest.mark.step("A3")
 def test_negative_censoring_time_sets_invalid_time():
     """spec 3.3/6.2, rev 5: a negative censoring time violates 3.3 and sets `invalid_time`."""
-    _, issues = with_issues(f([1.0, -1.0, 3.0]), b([True, False, True]))
+    _, issues = flag_data_and_issues(f([1.0, -1.0, 3.0]), b([True, False, True]))
     _assert_rule(issues, "invalid_time")
 
 
@@ -338,7 +335,7 @@ def test_negative_interval_lower_endpoint_is_not_also_invalid_interval():
 @pytest.mark.step("A3")
 def test_nan_exact_time_sets_invalid_time():
     """spec 6.2, rev 5: a NaN `time` sets `invalid_time` (no separate missing-value mask for the first endpoint)."""
-    _, issues = with_issues(f([1.0, NAN, 3.0]))
+    _, issues = flag_data_and_issues(f([1.0, NAN, 3.0]))
     _assert_rule(issues, "invalid_time")
 
 
@@ -713,10 +710,7 @@ def test_invalid_data_error_is_a_public_value_error():
     assert issubclass(cx.InvalidDataError, ValueError)
 
 
-@pytest.mark.step("A3")
-def test_traced_input_error_is_a_public_type_error():
-    """spec 6.2, rev 7: traced inputs to an ordinary constructor raise `chronox_jax.TracedInputError`, a `TypeError`."""
-    assert issubclass(cx.TracedInputError, TypeError)
+
 
 
 @pytest.mark.step("A3")
@@ -728,9 +722,20 @@ def test_raise_if_invalid_raises_for_invalid_rows():
 
 
 @pytest.mark.step("A3")
+def test_host_checkpoint_reports_count_and_first_offending_index():
+    """spec 6.2, rev 9: an invalid host checkpoint reports counts and first offending indices."""
+    data = cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0, 0.0]))
+    with pytest.raises(INVALID_DATA) as caught:
+        data.issues.raise_if_invalid()
+    message = str(caught.value)
+    assert re.search(r"(?<!\d)1(?!\d)", message)  # one invalid row
+    assert re.search(r"(?<!\d)4(?!\d)", message)  # first offending index
+
+
+@pytest.mark.step("A3")
 def test_raise_if_invalid_passes_for_valid_data():
     """spec 6.2, rev 4: the checkpoint does not raise for valid data."""
-    _, issues = with_issues(f([1.0, 2.0]), b([True, False]))
+    _, issues = flag_data_and_issues(f([1.0, 2.0]), b([True, False]))
     issues.raise_if_invalid()
 
 
@@ -755,33 +760,21 @@ def _mixed_inputs():
 
 
 def _build(time, right, left, lt):
-    return with_issues(time, right_censored=right, left_censored=left, left_trunc=lt)
+    return flag_data_and_issues(time, right_censored=right, left_censored=left, left_trunc=lt)
 
 
-@pytest.mark.step("A3")
-def test_ordinary_constructor_under_jit_raises_pointing_to_with_issues():
-    """spec 6.2, rev 7: a traced observation input makes the flag constructor raise `TracedInputError` at trace time, naming `with_issues`."""
-    with pytest.raises(TRACED_INPUT, match="with_issues"):
-        jax.jit(lambda t: cx.SurvivalData(t).lower)(f([1.0, 2.0]))
 
 
-@pytest.mark.step("A3")
-def test_ordinary_constructor_under_vmap_raises_pointing_to_with_issues():
-    """spec 6.2, rev 7: traced observation inputs under vmap also raise `TracedInputError` at trace time, naming `with_issues`."""
-    with pytest.raises(TRACED_INPUT, match="with_issues"):
-        jax.vmap(lambda t: cx.SurvivalData(t).lower)(f([[1.0, 2.0], [3.0, 4.0]]))
+
+
+
+
+
 
 
 @pytest.mark.step("A3")
-def test_bounds_constructor_under_jit_raises_pointing_to_from_bounds_with_issues():
-    """spec 6.2, rev 7: `from_bounds` with traced inputs raises `TracedInputError` at trace time, naming `from_bounds_with_issues`."""
-    with pytest.raises(TRACED_INPUT, match="from_bounds_with_issues"):
-        jax.jit(lambda lo, hi: cx.SurvivalData.from_bounds(lo, hi).lower)(f([1.0]), f([2.0]))
-
-
-@pytest.mark.step("A3")
-def test_with_issues_under_jit_matches_eager():
-    """spec 6.2, rev 4: with_issues is pure and works under jit, with the same data and issues as eagerly."""
+def test_flag_data_and_issues_under_jit_matches_eager():
+    """spec 6.2, rev 9: the flag constructor agrees eagerly and under jit."""
     inputs = _mixed_inputs()
     eager_data, eager_issues = _build(*inputs)
     jit_data, jit_issues = jax.jit(_build)(*inputs)
@@ -793,8 +786,8 @@ def test_with_issues_under_jit_matches_eager():
 
 
 @pytest.mark.step("A3")
-def test_with_issues_under_vmap_matches_eager_per_dataset():
-    """spec 6.2, rev 4: with_issues works under vmap; each batch entry matches its eager result."""
+def test_flag_data_and_issues_under_vmap_matches_eager_per_dataset():
+    """spec 6.2, rev 9: the flag constructor agrees under vmap for each dataset."""
     time, right, left, lt = _mixed_inputs()
     batch = tuple(np.stack([x, x[::-1]]) for x in (time, right, left, lt))
     _, batched = jax.vmap(_build)(*batch)
@@ -809,6 +802,6 @@ def test_with_issues_under_vmap_matches_eager_per_dataset():
 @pytest.mark.step("A3")
 def test_data_issues_is_a_pytree_returned_from_jit():
     """spec 6.3, rev 4: DataIssues is a registered PyTree, so it can be returned from jit."""
-    issues = jax.jit(lambda t, e: with_issues(t, e)[1])(f([1.0, 2.0]), np.array([1, 2], dtype=np.int32))
+    issues = jax.jit(lambda t, e: flag_data_and_issues(t, e)[1])(f([1.0, 2.0]), np.array([1, 2], dtype=np.int32))
     assert len(leaves(issues)) > 0
     assert_mask(issues, "invalid_indicator", one_hot(2, 1))

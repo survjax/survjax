@@ -3,13 +3,12 @@
 import warnings
 from pathlib import Path
 
+import chronox_jax as cx
 import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
 from helpers import FLOAT, MISUSE, TIME_FIELDS, X64, b, f, raises_dtype_request
-
-import chronox_jax as cx
 
 requires_x32 = pytest.mark.skipif(X64, reason="policy applies with 64-bit mode disabled")
 requires_x64 = pytest.mark.skipif(not X64, reason="policy applies with 64-bit mode enabled")

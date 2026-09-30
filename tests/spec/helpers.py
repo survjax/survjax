@@ -7,12 +7,11 @@ editing one line.
 
 import contextlib
 
+import chronox_jax as cx
 import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
-
-import chronox_jax as cx
 
 # Active dtype mode, as JAX sees it (conftest checks it matches JAX_ENABLE_X64).
 FLOAT = np.dtype(jnp.asarray(0.0).dtype)
@@ -26,16 +25,10 @@ class _NoInvalidDataError(Exception):
     """Stand-in when chronox_jax lacks InvalidDataError; never raised, so only tests expecting it fail."""
 
 
-class _NoTracedInputError(Exception):
-    """Stand-in when chronox_jax lacks TracedInputError; never raised, so only tests expecting it fail."""
-
-
-# Spec 6.2 "Exception types": invalid observation rows, argument misuse, traced
-# observation inputs to an ordinary constructor, and an explicit dtype request
-# that cannot be honoured.
+# Spec 6.2: invalid rows raise only at an explicit host checkpoint. Malformed
+# calls and unavailable explicit dtype requests retain their exception policy.
 INVALID_DATA = getattr(cx, "InvalidDataError", _NoInvalidDataError)
 MISUSE = TypeError
-TRACED_INPUT = getattr(cx, "TracedInputError", _NoTracedInputError)
 DTYPE_REQUEST = ValueError
 
 # Q-005: assigning to a field of the immutable SurvivalData.
@@ -71,14 +64,16 @@ def b(values):
     return np.asarray(values, dtype=bool)
 
 
-def with_issues(*args, **kwargs):
-    """Spec 6.2 (rev 6): ``SurvivalData.with_issues`` takes exactly the flag constructor's arguments."""
-    return cx.SurvivalData.with_issues(*args, **kwargs)
+def flag_data_and_issues(*args, **kwargs):
+    """Test helper: construct through the public flag form, then read diagnostics."""
+    data = cx.SurvivalData(*args, **kwargs)
+    return data, data.issues
 
 
-def from_bounds_with_issues(*args, **kwargs):
-    """Spec 6.2 (rev 6): ``SurvivalData.from_bounds_with_issues`` takes exactly ``from_bounds``'s arguments."""
-    return cx.SurvivalData.from_bounds_with_issues(*args, **kwargs)
+def bounds_data_and_issues(*args, **kwargs):
+    """Test helper: construct through the public bounds form, then read diagnostics."""
+    data = cx.SurvivalData.from_bounds(*args, **kwargs)
+    return data, data.issues
 
 
 def field(data, name):
@@ -144,7 +139,6 @@ def raises_dtype_request():
 
 @contextlib.contextmanager
 def raises_misuse():
-    """Spec 6.2: argument misuse raises TypeError, and not TracedInputError (misuse is checked first)."""
+    """Spec 6.2: structural argument misuse raises TypeError."""
     with pytest.raises(MISUSE) as info:
         yield info
-    assert not isinstance(info.value, TRACED_INPUT)
