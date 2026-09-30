@@ -7,51 +7,28 @@ on it. Guessed exception types and call shapes are centralised in
 
 ## Q-001: delivery step numbering A1/A2/A3
 
-- **Checked:** 12.2 (Slice table), CLAUDE.md.
-- **Gap:** spec 12.2 defines Slices A–F; it has no numbered steps A1, A2, A3.
-  The maintainer assigned "A1, A2 and A3 (SurvivalData representation, dtype
-  policy, constructors, DataIssues, indexing, static metadata)".
-- **Guess:** A1 = normalized representation, PyTree storage and dtype policy
-  (3.2 storage, 3.3 dtype); A2 = both constructors and the boundary rules
-  (3.1, 3.3 boundaries, section 2 structural cases); A3 = `DataIssues` and
-  `with_issues`, eager versus traced construction, indexing, static metadata and
-  compile counts (3.2, 6.2, 6.3).
-- **Depends:** every `@pytest.mark.step(...)` in `test_a1_*`, `test_a2_*`,
-  `test_a3_*`, and therefore `SPEC_THROUGH` filtering.
-- **Status (2026-09-29):** deferred by the maintainer. Fixing the step plan
-  needs a role change and a matching spec change, so the guess above stays in
-  force for now.
-
+- **Checked:** 12.2 and the maintainer's delivery schedule in AGENTS.md.
+- **Resolved:** the maintainer fixes A1 to representation/dtype, A2 to
+  constructors/boundaries, and A3 to indexing, diagnostics and metadata.
+- **Depends:** every `step` marker and `SPEC_THROUGH` filtering.
 ## Q-002: normalized fields are attributes
 
-- **Checked:** 3.2 ("five public fields" with names), 6.3.
-- **Guess:** `data.exact`, `data.lower`, `data.upper`, `data.left_trunc`,
-  `data.right_trunc` are attributes returning arrays. The issue bitfield leaf
-  has no specified public name; tests compare it only as one of the
-  `jax.tree_util.tree_leaves` and read its meaning through `data.issues()`
-  (Q-013, resolved).
-- **Depends:** nearly all tests (`helpers.field`, `helpers.assert_fields`).
+- **Checked:** 3.2, 6.3.
+- **Guess:** the five named public fields are array attributes. The issue
+  bitfield has no public field name; tests inspect its PyTree leaf and decode
+  it only through the specified `data.issues` property.
+- **Depends:** `helpers.field`, `helpers.assert_fields`, and the field checks
+  throughout A1–A3.
+## Q-003: exception types and host checkpoint
 
-## Q-003: exception type for rejected construction
-
-- **Status:** resolved by spec rev 7 (maintainer
-  decision; 6.2 "Exception types", 3.3). Invalid observation rows raise
-  `chronox_jax.InvalidDataError` (a `ValueError` subclass) from the ordinary
-  constructors and `raise_if_invalid()`; argument misuse raises `TypeError`;
-  an unavailable explicit dtype request raises `ValueError`, not
-  `InvalidDataError`.
-- **In the tests:** `helpers.INVALID_DATA`, `helpers.MISUSE` and
-  `helpers.raises_dtype_request()`. `INVALID_DATA` falls back to a class that
-  is never raised if `chronox_jax.InvalidDataError` is missing, so only the
-  tests expecting it fail (plus `test_invalid_data_error_is_a_public_value_error`).
-  Messages are still not inspected.
-- **Classification calls made from the spec:** string and object-with-None
-  indicators are nonnumeric fields (misuse, `TypeError`); an omitted `time2`
-  on an interval row is a row issue (`missing_time2`, so `InvalidDataError`).
-- **Depends:** every `pytest.raises(INVALID_DATA)`, `pytest.raises(MISUSE)`
-  and `raises_dtype_request()` in `test_a1_dtype.py`, `test_a2_*.py` and
-  `test_a3_*.py`.
-
+- **Checked:** 3.3 and 6.2, revisions 8–9.
+- **Resolved:** invalid observation values return data with issues; only an
+  explicit concrete `data.issues.raise_if_invalid()` raises the public
+  `chronox_jax.InvalidDataError` (`ValueError` subclass). Structural argument
+  misuse raises `TypeError`; unavailable explicit dtype requests raise
+  `ValueError` and not `InvalidDataError`.
+- **Depends:** A2 issue assertions, A3 checkpoint tests, misuse tests and
+  `helpers.raises_dtype_request`.
 ## Q-004: "one warning per call site" for float64 under 32-bit mode
 
 - **Checked:** 3.3.
@@ -104,23 +81,15 @@ on it. Guessed exception types and call shapes are centralised in
   blocks in `test_a3_data_issues.py`. `uninformative` on `from_bounds` rows is
   still only observable as "not rejected" (Q-009).
 
-## Q-009: pure constructors `with_issues` and `from_bounds_with_issues`
+## Q-009: issue-returning convenience constructors
 
-- **Status:** resolved by spec rev 6 (6.2). Both pure constructors exist, take
-  exactly the arguments of their ordinary counterparts, and return
-  `(data, DataIssues)`; argument misuse (`event` with a censoring flag,
-  nonnumeric fields, incompatible shapes) raises
-  in all four constructors, independent of values and tracing.
-- **Remaining guess:** both are reached as attributes of `SurvivalData`
-  (`helpers.with_issues`, `helpers.from_bounds_with_issues`), as the spec's
-  dotted names suggest, and the pair is a Python `tuple`
-  (`test_with_issues_returns_data_and_issues_pair`,
-  `test_from_bounds_with_issues_returns_data_and_issues_pair`).
-- **Depends:** every test in `test_a3_data_issues.py` and
-  `test_a3_bounds_issues.py`, the pure-constructor tests in
-  `test_a3_tracing.py` and `test_a3_static_metadata.py`, and
-  `test_indexing_carries_every_leaf_including_issue_bitfield`.
-
+- **Checked:** 6.2, 10.2 and 12.1, revision 9.
+- **Resolved:** only `SurvivalData(...)` and `SurvivalData.from_bounds(...)`
+  construct observations. Each returns data; `data.issues` exposes diagnostics.
+  `helpers.flag_data_and_issues` and `helpers.bounds_data_and_issues` are test
+  helpers that compose these public operations, not Chronox API assumptions.
+- **Depends:** the A3 diagnostic attribution tests and the two tests asserting
+  that the removed convenience methods are absent.
 ## Q-010: which DataIssues field reports each rule
 
 - **Checked:** 2, 3.1, 3.3, 6.2 (rev 5, including D-005 in 20f9359). The spec
@@ -148,41 +117,28 @@ on it. Guessed exception types and call shapes are centralised in
 
 ## Q-011: meaning of `ok`
 
-- **Checked:** 6.2 ("`ok` is the scalar reduction"; "a scalar validity
-  reduction").
-- **Guess:** `ok` is true exactly when no row is in `invalid_rows`, so rows
-  that are only `uninformative` leave it true.
-- **Depends:** `test_ok_is_true_with_only_uninformative_rows`,
-  `test_ok_is_false_when_any_row_is_invalid`, `_assert_rule` and
-  `_assert_uninformative` helpers in `test_a3_data_issues.py`.
+- **Checked:** 6.2, revision 9.
+- **Resolved:** `ok` is exactly `~jnp.any(invalid_rows)`, including when
+  `uninformative` is present.
+- **Depends:** the `ok` tests and diagnostic helpers in A3.
+## Q-012: traced ordinary construction and checkpoint misuse
 
-## Q-012: error type for the ordinary constructors under tracing
-
-- **Status:** resolved by spec rev 7 (6.2) (maintainer
-  decision). A traced observation input to an ordinary constructor raises
-  `chronox_jax.TracedInputError`, a subclass of `TypeError`, at trace time; its
-  message names the pure counterpart (`with_issues` or
-  `from_bounds_with_issues`). Argument misuse raises `TypeError`, not
-  `TracedInputError`.
-- **In the tests:** `helpers.TRACED_INPUT` (falls back to a class that is
-  never raised if `chronox_jax.TracedInputError` is missing) with a message
-  match on the counterpart's name; `helpers.raises_misuse()` expects
-  `TypeError` and rejects `TracedInputError`, so the two misuse-first tests now
-  distinguish the errors.
-- **Depends:** the trace-time rejection tests in `test_a3_tracing.py` and
-  `test_a3_data_issues.py`,
-  `test_ordinary_constructor_raises_misuse_error_before_traced_input_error`,
-  `test_bounds_constructor_raises_misuse_error_before_traced_input_error`,
-  `test_traced_input_error_is_a_public_type_error`.
-
+- **Checked:** 3.2, 6.2 and 13, revision 9.
+- **Resolved:** both ordinary constructors accept traced observation inputs;
+  the old `TracedInputError` rejection requirement is superseded. Calling
+  `raise_if_invalid()` on traced diagnostics must fail explicitly.
+- **Open:** the exception type for that misuse and the export lifecycle of
+  `TracedInputError` are unspecified. Tests assert explicit failure without
+  choosing a subtype, and do not require or reject the legacy export.
+- **Depends:** `test_traced_diagnostics_cannot_raise_at_host_checkpoint` in
+  `test_a3_tracing.py`; no test depends on the legacy name.
 ## Q-013: decoding the bitfield of an existing SurvivalData
 
-- **Status:** resolved by spec rev 7 (maintainer
-  decision): `data.issues() -> DataIssues` decodes the bitfield of any
-  `SurvivalData`, including slices, data returned from transformed functions
-  and data rebuilt from leaves (3.2, 6.2).
-- **Depends:** every test in `test_a3_issue_decoding.py`.
-
+- **Checked:** 3.2 and 6.2, revision 9.
+- **Resolved:** the `data.issues` property decodes diagnostics on constructed,
+  indexed, rebuilt and transformed data. The old callable spelling is
+  superseded; no test requires or forbids a compatibility alias.
+- **Depends:** `test_a3_issue_decoding.py` and the A2 issue checks.
 ## Q-014: observing static metadata
 
 - **Status:** resolved by spec rev 7 (3.2) (maintainer
@@ -220,3 +176,10 @@ on it. Guessed exception types and call shapes are centralised in
 - **Resolved (maintainer, 2026-09-25):** a `pandas.Series` is accepted
   directly. The warning attribution still follows Q-004.
 - **Depends:** `test_pandas_float64_series_converts_to_float32_with_one_warning`.
+
+## Q-017: numeric rendering of host-checkpoint counts and indices
+
+- **Checked:** 6.2 and 12.1, revision 9.
+- **Guess:** the required count and first offending index appear as decimal
+  integers in `str(InvalidDataError)`. No words or punctuation are asserted.
+- **Depends:** `test_host_checkpoint_reports_count_and_first_offending_index`.

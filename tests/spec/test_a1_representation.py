@@ -1,5 +1,6 @@
 """A1: normalized representation, shapes and PyTree storage (spec 3.2)."""
 
+import chronox_jax as cx
 import jax
 import numpy as np
 import pytest
@@ -15,8 +16,6 @@ from helpers import (
     leaves,
     treedef,
 )
-
-import chronox_jax as cx
 
 
 def _mixed():

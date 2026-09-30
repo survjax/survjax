@@ -5,11 +5,10 @@ tests observe them through tree structures and jit retracing: datasets with
 different flags have different tree structures and compile separately.
 """
 
+import chronox_jax as cx
 import jax
 import pytest
-from helpers import INF, NAN, b, f, from_bounds_with_issues, treedef, with_issues
-
-import chronox_jax as cx
+from helpers import INF, NAN, b, f, treedef
 
 
 def _exact_only(times=(1.0, 2.0, 3.0, 4.0)):
@@ -56,7 +55,7 @@ def _traced(**kw):
 
     def build(*values):
         args = dict(zip(names, values, strict=True))
-        return with_issues(args.pop("time"), **args)[0]
+        return cx.SurvivalData(args.pop("time"), **args)
 
     return jax.jit(build)(*kw.values())
 
@@ -146,16 +145,16 @@ def test_both_constructors_give_the_same_tree_structure():
 
 
 @pytest.mark.step("A3")
-def test_eager_with_issues_computes_flags_from_values():
+def test_eager_flag_constructor_computes_flags_from_values():
     """spec 3.2, rev 6: with no traced observation input, flags are computed from the normalized fields, by either route."""
-    eager, _ = with_issues(f([1.0, 2.0, 3.0, 4.0]))
+    eager = cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0]))
     assert treedef(eager) == treedef(_exact_only())
 
 
 @pytest.mark.step("A3")
-def test_eager_from_bounds_with_issues_computes_flags_from_values():
-    """spec 3.2, rev 6: the pure bounds constructor with non-traced inputs computes flags from values."""
-    eager, _ = from_bounds_with_issues(f([1.0, 2.0, 3.0, 4.0]), f([NAN, NAN, NAN, NAN]), exact=b([True] * 4))
+def test_eager_bounds_constructor_computes_flags_from_values():
+    """spec 3.2, rev 6: the bounds constructor with non-traced inputs computes flags from values."""
+    eager = cx.SurvivalData.from_bounds(f([1.0, 2.0, 3.0, 4.0]), f([NAN, NAN, NAN, NAN]), exact=b([True] * 4))
     assert treedef(eager) == treedef(_exact_only())
 
 
@@ -171,10 +170,10 @@ def test_flags_include_rows_with_issue_bits():
     the flags match a valid dataset with a right-censored row and right
     truncation.
     """
-    invalid, issues = with_issues(
+    invalid = cx.SurvivalData(
         f([1.0, 2.0, 3.0, 5.0]), right_censored=b([False, False, False, True]), right_trunc=f([INF, INF, INF, 5.0])
     )
-    assert not bool(issues.ok)
+    assert not bool(invalid.issues.ok)
     valid = cx.SurvivalData(
         f([1.0, 2.0, 3.0, 4.0]), right_censored=b([False, False, False, True]), right_trunc=f([INF, INF, INF, 5.0])
     )
@@ -193,9 +192,9 @@ def test_ordinary_construction_inside_jit_computes_flags_from_values():
 
 
 @pytest.mark.step("A3")
-def test_pure_construction_from_non_traced_inputs_inside_jit_computes_flags_from_values():
-    """spec 3.2, rev 6: pure constructors classify inputs as in 6.2; non-traced inputs inside jit give value-based flags."""
-    inside = jax.jit(lambda: with_issues(f([1.0, 2.0, 3.0, 4.0]))[0])()
+def test_construction_from_concrete_inputs_inside_jit_computes_flags_from_values():
+    """spec 3.2, rev 6: constructors classify inputs as in 6.2; non-traced inputs inside jit give value-based flags."""
+    inside = jax.jit(lambda: cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0])))()
     assert treedef(inside) == treedef(_exact_only())
 
 
@@ -238,20 +237,20 @@ def test_integer_index_inherits_parent_flags():
 @pytest.mark.step("A3")
 def test_single_traced_observation_input_sets_all_flags():
     """spec 3.2, rev 6: any one traced observation input (here only `left_trunc`) makes all flags true."""
-    data = jax.jit(lambda lt: with_issues(f([1.0, 2.0, 3.0, 4.0]), left_trunc=lt)[0])(f([0.0, 0.0, 0.0, 0.0]))
+    data = jax.jit(lambda lt: cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0]), left_trunc=lt))(f([0.0, 0.0, 0.0, 0.0]))
     assert treedef(data) == treedef(_full())
 
 
 @pytest.mark.step("A3")
 def test_traced_bounds_construction_sets_all_flags():
-    """spec 3.2, rev 6: the pure bounds constructor with a traced observation input gives all flags true."""
-    data = jax.jit(lambda lo: from_bounds_with_issues(lo, f([1.0, 2.0]), exact=b([True, True]))[0])(f([1.0, 2.0]))
+    """spec 3.2, rev 6: the bounds constructor with a traced observation input gives all flags true."""
+    data = jax.jit(lambda lo: cx.SurvivalData.from_bounds(lo, f([1.0, 2.0]), exact=b([True, True])))(f([1.0, 2.0]))
     assert treedef(data) == treedef(_full())
 
 
 @pytest.mark.step("A3")
 def test_traced_construction_sets_all_flags():
-    """spec 3.2, rev 6: when any observation input is traced (pure constructor), all flags are true, whatever the values."""
+    """spec 3.2, rev 9: when any observation input is traced (ordinary constructor), all flags are true, whatever the values."""
     full = _full()
     traced_exact_only = _traced(time=f([1.0, 2.0, 3.0, 4.0]))
     assert treedef(traced_exact_only) == treedef(full)
