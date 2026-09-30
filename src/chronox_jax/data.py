@@ -9,7 +9,6 @@ from jax.typing import ArrayLike, DTypeLike
 from chronox_jax._data_validation import (
     flag_fields,
     indicator,
-    raise_if_invalid,
     row_issues,
     time_dtype,
     to_shape,
@@ -48,7 +47,6 @@ class SurvivalData:
         left_trunc: ArrayLike | None = None,
         right_trunc: ArrayLike | None = None,
         dtype: DTypeLike | None = None,
-        **kwargs: ArrayLike,
     ) -> None:
         """Build observations from event status or censoring flags (spec 3.1).
 
@@ -64,7 +62,10 @@ class SurvivalData:
         interval-censored rows. Missing truncation bounds mean
         ``left_trunc=0`` and ``right_trunc=+inf``. ``dtype`` selects a common
         floating dtype. All inputs must broadcast to ``time.shape`` without
-        enlarging it.
+        enlarging it. Invalid observation values return data with issue bits,
+        both eagerly and under JAX transformations. Inspect ``data.issues``
+        and explicitly call ``data.issues.raise_if_invalid()`` on the host
+        when invalid observations should terminate a task.
 
         R comparison: the two-argument form uses the event convention of
         ``survival::Surv(time, event)``. Unlike R's default
@@ -76,9 +77,6 @@ class SurvivalData:
             ``SurvivalData([2.0, 3.0], [1, 0])`` stores an event at 2 and
             right censoring at 3.
         """
-        if kwargs:
-            unknown = ", ".join(sorted(kwargs))
-            raise TypeError(f"unexpected keyword argument(s): {unknown}")
         fields = flag_fields(
             time,
             event,
@@ -90,49 +88,7 @@ class SurvivalData:
             right_trunc,
             dtype,
         )
-        raise_if_invalid(fields[5])
         self._assign(*fields)
-
-    @classmethod
-    def with_issues(
-        cls,
-        time: ArrayLike,
-        event: ArrayLike | None = None,
-        *,
-        right_censored: ArrayLike | None = None,
-        left_censored: ArrayLike | None = None,
-        interval_censored: ArrayLike | None = None,
-        time2: ArrayLike | None = None,
-        left_trunc: ArrayLike | None = None,
-        right_trunc: ArrayLike | None = None,
-        dtype: DTypeLike | None = None,
-        **kwargs: ArrayLike,
-    ) -> tuple["SurvivalData", DataIssues]:
-        """Return normalized data and per-row issues, including under jit (spec 6.2).
-
-        The fields and issue masks have ``time.shape``; ``ok`` is scalar.
-        Invalid numeric rows set issue masks without raising. Inputs that
-        cannot form an observation object still raise. Combining ``event``
-        with any censoring flag raises ``TypeError``.
-        """
-        if kwargs:
-            unknown = ", ".join(sorted(kwargs))
-            raise TypeError(f"unexpected keyword argument(s): {unknown}")
-        fields = flag_fields(
-            time,
-            event,
-            right_censored,
-            left_censored,
-            interval_censored,
-            time2,
-            left_trunc,
-            right_trunc,
-            dtype,
-        )
-        data = object.__new__(cls)
-        data._assign(*fields)
-        issues = DataIssues._from_bits(*fields)
-        return data, issues
 
     @classmethod
     def from_bounds(
@@ -156,6 +112,8 @@ class SurvivalData:
         ``lower`` fixes the observation shape; other inputs must broadcast
         to it without enlargement. Omitted ``left_trunc`` and
         ``right_trunc`` become 0 and +inf. ``dtype`` selects a common float.
+        Invalid observation values return data; inspect ``data.issues`` and
+        call its host checkpoint explicitly when needed.
 
         R comparison: this form resembles
         ``survival::Surv(lower, upper, type="interval2")``, but exactness is
@@ -215,13 +173,6 @@ class SurvivalData:
             invalid_time2=invalid_time2,
             check_interval=~exact_mask,
         )
-        raise_if_invalid(
-            bits,
-            traced_hint=(
-                "SurvivalData.with_issues accepts flag inputs only; "
-                "a pure bounds constructor is not specified yet"
-            ),
-        )
         result = object.__new__(cls)
         result._assign(
             exact_mask,
@@ -232,6 +183,18 @@ class SurvivalData:
             bits,
         )
         return result
+
+    @property
+    def issues(self) -> DataIssues:
+        """Decode per-row issue masks and scalar validity without host checks (spec 6.2)."""
+        return DataIssues._from_bits(
+            self.exact,
+            self.lower,
+            self.upper,
+            self.left_trunc,
+            self.right_trunc,
+            self._issue_bits,
+        )
 
     def _assign(
         self,

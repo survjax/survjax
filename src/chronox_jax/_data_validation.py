@@ -150,8 +150,8 @@ def row_issues(
 ) -> jax.Array:
     """Add interval, truncation, and window checks; pack ten bits per row.
 
-    ``flag_fields`` and ``from_bounds`` call this with their stored fields and
-    raw-input fault masks (spec 6.2).
+    Both constructors call this with stored fields and raw-input fault masks
+    (spec 6.2).
     """
     # spec 6.2: only order endpoints after their presence and domains pass.
     valid_endpoints = ~(invalid_time | missing_time2 | invalid_time2)
@@ -216,7 +216,7 @@ def flag_fields(
     """Normalize flag inputs and compute issue bits without a host checkpoint.
 
     Build the five stored fields and input-fault masks, then pass them to
-    ``row_issues``. Eager construction and ``with_issues`` share this result.
+    ``row_issues`` (spec 6.2).
     """
     if event is not None and any(
         flag is not None for flag in (right_censored, left_censored, interval_censored)
@@ -282,26 +282,3 @@ def flag_fields(
         check_interval=interval,
     )
     return exact, lower, upper, lower_bound, upper_bound, bits
-
-
-def raise_if_invalid(
-    bits: jax.Array,
-    *,
-    traced_hint: str = "use SurvivalData.with_issues for traced flag inputs",
-) -> None:
-    """Eager constructor checkpoint with counts and first row indices."""
-    if isinstance(bits, jax.core.Tracer):
-        raise ValueError(
-            "ordinary SurvivalData constructors require concrete observations; "
-            + traced_hint
-        )
-    host_bits = np.asarray(bits)
-    problems = []
-    for position, name in enumerate(ISSUE_NAMES):
-        mask = (host_bits & (1 << position)) != 0
-        count = int(np.count_nonzero(mask))
-        if count:
-            first = tuple(int(index) for index in np.argwhere(mask)[0])
-            problems.append(f"{name}: {count} row(s), first index {first}")
-    if problems:
-        raise ValueError("invalid SurvivalData: " + "; ".join(problems))

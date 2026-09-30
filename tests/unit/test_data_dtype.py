@@ -68,7 +68,7 @@ def test_jitted_weak_float_bound_preserves_float32_time_dtype() -> None:
 
     @jax.jit
     def fields_from_bound(bound: jax.Array) -> tuple[jax.Array, jax.Array]:
-        data, _ = SurvivalData.with_issues(time, left_trunc=bound)
+        data = SurvivalData(time, left_trunc=bound)
         return data.lower, data.left_trunc
 
     lower, left_trunc = fields_from_bound(0.5)

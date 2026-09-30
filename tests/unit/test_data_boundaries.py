@@ -1,15 +1,14 @@
 """A2a: endpoint and truncation boundaries."""
 
 import numpy as np
-import pytest
 
 from chronox_jax import SurvivalData
 
 
 def test_exact_time_at_entry_is_outside_window() -> None:
     """Spec 3.3: exact membership requires L < t."""
-    with pytest.raises(ValueError, match="exact_outside_truncation"):
-        SurvivalData([2.0], left_trunc=[2.0])
+    data = SurvivalData([2.0], left_trunc=[2.0])
+    np.testing.assert_array_equal(data.issues.exact_outside_truncation, [True])
 
 
 def test_exact_time_at_upper_truncation_is_valid() -> None:
@@ -24,16 +23,16 @@ def test_right_censoring_at_entry_is_valid_with_finite_window() -> None:
     np.testing.assert_array_equal(data._issue_bits, [0])
 
 
-def test_right_censoring_before_entry_is_rejected() -> None:
+def test_right_censoring_before_entry_sets_issue() -> None:
     """Spec 6.2 / D-003: c < L reports censored_before_entry."""
-    with pytest.raises(ValueError, match="censored_before_entry"):
-        SurvivalData([1.0], [False], left_trunc=[2.0])
+    data = SurvivalData([1.0], [False], left_trunc=[2.0])
+    np.testing.assert_array_equal(data.issues.censored_before_entry, [True])
 
 
 def test_left_censoring_at_infinity_is_invalid_time() -> None:
     """Spec 3.3/6.2: one-sided censoring time must be finite."""
-    with pytest.raises(ValueError, match="invalid_time: 1 row"):
-        SurvivalData([np.inf], left_censored=[True])
+    data = SurvivalData([np.inf], left_censored=[True])
+    np.testing.assert_array_equal(data.issues.invalid_time, [True])
 
 
 def test_interval_infinite_upper_uses_right_censoring_entry_rule() -> None:
@@ -47,8 +46,8 @@ def test_interval_infinite_upper_uses_right_censoring_entry_rule() -> None:
 
 def test_left_censoring_at_entry_has_empty_intersection() -> None:
     """Spec 2/6.2: (0, L] misses the truncation window."""
-    with pytest.raises(ValueError, match="empty_observation"):
-        SurvivalData([2.0], left_censored=[True], left_trunc=[2.0])
+    data = SurvivalData([2.0], left_censored=[True], left_trunc=[2.0])
+    np.testing.assert_array_equal(data.issues.empty_observation, [True])
 
 
 def test_interval_covering_window_is_valid() -> None:
@@ -65,6 +64,7 @@ def test_interval_covering_window_is_valid() -> None:
 
 def test_invalid_interval_lower_does_not_report_interval_order() -> None:
     """Spec 6.2 / D-005: endpoint domain precedes interval order."""
-    with pytest.raises(ValueError, match="invalid_time: 1 row") as error:
-        SurvivalData([-1.0], interval_censored=[True], time2=[-2.0])
-    assert "invalid_interval" not in str(error.value)
+    issues = SurvivalData([-1.0], interval_censored=[True], time2=[-2.0]).issues
+    np.testing.assert_array_equal(issues.invalid_time, [True])
+    np.testing.assert_array_equal(issues.invalid_time2, [True])
+    np.testing.assert_array_equal(issues.invalid_interval, [False])

@@ -1,5 +1,18 @@
 # Deviations and spec questions
 
+## D-010 A3 vmap acceptance test indexes scalar `data.issues.ok`
+- Step: A2 constructor API migration; observed in an A3 acceptance test
+- Spec: sections 3.2, 6.2 and 12.1
+- Spec says: `data.issues.ok` is a scalar bool array reducing all invalid rows
+  in that `SurvivalData` object. `jax.vmap` construction returns batched data
+  leaves; decoding `batched.issues` therefore reduces across the batched shape.
+- Did / propose: keep the scalar reduction required by the spec. The read-only
+  `tests/spec/test_a3_tracing.py::test_bounds_vmap_agrees_with_eager_for_valid_and_invalid_rows`
+  indexes `batched.issues.ok[i]`, which raises `IndexError` for the scalar. To
+  compare per-batch validity, the independent test author could vmap a function
+  returning `data.issues` or compare `~jnp.any(invalid_rows, axis=1)`.
+- Status: open
+
 ## D-006 Legacy diagnostic compatibility after pure construction
 - Step: specification revision 8 (`spec-constructor`)
 - Spec: sections 6.2, 10.2 and 13; revision 7 sections 6.2 and 13
