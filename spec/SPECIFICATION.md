@@ -1197,6 +1197,7 @@ Python/JAX matrix.
 | Runtime | `jax`, `numpy` (host inspection and fixed constants only; never convert tracers) |
 | Tests | pytest, mpmath, hypothesis; optionally quadax as a quadrature cross-check |
 | Development | Ruff, mypy, pre-commit, uv_build |
+| Documentation | Sphinx, MyST-NB, JupyterLab and its Python kernel |
 | Classical demo | Optimistix, Matplotlib |
 | Neural demo | Equinox, Optax, Matplotlib, and only the loaders actually used |
 | Bayesian demo | NumPyro, Matplotlib; diagnostics tooling only if needed |
@@ -1261,6 +1262,44 @@ Instead:
 
 The R audit scripts and their aggregate results are reference evidence, not
 proof of Chronox correctness or permission to redistribute data.
+
+### 10.5 Documentation during development
+
+Develop documentation alongside each implementation step. The step plan names
+the pages and examples to add or update, the public behavior they demonstrate,
+and any coverage deferred to a later step. The step review records which
+examples ran, what evidence supports comparison claims, and what remains
+incomplete. A step may leave later behavior as an outline, labelled as planned
+rather than working.
+
+Keep source pages in `docs/` and use small, committed synthetic data. Examples
+use the current public API and run without network access, R, or locally
+acquired data. Explain what observation kinds can be represented separately
+from which likelihood modes are implemented. A comparison with R may explain
+input conventions before reference fixtures exist; numerical agreement is
+claimed only after checking committed R-generated fixtures.
+
+Generate local HTML from Markdown pages and Jupyter notebooks with Sphinx and
+MyST-NB. Keep the documentation tools in a locked, optional dependency group,
+separate from core imports. Provide one documented command that builds the
+site from a clean checkout, executes runnable examples afresh, and fails on
+execution errors or documentation warnings. Run executable examples in
+separate float32 and float64 processes when both modes apply, and document
+any example limited to one mode. Do not commit generated HTML, execution
+caches or notebook outputs.
+
+Provide a JupyterLab command using the same locked environment and at least
+one small notebook that opens against the current implementation for
+interactive exploration. It uses synthetic data and may be edited locally.
+A result cited as verification also needs a reproducible, non-interactive
+check; an interactive session alone is not evidence.
+
+At the end of every slice, inspect the rendered documentation and record a
+concrete evaluation in the slice review: pages present, executable examples
+and their results, supported and unsupported workflows, comparison evidence,
+known gaps, and exact build commands and outcomes. A slice is complete only
+when its documented working examples execute and its stated limitations match
+the implementation. Publication or hosting is a separate action.
 
 ## 11. Reference analysis and demonstrations
 
@@ -1451,7 +1490,7 @@ bounds.
 
 | Slice | Deliverable | Completion gate |
 | --- | --- | --- |
-| A | Installable package; `SurvivalData` (both pure ordinary constructors, all v0 kinds representable, dtype policy, issue bitfield, indexing, static metadata) and `data.issues` / `DataIssues` with explicit host raising; exponential and Weibull exact/right likelihoods without truncation; direct-method policy; survival grids; core extension interface (`register_family`, `log_survival` + `reference_time`, autodiff `log_prob` default); result containers | Construction, data diagnostics/metadata and stored-input-issue requirements of section 12.1; evaluation and shape checks; first and second derivatives; stable tails; boundary cases; independent math fixtures; committed synthetic `bc`-like per-row R fixtures; eager `jax_debug_nans` run; wheel smoke test; a tiny synthetic example; recorded CPU performance baseline (section 12.3) |
+| A | Installable package; `SurvivalData` (both pure ordinary constructors, all v0 kinds representable, dtype policy, issue bitfield, indexing, static metadata) and `data.issues` / `DataIssues` with explicit host raising; exponential and Weibull exact/right likelihoods without truncation; direct-method policy; survival grids; core extension interface (`register_family`, `log_survival` + `reference_time`, autodiff `log_prob` default); result containers | Construction, data diagnostics/metadata and stored-input-issue requirements of section 12.1; evaluation and shape checks; first and second derivatives; stable tails; boundary cases; independent math fixtures; committed synthetic `bc`-like per-row R fixtures; eager `jax_debug_nans` run; wheel smoke test; a tiny synthetic example; recorded CPU performance baseline (section 12.3); executable documentation and Jupyter playground (section 10.5) |
 | B | Left and interval censoring; all truncation combinations; `log_conditional_interval_prob` hook; static-metadata pruning | Full likelihood matrix and diagnostics; cross-kind property tests; synthetic flexsurv fixtures for every kind; transformed derivatives |
 | C | Classical demo: external BFGS fit and `bc` reproduction, with analytical summaries as needed | The checks and targets of section 11.1, including the independent optimum check |
 | D | Log-normal and log-logistic families; `HazardFamily`; PH and AFT wrappers; analytical and generic summaries (quadrature, solver, derivative rules); sampling including truncation; `check_family`; extension recipes | Summary convergence, failure and derivative checks; wrapper identities; sampling agreement and distribution tests |
@@ -1460,9 +1499,15 @@ bounds.
 
 Slice A is deliberately smaller than v0. Its documentation states the subset,
 and unimplemented observation modes fail explicitly instead of producing
-plausible values. The data representation accommodates every v0 kind from the
-start. Later slices need their own evidence; passing A is not evidence of full
-v0 support. Publication, remote setup and credentials are separate actions.
+plausible values. Its completion gate includes a locally buildable site, a
+working Jupyter playground, executed examples in both applicable dtype modes,
+and a review of the rendered pages under section 10.5. The pages explain both
+observation constructors, `data.issues` and explicit host validation, the
+supported exact and right-censored likelihood subset, dtype behavior, direct
+methods, transformations, and explicit failures for unsupported likelihood
+modes. The data representation accommodates every v0 kind from the start.
+Later slices need their own evidence; passing A is not evidence of full v0
+support. Publication, remote setup and credentials are separate actions.
 
 ### 12.3 Performance evidence
 
@@ -1593,6 +1638,10 @@ The simulation recipe is now non-normative example documentation; acceptance
 checks compiled library composition directly, without prescribing an external
 solver, study workflow or loop primitive. Assign the final revision number on
 acceptance; this draft supplies no implementation measurements.
+
+The documentation amendment (draft 2026-09-30) adds a reproducible local
+build, an interactive notebook environment and a documentation review at
+each slice gate. Assign its final revision number on acceptance.
 
 ## 15. Decision traceability
 
