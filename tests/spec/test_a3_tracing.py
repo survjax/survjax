@@ -115,14 +115,16 @@ def test_traced_right_truncation_matches_eager():
 @pytest.mark.step("A3")
 def test_nested_list_with_tracer_is_accepted():
     """spec 6.2, rev 9: a tracer nested in a Python list is an accepted observation input."""
-    build = lambda x: cx.SurvivalData([[1.0, x], [3.0, 4.0]])
+    def build(x):
+        return cx.SurvivalData([[1.0, x], [3.0, 4.0]])
     _agrees_under_jit(build, f(2.0))
 
 
 @pytest.mark.step("A3")
 def test_tuple_with_tracer_is_accepted():
     """spec 6.2, rev 9: a tracer in a Python tuple is an accepted observation input."""
-    build = lambda x: cx.SurvivalData(f([1.0, 2.0]), left_trunc=(0.0, x))
+    def build(x):
+        return cx.SurvivalData(f([1.0, 2.0]), left_trunc=(0.0, x))
     _agrees_under_jit(build, f(0.5))
 
 
@@ -166,7 +168,8 @@ def test_traced_bounds_right_truncation_matches_eager():
 @pytest.mark.step("A3")
 def test_bounds_nested_tuple_with_tracer_is_accepted():
     """spec 6.2, rev 9: bounds inputs may contain a tracer inside nested tuples."""
-    build = lambda x: cx.SurvivalData.from_bounds(((0.0, x),), ((2.0, 3.0),))
+    def build(x):
+        return cx.SurvivalData.from_bounds(((0.0, x),), ((2.0, 3.0),))
     _agrees_under_jit(build, f(1.0))
 
 
@@ -185,7 +188,26 @@ def test_bounds_vmap_agrees_with_eager_for_valid_and_invalid_rows():
             np.testing.assert_array_equal(np.asarray(getattr(batched, name))[i], np.asarray(getattr(eager, name)))
         for name in MASK_FIELDS:
             np.testing.assert_array_equal(mask(batched.issues, name)[i], mask(eager.issues, name))
-        assert bool(np.asarray(batched.issues.ok)[i]) == bool(np.asarray(eager.issues.ok))
+        # spec 6.2: `ok` of `data[idx]` reduces over the indexed rows only.
+        assert bool(np.asarray(batched[i].issues.ok)) == bool(np.asarray(eager.issues.ok))
+
+
+@pytest.mark.step("A3")
+def test_ok_of_vmap_returned_data_reduces_over_all_rows():
+    """spec 6.2, rev 9: `ok` of data returned from vmap is one scalar over every row of the object."""
+    lower = f([[1.0, 2.0], [1.0, 3.0]])
+    upper = f([[1.0, INF], [1.0, INF]])
+    exact = b([[True, False], [True, False]])
+    def build(lo, hi, ex):
+        return cx.SurvivalData.from_bounds(lo, hi, exact=ex)
+    valid = jax.vmap(build)(lower, upper, exact)
+    assert np.shape(valid.issues.ok) == ()
+    assert bool(np.asarray(valid.issues.ok))
+    # Second dataset gets an invalid interval (3 >= 2); the first stays valid.
+    mixed = jax.vmap(build)(lower, f([[1.0, INF], [1.0, 2.0]]), exact)
+    assert np.shape(mixed.issues.ok) == ()
+    assert not bool(np.asarray(mixed.issues.ok))
+    assert bool(np.asarray(mixed[0].issues.ok))
 
 
 @pytest.mark.step("A3")

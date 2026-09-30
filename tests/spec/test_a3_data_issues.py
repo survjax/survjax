@@ -791,12 +791,15 @@ def test_flag_data_and_issues_under_vmap_matches_eager_per_dataset():
     time, right, left, lt = _mixed_inputs()
     batch = tuple(np.stack([x, x[::-1]]) for x in (time, right, left, lt))
     _, batched = jax.vmap(_build)(*batch)
-    assert np.shape(batched.ok) == (2,)
+    # `ok` is a scalar per call (spec 6.2); read it inside vmap so vmap stacks one per dataset.
+    # Reading `batched.ok` would depend on DataIssues' leaf layout, which the spec leaves open.
+    oks = jax.vmap(lambda *a: _build(*a)[1].ok)(*batch)
+    assert np.shape(oks) == (2,)
     for i in range(2):
         _, eager = _build(*(x[i] for x in batch))
         for name in MASK_FIELDS:
             np.testing.assert_array_equal(mask(batched, name)[i], mask(eager, name), err_msg=name)
-        assert bool(np.asarray(batched.ok)[i]) == bool(np.asarray(eager.ok))
+        assert bool(np.asarray(oks)[i]) == bool(np.asarray(eager.ok))
 
 
 @pytest.mark.step("A3")
