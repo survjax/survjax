@@ -1,51 +1,46 @@
-# Review: illustrative simulation guide on `spec-speed`
+# Review: DOC-1 local documentation process
 
 ## Read first
 
-1. Specification sections 11.4 and 12.1: library guarantees and direct checks.
-2. `docs/simulation-guide.md`: illustrative workflow and unchanged example code.
-3. Sections 6.2 and 12.3: caller policy and measured control-flow choices.
-4. Section 14: amendment history and the guide's non-normative status.
-5. `PLAN.md`, final section: the maintainer-authorized documentation scope.
+1. `scripts/build_docs.sh` and `docs/conf.py`: two fresh, warning-strict builds.
+2. `docs/index.md` and `docs/playground.ipynb`: current scope, commands and the synthetic example.
+3. `pyproject.toml`, `uv.lock` and `.gitignore`: optional locked tools and excluded outputs.
+4. `PLAN.md`, DOC-1: approved scope. DOC-2 remains a separate step.
 
-## Reasoning against the updated contract
+## Invariants and scope
 
-- Pure construction and `data.issues` already support compiled workflows.
-  Measure this path without restoring implicit host validation, unchecked
-  construction or issue-returning convenience constructors.
-- Traced metadata is all true, and slices inherit their parent's metadata.
-  Preserve this contract; changing static metadata may legitimately recompile.
-  Reuse is required when dynamic values change within one static structure.
-- Stored raw-input issues must still invalidate likelihood rows. Performance
-  work cannot discard diagnostic evidence or hide invalid rows with zero weight.
-- Data validity remains distinct from estimate existence and solver failure.
-  The guide illustrates fit skipping; simulation acceptance prescribes no solver,
-  study policy or loop. It requires direct checks of compiled composition.
+- The notebook uses only the public `SurvivalData` constructor and `data.issues`.
+  It asserts exact flags, stored lower times, validity and the JAX dtype mode.
+- Every build starts a separate process per dtype and forces notebook execution.
+  Sphinx treats warnings and execution errors as build failures.
+- The committed notebook has no outputs. Generated HTML and execution artifacts
+  are ignored. The optional docs group does not change core dependencies.
+- `docs/simulation-guide.md` is excluded from the site: it is explicitly
+  unverified, covers unimplemented likelihood workflows and currently has an
+  unresolved cross-source specification link under warning-strict Sphinx.
+- The lockfile grows by about 1,900 lines because of Sphinx and JupyterLab's
+  transitive dependencies. Splitting it from the build would leave DOC-1
+  unusable; the hand-written change remains small.
 
-## Preserved scope
+## Evidence
 
-No statistical definition, constructor signature, dtype rule, shape convention,
-numerical tolerance or derivative guarantee changes. The diagnostic compatibility
-decision is retained; simulation code moves unchanged. Pruning remains in Slice B;
-GPU verification and scalable concordance are optional. No implementation,
-dependency, independent test, fixture or deviation status is changed.
-
-## Checks and pending decisions
-
-Checks run for this documentation-only change:
-
+- `UV_CACHE_DIR=/private/tmp/chronox-docs-uv-cache scripts/build_docs.sh`:
+  exit 0. Both float32 and float64 HTML builds succeeded; the notebook executed
+  in each. Sphinx reported no documentation warnings. Jupyter printed its
+  standard local TCP transport warning, which is not a Sphinx build warning.
+- Rendered HTML inspection: both index pages link to the playground; the
+  playground shows `JAX float64 enabled: False` in x32 and `True` in x64, plus
+  `Exact flags: [True, False]` and `Lower times: [2.0, 3.0]` in each.
+  The source notebook was checked to have null execution count and no outputs.
+- `UV_CACHE_DIR=/private/tmp/chronox-docs-uv-cache scripts/check.sh --through A2`:
+  exit 0. Ruff format: 24 files formatted; Ruff lint: all checks passed;
+  mypy: no issues in 4 files. Own tests: x64 77 passed, 3 skipped; x32 80 passed.
+  Independent A2 tests: x64 178 passed, 13 skipped, 196 deselected; x32
+  186 passed, 5 skipped, 196 deselected.
 - `git diff --check`: exit 0, no output.
-- 47 unrelated spec sections and all code blocks: preserved against `33045b7`;
-  the simulation block is relocated verbatim. Slice gates and goals unchanged.
-- Acceptance table: only simulation guidance replaced by compiled composition.
-- Section references, new local links, four-document scope, Markdown fences
-  and final newlines: passed.
 
-Runtime tests, Ruff, mypy, R fixtures, installation checks and CPU/GPU benchmarks
-were not run. Implementation files were not inspected. New performance
-requirements are future evidence obligations, not measured results.
+## Remaining work
 
-The guide remains unverified executable documentation; no rendered preview was
-checked. The draft retains its base and leaves the final revision number to
-acceptance. Benchmark sizes are examples; no timing threshold or GPU support is
-asserted. The JAX loop guidance follows the linked official documentation.
+DOC-2 will document the A1–A2 constructors and diagnostics. The site does not
+claim Slice A completion or numerical agreement with R. JupyterLab was provided
+through the locked group, but an interactive session was not used as evidence.

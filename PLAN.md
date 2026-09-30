@@ -1,3 +1,69 @@
+# Documentation startup on `docs-startup` (2026-09-30)
+
+The maintainer requested two separate tasks following specification section
+10.5. Each is one reviewable step and one commit. Stop after the first step's
+`REVIEW.md` and await instruction before starting the second. This plan is for
+approval before either implementation step; the earlier plans below are history.
+
+## Step DOC-1: local documentation process
+
+Spec sections: 10.2, 10.3, 10.5, and the documentation item in 12.2.
+
+Files to create or change:
+
+- `pyproject.toml`, `uv.lock`: add a locked optional documentation group with
+  Sphinx, MyST-NB, JupyterLab and a Python kernel. Keep core dependencies
+  unchanged.
+- `docs/conf.py`, `docs/index.md`: minimal Sphinx site for Markdown and
+  notebooks, navigation, and a clear statement of the currently implemented
+  subset. Include the existing `docs/simulation-guide.md` only if it can be
+  visibly labelled as illustrative and unverified without build warnings.
+- `docs/playground.ipynb`: a small synthetic, editable notebook using the
+  current public `SurvivalData` API; no saved outputs.
+- `scripts/build_docs.sh`: one documented, non-interactive command that builds
+  HTML from a clean checkout, executes runnable content afresh in separate
+  float32 and float64 processes, and fails on warnings or execution errors.
+- `.gitignore`: exclude generated site, notebook execution artifacts and
+  caches. `REVIEW.md`: report exact commands, outcomes and rendered-page
+  inspection. Update this plan if implementation reveals a necessary split.
+
+Public API: none. Tests: the build command itself is the end-to-end check;
+verify it from a clean working tree and inspect the rendered index and notebook.
+Run the existing A2 gate and `git diff --check` if dependency or tooling edits
+affect those checks. No network, R, real data or demo dependencies at doc build
+time. Do not publish or host the site.
+
+## Step DOC-2: A1–A2 documentation
+
+Spec sections: 3.1–3.3, 6.2, 10.2, 10.5, and 12.2. Cover implemented behavior
+only; label A3 indexing/static-metadata guarantees and later likelihood modes
+as planned. Revise this step plan, if needed, before writing its code and seek
+approval under the working agreement.
+
+Files to create or change:
+
+- `docs/survival-data.md`: executable synthetic examples for event/status,
+  explicit right/left/interval flags, mixed data, `time2`, bounds, and
+  truncation. Show normalized fields and the exactness rule for bounds.
+- In the same page, explain issue masks, `invalid_rows`, `ok`, valid but
+  uninformative rows, structural `TypeError`/dtype `ValueError`, and explicit
+  host `InvalidDataError`. Demonstrate ordinary construction and diagnostic
+  access inside `jax.jit`, with the host checkpoint after compiled execution.
+- In the same page, compare the flag and bounds conventions to R's
+  `survival::Surv` forms, including event coding, interval endpoints and
+  counting-process `time2`. Check comparison wording against official R
+  documentation. Claim no numerical agreement without R-generated fixtures.
+- `docs/index.md` and `docs/playground.ipynb`: link the guide and make the
+  notebook a short interactive path through the same working API.
+- `REVIEW.md`: reading order, invariants, exact example/build outcomes in both
+  dtypes, source of R-convention claims, known gaps and rendered-page review.
+
+Public API: none. Tests: executable examples through `scripts/build_docs.sh`
+in both dtype modes, plus the existing A2 gate and `git diff --check`. Examples
+must check their stated outputs rather than merely run. No new unit tests that
+repeat documentation examples. Keep this step near 300 changed lines; split it
+before implementation if the reviewed plan requires more.
+
 # D-006 diagnostic compatibility decision (2026-09-30)
 
 The maintainer approved retiring `TracedInputError`, keeping `ValueError` for a
