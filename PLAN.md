@@ -1,3 +1,19 @@
+# D-006 diagnostic compatibility decision (2026-09-30)
+
+The maintainer approved retiring `TracedInputError`, keeping `ValueError` for a
+traced `DataIssues.raise_if_invalid()` call, and exposing only the
+`data.issues` property (no callable `data.issues()` alias). On the
+maintainer-created `spec-deviations` branch, update the normative contract in
+`spec/SPECIFICATION.md` sections 6.2, 10.2 and 13, its review/decision history,
+and D-006 in `DEVIATIONS.md`. Leave D-010 and the other deviation statuses
+untouched. This explicit maintainer request authorizes the spec edit.
+
+Public API: clarify that only `InvalidDataError` is exported for data
+diagnostics; no code or behavior changes. No tests are added for this
+documentation step. Review the diff for internal consistency and run
+`git diff --check`. Overwrite `REVIEW.md` with the reading order, invariants,
+evidence and uncertainties. Commit this one step on `spec-deviations` and stop.
+
 # A2 constructor API migration — specification revision 9
 
 ## Pre-merge bookkeeping step (2026-09-30)

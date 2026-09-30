@@ -621,9 +621,9 @@ data.issues.raise_if_invalid()                      # explicit host-only checkpo
   `chronox_jax.InvalidDataError`, a subclass of `ValueError`, with counts and
   first offending indices. Call it outside transformations on concrete
   diagnostics, including results returned by compiled computations. Calling it
-  on traced diagnostics is unsupported and must fail explicitly; it must not
-  install a callback or silently do nothing. The exception type for that misuse
-  and the legacy `TracedInputError` lifecycle remain open (section 13).
+  on traced diagnostics raises a plain `ValueError` with a host-only message,
+  not `InvalidDataError`; it must not install a callback or silently do nothing.
+  `TracedInputError` is retired and is not part of the public API (section 13).
 - `data.issues` decodes the issue bitfield of any `SurvivalData`: freshly
   built data, slices and other indexing results, data returned from
   transformed functions, and data rebuilt from its leaves. It is pure and works
@@ -1131,7 +1131,8 @@ signatures of section 6.1 and result shapes.
 values. Migrate code that relied on that exception to construct data and then
 call `data.issues.raise_if_invalid()` explicitly on the host. Both ordinary
 forms now accept traced inputs. Use the `data.issues` property in place of the
-revision 7 `data.issues()` method spelling. Revision 9 removes
+revision 7 `data.issues()` method spelling; there is no callable compatibility
+alias. `TracedInputError` is retired and is not exported. Revision 9 removes
 `SurvivalData.with_issues(...)` and `SurvivalData.from_bounds_with_issues(...)`
 from the public API; replace their tuple unpacking with `SurvivalData(...)` or
 `SurvivalData.from_bounds(...)`, respectively, followed by
@@ -1493,7 +1494,7 @@ v0 support. Publication, remote setup and credentials are separate actions.
 ([notes/log_ndtr-precision.md](notes/log_ndtr-precision.md)); the log-normal
 requirement in section 4.1 already works around it.
 
-**Settled in drafting revisions 4, 6, 7, 8 and 9, open to user override** (revision
+**Settled in drafting revisions 4, 6, 7, 8, 9 and 10, open to user override** (revision
 4 items are listed in the disposition log): the treatment of full-coverage
 censored rows other than censoring strictly before entry (valid, flagged
 `uninformative`); the `_with_info` suffix and `data.issues` property name;
@@ -1501,13 +1502,13 @@ only ordinary observation constructors, with pure eager/traced construction
 and explicit host-only `InvalidDataError` checkpoints;
 `LogNormal(meanlog, sdlog)` naming; the `CensoringWeights` container.
 
-**Open after revision 8:** the lifecycle/export of the revision 7
-`TracedInputError` name, and the precise exception type for misuse of
-`raise_if_invalid()` on traced diagnostics. Ordinary traced construction must
-succeed regardless of this choice. No callable compatibility alias for the
-old `data.issues()` spelling is specified; whether to offer one remains open.
-These compatibility questions are recorded in `DEVIATIONS.md` D-006; they do
-not reopen the approved construction semantics or introduce new fit APIs.
+**Diagnostic compatibility decision (revision 10):** retire the revision 7
+`TracedInputError` name; do not export it. Ordinary traced construction succeeds.
+Calling `DataIssues.raise_if_invalid()` on traced diagnostics raises a plain
+`ValueError` with a host-only message, while invalid concrete diagnostics raise
+`InvalidDataError`. The decoder is the `data.issues` property only; there is no
+callable `data.issues()` compatibility alias. This resolves `DEVIATIONS.md`
+D-006 without changing the approved construction semantics.
 
 **Implementation work under the accepted contracts:** compatible version pins;
 stable family formulas and reference times; the synthetic fixture generators and
@@ -1558,6 +1559,9 @@ API. Both ordinary constructors return data eagerly and under transformations;
 all diagnostics use `data.issues`. Metadata wording, compatibility guidance and
 acceptance requirements now describe this single construction/diagnostic path.
 Implementation and independent acceptance tests are separate follow-up work.
+Revision 10 settles diagnostic compatibility after pure construction: retire
+`TracedInputError`, use a plain `ValueError` for traced host-checkpoint misuse,
+and provide no callable alias for `data.issues`.
 Later revisions should record new decisions in the disposition log or in the
 design notebook's decision records.
 
@@ -1566,9 +1570,11 @@ design notebook's decision records.
 Revision 4 changes are traced in [REVIEW-DISPOSITIONS.md](REVIEW-DISPOSITIONS.md).
 Revision 8 records the maintainer-approved pure-construction decision of
 2026-09-30 in sections 3.1–3.2, 6.1–6.2, 7.1, 10.2, 11.4 and 12.1–12.2;
-section 13 identifies the remaining compatibility questions.
+section 13 records the subsequent compatibility decision.
 Revision 9 records the maintainer's follow-up decision of 2026-09-30 to remove
 issue-returning constructor methods, in sections 3.2, 6.2, 10.2 and 12.1–12.2.
+Revision 10 records the maintainer's 2026-09-30 decision on D-006 diagnostic
+compatibility in sections 6.2, 10.2 and 13.
 The decision records behind revisions 1–3 (paths relative to `docs/design/`) remain
 the historical basis for the parts of this document the review did not change:
 

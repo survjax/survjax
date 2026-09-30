@@ -20,14 +20,13 @@
   construction and spells the diagnostic decoder `data.issues()`. Revision 8
   accepts traced construction and requires the `data.issues` property plus an
   explicit host-only `raise_if_invalid()` checkpoint.
-- Did / propose: remove the traced-construction rejection, without deciding
-  whether to retire or retain the legacy exception export or which exception
-  type to require for raising on traced diagnostics. The maintainer explicitly
-  requested leaving the exception lifecycle open on 2026-09-30. A callable
-  compatibility alias for `data.issues()` is also unspecified; this revision
-  requires only the property. Resolve these compatibility questions before
-  implementation/testing of the affected exception/alias surface.
-- Status: open
+- Decision: retire `TracedInputError` and do not export it. A call to
+  `DataIssues.raise_if_invalid()` on traced diagnostics raises a plain
+  `ValueError` with a host-only message, not `InvalidDataError`. Expose only
+  the `data.issues` property, without a callable `data.issues()` alias. The
+  maintainer approved these choices on 2026-09-30; specification revision 10
+  records them in sections 6.2, 10.2 and 13.
+- Status: resolved by maintainer, 2026-09-30; specification revision 10
 
 Entries are added by the implementer and resolved by the maintainer. Format:
 
