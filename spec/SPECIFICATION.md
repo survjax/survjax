@@ -1,19 +1,20 @@
 # Chronox v0: specification
 
-- **Revision:** 9, 2026-09-30. Only ordinary observation constructors;
-  diagnostics through `data.issues`. Removes the issue-returning convenience
-  methods retained in revision 8. Pure eager/traced construction and explicit
-  host validation remain (sections 6.2 and 10.2).
-- **Status:** Accepted design. Not implemented. Slice A may begin when the user
-  instructs implementation.
+- **Revision:** Performance amendment draft, 2026-09-30, based on `9a403a3`,
+  including revision 10 diagnostic compatibility. Assign the final revision
+  number when accepting this amendment alongside any concurrent changes.
+- **Status:** Draft for maintainer review. The base contract remains accepted
+  until this amendment is accepted. No performance or accelerator support is
+  claimed by this draft.
 - **Companions:** [GOALS.md](GOALS.md) (direction and priorities),
   [REVIEW-DISPOSITIONS.md](REVIEW-DISPOSITIONS.md) (how every review finding was
   settled and where it lands in this document), [claude-review.md](claude-review.md)
   (the review itself).
 
-This document is the normative contract for v0. It states *what* must hold; the
-disposition log records *why* and *when* it was decided. Process history and
-decision numbers from revisions 1–3 are kept only in section 15.
+Once accepted, this document is the normative contract for v0. It states
+*what* must hold; the disposition log records *why* and *when* it was decided.
+Process history and decision numbers from revisions 1–3 are kept only in
+section 15.
 
 **Implementation verification** means code and measurements must establish a
 stated property later. Acceptance of this design does not imply those checks
@@ -68,6 +69,16 @@ right or two-sided truncation may vary by individual. The custom-family
 interface and the generic numerical summaries are release requirements even
 though every built-in family has analytical summaries where they exist. Three
 runnable demos are required: classical, neural and Bayesian (section 11).
+
+**Performance priority.** Speed, memory efficiency and hardware acceleration
+are design goals, subject to the numerical guarantees. Initial effort focuses
+on repeated likelihood and gradient evaluation, then batched predictions across
+observations, parameter draws and time grids. Consider compilation cost and
+memory as well as warmed execution time. Sections 7.2, 10.3 and 12.3 make this
+operational without requiring every optimization in v0. Highly scalable metric
+algorithms and multi-device orchestration are deferred without a release-date
+commitment. Prefer established algorithms; measure before adding complexity or
+changing storage, numerical algorithms or public APIs for performance.
 
 **Outside v0** (deferrals, not additional commitments): exact events recorded
 at zero; general missing-observation, padding, mask and weight helpers (KM's `where=` mask in section 9.3 is the only
@@ -753,8 +764,27 @@ probability (censored rows) and `log Z`:
 
 When the static metadata (section 3.2) shows a piece is never needed (for
 example, no truncation, or only exact and right-censored rows), the evaluator
-may skip it at trace time. For the dominant case this avoids two to three times
-redundant work. Pruning is an optimization with identical results.
+may skip it at trace time. This can avoid redundant work in the dominant
+exact/right-censored, untruncated case; measure the benefit. Pruning remains an
+optimization with identical results, staged as in section 12.2. Traced
+construction retains all-true metadata under section 3.2; performance work must
+not substitute assumptions about observation values for those rules.
+
+Repeated compiled construction from traced inputs, diagnostic access, likelihood
+and gradient evaluation must stay on the caller-selected device, without
+library-induced host transfers, host callbacks or host synchronization. Initial
+input placement, concrete-input metadata computation and explicit host
+checkpoints are outside this compiled runtime path. Construction still records
+issues; only `data.issues.raise_if_invalid()` performs host-side raising for
+invalid observations. Performance changes must preserve sections 6.2 and 7.1:
+there is no unchecked construction path, and stored raw-input issues propagate
+to likelihood diagnostics even when normalized fields appear valid.
+
+Changing dynamic parameter or observation values must reuse compilation for the
+same compiled function and device when shapes, dtypes (including weak typing),
+PyTree structure and static configuration are unchanged. Different static
+metadata may compile separately; slices retain their parent's metadata. These
+requirements add no new specialization scheme, mutable cache or public API.
 
 Interval probabilities use stable log differences with tail selection and
 `log1mexp`/`expm1` identities. Built-ins override: for a finite exponential
@@ -964,10 +994,23 @@ C = (concordant + 0.5 * tied_score) / comparable
 
 No comparable pairs gives NaN. `ConcordanceInfo` holds concordant, discordant,
 tied-score and comparable counts plus invalid, unsupported and
-no-comparable-pair masks. Algorithm: a JAX loop comparing one row with the
-cohort, O(N²) work and O(N) workspace per batch entry. Cross-check against R
+no-comparable-pair masks. An initial implementation may use a JAX loop
+comparing one row with the cohort, O(N²) work and O(N) workspace per batch
+entry. Document the implemented complexity; do not allocate an N-by-N pair
+matrix. A faster implementation may follow an established algorithm while
+preserving these semantics, but is not a v0 requirement. R's
+[concordance documentation](https://www.stat.ethz.ch/R-manual/R-devel/library/survival/html/concordance.html)
+describes an O(N log N) approach. Cross-check against
 `survival::concordance(..., reverse = TRUE, timewt = "n")`, documenting any
 convention difference.
+
+The function computes exact concordance over all supplied observations. For
+approximate evaluation of a larger cohort, callers may select random subsets
+explicitly. Report subset size and seed, use the same subsets when comparing
+models, and assess sensitivity to subset selection when needed. A subset result
+is not guaranteed to match full-cohort concordance; variation across repeated
+subsets is not itself a population confidence interval. No automatic subsampling
+or new approximation API is required.
 
 | Data | Scores | Result |
 | --- | --- | --- |
@@ -1173,6 +1216,31 @@ Slice A; check wheel and source archive before release. Add one Linux CPU CI job
 when a remote exists. **Regular tests and CI never need network, R or locally
 acquired data**: every fixture they use is committed. Coverage identifies gaps;
 it is not a target.
+
+**Execution platforms.** The locked CPU environment remains the required
+correctness reference in float32 and float64. Local development may use macOS
+on Apple silicon; the Linux CPU CI requirement above remains. GPU environments
+are separate, optional verification environments and do not add core dependencies
+or make regular tests require accelerator hardware.
+
+- Apple GPU through JAX Metal is an experimental float32 target. Apple's
+  [support notes](https://developer.apple.com/metal/jax/) list incomplete JAX
+  coverage and no float64 support (checked 2026-09-29). Record the actual tested
+  configuration and limitations; backend gaps do not weaken the CPU contract
+  or block v0.
+- Linux/NVIDIA CUDA verification may use an on-demand GPU machine, including an
+  optional first check near the end of Slice A. It is not a Slice A or v0 gate.
+  Record a compatible driver and pinned JAX/CUDA environment following the
+  [JAX installation guidance](https://docs.jax.dev/en/latest/installation.html).
+- AMD GPU and multi-device execution have no v0 verification commitment.
+
+Advertise accelerator support only for configurations and operations with
+recorded evidence. Confirm actual GPU execution rather than CPU fallback; run
+applicable numerical and transformation checks in each supported dtype, and
+record failures and untested paths. Linux/NVIDIA support requires both float32
+and float64 evidence. Recheck before releases claiming that support and after
+relevant numerical or dependency changes; an on-demand check is sufficient.
+Keep compatibility evidence distinct from measured speedups (section 12.3).
 
 ### 10.4 Data and fixture handling
 
@@ -1464,6 +1532,7 @@ These are acceptance criteria, not claims of passing tests.
 | Extension and install | out-of-tree custom family; installed wheel and source archive; public exports and type marker; core imports without demo dependencies |
 | End-to-end | classical demo targets; neural training and held-out metrics; Bayesian wiring, diagnostics and posterior predictive check; recorded environments |
 | Simulation guidance | compiled ordinary construction followed by an external Newton solve of the likelihood gradient exercises second derivatives; distinguish data validity, estimate existence and solver failure; demonstrate fit skipping and retained reasons/keys, pilot summaries for every scenario and continuation policy; optimizer remains optional and outside core; executable recipe validation is separate implementation work |
+| Performance | recorded CPU baseline and compilation reuse as specified in section 12.3, covering prepared data and ordinary traced construction; accelerator claims require the configuration-specific evidence of section 10.3 |
 
 Ordinary finite-value targets: `atol=1e-10, rtol=1e-8` (float64) and
 `atol=1e-5, rtol=1e-4` (float32) on representative domains. Derivative and tail
@@ -1475,7 +1544,7 @@ bounds.
 
 | Slice | Deliverable | Completion gate |
 | --- | --- | --- |
-| A | Installable package; `SurvivalData` (both pure ordinary constructors, all v0 kinds representable, dtype policy, issue bitfield, indexing, static metadata) and `data.issues` / `DataIssues` with explicit host raising; exponential and Weibull exact/right likelihoods without truncation; direct-method policy; survival grids; core extension interface (`register_family`, `log_survival` + `reference_time`, autodiff `log_prob` default); result containers | Construction, data diagnostics/metadata and stored-input-issue requirements of section 12.1; evaluation and shape checks; first and second derivatives; stable tails; boundary cases; independent math fixtures; committed synthetic `bc`-like per-row R fixtures; eager `jax_debug_nans` run; wheel smoke test; a tiny synthetic example |
+| A | Installable package; `SurvivalData` (both pure ordinary constructors, all v0 kinds representable, dtype policy, issue bitfield, indexing, static metadata) and `data.issues` / `DataIssues` with explicit host raising; exponential and Weibull exact/right likelihoods without truncation; direct-method policy; survival grids; core extension interface (`register_family`, `log_survival` + `reference_time`, autodiff `log_prob` default); result containers | Construction, data diagnostics/metadata and stored-input-issue requirements of section 12.1; evaluation and shape checks; first and second derivatives; stable tails; boundary cases; independent math fixtures; committed synthetic `bc`-like per-row R fixtures; eager `jax_debug_nans` run; wheel smoke test; a tiny synthetic example; recorded CPU performance baseline (section 12.3) |
 | B | Left and interval censoring; all truncation combinations; `log_conditional_interval_prob` hook; static-metadata pruning | Full likelihood matrix and diagnostics; cross-kind property tests; synthetic flexsurv fixtures for every kind; transformed derivatives |
 | C | Classical demo: external BFGS fit and `bc` reproduction, with analytical summaries as needed | The checks and targets of section 11.1, including the independent optimum check |
 | D | Log-normal and log-logistic families; `HazardFamily`; PH and AFT wrappers; analytical and generic summaries (quadrature, solver, derivative rules); sampling including truncation; `check_family`; extension recipes | Summary convergence, failure and derivative checks; wrapper identities; sampling agreement and distribution tests |
@@ -1487,6 +1556,50 @@ and unimplemented observation modes fail explicitly instead of producing
 plausible values. The data representation accommodates every v0 kind from the
 start. Later slices need their own evidence; passing A is not evidence of full
 v0 support. Publication, remote setup and credentials are separate actions.
+
+### 12.3 Performance evidence
+
+Slice A includes a small reproducible CPU benchmark using fixed-seed synthetic
+data, with float32 and float64 in separate processes. Measure exponential and
+Weibull exact/right-censored likelihoods without truncation, including the
+compiled summed objective and its parameter gradient. Use a few observation
+sizes (for example, 1,000, 10,000 and 100,000) and representative shared and
+per-observation parameters to expose overhead and growth with batch size.
+
+- Measure repeated evaluation with prepared `SurvivalData` separately from an
+  ordinary constructor inside `jit` followed by diagnostic access and evaluation.
+  The latter consumes traced observation arrays and retains all-true metadata;
+  record this distinction when comparing timings. Return or consume the
+  diagnostics being timed so that work is not removed as unused. Keep required
+  validation and stored-issue propagation in both paths. A full simulation or
+  optimizer run is not required for this Slice A baseline.
+- Record hardware, OS, Python/JAX versions, dtype, shapes, seed, repetition count
+  and commands. Separate compilation/first-call cost from warmed execution;
+  wait for all measured outputs to finish. Report data preparation and transfer
+  costs separately from evaluation with data already on the selected device.
+- Check compilation reuse under the conditions in section 7.2, including
+  changed dynamic values and same-shaped minibatches from one parent dataset.
+- Record input/output sizes and peak memory where tooling permits, stating the
+  measurement method or that peak memory was not measured. Array sizes alone
+  are not evidence of peak memory use. Compare equivalent work at the same
+  dtype and accuracy when reporting overhead or speedups.
+- Review timings and memory growth alongside correctness. Investigate material
+  regressions against recorded baselines; document unresolved limitations.
+  There is initially no fixed speed threshold, required speedup or timing gate
+  in ordinary CI, and no new benchmark dependency is required.
+
+Extend the small benchmark with representative draw batches and prediction
+grids as they become available before v0. When profiling the simulation recipe
+of section 11.4, measure the chosen mapping and fit-skipping behavior together:
+`vmap` is not a performance requirement and must not be assumed to skip inactive
+fits. Preserve issue records, estimability checks and solver failure outcomes.
+Profile summaries or metrics when measurements identify a need; no exhaustive
+performance matrix is required. Parameter-storage changes, new chunking/masking
+APIs, solver and quadrature optimizations, and scalable metric algorithms remain
+measurement-led future choices. Settle and test the handling of short final
+minibatches in the neural example before considering a new padding API. Numerical
+guarantees and the rule against hiding invalid rows by multiplying by zero still
+apply.
 
 ## 13. Open items and implementation work
 
@@ -1564,6 +1677,14 @@ Revision 10 settles diagnostic compatibility after pure construction: retire
 and provide no callable alias for `data.issues`.
 Later revisions should record new decisions in the disposition log or in the
 design notebook's decision records.
+
+The performance amendment (draft 2026-09-30) adapts the earlier performance
+proposal to pure ordinary construction, the `data.issues` property, stored-issue
+propagation and conservative traced metadata. It proposes a small CPU baseline
+from Slice A, evidence-based accelerator claims and optional scalable
+concordance work. The statistical API, simulation workflow and numerical
+contracts remain intact. Assign the final revision number on acceptance; this
+draft supplies no implementation measurements.
 
 ## 15. Decision traceability
 

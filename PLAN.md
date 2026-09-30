@@ -80,3 +80,25 @@ failure for unimplemented observation modes. Neither is part of this step.
 The traced host-checkpoint exception subtype and legacy diagnostic compatibility
 remain open in spec section 13 and `DEVIATIONS.md`. This step preserves the
 existing traced-checkpoint failure and does not introduce a callable alias.
+
+## Performance amendment on `spec-speed` (2026-09-30)
+
+The maintainer requests adapting the earlier performance draft to the current
+specification at `9a403a3`, including revision 10 diagnostic compatibility.
+This authorizes edits to the normally read-only specification and goals.
+
+- Update `spec/GOALS.md` with speed, memory efficiency and acceleration.
+- Update `spec/SPECIFICATION.md` sections 1, 7.2, 9.2, 10.3, 12 and 14:
+  retain pure ordinary construction, `data.issues`, stored-issue propagation,
+  conservative traced metadata and simulation fit-skipping semantics. Measure
+  prepared-data evaluation and traced construction separately. Keep GPU checks
+  and scalable metric algorithms optional, with a small CPU baseline in Slice A.
+- Leave the final amendment revision number for acceptance: the current header
+  says revision 9 while the history includes revision 10. No API changes,
+  implementation edits, new dependencies or changes to independent tests.
+- Overwrite `REVIEW.md` with reasoning, reading order, preserved contracts,
+  documentation checks and unmeasured performance requirements.
+- Checks: whitespace, Markdown/section references, allowed diff scope and exact
+  preservation of unrelated statistical/API sections and example code. Runtime
+  tests and benchmarks are not run for this documentation-only step.
+- Commit this one documentation step on `spec-speed`; do not merge or publish.

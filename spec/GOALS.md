@@ -52,6 +52,11 @@ architectures belong to other libraries.
 ## Quality goals
 
 - Careful numerical behavior in tails, narrow intervals, and boundary cases.
+- Fast, memory-efficient calculations that exploit JAX compilation, batching and
+  hardware acceleration while preserving the numerical guarantees. Treat speed
+  and scaling across observations, parameter draws and prediction times as
+  design priorities throughout development, beginning with repeated likelihood
+  and gradient evaluation. Establish performance through measurements.
 - Differentiable likelihoods, predictions and summaries that work with JAX
   transformations, including derivatives of numerical summaries and
   reparameterized sampling.
