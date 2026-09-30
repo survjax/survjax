@@ -83,7 +83,7 @@ the schedule they provide; do not infer numbered steps from spec 12.2.
 ## Test conventions
 
 - One behaviour per test, named for the behaviour, docstring gives spec section
-  and the spec revision it derives from: `"""spec 3.3, rev 4: ..."""`.
+  and the spec revision it derives from: `"""spec 3.3, rev 4: <R> (R is the revision in the spec header)"""`.
 - Mark every test with its step: `@pytest.mark.step("A2")`.
 - Prefer several small explicit cases to a large parametrised blob that hides
   which case failed.
