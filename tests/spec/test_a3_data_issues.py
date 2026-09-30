@@ -710,6 +710,13 @@ def test_invalid_data_error_is_a_public_value_error():
     assert issubclass(cx.InvalidDataError, ValueError)
 
 
+@pytest.mark.step("A3")
+def test_traced_input_error_is_retired():
+    """spec 10.2/13, rev 10: `TracedInputError` is retired and is not exported."""
+    assert not hasattr(cx, "TracedInputError")
+    assert "TracedInputError" not in getattr(cx, "__all__", ())
+
+
 
 
 

@@ -123,21 +123,21 @@ on it. Guessed exception types and call shapes are centralised in
 - **Depends:** the `ok` tests and diagnostic helpers in A3.
 ## Q-012: traced ordinary construction and checkpoint misuse
 
-- **Checked:** 3.2, 6.2 and 13, revision 9.
-- **Resolved:** both ordinary constructors accept traced observation inputs;
-  the old `TracedInputError` rejection requirement is superseded. Calling
-  `raise_if_invalid()` on traced diagnostics must fail explicitly.
-- **Open:** the exception type for that misuse and the export lifecycle of
-  `TracedInputError` are unspecified. Tests assert explicit failure without
-  choosing a subtype, and do not require or reject the legacy export.
-- **Depends:** `test_traced_diagnostics_cannot_raise_at_host_checkpoint` in
-  `test_a3_tracing.py`; no test depends on the legacy name.
+- **Checked:** 3.2, 6.2, 10.2 and 13, revision 10.
+- **Resolved:** both ordinary constructors accept traced observation inputs.
+  Calling `raise_if_invalid()` on traced diagnostics raises a plain
+  `ValueError`, not `InvalidDataError`. `TracedInputError` is retired and not
+  exported (revision 10 resolves D-006).
+- **Depends:** `test_traced_diagnostics_cannot_raise_at_host_checkpoint`,
+  `test_traced_invalid_diagnostics_misuse_is_not_invalid_data_error`,
+  `test_traced_input_error_is_retired`.
 ## Q-013: decoding the bitfield of an existing SurvivalData
 
-- **Checked:** 3.2 and 6.2, revision 9.
+- **Checked:** 3.2, 6.2 and 13, revision 10.
 - **Resolved:** the `data.issues` property decodes diagnostics on constructed,
-  indexed, rebuilt and transformed data. The old callable spelling is
-  superseded; no test requires or forbids a compatibility alias.
+  indexed, rebuilt and transformed data. Revision 10 rules out a callable
+  `data.issues()` alias; `test_issues_has_no_callable_alias` checks that
+  calling it raises `TypeError` (Python's error for calling a non-callable).
 - **Depends:** `test_a3_issue_decoding.py` and the A2 issue checks.
 ## Q-014: observing static metadata
 
@@ -183,3 +183,18 @@ on it. Guessed exception types and call shapes are centralised in
 - **Guess:** the required count and first offending index appear as decimal
   integers in `str(InvalidDataError)`. No words or punctuation are asserted.
 - **Depends:** `test_host_checkpoint_reports_count_and_first_offending_index`.
+
+## Q-018: observing host callbacks and transfers (spec 7.2, performance draft)
+
+- **Checked:** 7.2, 12.3 (performance amendment draft).
+- **Guess:** "no host callbacks" is observable as no primitive whose name
+  contains `callback` in the jaxpr of compiled construction plus `data.issues`
+  (covers `pure_callback`, `io_callback`, `debug_callback`); "no host
+  transfers" is observable as a warmed jitted call on device-resident inputs
+  succeeding under `jax.transfer_guard("disallow")`. Both rely on JAX
+  behaviour rather than a Chronox name.
+- **Open:** these requirements come from a draft amendment the maintainer has
+  not accepted; drop or retag the tests if it changes.
+- **Depends:** `test_compiled_construction_and_diagnostics_install_no_host_callback`,
+  `test_warm_compiled_construction_and_diagnostics_make_no_host_transfer`,
+  `test_compiled_construction_reuses_compilation_for_new_observation_values`.
