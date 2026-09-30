@@ -123,7 +123,7 @@ Entries are added by the implementer and resolved by the maintainer. Format:
   incompatible shapes still cannot form an object and raise.
 - Status: resolved by maintainer, 2026-09-28; specification revision 5
 
-## D-006 `event` combined with flags in `with_issues`
+## D-011 `event` combined with flags in `with_issues`
 - Step: A2 independent-review fix-up
 - Spec: sections 3.1, 6.1, and 6.2
 - Spec says: `event` together with any non-None censoring flag is rejected;
@@ -135,7 +135,9 @@ Entries are added by the implementer and resolved by the maintainer. Format:
   `TypeError` in both paths in conversation on 2026-09-29, reserving the bit
   for row-wise conflicts between true flags. Implement this in the A2 review
   fix-up; the entry remains formally open for maintainer resolution.
-- Status: open
+- Status: open; superseded by specification revision 9, which requires
+  `TypeError` when `event` is combined with any non-None censoring flag.
+  Awaiting maintainer closure.
 
 ## D-007 Concrete observation inputs captured inside `jit`
 - Step: A2 independent-review fix-up
@@ -149,7 +151,9 @@ Entries are added by the implementer and resolved by the maintainer. Format:
   The reviewer recommends checking inputs for tracers and evaluating fully
   concrete construction under `jax.ensure_compile_time_eval()`. Await
   maintainer decision before changing this behavior.
-- Status: open
+- Status: open; superseded by specification revision 9, which requires both
+  ordinary constructors to accept traced and concrete inputs inside `jit`.
+  Awaiting maintainer closure.
 
 ## D-008 Pure bounds constructor name and signature
 - Step: A2 independent-review fix-up
@@ -162,7 +166,9 @@ Entries are added by the implementer and resolved by the maintainer. Format:
   need to be placed in the normative spec. A possible form is
   `SurvivalData.from_bounds_with_issues(...)`. The maintainer will update the
   spec before adding a public method (conversation, 2026-09-29).
-- Status: open
+- Status: open; superseded by specification revision 9, which makes
+  `from_bounds` the pure bounds constructor and removes issue-returning
+  constructor methods. Awaiting maintainer closure.
 
 ## D-009 Unsupported outside-interval keyword in `from_bounds`
 - Step: A2 independent-review fix-up
@@ -174,4 +180,6 @@ Entries are added by the implementer and resolved by the maintainer. Format:
 - Did / propose: `from_bounds(..., outside_interval_censored=...)` currently
   raises Python's `TypeError`. The maintainer will update the spec before a
   change to this behavior (conversation, 2026-09-29).
-- Status: open
+- Status: open; superseded by specification revision 9, whose constructor
+  signatures reject the unsupported keyword with `TypeError`. Awaiting
+  maintainer closure.

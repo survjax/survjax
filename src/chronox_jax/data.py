@@ -107,7 +107,9 @@ class SurvivalData:
         for right censoring and ``lower=0`` for left censoring. Mark exact
         rows with ``exact=True``: their event time is ``lower``, and their
         supplied ``upper`` may equal ``lower`` or be NaN. The stored upper
-        then becomes ``lower``. Equal endpoints alone do not mark an event.
+        then becomes ``lower``. Equal endpoints alone do not mark an event:
+        without ``exact=True``, they set ``data.issues.invalid_interval``.
+        Construction still returns data; explicit host validation raises.
 
         ``lower`` fixes the observation shape; other inputs must broadcast
         to it without enlargement. Omitted ``left_trunc`` and

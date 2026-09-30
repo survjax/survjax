@@ -1,5 +1,21 @@
 # A2 constructor API migration — specification revision 9
 
+## Pre-merge bookkeeping step (2026-09-30)
+
+The maintainer requests a clarification of the non-exact equal-endpoint case
+and cleanup of deviation IDs/statuses. Change only the `from_bounds` docstring
+in `src/chronox_jax/data.py`, the branch D-006 references in
+`src/chronox_jax/_data_validation.py` and
+`tests/unit/test_data_construction.py`, and `DEVIATIONS.md`. Rename the branch
+D-006 to D-011 and mark D-011, D-007, D-008 and D-009 as superseded by
+revision 9, leaving final closure to the maintainer. Update `REVIEW.md` and
+commit this small step on `a2-constructors`.
+
+Public API: unchanged. Spec: sections 3.1, 6.2 and 13. Tests: the existing
+independent A2 equal-endpoint acceptance cases and the full A2 gate; no new
+test is needed for a docstring and bookkeeping change. Do not edit the
+read-only specification or independent tests.
+
 Branch: `a2-constructors`. A2-R1 exception alignment was committed as
 `c6ef7e3`. The maintainer's 2026-09-30 request authorizes the remaining
 constructor API migration: remove issue-returning constructor methods, accept

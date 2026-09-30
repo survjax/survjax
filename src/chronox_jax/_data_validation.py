@@ -221,7 +221,7 @@ def flag_fields(
     if event is not None and any(
         flag is not None for flag in (right_censored, left_censored, interval_censored)
     ):
-        # spec 3.1 / D-006: argument-presence conflict is static misuse.
+        # spec 3.1 / D-011: argument-presence conflict is static misuse.
         raise TypeError("event cannot be combined with censoring flags")
     common = time_dtype(
         {

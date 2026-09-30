@@ -25,7 +25,7 @@ def test_nan_and_fractional_event_codes_set_invalid_indicator() -> None:
 
 
 def test_event_and_supplied_false_flag_raise_type_error() -> None:
-    """Spec 3.1 / D-006: argument-presence conflict is static misuse."""
+    """Spec 3.1 / D-011: argument-presence conflict is static misuse."""
     with pytest.raises(TypeError, match="event cannot be combined"):
         SurvivalData([1.0, 2.0], [1, 0], left_censored=[False, False])
 
