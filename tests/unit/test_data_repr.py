@@ -1,7 +1,7 @@
 """Readable reprs for SurvivalData and DataIssues.
 
 Expected strings are written by hand from the documented notation: exact
-``t``, right censoring ``t+``, other censored rows ``(lower, upper]``, and a
+``t``, every censored row as its set ``(lower, upper]``, and a
 ``window`` column for non-default truncation.
 """
 
@@ -33,7 +33,7 @@ def test_repr_shows_each_observation_kind(float_name: str) -> None:
         [
             f"SurvivalData: 4 observations, {float_name}",
             "  0  4",
-            "  1  12+",
+            "  1  (12, inf]",
             "  2  (0, 3]",
             "  3  (6, 9]",
         ]
@@ -65,7 +65,7 @@ def test_repr_footer_counts_invalid_and_uninformative_rows(float_name: str) -> N
         [
             f"SurvivalData: 2 observations, {float_name}",
             "  0  (5, 5]",
-            "  1  0+",
+            "  1  (0, inf]",
             "issues: 1 invalid row, 1 uninformative (see .issues)",
         ]
     )
@@ -93,7 +93,7 @@ def test_repr_labels_two_dimensional_rows(float_name: str) -> None:
             f"SurvivalData: 4 observations, shape (2, 2), {float_name}",
             "  (0, 0)  1",
             "  (0, 1)  (0, 4]",
-            "  (1, 0)  2+",
+            "  (1, 0)  (2, inf]",
             "  (1, 1)  (3, 5]",
         ]
     )

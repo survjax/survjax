@@ -23,11 +23,9 @@ _REPR_TAIL_ROWS = 5
 
 
 def _observation_text(exact: bool, lower: float, upper: float) -> str:
-    """R-like ``4`` and ``12+``; every other censored row as its set ``(l, u]``."""
+    """An exact time ``4``, or a censored row's stored set ``(lower, upper]``."""
     if exact:
         return f"{lower:g}"
-    if np.isposinf(upper) and np.isfinite(lower):
-        return f"{lower:g}+"
     return f"({lower:g}, {upper:g}]"
 
 

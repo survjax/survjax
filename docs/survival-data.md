@@ -39,8 +39,9 @@ data = cx.SurvivalData([4.0, 12.0, 7.0, 9.0], [1, 0, 1, 0])
 data
 ```
 
-The printout uses R's notation: `4` is an event at month 4 and `12+` means
-"later than month 12". Without a status, every row is an exact event.
+In the printout, `4` is an event at month 4. `(12, inf]` is the set of
+possible event times for patient 2: later than month 12, with no upper limit.
+R would print it as `12+`. Without a status, every row is an exact event.
 
 Behind the printout, Chronox stores every observation as a set of possible
 event times, in the fields `exact`, `lower` and `upper`. An exact event has
@@ -181,8 +182,8 @@ bad
 
 Rows are numbered from 0, so record 1 is row 0. `bad.issues` lists each
 rule that fails, with the number of rows and the first one. Record 5 is not
-invalid. It rules nothing out (`0+` means "any
-time after 0"), so it carries no information about when progression happens.
+invalid. Its set `(0, inf]` rules nothing out, so it carries no information
+about when progression happens.
 Chronox lists it as `uninformative`, but not as an error:
 
 ```{code-cell} ipython3

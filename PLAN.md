@@ -1,3 +1,14 @@
+# DOC-4 review fix-ups (2026-10-01)
+
+Maintainer review of `1a15813`: print right censoring as its set
+`(time, inf]` instead of `time+` (all censored rows now print as sets), and
+make `docs/playground.ipynb` more informative. Extra commit on
+`docs-startup`. Playground: short explanations between cells, the guide's
+cohort (every censoring kind, truncation), stored fields, bad data with
+`data.issues` and the host checkpoint (printed, so "Run all" completes),
+`jax.jit`, and suggestions to try. No asserts, no saved outputs. Keep the
+maintainer's `data` cell. Update repr tests and guide prose accordingly.
+
 # Step DOC-4: readable reprs for SurvivalData and DataIssues (2026-10-01)
 
 Requested by the maintainer after DOC-3 ("make a nice repr for SurvivalData
