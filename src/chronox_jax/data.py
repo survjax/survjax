@@ -1,6 +1,6 @@
 """Normalized survival observations (spec 3.1–3.3)."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import jax
 import jax.numpy as jnp
@@ -31,9 +31,10 @@ class SurvivalData:
     upper: jax.Array
     left_trunc: jax.Array
     right_trunc: jax.Array
-    _issue_bits: jax.Array
+    # spec 3.2: private fields stay out of the repr; diagnostics use `issues`.
+    _issue_bits: jax.Array = field(repr=False)
     # spec 3.2: exact, right, left, interval, left truncation, right truncation.
-    _may_contain: tuple[bool, bool, bool, bool, bool, bool]
+    _may_contain: tuple[bool, bool, bool, bool, bool, bool] = field(repr=False)
 
     def __init__(
         self,

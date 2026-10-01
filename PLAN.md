@@ -1,3 +1,64 @@
+# Step DOC-3: tutorial-style SurvivalData docs and a clean repr (2026-10-01)
+
+Approved by the maintainer after reviewing DOC-2 (`726e561`): the guide reads
+like a unit test, not a tutorial. One step, one commit, on a
+maintainer-created branch (the worktree is a detached HEAD at `docs-startup`).
+Spec sections: 3.1-3.3, 6.2, 10.5.
+
+## Repr
+
+- `src/chronox_jax/data.py`: declare `_issue_bits` and `_may_contain` with
+  `dataclasses.field(repr=False)`, so the repr shows only the five public
+  arrays (spec 3.2 keeps the others private). No summary repr. `DataIssues`
+  is unchanged. Pytree flattening and `__init__` are unchanged.
+- `tests/unit/test_data_repr.py`: the eager repr names the five public
+  fields and omits the private ones; `repr` of data built inside `jax.jit`
+  does not raise and omits them; `jax.tree_util.tree_leaves` still gives six
+  leaves.
+
+## Docs: rewrite `docs/survival-data.md` as a tutorial
+
+Keep the facts of DOC-2; change the form.
+
+- Open with a short note: what works now (construction, diagnostics) and what
+  doesn't yet (likelihoods). No closing scope section.
+- Use one running synthetic story: a small cohort (about six patients,
+  follow-up in months) built up section by section. Each section answers a
+  reader task: "time and status, as in R"; "the event happened between two
+  visits"; "known only to have occurred before the first visit"; "patients
+  entered late (truncation)"; "finding bad rows"; "inside `jax.jit`".
+- Show results instead of asserting them: end cells with the displayed value
+  (`data`, `data.upper`, `data.issues.invalid_rows`). Use asserts only where a
+  silent check helps the reader, if at all. The build failing on execution
+  errors is the executable check (spec 10.5).
+- Show real errors: call `raise_if_invalid()` and the misuse examples in cells
+  tagged `raises-exception`, so the rendered page shows the message. No
+  `try/except/else: raise AssertionError` scaffolding.
+- Explain why before how: a sentence or two on what each censoring kind means
+  for the patient before the call that encodes it. Introduce the normalized
+  fields when the first output shows them, not as an opening list of rules.
+- Present the R comparison as a table (`Surv(...)` call next to the Chronox
+  call, plus a notes column). Re-check each claim against the official `Surv`
+  help page. In particular, the "(start, end]" wording there may refer to
+  counting-process data, not interval censoring; drop the claim unless the
+  page supports it.
+- Dtype behavior: one short section with a single example, not a test of both
+  modes.
+
+`docs/playground.ipynb`: remove the empty trailing cell and reset the
+kernelspec and `language_info` metadata to the DOC-1 minimal form. Keep the
+maintainer's `data` cell, which now shows the clean repr. Have it follow the
+same cohort as the guide, without asserts. `docs/index.md`: update the guide's
+one-line description if needed.
+
+## Checks and review
+
+`scripts/build_docs.sh` (both dtype modes), `scripts/check.sh --through A2`,
+`git diff --check`. Read the rendered x64 guide end to end and report in
+`REVIEW.md` whether every output shown matches its surrounding prose. The
+guide rewrite replaces most of a 176-line page, so the diff may exceed about
+300 lines. If it does, say so in `REVIEW.md` rather than splitting the step.
+
 # Documentation startup on `docs-startup` (2026-09-30)
 
 The maintainer requested two separate tasks following specification section

@@ -5,8 +5,8 @@ provides `SurvivalData` construction, normalization, dtype handling and data
 diagnostics. Indexing, likelihoods, distributions and evaluation are planned;
 the Slice A completion gate has not yet been met.
 
-The [SurvivalData guide](survival-data.md) explains the two constructors,
-diagnostics and R input conventions. The [playground](playground.ipynb) uses
+The [SurvivalData guide](survival-data.md) walks a synthetic cohort through
+both constructors, diagnostics and R input conventions. The [playground](playground.ipynb) uses
 only synthetic observations and the current public API. Runnable examples
 execute afresh when the site is built.
 

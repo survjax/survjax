@@ -7,170 +7,248 @@ kernelspec:
   name: python3
 ---
 
-# Constructing survival observations
+# Describing survival observations
 
-`chronox_jax.SurvivalData` currently constructs and diagnoses observations.
-The normalized fields have the observation shape: `exact` (boolean), `lower`,
-`upper`, `left_trunc` and `right_trunc`. Exact events store the time in both
-`lower` and `upper`; right censoring stores `upper=+inf`; left censoring stores
-`lower=0`. Missing truncation bounds become `0` and `+inf`. The first time
-argument fixes the shape; other inputs may broadcast to it without enlarging
-it. Times and bounds share a floating dtype, at least float32.
+```{note}
+Chronox can currently build and check survival observations with
+`SurvivalData`. Likelihoods, distributions and evaluation are not implemented
+yet, so this page stops once the data are described.
+```
 
-## Event status and explicit flags
+This page follows a small synthetic cohort of six patients. Time is months
+since diagnosis and the event is disease progression. Each section adds
+something we know (or don't know) about a patient and shows how to write it
+down.
 
-The second positional argument is event status: `1` or `True` means an exact
-event, and `0` or `False` means right censoring. Omitting status and all flags
-marks every row exact. Explicit flags allow all four kinds in one array. A row
-with no flag is exact; at most one flag may be true on a row. `time2` supplies
-only an interval row's upper endpoint. Values on other rows are ignored.
+## Time and status, as in R
+
+For the first four patients, follow-up went as usual. Patients 1 and 3
+progressed at months 4 and 7. Patients 2 and 4 had not progressed when we
+last saw them at months 12 and 9. Their event time is only known to be later
+than that: they are *right censored*.
+
+As in R's `Surv(time, status)`, pass the times and a status of 1 for an event
+and 0 for censoring.
 
 ```{code-cell} ipython3
 import jax
 import jax.numpy as jnp
 import chronox_jax as cx
 
-status = cx.SurvivalData([2.0, 3.0], [1, 0])
-assert status.exact.tolist() == [True, False]
-assert status.lower.tolist() == [2.0, 3.0]
-assert status.upper[0] == 2.0 and jnp.isposinf(status.upper[1])
-assert bool(status.issues.ok)
+data = cx.SurvivalData([4.0, 12.0, 7.0, 9.0], [1, 0, 1, 0])
+data
+```
 
-mixed = cx.SurvivalData(
-    [2.0, 3.0, 4.0, 5.0],
-    right_censored=[False, True, False, False],
-    left_censored=[False, False, True, False],
-    interval_censored=[False, False, False, True],
-    time2=[jnp.nan, jnp.nan, jnp.nan, 7.0],
+Chronox stores every observation as a set of possible event times. An exact
+event has `exact=True` and `lower == upper`. A censored row says the event
+happened after `lower` and at or before `upper`; right censoring has
+`upper=inf`. The `left_trunc` and `right_trunc` fields are covered in the
+truncation section below. Here they are at their defaults of 0 and `inf`.
+Without a status, every row is an exact event.
+
+## The event happened between two visits
+
+Patient 5 had a clear scan at month 6 and showed progression at month 9.
+Progression happened sometime after month 6 and no later than month 9: the
+observation is *interval censored*.
+
+A single status column cannot say this, so use keyword flags instead. A row
+with every flag false is an exact event. `time` holds the start of the
+interval and `time2` its end. `time2` is read only on interval-censored rows,
+so the other rows can hold anything, here `nan`.
+
+```{code-cell} ipython3
+nan = jnp.nan
+data = cx.SurvivalData(
+    [4.0, 12.0, 7.0, 9.0, 6.0],
+    right_censored=[False, True, False, True, False],
+    interval_censored=[False, False, False, False, True],
+    time2=[nan, nan, nan, nan, 9.0],
 )
-assert mixed.exact.tolist() == [True, False, False, False]
-assert mixed.lower.tolist() == [2.0, 3.0, 0.0, 5.0]
-assert mixed.upper[0] == 2.0 and jnp.isposinf(mixed.upper[1])
-assert mixed.upper[2:].tolist() == [4.0, 7.0]
-assert bool(mixed.issues.ok)
+data.lower, data.upper
 ```
 
-## Bounds and truncation
+The interval row stores `lower=6`, `upper=9`. Like R, Chronox treats the
+interval as open on the left and closed on the right, `(6, 9]`.
 
-`from_bounds` describes a censored row as `lower < T <= upper`. Use `+inf` for
-an unbounded upper endpoint and `0` for a left-censored lower endpoint. Mark
-exact events explicitly with `exact=True`: their supplied upper endpoint must
-equal lower or be NaN. A NaN exact upper normalizes to lower. Equal endpoints
-*without* the exact flag are invalid, never reclassified as an event.
+## Known only to have occurred before the first visit
 
-`left_trunc` and `right_trunc` encode the eligibility window `(L,U]` and may
-vary by row. The normalized defaults are `L=0`, `U=+inf`. Exact times must be
-finite and strictly positive; censored lower endpoints may be zero.
+Patient 6 already showed progression at the first scan at month 3. All we
+know is that progression happened at or before month 3: the observation is
+*left censored*. Its stored lower bound is 0.
 
 ```{code-cell} ipython3
-bounds = cx.SurvivalData.from_bounds(
-    [2.0, 3.0, 0.0, 5.0],
-    [jnp.nan, jnp.inf, 4.0, 7.0],
-    exact=[True, False, False, False],
-    left_trunc=[0.0, 1.0, 0.0, 1.0],
-    right_trunc=[jnp.inf, jnp.inf, 6.0, 9.0],
+cohort = cx.SurvivalData(
+    [4.0, 12.0, 7.0, 9.0, 6.0, 3.0],
+    right_censored=[False, True, False, True, False, False],
+    left_censored=[False, False, False, False, False, True],
+    interval_censored=[False, False, False, False, True, False],
+    time2=[nan, nan, nan, nan, 9.0, nan],
 )
-assert bounds.exact.tolist() == [True, False, False, False]
-assert bounds.lower.tolist() == [2.0, 3.0, 0.0, 5.0]
-assert bounds.upper[0] == 2.0 and jnp.isposinf(bounds.upper[1])
-assert bounds.upper[2:].tolist() == [4.0, 7.0]
-assert bounds.left_trunc.tolist() == [0.0, 1.0, 0.0, 1.0]
-assert bounds.right_trunc[2:].tolist() == [6.0, 9.0]
-assert bool(bounds.issues.ok)
+cohort.lower, cohort.upper
 ```
 
-## Diagnosing data
-
-Both constructors return data even when observation *values* are invalid.
-`data.issues` exposes per-row masks for invalid indicators, conflicting flags,
-missing or invalid time values, invalid intervals or truncation, an exact event
-outside truncation, censoring before entry, and an empty observation window.
-`invalid_rows` combines fatal masks; `ok` is a scalar reduction. `uninformative`
-is separate and nonfatal: a censored set that covers the whole eligibility
-window contributes no information about the event-time law.
+At most one flag may be true on a row. Combining `event` with flags in one
+call is a mistake in the call itself. It raises at once:
 
 ```{code-cell} ipython3
-problem = cx.SurvivalData.from_bounds([0.0, 2.0], [jnp.inf, 2.0])
-assert problem.issues.uninformative.tolist() == [True, False]
-assert problem.issues.invalid_interval.tolist() == [False, True]
-assert problem.issues.invalid_rows.tolist() == [False, True]
-assert not bool(problem.issues.ok)
+:tags: [raises-exception]
 
-try:
-    problem.issues.raise_if_invalid()  # explicit host checkpoint
-except cx.InvalidDataError as error:
-    assert "invalid_interval" in str(error)
-else:
-    raise AssertionError("expected an invalid-data error")
+cx.SurvivalData([4.0], [1], left_censored=[False])
 ```
 
-Malformed *calls* raise immediately: event status cannot be combined with
-censoring flags, unsupported field types and incompatible shapes raise
-`TypeError`, and an explicit unavailable float64 dtype raises `ValueError`.
-The library follows JAX's configured dtype mode; it does not toggle it.
+## The same cohort as endpoints
+
+If your data already have lower and upper endpoints for each patient,
+`SurvivalData.from_bounds` takes them directly. A censored row means
+`lower < T <= upper`. Use `inf` for no upper limit and 0 for no lower limit.
+
+Exact events need the `exact` mask. Their upper endpoint may repeat the
+lower one or be `nan`.
 
 ```{code-cell} ipython3
-try:
-    cx.SurvivalData([1.0], [1], left_censored=[False])
-except TypeError:
-    pass
-else:
-    raise AssertionError("expected a call error")
-
-expected_dtype = jnp.float64 if jax.config.jax_enable_x64 else jnp.float32
-assert status.lower.dtype == expected_dtype
-if not jax.config.jax_enable_x64:
-    try:
-        cx.SurvivalData([1.0], dtype=jnp.float64)
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("expected an unavailable-dtype error")
+inf = jnp.inf
+same_cohort = cx.SurvivalData.from_bounds(
+    [4.0, 12.0, 7.0, 9.0, 6.0, 0.0],
+    [nan, inf, nan, inf, 9.0, 3.0],
+    exact=[True, False, True, False, False, False],
+)
+same_cohort.upper
 ```
 
-Ordinary construction and diagnostic access also work inside `jax.jit`.
-Return the diagnostic container from compiled code, then raise at a host
-checkpoint if needed. Calling `raise_if_invalid()` on traced data is a
-host-only misuse and raises `ValueError`.
+Equal endpoints alone never mean an exact event. Without `exact=True` they
+are flagged as an invalid interval, as shown in the section on finding bad
+rows.
+
+## Patients who entered late (truncation)
+
+Patients 5 and 6 were diagnosed elsewhere and joined the study two months
+after diagnosis. Had they progressed before month 2, we would never have met
+them. Their data are *left truncated* at 2: we only see event times after 2.
+
+Pass the entry times as `left_trunc`. If a study only admits patients who
+progressed by some cutoff, pass that cutoff as `right_trunc`. Both may vary
+by row. Each row is then only informative about times in
+`(left_trunc, right_trunc]`.
+
+```{code-cell} ipython3
+cohort = cx.SurvivalData(
+    [4.0, 12.0, 7.0, 9.0, 6.0, 3.0],
+    right_censored=[False, True, False, True, False, False],
+    left_censored=[False, False, False, False, False, True],
+    interval_censored=[False, False, False, False, True, False],
+    time2=[nan, nan, nan, nan, 9.0, nan],
+    left_trunc=[0.0, 0.0, 0.0, 0.0, 2.0, 2.0],
+)
+cohort.left_trunc
+```
+
+## Finding bad rows
+
+Data entry goes wrong. Each of these five new records has a typical problem:
+
+1. an exact event at month 0 (exact times must be after 0);
+2. an interval with no end time;
+3. an interval that ends at month 6 but starts at month 9;
+4. a patient last seen at month 1 who entered the study at month 2;
+5. an interval `(0, inf]` that covers every possible time.
+
+Construction does not stop on bad values. It returns the data and records
+each problem in `data.issues`, with one boolean mask per rule. Each mask has
+one entry per row. `invalid_rows` combines them:
+
+```{code-cell} ipython3
+bad = cx.SurvivalData(
+    [0.0, 6.0, 9.0, 1.0, 0.0],
+    right_censored=[False, False, False, True, False],
+    interval_censored=[False, True, True, False, True],
+    time2=[nan, nan, 6.0, nan, inf],
+    left_trunc=[0.0, 0.0, 0.0, 2.0, 0.0],
+)
+bad.issues.invalid_rows
+```
+
+Record 5 is not invalid. It rules nothing out, so it carries no information
+about when progression happens. Chronox marks such rows as `uninformative`
+and keeps them out of `invalid_rows`:
+
+```{code-cell} ipython3
+bad.issues.uninformative
+```
+
+`bad.issues.ok` is a single boolean for the whole data set. To stop on bad
+data, call the explicit check. It names each rule that failed, how many rows
+broke it and the first such row:
+
+```{code-cell} ipython3
+:tags: [raises-exception]
+
+bad.issues.raise_if_invalid()
+```
+
+Two more mistakes are worth knowing. R also accepts a status coded 1/2, with
+2 for an event. Chronox accepts only 0/1 or booleans and flags a `2` as an
+invalid indicator rather than guessing:
+
+```{code-cell} ipython3
+cx.SurvivalData([5.0, 8.0], [2, 1]).issues.invalid_indicator
+```
+
+And equal endpoints given to `from_bounds` without the `exact` mask are an
+invalid interval, not an event:
+
+```{code-cell} ipython3
+cx.SurvivalData.from_bounds([5.0], [5.0]).issues.invalid_interval
+```
+
+## Inside `jax.jit`
+
+Construction and `data.issues` also work inside compiled code. The check
+that raises needs concrete values, so return the issues from the compiled
+function and check them afterwards:
 
 ```{code-cell} ipython3
 @jax.jit
-def diagnose(time, event):
-    return cx.SurvivalData(time, event).issues
+def diagnose(time, status):
+    return cx.SurvivalData(time, status).issues
 
-compiled_issues = diagnose(jnp.array([1.0, 2.0]), jnp.array([1, 2]))
-assert compiled_issues.invalid_indicator.tolist() == [False, True]
-assert compiled_issues.invalid_rows.tolist() == [False, True]
-assert not bool(compiled_issues.ok)
-try:
-    compiled_issues.raise_if_invalid()
-except cx.InvalidDataError:
-    pass
-else:
-    raise AssertionError("expected an invalid-data error")
+compiled_issues = diagnose(jnp.array([4.0, 12.0]), jnp.array([1, 2]))
+compiled_issues.invalid_rows
 ```
 
-## Relation to R's `survival::Surv`
+```{code-cell} ipython3
+:tags: [raises-exception]
 
-The conventions here are compared with the official
-[`Surv` documentation](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/Surv.html).
-R's `Surv(time, status)` usually uses 0 for censoring and 1 for an event, but
-also accepts 1/2 coding; Chronox requires exactly 0/1 or booleans. R's
-`type="interval"` uses status codes 0/right, 1/exact, 2/left and 3/interval;
-Chronox uses separate boolean flags. In both systems, interval endpoints are
-open on the left and closed on the right. With `time2`, R defaults to a
-counting-process `(start, stop]` representation; Chronox reads `time2` only for
-interval-censored rows. R's `type="interval2"` infers exactness from equal
-endpoints and accepts `NA` or `Inf` for an unbounded endpoint. Chronox
-requires the explicit `exact` mask and `+inf` for an unbounded censored upper.
-These are input-convention comparisons; no numerical agreement with R has
-been checked here.
+compiled_issues.raise_if_invalid()
+```
 
-## Current scope
+Calling `raise_if_invalid()` inside the compiled function raises a
+`ValueError`, because the values are not known there yet.
 
-A1–A2 construction and diagnostics are implemented. A3 indexing and concrete
-static metadata are planned. The representation accepts left and interval
-censoring and truncation, but likelihood evaluation is not yet implemented;
-later Slice A work adds exact and right-censored likelihoods, and Slice B adds
-the other likelihood modes. Do not use these constructed observations as
-likelihood results yet.
+## Floating-point precision
+
+Times and bounds share one floating dtype. Chronox follows JAX's setting: the
+default is float32, and float64 when JAX's 64-bit mode is on. The library
+never changes that setting itself. This page was built with:
+
+```{code-cell} ipython3
+cohort.lower.dtype
+```
+
+You can pass `dtype=` to either constructor. Asking for float64 while 64-bit
+mode is off raises a `ValueError`.
+
+## Comparison with R's `survival::Surv`
+
+The R calls below follow the official
+[`Surv` help page](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/Surv.html).
+They compare how the input is written. No numerical agreement with R has
+been checked.
+
+| Situation | R | Chronox | Notes |
+| --- | --- | --- | --- |
+| Events and right censoring | `Surv(time, status)` | `SurvivalData(time, status)` | R also accepts 1/2 coding and guesses it from `max(status) == 2`. Chronox accepts only 0/1 or booleans. |
+| Mixed censoring with codes | `Surv(time, time2, status, type = "interval")` | `SurvivalData(time, right_censored=..., left_censored=..., interval_censored=..., time2=...)` | R codes 0 right, 1 event, 2 left, 3 interval and ignores `time2` unless the code is 3. Chronox uses one boolean flag per kind and likewise reads `time2` only on interval rows. |
+| Intervals as endpoints | `Surv(lower, upper, type = "interval2")` | `SurvivalData.from_bounds(lower, upper, exact=...)` | R treats equal endpoints as an exact event and allows `NA` or `Inf` for an unbounded end. Chronox needs the `exact` mask, uses 0 for no lower limit and `inf` for no upper limit. |
+| Interval endpoints | `(start, end]` | `(lower, upper]` | Both are open on the left and closed on the right. |
+| Delayed entry | `Surv(start, stop, status)` | `SurvivalData(stop, status, left_trunc=start)` | With `time2`, R defaults to counting-process data. Chronox's `time2` is never a stop time; entry times go in `left_trunc`. |
