@@ -39,12 +39,20 @@ data = cx.SurvivalData([4.0, 12.0, 7.0, 9.0], [1, 0, 1, 0])
 data
 ```
 
-Chronox stores every observation as a set of possible event times. An exact
-event has `exact=True` and `lower == upper`. A censored row says the event
-happened after `lower` and at or before `upper`; right censoring has
-`upper=inf`. The `left_trunc` and `right_trunc` fields are covered in the
-truncation section below. Here they are at their defaults of 0 and `inf`.
-Without a status, every row is an exact event.
+The printout uses R's notation: `4` is an event at month 4 and `12+` means
+"later than month 12". Without a status, every row is an exact event.
+
+Behind the printout, Chronox stores every observation as a set of possible
+event times, in the fields `exact`, `lower` and `upper`. An exact event has
+`exact=True` and `lower == upper`. A censored row says the event happened
+after `lower` and at or before `upper`, so right censoring has `upper=inf`:
+
+```{code-cell} ipython3
+data.upper
+```
+
+Two more fields, `left_trunc` and `right_trunc`, are covered in the
+truncation section below.
 
 ## The event happened between two visits
 
@@ -75,7 +83,7 @@ interval as open on the left and closed on the right, `(6, 9]`.
 
 Patient 6 already showed progression at the first scan at month 3. All we
 know is that progression happened at or before month 3: the observation is
-*left censored*. Its stored lower bound is 0.
+*left censored*. Chronox stores it as the set `(0, 3]`, with lower bound 0.
 
 ```{code-cell} ipython3
 cohort = cx.SurvivalData(
@@ -85,7 +93,7 @@ cohort = cx.SurvivalData(
     interval_censored=[False, False, False, False, True, False],
     time2=[nan, nan, nan, nan, 9.0, nan],
 )
-cohort.lower, cohort.upper
+cohort
 ```
 
 At most one flag may be true on a row. Combining `event` with flags in one
@@ -140,8 +148,11 @@ cohort = cx.SurvivalData(
     time2=[nan, nan, nan, nan, 9.0, nan],
     left_trunc=[0.0, 0.0, 0.0, 0.0, 2.0, 2.0],
 )
-cohort.left_trunc
+cohort
 ```
+
+The printout shows each non-default window. The values are in
+`cohort.left_trunc` and `cohort.right_trunc`.
 
 ## Finding bad rows
 
@@ -154,8 +165,8 @@ Data entry goes wrong. Each of these five new records has a typical problem:
 5. an interval `(0, inf]` that covers every possible time.
 
 Construction does not stop on bad values. It returns the data and records
-each problem in `data.issues`, with one boolean mask per rule. Each mask has
-one entry per row. `invalid_rows` combines them:
+each problem in `data.issues`. Printing the data shows the rows as stored,
+with a note at the end:
 
 ```{code-cell} ipython3
 bad = cx.SurvivalData(
@@ -165,15 +176,24 @@ bad = cx.SurvivalData(
     time2=[nan, nan, 6.0, nan, inf],
     left_trunc=[0.0, 0.0, 0.0, 2.0, 0.0],
 )
-bad.issues.invalid_rows
+bad
 ```
 
-Record 5 is not invalid. It rules nothing out, so it carries no information
-about when progression happens. Chronox marks such rows as `uninformative`
-and keeps them out of `invalid_rows`:
+Rows are numbered from 0, so record 1 is row 0. `bad.issues` lists each
+rule that fails, with the number of rows and the first one. Record 5 is not
+invalid. It rules nothing out (`0+` means "any
+time after 0"), so it carries no information about when progression happens.
+Chronox lists it as `uninformative`, but not as an error:
 
 ```{code-cell} ipython3
-bad.issues.uninformative
+bad.issues
+```
+
+Each rule is also a boolean mask with one entry per row, for use in code.
+`invalid_rows` combines the errors:
+
+```{code-cell} ipython3
+bad.issues.invalid_rows
 ```
 
 `bad.issues.ok` is a single boolean for the whole data set. To stop on bad

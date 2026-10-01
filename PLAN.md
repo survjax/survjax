@@ -1,3 +1,81 @@
+# Step DOC-4: readable reprs for SurvivalData and DataIssues (2026-10-01)
+
+Requested by the maintainer after DOC-3 ("make a nice repr for SurvivalData
+and DataIssues as well"). The spec does not cover repr. This replaces DOC-3's
+"no summary repr" choice and adds no public API. One step, one commit on
+`docs-startup`. Spec sections touched: 3.2 (private fields stay private), 6.2
+(issue names), 6.3 (containers remain pytrees, unchanged).
+
+## Behaviour
+
+Both reprs read concrete values on the host. If any leaf is a JAX tracer, they
+fall back to a short form with no value conversion (CLAUDE.md: never convert
+tracers to NumPy), e.g. `SurvivalData(shape=(6,), dtype=float32, traced)`.
+
+`SurvivalData`, eager: one line per observation in R-like notation, plus the
+eligibility window when it is not the default `(0, inf]`. Invalid rows are
+printed as stored, with a footer pointing at `.issues`:
+
+```text
+SurvivalData: 6 observations, float64
+  0  4
+  1  12+
+  2  7
+  3  9+
+  4  (6, 9]   window (2, inf]
+  5  (0, 3]   window (2, inf]
+```
+
+- Notation: exact `t`, right censored `t+` (as in R's print), every other
+  censored row as its stored set `(lower, upper]`, so left censoring prints
+  `(0, 3]` (maintainer's choice). Numbers use `:g`.
+- More than 20 rows: first 10, `...`, last 5. N-d data: header shows the
+  shape and rows show their index tuple.
+- Footer only when non-empty: `issues: 4 invalid rows, 1 uninformative
+  (see .issues)`.
+
+`DataIssues`, eager: the overall verdict, then only the rules that fire,
+with the row count and first index (the same wording as
+`raise_if_invalid`):
+
+```text
+DataIssues: 4 of 5 rows invalid
+  invalid_time            1 row, first index (0,)
+  missing_time2           1 row, first index (1,)
+  invalid_interval        1 row, first index (2,)
+  censored_before_entry   1 row, first index (3,)
+  uninformative           1 row, first index (4,)  (not an error)
+```
+
+A valid result prints `DataIssues: all 6 rows valid`.
+
+## Files
+
+Approved with changes: each repr lives next to its class, not in a separate
+module, accepting files somewhat over 300 lines.
+
+- `data.py`: `@dataclass(..., repr=False)` plus `__repr__` and two small
+  formatting functions. The DOC-3 `field(repr=False)` declarations become
+  redundant and are removed.
+- `diagnostics.py`: the same for `DataIssues`. `raise_if_invalid` and the
+  repr share one per-rule count helper; the exception message is unchanged.
+- `tests/unit/test_data_repr.py`: replace the DOC-3 tests with hand-written
+  expected strings for: each observation kind; truncation window; invalid
+  footer; long-data elision; 2-d index tuples; traced fallback for both
+  classes (inside `jax.jit`); valid and invalid `DataIssues`. Keep the
+  six-leaves check.
+- `docs/survival-data.md`: no code changes needed (cells already end with
+  `data`); reread the rendered page and update prose that describes the
+  printed repr. `REVIEW.md` as usual.
+
+Checks: `scripts/check.sh --through A2`, `scripts/build_docs.sh`, `git diff
+--check`. Expected diff about 250 lines.
+
+## Decisions
+
+- Left censoring prints as the stored set `(0, 3]`.
+- No precision information beyond the dtype in the header.
+
 # Step DOC-3: tutorial-style SurvivalData docs and a clean repr (2026-10-01)
 
 Approved by the maintainer after reviewing DOC-2 (`726e561`): the guide reads

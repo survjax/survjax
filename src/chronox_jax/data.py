@@ -1,9 +1,10 @@
 """Normalized survival observations (spec 3.1–3.3)."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 from jax.typing import ArrayLike, DTypeLike
 
 from chronox_jax._data_validation import (
@@ -13,10 +14,31 @@ from chronox_jax._data_validation import (
     time_dtype,
     to_shape,
 )
-from chronox_jax.diagnostics import DataIssues
+from chronox_jax.diagnostics import DataIssues, _plural
+
+# Longer data print the first and last rows only, like NumPy's summarization.
+_REPR_MAX_ROWS = 20
+_REPR_HEAD_ROWS = 10
+_REPR_TAIL_ROWS = 5
 
 
-@dataclass(frozen=True, eq=False, init=False)
+def _observation_text(exact: bool, lower: float, upper: float) -> str:
+    """R-like ``4`` and ``12+``; every other censored row as its set ``(l, u]``."""
+    if exact:
+        return f"{lower:g}"
+    if np.isposinf(upper) and np.isfinite(lower):
+        return f"{lower:g}+"
+    return f"({lower:g}, {upper:g}]"
+
+
+def _window_text(left_trunc: float, right_trunc: float) -> str:
+    """The eligibility window, or empty for the default ``(0, inf]``."""
+    if left_trunc == 0 and np.isposinf(right_trunc):
+        return ""
+    return f"window ({left_trunc:g}, {right_trunc:g}]"
+
+
+@dataclass(frozen=True, eq=False, init=False, repr=False)
 class SurvivalData:
     """Exact and censored observations stored as aligned arrays (spec 3.2).
 
@@ -31,10 +53,9 @@ class SurvivalData:
     upper: jax.Array
     left_trunc: jax.Array
     right_trunc: jax.Array
-    # spec 3.2: private fields stay out of the repr; diagnostics use `issues`.
-    _issue_bits: jax.Array = field(repr=False)
+    _issue_bits: jax.Array
     # spec 3.2: exact, right, left, interval, left truncation, right truncation.
-    _may_contain: tuple[bool, bool, bool, bool, bool, bool] = field(repr=False)
+    _may_contain: tuple[bool, bool, bool, bool, bool, bool]
 
     def __init__(
         self,
@@ -198,6 +219,62 @@ class SurvivalData:
             self.right_trunc,
             self._issue_bits,
         )
+
+    def __repr__(self) -> str:
+        """One line per observation; traced data print only shape and dtype.
+
+        Private fields stay out of the repr (spec 3.2); a footer points to
+        ``data.issues`` when any row is invalid or uninformative.
+        """
+        if any(isinstance(leaf, jax.core.Tracer) for leaf in self.tree_flatten()[0]):
+            return (
+                f"SurvivalData(shape={self.lower.shape}, "
+                f"dtype={self.lower.dtype}, traced)"
+            )
+        shape = self.lower.shape
+        indices: list[tuple[int, ...] | None] = list(np.ndindex(shape))
+        header = f"SurvivalData: {_plural(len(indices), 'observation')}"
+        if len(shape) != 1:
+            header += f", shape {shape}"
+        header += f", {self.lower.dtype}"
+        if len(indices) > _REPR_MAX_ROWS:
+            indices = indices[:_REPR_HEAD_ROWS] + [None] + indices[-_REPR_TAIL_ROWS:]
+
+        exact = np.asarray(self.exact)
+        lower = np.asarray(self.lower)
+        upper = np.asarray(self.upper)
+        left_trunc = np.asarray(self.left_trunc)
+        right_trunc = np.asarray(self.right_trunc)
+        rows = []
+        for index in indices:
+            if index is None:
+                rows.append(("...", "", ""))
+                continue
+            label = str(index[0]) if len(shape) == 1 else str(index)
+            observation = _observation_text(
+                bool(exact[index]), float(lower[index]), float(upper[index])
+            )
+            window = _window_text(float(left_trunc[index]), float(right_trunc[index]))
+            rows.append((label, observation, window))
+        label_width = max((len(row[0]) for row in rows), default=0)
+        observation_width = max((len(row[1]) for row in rows), default=0)
+        lines = [header]
+        for label, observation, window in rows:
+            line = f"  {label:>{label_width}}  {observation:<{observation_width}}"
+            line = f"{line}   {window}" if window else line
+            lines.append(line.rstrip())
+
+        issues = self.issues
+        invalid = int(np.count_nonzero(np.asarray(issues.invalid_rows)))
+        uninformative = int(np.count_nonzero(np.asarray(issues.uninformative)))
+        notes = []
+        if invalid:
+            notes.append(_plural(invalid, "invalid row"))
+        if uninformative:
+            notes.append(f"{uninformative} uninformative")
+        if notes:
+            lines.append(f"issues: {', '.join(notes)} (see .issues)")
+        return "\n".join(lines)
 
     def _assign(
         self,

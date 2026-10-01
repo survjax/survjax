@@ -13,7 +13,26 @@ class InvalidDataError(ValueError):
     """An explicit host checkpoint found invalid observation values (spec 6.2)."""
 
 
-@dataclass(frozen=True, eq=False)
+def _plural(count: int, noun: str) -> str:
+    """Return ``"1 row"`` or ``"3 rows"`` for repr text."""
+    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+
+
+def _rule_counts(
+    names: tuple[str, ...], masks: tuple[jax.Array, ...]
+) -> list[tuple[str, int, tuple[int, ...]]]:
+    """Name, row count and first index of each rule that fires (host only)."""
+    counts = []
+    for name, mask in zip(names, masks, strict=True):
+        host_mask = np.asarray(mask)
+        count = int(np.count_nonzero(host_mask))
+        if count:
+            first = tuple(int(index) for index in np.argwhere(host_mask)[0])
+            counts.append((name, count, first))
+    return counts
+
+
+@dataclass(frozen=True, eq=False, repr=False)
 class DataIssues:
     """Per-rule data masks with observation shape and scalar validity (spec 6.2)."""
 
@@ -69,15 +88,32 @@ class DataIssues:
         if isinstance(self.ok, jax.core.Tracer):
             raise ValueError("DataIssues.raise_if_invalid is host-only")
         rule_masks = self.tree_flatten()[0][:10]
-        problems = []
-        for name, mask in zip(ISSUE_NAMES, rule_masks, strict=True):
-            host_mask = np.asarray(mask)
-            count = int(np.count_nonzero(host_mask))
-            if count:
-                first = tuple(int(index) for index in np.argwhere(host_mask)[0])
-                problems.append(f"{name}: {count} row(s), first index {first}")
+        problems = [
+            f"{name}: {count} row(s), first index {first}"
+            for name, count, first in _rule_counts(ISSUE_NAMES, rule_masks)
+        ]
         if problems:
             raise InvalidDataError("invalid SurvivalData: " + "; ".join(problems))
+
+    def __repr__(self) -> str:
+        """Summarize the rules that fire; traced masks print only their shape."""
+        if any(isinstance(leaf, jax.core.Tracer) for leaf in self.tree_flatten()[0]):
+            return f"DataIssues(shape={self.invalid_rows.shape}, traced)"
+        total = int(np.size(self.invalid_rows))
+        invalid = int(np.count_nonzero(np.asarray(self.invalid_rows)))
+        if invalid:
+            lines = [f"DataIssues: {invalid} of {_plural(total, 'row')} invalid"]
+        else:
+            lines = [f"DataIssues: all {_plural(total, 'row')} valid"]
+        # spec 6.2: uninformative rows are listed but are not invalid.
+        names = (*ISSUE_NAMES, "uninformative")
+        masks = (*self.tree_flatten()[0][:10], self.uninformative)
+        for name, count, first in _rule_counts(names, masks):
+            note = "  (not an error)" if name == "uninformative" else ""
+            lines.append(
+                f"  {name:<26}{_plural(count, 'row')}, first index {first}{note}"
+            )
+        return "\n".join(lines)
 
     def tree_flatten(self) -> tuple[tuple[jax.Array, ...], None]:
         """Keep every mask and the scalar reduction as PyTree leaves."""
