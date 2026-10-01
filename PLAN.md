@@ -1,3 +1,127 @@
+# Step A3: indexing and static observation metadata (2026-10-01)
+
+Status: approved by maintainer and implemented on 2026-10-01; A3 gate passed.
+Branch: existing maintainer-created `A3`. One implementation step and commit,
+targeting about 300 changed lines including tests. If the implementation needs
+a larger change, propose a split before expanding it. Earlier plans below are
+history. The existing local edit to `docs/playground.ipynb` belongs to the
+maintainer and is excluded from this step.
+
+## Starting point and scope
+
+A2 already supplies both pure constructors, the five normalized fields, the
+sixth issue-bitfield leaf, diagnostics, and reconstruction without normalization.
+`SurvivalData` currently has no `__getitem__`; its six auxiliary flags always
+default to true. A3 completes indexing and value-derived concrete metadata.
+
+Public API touched: add typed `SurvivalData.__getitem__(idx) -> SurvivalData`
+and document its observation-axis indexing behavior. Both existing constructors
+gain the specified metadata behavior without changing signatures or exports.
+`data.issues` continues to decode masks and reduce `ok` over the resulting
+object. Metadata remains private. No likelihood evaluation or branch pruning
+is introduced; those belong to later steps/slices.
+
+Spec coverage: 3.2 (indexing, six aligned leaves, auxiliary flags and
+reconstruction), 6.2 (input tracing classification and indexed diagnostics),
+12.1 (metadata, stored issues and transformation verification), and the data
+portion of the Slice A gate in 12.2. Preserve the dtype policy in 3.3.
+
+## Implementation and files
+
+1. `src/chronox_jax/data.py`
+   - Apply `idx` to every array leaf, including the issue bits, and rebuild
+     with the parent's auxiliary flags through the existing PyTree machinery.
+     Do not reconstruct through a public constructor or reclassify a subset.
+   - Support ordinary JAX array indexing: scalar/negative integer, slices,
+     integer-array minibatches, concrete boolean masks, and multidimensional
+     tuples. Under transformations, retain JAX's indexing constraints (for
+     example, dynamic boolean masks do not have a fixed output shape).
+   - Classify the supplied observation inputs at constructor entry, before
+     normalization turns concrete inputs into tracers. Inspect every argument
+     listed in section 6.2, including nested lists/tuples; `dtype` is not an
+     observation input. Any tracer forces all six flags true.
+   - For entirely concrete inputs, normalize and calculate flags in a
+     compile-time evaluation context so concrete construction inside `jit`
+     behaves like eager construction. Inputs already traced stay traced;
+     unrelated traced function arguments do not affect this choice.
+   - Pass the calculated flags explicitly when constructing either form.
+     Keep `tree_unflatten` free of classification and validation so it also
+     accepts JAX's reconstruction placeholders.
+2. `src/chronox_jax/_data_metadata.py` (new, small private module)
+   - Hold the input-tracer check and concrete normalized-field classification.
+     This responsibility is separate from row validation; `data.py` already
+     exceeds 300 lines after the approved repr work, so do not add a general
+     refactor or a second normalization implementation.
+   - Reduce presence of exact/right/left/interval kinds and, independently,
+     `left_trunc > 0` and `right_trunc < +inf` across all normalized rows,
+     including invalid rows. Derive kinds from normalized endpoints, not the
+     original keyword choices. Store only six Python bools in auxiliary data.
+   - Convert only concrete values to host values; never convert a tracer.
+3. `tests/unit/test_data_indexing.py` (new)
+   - Cover indexing, preserved raw issue evidence, reconstruction, and
+     transformed indexing as described below.
+4. `tests/unit/test_data_metadata.py` (new)
+   - Cover constructor classification, tree structures and compilation reuse
+     as described below. Use existing dtype fixtures and exact assertions.
+5. `REVIEW.md`
+   - Overwrite after implementation with reading order, invariants, tests
+     mapped to spec requirements, exact check results and remaining questions.
+     Update this plan with the final scope if needed. Record any new spec
+     question in `DEVIATIONS.md` and ask before choosing its behavior.
+
+## Tests to add
+
+- **Aligned indexing (3.2):** scalar, negative, strided/empty slice,
+  repeated integer indices, concrete boolean selection and multidimensional
+  indexing preserve each field's values, shape and dtype. Compare with
+  explicitly indexed parent arrays, the identity required by the spec.
+  Check agreement with `jax.tree.map` slicing and parent immutability.
+- **Stored diagnostics (3.2, 6.2):** select rows whose normalized fields hide
+  a raw-input fault (such as an invalid event indicator). Assert hand-derived
+  issue masks survive selection and tree reconstruction. A valid subset of
+  an invalid parent has scalar `ok=True`; an invalid subset has `ok=False`.
+  Empty subsets retain parent flags and have no invalid rows.
+- **Transformations (12.1):** eager, `jit` and `vmap` indexing agree for
+  supported fixed-shape indices; decoded masks and scalar validity work
+  inside `jit`. No numerical derivative checks are needed for this step.
+- **Concrete flags (3.2):** both constructors yield the same flags for the
+  same normalized data; separate kind and truncation changes alter the tree
+  structure. Explicit default truncation matches omitted truncation. Include
+  an interval flag with an infinite upper bound and rows with issue bits.
+  Equal flags with different observation counts still give equal treedefs.
+- **Input classification (3.2, 6.2):** concrete NumPy/Python inputs and
+  captured concrete JAX arrays inside `jit` retain eager flags, including
+  when another function argument is traced. An observation tracer, including
+  one nested in a list/tuple or created by `jnp.asarray` inside `jit`, forces
+  all flags true. Cover both constructor forms; compare leaves and issue
+  masks separately because eager/traced metadata can intentionally differ.
+- **Inheritance and compile counts (3.2, 12.1):** same shapes/dtypes/flags
+  with different values trace once; different flags trace separately;
+  equal-shape subsets of a mixed parent retain its flags and reuse a
+  compilation. Traced construction and concrete data containing all kinds
+  and both truncations share a tree structure and compilation.
+
+## Verification and handoff
+
+After approval and implementation, run `scripts/check.sh --through A3`:
+the protected-path guard, Ruff formatting/lint, mypy, implementer tests and
+independent acceptance tests through A3, with tests in separate float64 and
+float32 processes. Run `git diff --check` as well. Record actual output and
+any failure; do not claim A3 complete until the gate passes.
+
+D-010 remains formally open, but the current acceptance test now checks
+`batched[i].issues.ok`, matching the scalar-reduction contract. Its original
+test discrepancy appears addressed; confirm through the A3 gate and leave
+formal closure to the maintainer. Do not alter the read-only spec tests.
+
+Finish with one commit on `A3` (proposed subject: `Add observation indexing
+and static metadata`; body explains aligned issue preservation and compilation
+reuse), the updated review, and a stop. Implementation/check evidence is in
+`REVIEW.md`. The bounds constructor evaluates the normalized fields needed for
+metadata at compile time; its issue-bit calculations remain pure JAX operations.
+The implementation and tests total about 300 substantive changed lines;
+normalization-block indentation accounts for additional diff lines.
+
 # DOC-4 review fix-ups (2026-10-01)
 
 Maintainer review of `1a15813`: print right censoring as its set

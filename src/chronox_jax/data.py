@@ -1,5 +1,6 @@
 """Normalized survival observations (spec 3.1–3.3)."""
 
+from contextlib import nullcontext
 from dataclasses import dataclass
 
 import jax
@@ -7,6 +8,7 @@ import jax.numpy as jnp
 import numpy as np
 from jax.typing import ArrayLike, DTypeLike
 
+from chronox_jax._data_metadata import contains_tracer, may_contain
 from chronox_jax._data_validation import (
     flag_fields,
     indicator,
@@ -97,18 +99,33 @@ class SurvivalData:
             ``SurvivalData([2.0, 3.0], [1, 0])`` stores an event at 2 and
             right censoring at 3.
         """
-        fields = flag_fields(
-            time,
-            event,
-            right_censored,
-            left_censored,
-            interval_censored,
-            time2,
-            left_trunc,
-            right_trunc,
-            dtype,
+        traced = contains_tracer(
+            (
+                time,
+                event,
+                right_censored,
+                left_censored,
+                interval_censored,
+                time2,
+                left_trunc,
+                right_trunc,
+            )
         )
-        self._assign(*fields)
+        # spec 6.2: classify inputs before normalization inside a transformation.
+        with nullcontext() if traced else jax.ensure_compile_time_eval():
+            fields = flag_fields(
+                time,
+                event,
+                right_censored,
+                left_censored,
+                interval_censored,
+                time2,
+                left_trunc,
+                right_trunc,
+                dtype,
+            )
+            flags = (True,) * 6 if traced else may_contain(*fields[:5])
+        self._assign(*fields, may_contain=flags)
 
     @classmethod
     def from_bounds(
@@ -147,30 +164,39 @@ class SurvivalData:
             exact=[True, False])`` stores an event at 2 and left censoring
             at 3.
         """
-        common = time_dtype(
-            {
-                "lower": lower,
-                "upper": upper,
-                "left_trunc": left_trunc,
-                "right_trunc": right_trunc,
-            },
-            dtype,
-        )
-        first = jnp.asarray(lower, dtype=common)
-        shape = first.shape
-        last = to_shape(upper, shape, common)
-        exact_mask, invalid_indicator = indicator(exact, shape, "exact")
-        normalized_upper = jnp.where(exact_mask, first, last)
-        lower_bound = (
-            jnp.zeros_like(first)
-            if left_trunc is None
-            else to_shape(left_trunc, shape, common)
-        )
-        upper_bound = (
-            jnp.full_like(first, jnp.inf)
-            if right_trunc is None
-            else to_shape(right_trunc, shape, common)
-        )
+        traced = contains_tracer((lower, upper, exact, left_trunc, right_trunc))
+        with nullcontext() if traced else jax.ensure_compile_time_eval():
+            common = time_dtype(
+                {
+                    "lower": lower,
+                    "upper": upper,
+                    "left_trunc": left_trunc,
+                    "right_trunc": right_trunc,
+                },
+                dtype,
+            )
+            first = jnp.asarray(lower, dtype=common)
+            shape = first.shape
+            last = to_shape(upper, shape, common)
+            exact_mask, invalid_indicator = indicator(exact, shape, "exact")
+            normalized_upper = jnp.where(exact_mask, first, last)
+            lower_bound = (
+                jnp.zeros_like(first)
+                if left_trunc is None
+                else to_shape(left_trunc, shape, common)
+            )
+            upper_bound = (
+                jnp.full_like(first, jnp.inf)
+                if right_trunc is None
+                else to_shape(right_trunc, shape, common)
+            )
+            flags = (
+                (True,) * 6
+                if traced
+                else may_contain(
+                    exact_mask, first, normalized_upper, lower_bound, upper_bound
+                )
+            )
         invalid_time = jnp.where(
             exact_mask,
             (first <= 0) | ~jnp.isfinite(first),
@@ -203,8 +229,18 @@ class SurvivalData:
             lower_bound,
             upper_bound,
             bits,
+            may_contain=flags,
         )
         return result
+
+    def __getitem__(self, idx: object) -> "SurvivalData":
+        """Index observation axes, preserving issue bits and parent flags (spec 3.2).
+
+        All six leaves take the same index and resulting shape. JAX array
+        indexing restrictions apply, including fixed output shapes under jit.
+        There is no time-grid axis.
+        """
+        return jax.tree.map(lambda leaf: leaf[idx], self)
 
     @property
     def issues(self) -> DataIssues:
