@@ -1,3 +1,85 @@
+# A3 review fix-up: constructor consistency and metadata evidence (2026-10-01)
+
+Status: approved and implemented on 2026-10-01; A3 gate passed. Source: `A3-review-handoff.md`,
+reviewing `791517a`. One extra commit on the existing `A3` branch, targeting
+under 300 changed lines including tests. Follow the handoff's explicit
+plan/approval/implementation/review/stop sequence.
+
+## Files and changes
+
+- `src/chronox_jax/_data_metadata.py`: replace recursive tracer detection
+  with `jax.tree.leaves`; retain the separate module and existing kind
+  precedence. Add the spec 3.3 explanation that `(0, +inf]` is right censored.
+  Implement item 8: compute the six presence reductions with `jnp` on the
+  device, stack the scalar results, and call `jax.device_get` once on that
+  six-element array before converting to Python bools. Avoid transferring
+  observation arrays to NumPy. Keep `may_contain` inside the compile-time
+  evaluation block on the concrete path only; never pass it tracers.
+- `src/chronox_jax/data.py`: extend the bounds constructor's compile-time
+  block through all issue calculations, making its six leaves concrete at
+  trace time when supplied inputs are concrete. Add the requested JAX
+  out-of-range clamping sentence to `__getitem__`'s docstring.
+- `tests/unit/test_data_metadata.py`: add explicit scalar `(0, +inf]`
+  precedence, NaN truncation and negative-entry flag/issue cases; check all
+  six leaves inside jit for both concrete constructor forms; assert both
+  forms retain the host-only `ValueError` (not `InvalidDataError`) when
+  `raise_if_invalid()` is invoked inside jit; cover conservative metadata
+  from vmap construction for both forms; extend concrete-inside-jit tests
+  to compare every leaf with eager construction.
+- `DEVIATIONS.md`: add D-012, step A3, spec 3.2, status open, documenting
+  overlapping kind predicates at `(0, +inf]`, the existing right precedence
+  following 3.3, and the proposed clarification for a future spec revision.
+- `REVIEW.md`: overwrite with reading order, invariants, requirement/test
+  mapping, actual check results and the A6 handoff below.
+
+Public API: signatures and exports stay as implemented; `__getitem__`
+documentation gains an explicit description of its existing behavior.
+Spec coverage: 3.2, 3.3, 6.2, 12.1. No numerical likelihood implementation.
+
+## Precise review wording and A6 handoff
+
+Presence flags are not validity checks. Preserve the spec 3.2 invariant that
+metadata includes normalized rows with issue bits. NaN bounds and negative
+entry can leave truncation flags false despite invalid data; this does not
+mean all invalid bounds necessarily leave those flags false. Invalidity is
+determined from the stored issue bits.
+
+Concrete construction requires one host synchronization to obtain static
+Python flags (spec 3.2), transferring only six booleans. Slices inherit the
+parent flags and perform no metadata synchronization. Existing metadata tests
+and the new precedence/invalid-truncation tests cover item 8's unchanged
+behavior; add no dedicated test or timing measurement. Large-N construction
+timing belongs with the separate spec 12.3 CPU baseline.
+
+For concrete supplied inputs, both constructors' six stored leaves are
+evaluated at compile time inside jit. Subsequent `data.issues` decoding inside
+jit is still traced, and its host checkpoint must fail explicitly there.
+For traced supplied inputs, operations involving those inputs remain traced
+and all six metadata flags are true; do not promise that constant-only
+intermediate operations become tracers.
+
+Record for A6:
+
+- Reuse the normalized kind definitions from `_data_metadata.py` so row
+  dispatch and static flags agree. `may_contain` returns static Python flags
+  after a host transfer, not jit-safe row masks. A6 must plan any shared
+  pure-JAX row classification needed for likelihood use; add no such helper
+  in this fix-up.
+- Issue-bearing rows must produce NaN and `invalid_data` from `_issue_bits`
+  regardless of metadata pruning. Test NaN truncation with false flags.
+- Resolve how Slice A detects unimplemented modes on traced data: all-true
+  metadata alone cannot establish that a row uses an unsupported mode.
+  The A6 plan must address row-value detection and explicit failure under
+  transformations before implementing likelihoods.
+
+## Verification and finish
+
+Run `scripts/check.sh --through A3` in the existing two dtype processes,
+with `UV_CACHE_DIR=/private/tmp/chronox-uv-cache`, and `git diff --check`.
+Report actual results and any skips. Keep spec/tests/spec read-only and
+exclude the existing notebook edit and maintainer-authored handoff from
+staging. Commit as an extra A3 fix-up, without amend/rebase, then stop.
+
 # Step A3: indexing and static observation metadata (2026-10-01)
 
 Status: approved by maintainer and implemented on 2026-10-01; A3 gate passed.

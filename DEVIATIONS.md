@@ -1,5 +1,20 @@
 # Deviations and spec questions
 
+## D-012 Right precedence for the unbounded zero-lower observation
+- Step: A3 review fix-up
+- Spec: sections 3.2 and 3.3
+- Spec says: section 3.2 describes derived kinds using `upper==inf` for right
+  censoring and `lower==0` for left censoring. Both predicates match a
+  non-exact `(0, +inf]` row. Section 3.3 calls this right censoring at entry
+  and explicitly treats `from_bounds(0, inf)` as uninformative when `L=0`.
+- Did / propose: retain the existing right-before-left classification:
+  right means non-exact with `upper=+inf`; left excludes right rows and has
+  `lower=0` (so valid left rows have `upper<+inf`). Document and test this
+  precedence, as approved in `A3-review-handoff.md`. Propose a later spec
+  revision make the precedence explicit in section 3.2. Metadata still
+  includes rows with issue bits; this classification is not a validity check.
+- Status: open
+
 ## D-010 A3 vmap acceptance test indexes scalar `data.issues.ok`
 - Step: A2 constructor API migration; observed in an A3 acceptance test
 - Spec: sections 3.2, 6.2 and 12.1

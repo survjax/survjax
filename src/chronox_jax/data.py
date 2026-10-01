@@ -197,30 +197,30 @@ class SurvivalData:
                     exact_mask, first, normalized_upper, lower_bound, upper_bound
                 )
             )
-        invalid_time = jnp.where(
-            exact_mask,
-            (first <= 0) | ~jnp.isfinite(first),
-            (first < 0) | ~jnp.isfinite(first),
-        )
-        missing_time2 = ~exact_mask & jnp.isnan(last)
-        invalid_time2 = (
-            (last < 0)
-            | jnp.isneginf(last)
-            | (exact_mask & ~jnp.isnan(last) & (last != first))
-        )
-        bits = row_issues(
-            exact_mask,
-            first,
-            normalized_upper,
-            lower_bound,
-            upper_bound,
-            invalid_indicator=invalid_indicator,
-            conflicting_indicators=jnp.zeros(shape, dtype=bool),
-            missing_time2=missing_time2,
-            invalid_time=invalid_time,
-            invalid_time2=invalid_time2,
-            check_interval=~exact_mask,
-        )
+            invalid_time = jnp.where(
+                exact_mask,
+                (first <= 0) | ~jnp.isfinite(first),
+                (first < 0) | ~jnp.isfinite(first),
+            )
+            missing_time2 = ~exact_mask & jnp.isnan(last)
+            invalid_time2 = (
+                (last < 0)
+                | jnp.isneginf(last)
+                | (exact_mask & ~jnp.isnan(last) & (last != first))
+            )
+            bits = row_issues(
+                exact_mask,
+                first,
+                normalized_upper,
+                lower_bound,
+                upper_bound,
+                invalid_indicator=invalid_indicator,
+                conflicting_indicators=jnp.zeros(shape, dtype=bool),
+                missing_time2=missing_time2,
+                invalid_time=invalid_time,
+                invalid_time2=invalid_time2,
+                check_interval=~exact_mask,
+            )
         result = object.__new__(cls)
         result._assign(
             exact_mask,
@@ -238,7 +238,8 @@ class SurvivalData:
 
         All six leaves take the same index and resulting shape. JAX array
         indexing restrictions apply, including fixed output shapes under jit.
-        There is no time-grid axis.
+        As in JAX, out-of-range integer indices are clamped rather than raising;
+        check split indices on the host. There is no time-grid axis.
         """
         return jax.tree.map(lambda leaf: leaf[idx], self)
 

@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from chronox_jax import SurvivalData
+from chronox_jax import InvalidDataError, SurvivalData
 
 
 def test_normalized_kinds_and_truncation_flags() -> None:
@@ -77,6 +77,86 @@ def test_concrete_inputs_inside_jit_keep_eager_flags(time: object) -> None:
     assert jax.tree.structure(result) == jax.tree.structure(eager)
     bounds = jax.jit(lambda: SurvivalData.from_bounds(time, time, exact=True))()
     assert jax.tree.structure(bounds) == jax.tree.structure(eager)
+    for result_data in (result, bounds):
+        for actual, expected in zip(
+            jax.tree.leaves(result_data), jax.tree.leaves(eager), strict=True
+        ):
+            np.testing.assert_array_equal(actual, expected)
+
+
+def test_unbounded_zero_lower_is_right_censored_only() -> None:
+    """Spec 3.3: (0, +inf] is right censoring at entry, not left censoring."""
+    data = SurvivalData.from_bounds(0.0, np.inf)
+    assert data.tree_flatten()[1] == (False, True, False, False, False, False)
+    assert bool(data.issues.uninformative)
+
+
+def test_nan_truncation_is_invalid_despite_false_presence_flags() -> None:
+    """Spec 3.2/6.2: NaN comparisons are false; issue bits still report invalidity."""
+    data = SurvivalData([1.0], left_trunc=np.nan, right_trunc=np.nan)
+    assert data.tree_flatten()[1] == (True, False, False, False, False, False)
+    np.testing.assert_array_equal(data.issues.invalid_truncation, [True])
+
+
+def test_negative_entry_is_invalid_despite_false_presence_flags() -> None:
+    """Spec 3.2/6.2: negative entry is not positive truncation, but is invalid."""
+    data = SurvivalData([1.0], left_trunc=-1.0)
+    assert data.tree_flatten()[1] == (True, False, False, False, False, False)
+    np.testing.assert_array_equal(data.issues.invalid_truncation, [True])
+
+
+@pytest.mark.parametrize("bounds", [False, True], ids=["flags", "bounds"])
+def test_concrete_construction_inside_jit_has_no_traced_leaves(bounds: bool) -> None:
+    """Spec 3.2/6.2: concrete normalization and raw issue bits match eager results."""
+
+    def build() -> SurvivalData:
+        if bounds:
+            return SurvivalData.from_bounds([1.0, 2.0], [1.0, 2.0], exact=[1, 2])
+        return SurvivalData([1.0, 2.0], [1, 2])
+
+    def inside() -> SurvivalData:
+        data = build()
+        assert not any(
+            isinstance(leaf, jax.core.Tracer) for leaf in jax.tree.leaves(data)
+        )
+        return data
+
+    result = jax.jit(inside)()
+    for actual, expected in zip(
+        jax.tree.leaves(result), jax.tree.leaves(build()), strict=True
+    ):
+        np.testing.assert_array_equal(actual, expected)
+
+
+@pytest.mark.parametrize("bounds", [False, True], ids=["flags", "bounds"])
+def test_concrete_data_checkpoint_inside_jit_remains_host_only(bounds: bool) -> None:
+    """Spec 6.2: diagnostics decoded inside jit cannot use the host checkpoint."""
+
+    def inside() -> None:
+        data = (
+            SurvivalData.from_bounds([0.0], [0.0], exact=True)
+            if bounds
+            else SurvivalData([0.0])
+        )
+        data.issues.raise_if_invalid()
+
+    with pytest.raises(ValueError, match="host-only") as error:
+        jax.jit(inside)()
+    assert not isinstance(error.value, InvalidDataError)
+
+
+@pytest.mark.parametrize("bounds", [False, True], ids=["flags", "bounds"])
+def test_vmap_construction_has_all_presence_flags(bounds: bool) -> None:
+    """Spec 6.2/12.1: observation inputs passed through vmap are traced."""
+    times = jnp.ones((2, 2))
+    build = (
+        (lambda t: SurvivalData.from_bounds(t, t, exact=True))
+        if bounds
+        else SurvivalData
+    )
+    data = jax.vmap(build)(times)
+    assert data.tree_flatten()[1] == (True,) * 6
+    np.testing.assert_array_equal(data.lower, [[1, 1], [1, 1]])
 
 
 def test_observation_tracers_force_all_flags_without_changing_leaves() -> None:

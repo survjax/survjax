@@ -1,77 +1,73 @@
-# Review: A3 observation indexing and static metadata
+# Review: A3 fix-ups after `791517a`
 
-Branch: `A3`. Spec sections 3.2, 6.2, 12.1 and the data portion of 12.2.
+Branch: `A3`. Implements handoff items 1–8 in an extra commit.
 
 ## Read first
 
-1. `src/chronox_jax/_data_metadata.py`: input-tracer classification and six
-   concrete presence flags, in exact/right/left/interval/left-trunc/right-trunc
-   order.
-2. `src/chronox_jax/data.py`: constructor entry classification, compile-time
-   normalization for concrete inputs, and `__getitem__`.
-3. `tests/unit/test_data_indexing.py`: aligned leaves and retained raw issues.
-4. `tests/unit/test_data_metadata.py`: concrete/traced behavior and trace counts.
+1. `_data_metadata.py`: standard pytree tracer detection, right-before-left
+   precedence, device reductions and one transfer of six static booleans.
+2. `data.py`: bounds issue calculations now inside compile-time evaluation;
+   indexing docstring explains JAX's out-of-range clamping.
+3. `tests/unit/test_data_metadata.py`: new edge cases and transformation evidence.
+4. `DEVIATIONS.md`, D-012: overlap of kind predicates; status remains open.
 
-## Invariants
+## Invariants and evidence
 
-- All six leaves share observation shape. Indexing applies the same index to
-  each leaf; reconstruction retains parent auxiliary flags without normalization.
-- Concrete metadata reduces over every normalized row, including invalid rows.
-  Right censoring is identified by non-exactness and infinite upper bound;
-  left censoring has lower zero and is not right censoring; remaining censored
-  rows are interval rows. Left/right truncation presence is independent.
-- Classification inspects supplied inputs before JAX operations. A tracer at
-  any list/tuple nesting depth forces all flags true. Concrete normalization
-  used by metadata runs under `jax.ensure_compile_time_eval`, including inside
-  transformations. Host conversion occurs only on this concrete path.
-- Auxiliary data contains only bool flags. Shapes, values and issue bits are
-  absent from auxiliary data; unchanged flags/shapes/dtypes reuse compilation.
-- Diagnostics remain a decoded view. Indexed `ok` reduces over indexed rows;
-  an empty subset is valid. The six-leaf structure and exports are unchanged.
+- Concrete inputs: both constructors evaluate all six stored leaves at trace
+  time inside jit and match eager construction. Any traced observation input
+  forces all flags true; calculations involving those inputs remain traced.
+  Tests: `test_concrete_construction_inside_jit_has_no_traced_leaves`,
+  extended `test_concrete_inputs_inside_jit_keep_eager_flags`, and
+  `test_vmap_construction_has_all_presence_flags` (both forms).
+- Diagnostics decoded inside jit remain traced, even for concretely built
+  data. The checkpoint raises host-only `ValueError`, not `InvalidDataError`.
+  Test: `test_concrete_data_checkpoint_inside_jit_remains_host_only` (both forms).
+- Spec 3.3 gives `(0, +inf]` right precedence. Test:
+  `test_unbounded_zero_lower_is_right_censored_only`; existing normalized-kind
+  tests continue to cover other kinds and rows with issues.
+- Presence flags are not validity checks. All normalized rows participate;
+  NaN truncation and negative entry can leave truncation flags false while
+  issue bits report invalidity. Tests:
+  `test_nan_truncation_is_invalid_despite_false_presence_flags` and
+  `test_negative_entry_is_invalid_despite_false_presence_flags` (3.2/6.2).
+- Concrete metadata uses jnp reductions on device and one `device_get` of
+  six booleans, inside compile-time evaluation only. Static Python flags need
+  one host synchronization. Slices inherit flags without metadata synchronization.
+  Behavior is covered by existing and new metadata tests; no accelerator
+  timing or transfer profiling was performed.
 
-## Test evidence
+## A6 handoff
 
-| Spec requirement | Implementer tests |
-| --- | --- |
-| 3.2 aligned indexing, scalar/negative/stride/empty/array/boolean selections, tree-map identity | `test_indexing_preserves_each_leaf` |
-| 3.2/12.1 multidimensional indexing and eager/jit/vmap agreement | `test_multidimensional_indexing_and_transforms` |
-| 3.2/6.2 stored invalid codes survive indexing and reconstruction; scalar subset validity inside jit | `test_indexed_and_rebuilt_issues_keep_raw_evidence` |
-| 3.2 both constructors agree, normalized kinds include invalid rows, subsets inherit flags | `test_normalized_kinds_and_truncation_flags` |
-| 3.2 independent kind/truncation flags, explicit defaults, equal treedefs across row counts | `test_independent_presence_flags` |
-| 6.2 concrete Python/NumPy/captured JAX inputs inside jit, unrelated tracer arguments | `test_concrete_inputs_inside_jit_keep_eager_flags` |
-| 3.2/6.2 nested tracers, single traced argument, arrays created inside jit | `test_observation_tracers_force_all_flags_without_changing_leaves` |
-| 3.2/12.1 same flags compile once, changed flags separately, parent-slice and all-true reuse | `test_static_flags_control_compilation_reuse` |
+- Reuse normalized kind definitions from `_data_metadata.py` for row dispatch
+  so static flags and likelihood classification agree. `may_contain` returns
+  Python flags through a host transfer; it is not a jit-safe row-mask API.
+  Plan any shared pure-JAX classifier at A6; none is added in this fix-up.
+- Issue bits must cause NaN contributions and `invalid_data` regardless of
+  which branches metadata removes. A6 must test NaN truncation with false
+  truncation flags.
+- Resolve unsupported-mode detection on traced data in the A6 plan. All-true
+  metadata cannot establish that unsupported modes are actually present;
+  address row values and explicit failure under transformations (12.2).
 
-The read-only A3 acceptance suite also covers each supplied observation argument,
-issue decoding after transformations, constructor diagnostics and host checkpoints.
-This step does not establish completion of the full Slice A gate.
+## Checks
 
-## Checks run
+All uv commands use `UV_CACHE_DIR=/private/tmp/chronox-uv-cache`.
 
-Commands using uv set `UV_CACHE_DIR=/private/tmp/chronox-uv-cache` because the
-sandbox denies access to the default cache.
-
-- Focused new tests, `JAX_ENABLE_X64=1 uv run pytest
-  tests/unit/test_data_indexing.py tests/unit/test_data_metadata.py -q`:
-  **22 passed in 2.68s**.
-- `uv run mypy src`: **Success: no issues found in 5 source files**.
-- `uv run ruff check .`: **All checks passed!**.
+- Focused metadata tests, x64: **23 passed in 2.65s**.
+- Ruff: **All checks passed!**; mypy: **Success: no issues found in 5 source files**.
+- Initial mypy check reported an incompatible fixed-length return annotation
+  for the tuple comprehension. Updated the helper annotation to
+  `tuple[bool, ...]`; subsequent mypy checks passed.
 - `scripts/check.sh --through A3`: **check: all gates passed through A3**.
-  Guard passed on `A3`; **29 files already formatted**; Ruff passed; mypy
-  passed. Own tests: **108 passed, 3 skipped in 5.53s** (x64), **111 passed
-  in 4.99s** (x32). Independent tests: **372 passed, 15 skipped in 8.20s**
-  (x64), **382 passed, 5 skipped in 7.97s** (x32). Own x64 skips concern
-  conversion warnings/unavailable dtype behavior specific to x32.
-- After the gate, removed one unused test-data assignment. Re-ran
-  `JAX_ENABLE_X64=1 uv run pytest
-  tests/unit/test_data_metadata.py::test_static_flags_control_compilation_reuse
-  -q`: **1 passed in 0.83s**. `git diff --check`: passed with no output.
-- No R, fixture generation, docs build or install smoke test was run for A3.
+  Guard passed; **30 files already formatted**; Ruff and mypy passed.
+  Own tests: x64 **117 passed, 3 skipped in 6.37s**; x32 **120 passed in
+  5.33s**. Independent tests: x64 **372 passed, 15 skipped in 8.39s**;
+  x32 **382 passed, 5 skipped in 8.27s**. Own x64 skips cover float32-only
+  conversion warnings and unavailable-dtype behavior.
+- `git diff --check`: passed with no output.
 
-## Limits and open items
+## Open items
 
-- Indexing follows JAX constraints: boolean masks must be concrete under jit;
-  dynamic selections with variable output shapes are not supported by JAX.
-- D-010 remains formally open. Its current independent test uses indexed
-  data's scalar `ok` and passed; closure belongs to the maintainer.
-- Existing `docs/playground.ipynb` edits are excluded from this commit.
+D-012 and D-010 remain open for maintainer resolution. No tests/spec or spec
+files changed. Existing notebook edits and the maintainer's handoff are excluded
+from staging. No R, docs build, install smoke test or CPU timing was run.
