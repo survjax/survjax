@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from chronox_jax import InvalidDataError, SurvivalData
+from survjax import InvalidDataError, SurvivalData
 
 
 def test_normalized_kinds_and_truncation_flags() -> None:

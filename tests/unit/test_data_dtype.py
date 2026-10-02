@@ -7,7 +7,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from chronox_jax import InvalidDataError, SurvivalData
+from survjax import InvalidDataError, SurvivalData
 
 
 def test_integer_only_uses_configured_default_float(x64_enabled: bool) -> None:

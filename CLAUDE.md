@@ -1,8 +1,7 @@
-# Chronox (`chronox-jax`): working agreement for coding agents
+# survjax (`survjax`): working agreement for coding agents
 
-Chronox is a lightweight JAX library for survival likelihoods, predictions and
-evaluation. Distribution name `chronox-jax`, import `chronox_jax as cx`. There is
-no top-level `chronox` import.
+survjax is a lightweight JAX library for survival likelihoods, predictions and
+evaluation. Distribution and import name `survjax`: `import survjax`, no alias.
 
 The goals are in `spec/GOALS.md`. The normative contract is
 `spec/SPECIFICATION.md`. `spec/` is a symlink to the spec in the separate design
@@ -121,7 +120,7 @@ CLAUDE.md                 this file (AGENTS.md is a symlink to it)
 PLAN.md  REVIEW.md  DEVIATIONS.md
 pyproject.toml  uv.lock  .python-version  .pre-commit-config.yaml
 .gitignore  LICENSE
-src/chronox_jax/          layout of spec 10.2; only modules Slice A needs
+src/survjax/          layout of spec 10.2; only modules Slice A needs
 tests/
     conftest.py           dtype handling, shared helpers (yours)
     tolerances.py         tolerances for your tests (yours)

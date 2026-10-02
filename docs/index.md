@@ -1,6 +1,6 @@
-# Chronox documentation
+# survjax documentation
 
-Chronox is a JAX library for survival analysis. The current implementation
+survjax is a JAX library for survival analysis. The current implementation
 provides `SurvivalData` construction, normalization, dtype handling and data
 diagnostics. Indexing, likelihoods, distributions and evaluation are planned;
 the Slice A completion gate has not yet been met.

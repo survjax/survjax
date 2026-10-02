@@ -1,17 +1,18 @@
-"""Shared helpers for the Chronox spec tests.
+"""Shared helpers for the survjax spec tests.
 
-No Chronox behaviour is asserted here. Every guessed API detail lives in this
+No survjax behaviour is asserted here. Every guessed API detail lives in this
 module and names its API_ASSUMPTIONS.md entry, so resolving a question means
 editing one line.
 """
 
 import contextlib
 
-import chronox_jax as cx
 import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
+
+import survjax
 
 # Active dtype mode, as JAX sees it (conftest checks it matches JAX_ENABLE_X64).
 FLOAT = np.dtype(jnp.asarray(0.0).dtype)
@@ -22,12 +23,12 @@ NAN = np.nan
 
 
 class _NoInvalidDataError(Exception):
-    """Stand-in when chronox_jax lacks InvalidDataError; never raised, so only tests expecting it fail."""
+    """Stand-in when survjax lacks InvalidDataError; never raised, so only tests expecting it fail."""
 
 
 # Spec 6.2: invalid rows raise only at an explicit host checkpoint. Malformed
 # calls and unavailable explicit dtype requests retain their exception policy.
-INVALID_DATA = getattr(cx, "InvalidDataError", _NoInvalidDataError)
+INVALID_DATA = getattr(survjax, "InvalidDataError", _NoInvalidDataError)
 MISUSE = TypeError
 DTYPE_REQUEST = ValueError
 
@@ -66,13 +67,13 @@ def b(values):
 
 def flag_data_and_issues(*args, **kwargs):
     """Test helper: construct through the public flag form, then read diagnostics."""
-    data = cx.SurvivalData(*args, **kwargs)
+    data = survjax.SurvivalData(*args, **kwargs)
     return data, data.issues
 
 
 def bounds_data_and_issues(*args, **kwargs):
     """Test helper: construct through the public bounds form, then read diagnostics."""
-    data = cx.SurvivalData.from_bounds(*args, **kwargs)
+    data = survjax.SurvivalData.from_bounds(*args, **kwargs)
     return data, data.issues
 
 
@@ -84,7 +85,9 @@ def field(data, name):
 def assert_fields(data, **expected):
     """Compare named normalized fields with expected values (exact equality)."""
     for name, value in expected.items():
-        np.testing.assert_array_equal(field(data, name), np.asarray(value), err_msg=name)
+        np.testing.assert_array_equal(
+            field(data, name), np.asarray(value), err_msg=name
+        )
 
 
 def assert_same_fields(left, right):

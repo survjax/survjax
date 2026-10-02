@@ -51,7 +51,7 @@ Branch: `A3`. Implements handoff items 1–8 in an extra commit.
 
 ## Checks
 
-All uv commands use `UV_CACHE_DIR=/private/tmp/chronox-uv-cache`.
+All uv commands use `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`.
 
 - Focused metadata tests, x64: **23 passed in 2.65s**.
 - Ruff: **All checks passed!**; mypy: **Success: no issues found in 5 source files**.

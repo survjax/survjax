@@ -7,7 +7,7 @@ plan/approval/implementation/review/stop sequence.
 
 ## Files and changes
 
-- `src/chronox_jax/_data_metadata.py`: replace recursive tracer detection
+- `src/survjax/_data_metadata.py`: replace recursive tracer detection
   with `jax.tree.leaves`; retain the separate module and existing kind
   precedence. Add the spec 3.3 explanation that `(0, +inf]` is right censored.
   Implement item 8: compute the six presence reductions with `jnp` on the
@@ -15,7 +15,7 @@ plan/approval/implementation/review/stop sequence.
   six-element array before converting to Python bools. Avoid transferring
   observation arrays to NumPy. Keep `may_contain` inside the compile-time
   evaluation block on the concrete path only; never pass it tracers.
-- `src/chronox_jax/data.py`: extend the bounds constructor's compile-time
+- `src/survjax/data.py`: extend the bounds constructor's compile-time
   block through all issue calculations, making its six leaves concrete at
   trace time when supplied inputs are concrete. Add the requested JAX
   out-of-range clamping sentence to `__getitem__`'s docstring.
@@ -75,7 +75,7 @@ Record for A6:
 ## Verification and finish
 
 Run `scripts/check.sh --through A3` in the existing two dtype processes,
-with `UV_CACHE_DIR=/private/tmp/chronox-uv-cache`, and `git diff --check`.
+with `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`, and `git diff --check`.
 Report actual results and any skips. Keep spec/tests/spec read-only and
 exclude the existing notebook edit and maintainer-authored handoff from
 staging. Commit as an extra A3 fix-up, without amend/rebase, then stop.
@@ -110,7 +110,7 @@ portion of the Slice A gate in 12.2. Preserve the dtype policy in 3.3.
 
 ## Implementation and files
 
-1. `src/chronox_jax/data.py`
+1. `src/survjax/data.py`
    - Apply `idx` to every array leaf, including the issue bits, and rebuild
      with the parent's auxiliary flags through the existing PyTree machinery.
      Do not reconstruct through a public constructor or reclassify a subset.
@@ -129,7 +129,7 @@ portion of the Slice A gate in 12.2. Preserve the dtype policy in 3.3.
    - Pass the calculated flags explicitly when constructing either form.
      Keep `tree_unflatten` free of classification and validation so it also
      accepts JAX's reconstruction placeholders.
-2. `src/chronox_jax/_data_metadata.py` (new, small private module)
+2. `src/survjax/_data_metadata.py` (new, small private module)
    - Hold the input-tracer check and concrete normalized-field classification.
      This responsibility is separate from row validation; `data.py` already
      exceeds 300 lines after the approved repr work, so do not add a general
@@ -302,7 +302,7 @@ Spec sections: 3.1-3.3, 6.2, 10.5.
 
 ## Repr
 
-- `src/chronox_jax/data.py`: declare `_issue_bits` and `_may_contain` with
+- `src/survjax/data.py`: declare `_issue_bits` and `_may_contain` with
   `dataclasses.field(repr=False)`, so the repr shows only the five public
   arrays (spec 3.2 keeps the others private). No summary repr. `DataIssues`
   is unchanged. Pytree flattening and `__init__` are unchanged.
@@ -332,7 +332,7 @@ Keep the facts of DOC-2; change the form.
 - Explain why before how: a sentence or two on what each censoring kind means
   for the patient before the call that encodes it. Introduce the normalized
   fields when the first output shows them, not as an opening list of rules.
-- Present the R comparison as a table (`Surv(...)` call next to the Chronox
+- Present the R comparison as a table (`Surv(...)` call next to the survjax
   call, plus a notes column). Re-check each claim against the official `Surv`
   help page. In particular, the "(start, end]" wording there may refer to
   counting-process data, not interval censoring; drop the claim unless the
@@ -448,8 +448,8 @@ evidence and uncertainties. Commit this one step on `spec-deviations` and stop.
 
 The maintainer requests a clarification of the non-exact equal-endpoint case
 and cleanup of deviation IDs/statuses. Change only the `from_bounds` docstring
-in `src/chronox_jax/data.py`, the branch D-006 references in
-`src/chronox_jax/_data_validation.py` and
+in `src/survjax/data.py`, the branch D-006 references in
+`src/survjax/_data_validation.py` and
 `tests/unit/test_data_construction.py`, and `DEVIATIONS.md`. Rename the branch
 D-006 to D-011 and mark D-011, D-007, D-008 and D-009 as superseded by
 revision 9, leaving final closure to the maintainer. Update `REVIEW.md` and
@@ -472,11 +472,11 @@ Spec sections: 3.1–3.3, 6.2–6.3, 10.2 and 12.1–12.2.
 
 Files and public API:
 
-- `src/chronox_jax/data.py`: retain exactly `SurvivalData(...)` and
+- `src/survjax/data.py`: retain exactly `SurvivalData(...)` and
   `SurvivalData.from_bounds(...)` as construction methods; remove automatic
   host validation and the `with_issues` method; add a typed `issues` property
   decoding the stored issue bitfield. No `from_bounds_with_issues` method.
-- `src/chronox_jax/_data_validation.py`: remove obsolete host-only constructor
+- `src/survjax/_data_validation.py`: remove obsolete host-only constructor
   validation and references to the removed method, preserving normalization,
   dtype policy, argument-misuse checks and issue attribution.
 - Own tests in `tests/unit/`: migrate callers to ordinary construction and

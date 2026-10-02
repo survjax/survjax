@@ -10,7 +10,7 @@ kernelspec:
 # Describing survival observations
 
 ```{note}
-Chronox can currently build and check survival observations with
+survjax can currently build and check survival observations with
 `SurvivalData`. Likelihoods, distributions and evaluation are not implemented
 yet, so this page stops once the data are described.
 ```
@@ -33,9 +33,9 @@ and 0 for censoring.
 ```{code-cell} ipython3
 import jax
 import jax.numpy as jnp
-import chronox_jax as cx
+import survjax
 
-data = cx.SurvivalData([4.0, 12.0, 7.0, 9.0], [1, 0, 1, 0])
+data = survjax.SurvivalData([4.0, 12.0, 7.0, 9.0], [1, 0, 1, 0])
 data
 ```
 
@@ -43,7 +43,7 @@ In the printout, `4` is an event at month 4. `(12, inf]` is the set of
 possible event times for patient 2: later than month 12, with no upper limit.
 R would print it as `12+`. Without a status, every row is an exact event.
 
-Behind the printout, Chronox stores every observation as a set of possible
+Behind the printout, survjax stores every observation as a set of possible
 event times, in the fields `exact`, `lower` and `upper`. An exact event has
 `exact=True` and `lower == upper`. A censored row says the event happened
 after `lower` and at or before `upper`, so right censoring has `upper=inf`:
@@ -68,7 +68,7 @@ so the other rows can hold anything, here `nan`.
 
 ```{code-cell} ipython3
 nan = jnp.nan
-data = cx.SurvivalData(
+data = survjax.SurvivalData(
     [4.0, 12.0, 7.0, 9.0, 6.0],
     right_censored=[False, True, False, True, False],
     interval_censored=[False, False, False, False, True],
@@ -77,17 +77,17 @@ data = cx.SurvivalData(
 data.lower, data.upper
 ```
 
-The interval row stores `lower=6`, `upper=9`. Like R, Chronox treats the
+The interval row stores `lower=6`, `upper=9`. Like R, survjax treats the
 interval as open on the left and closed on the right, `(6, 9]`.
 
 ## Known only to have occurred before the first visit
 
 Patient 6 already showed progression at the first scan at month 3. All we
 know is that progression happened at or before month 3: the observation is
-*left censored*. Chronox stores it as the set `(0, 3]`, with lower bound 0.
+*left censored*. survjax stores it as the set `(0, 3]`, with lower bound 0.
 
 ```{code-cell} ipython3
-cohort = cx.SurvivalData(
+cohort = survjax.SurvivalData(
     [4.0, 12.0, 7.0, 9.0, 6.0, 3.0],
     right_censored=[False, True, False, True, False, False],
     left_censored=[False, False, False, False, False, True],
@@ -103,7 +103,7 @@ call is a mistake in the call itself. It raises at once:
 ```{code-cell} ipython3
 :tags: [raises-exception]
 
-cx.SurvivalData([4.0], [1], left_censored=[False])
+survjax.SurvivalData([4.0], [1], left_censored=[False])
 ```
 
 ## The same cohort as endpoints
@@ -117,7 +117,7 @@ lower one or be `nan`.
 
 ```{code-cell} ipython3
 inf = jnp.inf
-same_cohort = cx.SurvivalData.from_bounds(
+same_cohort = survjax.SurvivalData.from_bounds(
     [4.0, 12.0, 7.0, 9.0, 6.0, 0.0],
     [nan, inf, nan, inf, 9.0, 3.0],
     exact=[True, False, True, False, False, False],
@@ -141,7 +141,7 @@ by row. Each row is then only informative about times in
 `(left_trunc, right_trunc]`.
 
 ```{code-cell} ipython3
-cohort = cx.SurvivalData(
+cohort = survjax.SurvivalData(
     [4.0, 12.0, 7.0, 9.0, 6.0, 3.0],
     right_censored=[False, True, False, True, False, False],
     left_censored=[False, False, False, False, False, True],
@@ -170,7 +170,7 @@ each problem in `data.issues`. Printing the data shows the rows as stored,
 with a note at the end:
 
 ```{code-cell} ipython3
-bad = cx.SurvivalData(
+bad = survjax.SurvivalData(
     [0.0, 6.0, 9.0, 1.0, 0.0],
     right_censored=[False, False, False, True, False],
     interval_censored=[False, True, True, False, True],
@@ -184,7 +184,7 @@ Rows are numbered from 0, so record 1 is row 0. `bad.issues` lists each
 rule that fails, with the number of rows and the first one. Record 5 is not
 invalid. Its set `(0, inf]` rules nothing out, so it carries no information
 about when progression happens.
-Chronox lists it as `uninformative`, but not as an error:
+survjax lists it as `uninformative`, but not as an error:
 
 ```{code-cell} ipython3
 bad.issues
@@ -208,18 +208,18 @@ bad.issues.raise_if_invalid()
 ```
 
 Two more mistakes are worth knowing. R also accepts a status coded 1/2, with
-2 for an event. Chronox accepts only 0/1 or booleans and flags a `2` as an
+2 for an event. survjax accepts only 0/1 or booleans and flags a `2` as an
 invalid indicator rather than guessing:
 
 ```{code-cell} ipython3
-cx.SurvivalData([5.0, 8.0], [2, 1]).issues.invalid_indicator
+survjax.SurvivalData([5.0, 8.0], [2, 1]).issues.invalid_indicator
 ```
 
 And equal endpoints given to `from_bounds` without the `exact` mask are an
 invalid interval, not an event:
 
 ```{code-cell} ipython3
-cx.SurvivalData.from_bounds([5.0], [5.0]).issues.invalid_interval
+survjax.SurvivalData.from_bounds([5.0], [5.0]).issues.invalid_interval
 ```
 
 ## Inside `jax.jit`
@@ -231,7 +231,7 @@ function and check them afterwards:
 ```{code-cell} ipython3
 @jax.jit
 def diagnose(time, status):
-    return cx.SurvivalData(time, status).issues
+    return survjax.SurvivalData(time, status).issues
 
 compiled_issues = diagnose(jnp.array([4.0, 12.0]), jnp.array([1, 2]))
 compiled_issues.invalid_rows
@@ -248,7 +248,7 @@ Calling `raise_if_invalid()` inside the compiled function raises a
 
 ## Floating-point precision
 
-Times and bounds share one floating dtype. Chronox follows JAX's setting: the
+Times and bounds share one floating dtype. survjax follows JAX's setting: the
 default is float32, and float64 when JAX's 64-bit mode is on. The library
 never changes that setting itself. This page was built with:
 
@@ -266,10 +266,10 @@ The R calls below follow the official
 They compare how the input is written. No numerical agreement with R has
 been checked.
 
-| Situation | R | Chronox | Notes |
+| Situation | R | survjax | Notes |
 | --- | --- | --- | --- |
-| Events and right censoring | `Surv(time, status)` | `SurvivalData(time, status)` | R also accepts 1/2 coding and guesses it from `max(status) == 2`. Chronox accepts only 0/1 or booleans. |
-| Mixed censoring with codes | `Surv(time, time2, status, type = "interval")` | `SurvivalData(time, right_censored=..., left_censored=..., interval_censored=..., time2=...)` | R codes 0 right, 1 event, 2 left, 3 interval and ignores `time2` unless the code is 3. Chronox uses one boolean flag per kind and likewise reads `time2` only on interval rows. |
-| Intervals as endpoints | `Surv(lower, upper, type = "interval2")` | `SurvivalData.from_bounds(lower, upper, exact=...)` | R treats equal endpoints as an exact event and allows `NA` or `Inf` for an unbounded end. Chronox needs the `exact` mask, uses 0 for no lower limit and `inf` for no upper limit. |
+| Events and right censoring | `Surv(time, status)` | `SurvivalData(time, status)` | R also accepts 1/2 coding and guesses it from `max(status) == 2`. survjax accepts only 0/1 or booleans. |
+| Mixed censoring with codes | `Surv(time, time2, status, type = "interval")` | `SurvivalData(time, right_censored=..., left_censored=..., interval_censored=..., time2=...)` | R codes 0 right, 1 event, 2 left, 3 interval and ignores `time2` unless the code is 3. survjax uses one boolean flag per kind and likewise reads `time2` only on interval rows. |
+| Intervals as endpoints | `Surv(lower, upper, type = "interval2")` | `SurvivalData.from_bounds(lower, upper, exact=...)` | R treats equal endpoints as an exact event and allows `NA` or `Inf` for an unbounded end. survjax needs the `exact` mask, uses 0 for no lower limit and `inf` for no upper limit. |
 | Interval endpoints | `(start, end]` | `(lower, upper]` | Both are open on the left and closed on the right. |
-| Delayed entry | `Surv(start, stop, status)` | `SurvivalData(stop, status, left_trunc=start)` | With `time2`, R defaults to counting-process data. Chronox's `time2` is never a stop time; entry times go in `left_trunc`. |
+| Delayed entry | `Surv(start, stop, status)` | `SurvivalData(stop, status, left_trunc=start)` | With `time2`, R defaults to counting-process data. survjax's `time2` is never a stop time; entry times go in `left_trunc`. |

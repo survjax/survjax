@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from chronox_jax import SurvivalData
+from survjax import SurvivalData
 
 
 @pytest.mark.parametrize(

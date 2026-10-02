@@ -1,6 +1,6 @@
-"""Sphinx configuration for the local Chronox documentation (spec 10.5)."""
+"""Sphinx configuration for the local survjax documentation (spec 10.5)."""
 
-project = "Chronox"
+project = "survjax"
 extensions = ["myst_nb"]
 # The existing simulation guide describes unimplemented likelihood workflows.
 exclude_patterns = ["_build", ".ipynb_checkpoints", "simulation-guide.md"]

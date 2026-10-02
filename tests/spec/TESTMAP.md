@@ -6,7 +6,7 @@ revision tags. Tests from the revision 10 decision (sections 6.2, 10.2, 13) are
 tagged `rev 10`. Tests from the unaccepted performance amendment (section 7.2)
 are tagged `rev perf-draft` and should be retagged with the final revision
 number when the maintainer accepts it. Tests are static acceptance tests and have never
-been executed against Chronox. Test names below are relative to `tests/spec/`.
+been executed against survjax. Test names below are relative to `tests/spec/`.
 
 ## A1: representation and dtype policy (`test_a1_representation.py`, `test_a1_dtype.py`)
 
@@ -40,7 +40,7 @@ been executed against Chronox. Test names below are relative to `tests/spec/`.
 | 3.3 | "An explicit request for an unavailable dtype ... fails clearly" | `test_explicit_float64_request_fails_under_32bit_mode`, `test_explicit_float64_request_fails_in_from_bounds_under_32bit_mode` |
 | 3.1, 3.3 | `dtype=` keyword honoured when available | `test_explicit_float32_request_gives_float32_fields`, `test_explicit_float64_request_gives_float64_fields_under_64bit_mode` |
 | 3.3 | "Boolean times, complex values, strings and object or mixed-None arrays are rejected" | `test_boolean_time_is_rejected`, `test_boolean_time2_is_rejected`, `test_boolean_lower_bound_is_rejected`, `test_boolean_truncation_is_rejected`, `test_complex_time_is_rejected`, `test_complex_truncation_is_rejected`, `test_string_time_is_rejected`, `test_object_array_with_none_time_is_rejected` |
-| 3.3 | "Chronox never changes JAX's global 64-bit setting" | `test_construction_does_not_change_global_64bit_setting`, `test_failed_float64_request_does_not_enable_64bit_mode` |
+| 3.3 | "survjax never changes JAX's global 64-bit setting" | `test_construction_does_not_change_global_64bit_setting`, `test_failed_float64_request_does_not_enable_64bit_mode` |
 
 ### A1: deliberately not tested
 
@@ -63,7 +63,7 @@ been executed against Chronox. Test names below are relative to `tests/spec/`.
   (3.3 bullets 4–5): these belong to distributions, likelihoods and metrics,
   outside A1–A3.
 - **"float64 is recommended for reference ... work"; "Precision lost before
-  values reach Chronox cannot be recovered":** guidance, not testable behaviour.
+  values reach survjax cannot be recovered":** guidance, not testable behaviour.
 
 ## A2: constructor and data requirements
 
@@ -314,7 +314,7 @@ been executed against Chronox. Test names below are relative to `tests/spec/`.
 | 6.2 | \`uninformative\` is reported separately and is not part of \`invalid_rows\`. | `test_uninformative_is_not_part_of_invalid_rows` |
 | 6.2 | \`ok\` is the scalar validity reduction. | `test_ok_is_false_when_any_row_is_invalid` |
 | 6.2 | \`ok\` reduces \`invalid_rows\`, which excludes \`uninformative\` (Q-011). | `test_ok_is_true_with_only_uninformative_rows` |
-| 6.2 | invalid rows raise \`chronox_jax.InvalidDataError\`, a subclass of \`ValueError\`. | `test_invalid_data_error_is_a_public_value_error` |
+| 6.2 | invalid rows raise \`survjax.InvalidDataError\`, a subclass of \`ValueError\`. | `test_invalid_data_error_is_a_public_value_error` |
 | 10.2/13 | "`TracedInputError` is retired and is not exported." | `test_traced_input_error_is_retired` |
 | 6.2 | \`DataIssues.raise_if_invalid()\` is an explicit host-only checkpoint. | `test_raise_if_invalid_raises_for_invalid_rows` |
 | 6.2 | an invalid host checkpoint reports counts and first offending indices. | `test_host_checkpoint_reports_count_and_first_offending_index` |

@@ -1,4 +1,4 @@
-"""Self-contained configuration for the Chronox specification tests.
+"""Self-contained configuration for the survjax specification tests.
 
 - Dtype mode: taken from the ``JAX_ENABLE_X64`` environment variable, which the
   runner sets. Tests never set it; the suite runs once per mode.
@@ -105,7 +105,9 @@ def load_fixture(name):
         with np.load(path) as archive:
             return {key: archive[key] for key in archive.files}
     if path.suffix == ".csv":
-        return np.genfromtxt(path, delimiter=",", names=True, dtype=None, encoding="utf-8")
+        return np.genfromtxt(
+            path, delimiter=",", names=True, dtype=None, encoding="utf-8"
+        )
     pytest.fail(f"unsupported fixture format: {path.suffix}")
 
 

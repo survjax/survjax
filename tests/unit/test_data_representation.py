@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from chronox_jax import SurvivalData
+from survjax import SurvivalData
 
 
 def test_mixed_kinds_have_meaningful_bounds() -> None:

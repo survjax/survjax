@@ -8,15 +8,15 @@ import jax.numpy as jnp
 import numpy as np
 from jax.typing import ArrayLike, DTypeLike
 
-from chronox_jax._data_metadata import contains_tracer, may_contain
-from chronox_jax._data_validation import (
+from survjax._data_metadata import contains_tracer, may_contain
+from survjax._data_validation import (
     flag_fields,
     indicator,
     row_issues,
     time_dtype,
     to_shape,
 )
-from chronox_jax.diagnostics import DataIssues, _plural
+from survjax.diagnostics import DataIssues, _plural
 
 # Longer data print the first and last rows only, like NumPy's summarization.
 _REPR_MAX_ROWS = 20

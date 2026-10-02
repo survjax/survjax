@@ -24,7 +24,7 @@ on it. Guessed exception types and call shapes are centralised in
 - **Checked:** 3.3 and 6.2, revisions 8–9.
 - **Resolved:** invalid observation values return data with issues; only an
   explicit concrete `data.issues.raise_if_invalid()` raises the public
-  `chronox_jax.InvalidDataError` (`ValueError` subclass). Structural argument
+  `survjax.InvalidDataError` (`ValueError` subclass). Structural argument
   misuse raises `TypeError`; unavailable explicit dtype requests raise
   `ValueError` and not `InvalidDataError`.
 - **Depends:** A2 issue assertions, A3 checkpoint tests, misuse tests and
@@ -87,7 +87,7 @@ on it. Guessed exception types and call shapes are centralised in
 - **Resolved:** only `SurvivalData(...)` and `SurvivalData.from_bounds(...)`
   construct observations. Each returns data; `data.issues` exposes diagnostics.
   `helpers.flag_data_and_issues` and `helpers.bounds_data_and_issues` are test
-  helpers that compose these public operations, not Chronox API assumptions.
+  helpers that compose these public operations, not survjax API assumptions.
 - **Depends:** the A3 diagnostic attribution tests and the two tests asserting
   that the removed convenience methods are absent.
 ## Q-010: which DataIssues field reports each rule
@@ -192,7 +192,7 @@ on it. Guessed exception types and call shapes are centralised in
   (covers `pure_callback`, `io_callback`, `debug_callback`); "no host
   transfers" is observable as a warmed jitted call on device-resident inputs
   succeeding under `jax.transfer_guard("disallow")`. Both rely on JAX
-  behaviour rather than a Chronox name.
+  behaviour rather than a survjax name.
 - **Open:** these requirements come from a draft amendment the maintainer has
   not accepted; drop or retag the tests if it changes.
 - **Depends:** `test_compiled_construction_and_diagnostics_install_no_host_callback`,

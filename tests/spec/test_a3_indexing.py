@@ -1,6 +1,5 @@
 """A3: indexing and slicing of SurvivalData (spec 3.2)."""
 
-import chronox_jax as cx
 import jax
 import numpy as np
 import pytest
@@ -18,10 +17,12 @@ from helpers import (
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+import survjax
+
 
 def _data():
     """Five rows of mixed kinds with truncation (all valid)."""
-    return cx.SurvivalData(
+    return survjax.SurvivalData(
         f([1.0, 2.0, 3.0, 1.0, 4.0]),
         right_censored=b([False, True, False, False, False]),
         left_censored=b([False, False, True, False, False]),
@@ -35,7 +36,7 @@ def _data():
 def _assert_indexed(data, idx):
     """data[idx] is a SurvivalData whose fields are the parent's fields indexed by idx."""
     sub = data[idx]
-    assert isinstance(sub, cx.SurvivalData)
+    assert isinstance(sub, survjax.SurvivalData)
     for name in FIELDS:
         expected = np.asarray(getattr(data, name))[idx]
         got = np.asarray(getattr(sub, name))
@@ -85,7 +86,7 @@ def test_boolean_mask_index_for_split():
 @pytest.mark.step("A3")
 def test_indexing_multidimensional_observations():
     """spec 3.2, rev 4: `data[idx]` over multidimensional observation axes."""
-    data = cx.SurvivalData(
+    data = survjax.SurvivalData(
         f([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
         b([[True, False, True], [False, True, False]]),
         left_trunc=f([0.5, 0.0, 0.25]),
@@ -101,14 +102,16 @@ def test_tree_map_slicing_matches_indexing():
     data = _data()
     idx = np.array([3, 1])
     mapped = jax.tree.map(lambda x: x[idx], data)
-    assert isinstance(mapped, cx.SurvivalData)
+    assert isinstance(mapped, survjax.SurvivalData)
     assert_same_fields(mapped, data[idx])
 
 
 @pytest.mark.step("A3")
 def test_indexing_carries_every_leaf_including_issue_bitfield():
     """spec 3.2, rev 4: every leaf has the observation shape, so indexing slices each leaf, the bitfield included."""
-    data, _ = flag_data_and_issues(f([1.0, -1.0, 2.0, 3.0]), np.array([1, 2, 0, 1], dtype=np.int32))
+    data, _ = flag_data_and_issues(
+        f([1.0, -1.0, 2.0, 3.0]), np.array([1, 2, 0, 1], dtype=np.int32)
+    )
     idx = np.array([1, 3])
     sub = data[idx]
     assert treedef(sub) == treedef(data)
@@ -130,7 +133,9 @@ def test_slicing_inside_jit():
     st.integers(min_value=1, max_value=8).flatmap(
         lambda n: st.tuples(
             st.lists(st.booleans(), min_size=n, max_size=n),
-            st.lists(st.integers(min_value=0, max_value=n - 1), min_size=0, max_size=2 * n),
+            st.lists(
+                st.integers(min_value=0, max_value=n - 1), min_size=0, max_size=2 * n
+            ),
         )
     )
 )
@@ -138,5 +143,7 @@ def test_indexing_commutes_with_fields_property(case):
     """spec 3.2, rev 4: for any integer-array index, `data[idx].field == data.field[idx]`."""
     events, idx = case
     n = len(events)
-    data = cx.SurvivalData(f(np.arange(1, n + 1)), b(events), left_trunc=f(np.full(n, 0.5)))
+    data = survjax.SurvivalData(
+        f(np.arange(1, n + 1)), b(events), left_trunc=f(np.full(n, 0.5))
+    )
     _assert_indexed(data, np.asarray(idx, dtype=np.int32))

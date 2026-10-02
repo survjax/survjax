@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from chronox_jax import SurvivalData
+from survjax import SurvivalData
 
 
 def test_exact_time_at_entry_is_outside_window() -> None:

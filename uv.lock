@@ -472,63 +472,6 @@ wheels = [
 ]
 
 [[package]]
-name = "chronox-jax"
-version = "0.0.1.dev0"
-source = { editable = "." }
-dependencies = [
-    { name = "jax" },
-    { name = "numpy" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "hypothesis" },
-    { name = "mpmath" },
-    { name = "mypy" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "ruff" },
-]
-docs = [
-    { name = "ipykernel" },
-    { name = "jupyterlab" },
-    { name = "myst-nb" },
-    { name = "sphinx" },
-]
-test = [
-    { name = "hypothesis" },
-    { name = "mpmath" },
-    { name = "pytest" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "jax", specifier = ">=0.11.2" },
-    { name = "numpy", specifier = ">=2.5.3" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "hypothesis", specifier = ">=6.168.1" },
-    { name = "mpmath", specifier = ">=1.4.1" },
-    { name = "mypy", specifier = ">=2.3.1" },
-    { name = "pre-commit", specifier = ">=4.6.2" },
-    { name = "pytest", specifier = ">=9.1.1" },
-    { name = "ruff", specifier = ">=0.16.9" },
-]
-docs = [
-    { name = "ipykernel", specifier = ">=7.4.0" },
-    { name = "jupyterlab", specifier = ">=4.6.4" },
-    { name = "myst-nb", specifier = ">=1.4.0" },
-    { name = "sphinx", specifier = ">=9.1.0" },
-]
-test = [
-    { name = "hypothesis", specifier = ">=6.168.1" },
-    { name = "mpmath", specifier = ">=1.4.1" },
-    { name = "pytest", specifier = ">=9.1.1" },
-]
-
-[[package]]
 name = "click"
 version = "8.5.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2537,6 +2480,63 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/28/e3/55dcc2cfbc3ca9c29519eb6884dd1415ecb53b0e934862d3559ddcb7e20b/stack_data-0.6.3.tar.gz", hash = "sha256:836a778de4fec4dcd1dcd89ed8abff8a221f58308462e1c4aa2a3cf30148f0b9", size = 44707, upload-time = "2023-09-30T13:58:05.479Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f1/7b/ce1eafaf1a76852e2ec9b22edecf1daa58175c090266e9f6c64afcd81d91/stack_data-0.6.3-py3-none-any.whl", hash = "sha256:d5558e0c25a4cb0853cddad3d77da9891a08cb85dd9f9f91b9f8cd66e511e695", size = 24521, upload-time = "2023-09-30T13:58:03.53Z" },
+]
+
+[[package]]
+name = "survjax"
+version = "0.0.1.dev0"
+source = { editable = "." }
+dependencies = [
+    { name = "jax" },
+    { name = "numpy" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "hypothesis" },
+    { name = "mpmath" },
+    { name = "mypy" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "ruff" },
+]
+docs = [
+    { name = "ipykernel" },
+    { name = "jupyterlab" },
+    { name = "myst-nb" },
+    { name = "sphinx" },
+]
+test = [
+    { name = "hypothesis" },
+    { name = "mpmath" },
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "jax", specifier = ">=0.11.2" },
+    { name = "numpy", specifier = ">=2.5.3" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "hypothesis", specifier = ">=6.168.1" },
+    { name = "mpmath", specifier = ">=1.4.1" },
+    { name = "mypy", specifier = ">=2.3.1" },
+    { name = "pre-commit", specifier = ">=4.6.2" },
+    { name = "pytest", specifier = ">=9.1.1" },
+    { name = "ruff", specifier = ">=0.16.9" },
+]
+docs = [
+    { name = "ipykernel", specifier = ">=7.4.0" },
+    { name = "jupyterlab", specifier = ">=4.6.4" },
+    { name = "myst-nb", specifier = ">=1.4.0" },
+    { name = "sphinx", specifier = ">=9.1.0" },
+]
+test = [
+    { name = "hypothesis", specifier = ">=6.168.1" },
+    { name = "mpmath", specifier = ">=1.4.1" },
+    { name = "pytest", specifier = ">=9.1.1" },
 ]
 
 [[package]]

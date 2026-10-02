@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from chronox_jax._data_validation import ISSUE_NAMES
+from survjax._data_validation import ISSUE_NAMES
 
 
 class InvalidDataError(ValueError):

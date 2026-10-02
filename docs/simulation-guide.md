@@ -1,6 +1,6 @@
 # Simulation study guide
 
-This illustrative guide shows one way to compose Chronox construction,
+This illustrative guide shows one way to compose survjax construction,
 diagnostics and likelihoods in a simulation study. It is non-normative and adds
 no acceptance requirements. The example has not been validated as an executable
 recipe; its solver, tolerances, pilot size and loop are choices to evaluate.
@@ -28,7 +28,7 @@ observations can be valid while having no finite log-rate MLE (spec section 11.4
 
 The example uses Slice A likelihood capabilities and JAX sampling. Validate
 finite, strictly positive `rate` and `censor_time` settings before launching it.
-Optimistix is an optional external dependency, outside the Chronox core.
+Optimistix is an optional external dependency, outside the survjax core.
 [Newton](https://docs.kidger.site/optimistix/api/root_find/) solves for a zero of
 `grad(nll)` using its Jacobian, the objective Hessian. This illustrates second
 parameter derivatives; [BFGS](https://docs.kidger.site/optimistix/api/minimise/)
@@ -38,14 +38,16 @@ that differentiating through the solver is supported (spec section 7.3).
 ```python
 import jax
 import jax.numpy as jnp
-import optimistix as optx  # optional, outside the Chronox core
-import chronox_jax as cx
+import optimistix as optx  # optional, outside the survjax core
+import survjax
 
 N = 512  # example intended dataset size; keep it fixed for the pilot
 
 
 def nll(log_rate, data):
-    return -cx.log_likelihood(cx.Exponential.from_log(log_rate=log_rate), data).sum()
+    return -survjax.log_likelihood(
+        survjax.Exponential.from_log(log_rate=log_rate), data
+    ).sum()
 
 
 score = jax.grad(nll)
@@ -56,7 +58,7 @@ def replicate(key, rate, censor_time):
     event_time = jax.random.exponential(key, (N,)) / rate
     time = jnp.minimum(event_time, censor_time)
     event = event_time <= censor_time
-    data = cx.SurvivalData(time=time, event=event)  # traced ordinary construction
+    data = survjax.SurvivalData(time=time, event=event)  # traced ordinary construction
     issues = data.issues
     # For this model, valid data with any event have a finite log-rate MLE.
     attempt = issues.ok & jnp.any(data.exact)
@@ -120,4 +122,4 @@ can also process replicates sequentially, and is useful when carrying state
 between a fixed number of iterations. It avoids the large unrolled computation
 that a Python loop inside `jit` can produce; it is not a universal speed rule.
 Measure workload and memory use while preserving the study's control-flow
-behavior when choosing a primitive; Chronox does not mandate one.
+behavior when choosing a primitive; survjax does not mandate one.

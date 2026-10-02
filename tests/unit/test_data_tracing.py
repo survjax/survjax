@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from chronox_jax import SurvivalData
+from survjax import SurvivalData
 
 
 def test_only_ordinary_constructors_are_public() -> None:

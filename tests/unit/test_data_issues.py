@@ -5,8 +5,8 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from chronox_jax import InvalidDataError, SurvivalData
-from chronox_jax.diagnostics import DataIssues
+from survjax import InvalidDataError, SurvivalData
+from survjax.diagnostics import DataIssues
 
 
 def test_issues_property_decodes_valid_data_without_new_leaves() -> None:

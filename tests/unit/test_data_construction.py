@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from chronox_jax import InvalidDataError, SurvivalData
+from survjax import InvalidDataError, SurvivalData
 
 
 def test_invalid_event_code_reports_count_and_first_index() -> None:

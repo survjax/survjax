@@ -6,7 +6,6 @@ clear only where the spec fixes the ordering (a malformed endpoint is not also
 ``invalid_interval``; an exact row's NaN upper is not ``missing_time2``).
 """
 
-import chronox_jax as cx
 import jax
 import numpy as np
 import pytest
@@ -24,6 +23,8 @@ from helpers import (
     mask,
     one_hot,
 )
+
+import survjax
 
 NONE = np.zeros(3, dtype=bool)
 ROW1 = one_hot(3, 1)
@@ -59,17 +60,15 @@ def _bounds(lower, upper, *, exact=None, lt=None, rt=None):
 @pytest.mark.step("A3")
 def test_bounds_constructor_returns_data_with_diagnostics_property():
     """spec 6.2, rev 9: the bounds form returns data and exposes diagnostics through a property."""
-    data = cx.SurvivalData.from_bounds(f([1.0, 2.0]), f([2.0, INF]))
-    assert isinstance(data, cx.SurvivalData)
+    data = survjax.SurvivalData.from_bounds(f([1.0, 2.0]), f([2.0, INF]))
+    assert isinstance(data, survjax.SurvivalData)
     assert np.shape(data.issues.invalid_rows) == (2,)
-
 
 
 @pytest.mark.step("A3")
 def test_bounds_constructor_has_no_issue_returning_convenience():
     """spec 6.2, rev 9: the bounds form is the only public bounds observation constructor."""
-    assert not hasattr(cx.SurvivalData, "from_bounds_with_issues")
-
+    assert not hasattr(survjax.SurvivalData, "from_bounds_with_issues")
 
 
 @pytest.mark.step("A3")
@@ -78,7 +77,7 @@ def test_bounds_data_and_issues_matches_from_bounds_on_uninformative_input():
     args = (f([0.0, 1.0]), f([INF, 2.0]))
     data, issues = bounds_data_and_issues(*args)
     assert_mask(issues, "uninformative", one_hot(2, 0))
-    assert_same_leaves(data, cx.SurvivalData.from_bounds(*args))
+    assert_same_leaves(data, survjax.SurvivalData.from_bounds(*args))
 
 
 @pytest.mark.step("A3")
@@ -91,7 +90,9 @@ def test_bounds_data_and_issues_does_not_raise_on_invalid_rows():
 @pytest.mark.step("A3")
 def test_bounds_data_and_issues_valid_data_has_no_issues():
     """spec 6.2, rev 6: valid bounds data set no rule mask, no invalid row, and `ok` is true."""
-    issues = _bounds([1.0, 2.0, 0.0], [1.0, INF, 3.0], exact=[True, False, False], lt=[0.5, 0.5, 0.0])
+    issues = _bounds(
+        [1.0, 2.0, 0.0], [1.0, INF, 3.0], exact=[True, False, False], lt=[0.5, 0.5, 0.0]
+    )
     for name in MASK_FIELDS:
         assert_mask(issues, name, NONE)
     assert bool(np.asarray(issues.ok))
@@ -100,7 +101,12 @@ def test_bounds_data_and_issues_valid_data_has_no_issues():
 @pytest.mark.step("A3")
 def test_bounds_data_and_issues_under_jit_matches_eager():
     """spec 6.2, rev 9: bounds construction and diagnostics agree eagerly and under jit."""
-    inputs = (f([1.0, 3.0, 0.5, 1.0]), f([1.0, 2.0, NAN, INF]), b([True, False, False, False]), f([0.0, 0.0, 0.0, 2.0]))
+    inputs = (
+        f([1.0, 3.0, 0.5, 1.0]),
+        f([1.0, 2.0, NAN, INF]),
+        b([True, False, False, False]),
+        f([0.0, 0.0, 0.0, 2.0]),
+    )
 
     def build(lower, upper, exact, lt):
         return bounds_data_and_issues(lower, upper, exact=exact, left_trunc=lt)
@@ -108,7 +114,11 @@ def test_bounds_data_and_issues_under_jit_matches_eager():
     eager_data, eager_issues = build(*inputs)
     jit_data, jit_issues = jax.jit(build)(*inputs)
     for name in FIELDS:
-        np.testing.assert_array_equal(np.asarray(getattr(jit_data, name)), np.asarray(getattr(eager_data, name)), err_msg=name)
+        np.testing.assert_array_equal(
+            np.asarray(getattr(jit_data, name)),
+            np.asarray(getattr(eager_data, name)),
+            err_msg=name,
+        )
     for name in MASK_FIELDS:
         assert_mask(jit_issues, name, mask(eager_issues, name))
 
@@ -137,7 +147,10 @@ def test_bounds_nan_lower_sets_invalid_time():
 @pytest.mark.step("A3")
 def test_bounds_exact_lower_at_zero_sets_invalid_time():
     """spec 6.2, rev 6: exact times must be finite and positive; an exact `lower` of 0 sets `invalid_time`."""
-    _assert_rule(_bounds([1.0, 0.0, 1.0], [1.0, 0.0, 1.0], exact=[True, True, True]), "invalid_time")
+    _assert_rule(
+        _bounds([1.0, 0.0, 1.0], [1.0, 0.0, 1.0], exact=[True, True, True]),
+        "invalid_time",
+    )
 
 
 @pytest.mark.step("A3")
@@ -274,4 +287,6 @@ def test_bounds_data_and_issues_raises_on_incompatible_shapes():
 def test_bounds_data_and_issues_raises_on_incompatible_shapes_under_jit():
     """spec 6.2, rev 7: argument misuse raises independent of tracing."""
     with pytest.raises(MISUSE):
-        jax.jit(lambda lo, hi: bounds_data_and_issues(lo, hi)[1].ok)(f([1.0, 2.0, 3.0]), f([[4.0], [5.0], [6.0]]))
+        jax.jit(lambda lo, hi: bounds_data_and_issues(lo, hi)[1].ok)(
+            f([1.0, 2.0, 3.0]), f([[4.0], [5.0], [6.0]])
+        )

@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from chronox_jax._data_validation import row_issues
+from survjax._data_validation import row_issues
 
 
 def test_row_issues_preserves_each_raw_input_mask() -> None:

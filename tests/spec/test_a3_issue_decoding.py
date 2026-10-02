@@ -3,7 +3,6 @@
 The property decodes stored bits after construction, slicing and transformations.
 """
 
-import chronox_jax as cx
 import jax
 import numpy as np
 import pytest
@@ -18,6 +17,8 @@ from helpers import (
     mask,
     one_hot,
 )
+
+import survjax
 
 
 def _mixed():
@@ -39,12 +40,12 @@ def _mixed():
 
 def _assert_same_masks(decoded, expected, index=()):
     for name in MASK_FIELDS:
-        np.testing.assert_array_equal(mask(decoded, name), mask(expected, name)[index], err_msg=name)
+        np.testing.assert_array_equal(
+            mask(decoded, name), mask(expected, name)[index], err_msg=name
+        )
 
 
 # ------------------------------------------------------- fresh data
-
-
 
 
 @pytest.mark.step("A3")
@@ -54,19 +55,19 @@ def test_fresh_flag_data_decodes_invalid_indicator():
     assert_mask(data.issues, "invalid_indicator", one_hot(5, 1))
 
 
-
 @pytest.mark.step("A3")
 def test_fresh_bounds_data_decodes_invalid_interval():
     """spec 3.2/6.2, rev 9: fresh bounds data decode a stored interval issue."""
-    data = cx.SurvivalData.from_bounds(f([1.0, 3.0]), f([2.0, 2.0]))
+    data = survjax.SurvivalData.from_bounds(f([1.0, 3.0]), f([2.0, 2.0]))
     assert_mask(data.issues, "invalid_interval", one_hot(2, 1))
-
 
 
 @pytest.mark.step("A3")
 def test_valid_data_carries_the_uninformative_bit():
     """spec 6.2, rev 9: a valid construction can carry the `uninformative` bit."""
-    data = cx.SurvivalData(f([1.0, 3.0]), left_censored=b([False, True]), right_trunc=f([INF, 3.0]))
+    data = survjax.SurvivalData(
+        f([1.0, 3.0]), left_censored=b([False, True]), right_trunc=f([INF, 3.0])
+    )
     decoded = data.issues
     for name in RULE_FIELDS:
         assert_mask(decoded, name, np.zeros(2, dtype=bool))
@@ -152,14 +153,15 @@ def test_issues_of_data_returned_from_jit_preserve_raw_indicator():
     """spec 3.2/6.2, rev 9: transformed data retain raw invalid-indicator evidence."""
     time = f([1.0, 2.0, 3.0])
     right = np.array([0, 2, 1], dtype=np.int32)
-    data = jax.jit(lambda t, r: cx.SurvivalData(t, right_censored=r))(time, right)
+    data = jax.jit(lambda t, r: survjax.SurvivalData(t, right_censored=r))(time, right)
     assert_mask(data.issues, "invalid_indicator", one_hot(3, 1))
-
 
 
 @pytest.mark.step("A3")
 def test_issues_of_data_rebuilt_from_leaves_matches_original():
     """spec 3.2/6.2, rev 9: data rebuilt from its leaves decode to the same issues."""
     data, issues = _mixed()
-    rebuilt = jax.tree_util.tree_unflatten(jax.tree_util.tree_structure(data), jax.tree_util.tree_leaves(data))
+    rebuilt = jax.tree_util.tree_unflatten(
+        jax.tree_util.tree_structure(data), jax.tree_util.tree_leaves(data)
+    )
     _assert_same_masks(rebuilt.issues, issues)

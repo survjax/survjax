@@ -3,26 +3,33 @@
 Invalid rows return data with issue bits (spec 6.2). A3 tests individual masks.
 """
 
-import chronox_jax as cx
 import numpy as np
 import pytest
 from helpers import INF, NAN, assert_fields, b, f
 
+import survjax
+
 
 def _exact(t, **trunc):
-    return cx.SurvivalData(f([t]), b([True]), **{k: f([v]) for k, v in trunc.items()})
+    return survjax.SurvivalData(
+        f([t]), b([True]), **{k: f([v]) for k, v in trunc.items()}
+    )
 
 
 def _right(c, **trunc):
-    return cx.SurvivalData(f([c]), right_censored=b([True]), **{k: f([v]) for k, v in trunc.items()})
+    return survjax.SurvivalData(
+        f([c]), right_censored=b([True]), **{k: f([v]) for k, v in trunc.items()}
+    )
 
 
 def _left(c, **trunc):
-    return cx.SurvivalData(f([c]), left_censored=b([True]), **{k: f([v]) for k, v in trunc.items()})
+    return survjax.SurvivalData(
+        f([c]), left_censored=b([True]), **{k: f([v]) for k, v in trunc.items()}
+    )
 
 
 def _interval(a, c, **trunc):
-    return cx.SurvivalData(
+    return survjax.SurvivalData(
         f([a]),
         interval_censored=b([True]),
         time2=f([c]),
@@ -57,7 +64,7 @@ def test_infinite_exact_time_sets_issue():
 @pytest.mark.step("A2")
 def test_nan_exact_time_sets_issue():
     """spec 3.1, rev 9: missing required values are invalid; no implicit dropping."""
-    data = cx.SurvivalData(f([1.0, NAN]))
+    data = survjax.SurvivalData(f([1.0, NAN]))
     assert bool(np.asarray(data.issues.invalid_rows).any())
 
 
@@ -110,7 +117,7 @@ def test_left_censoring_at_infinity_sets_issue():
 @pytest.mark.step("A2")
 def test_nan_right_censoring_time_sets_issue():
     """spec 3.1, rev 9: missing required values are invalid."""
-    data = cx.SurvivalData(f([1.0, NAN]), b([True, False]))
+    data = survjax.SurvivalData(f([1.0, NAN]), b([True, False]))
     assert bool(np.asarray(data.issues.invalid_rows).any())
 
 
@@ -204,7 +211,9 @@ def test_exact_time_below_left_truncation_sets_issue():
 @pytest.mark.step("A2")
 def test_exact_time_equal_to_right_truncation_is_accepted():
     """spec 3.3, rev 4: truncation membership is L<t<=U, so t=U is inside."""
-    assert_fields(_exact(3.0, left_trunc=1.0, right_trunc=3.0), exact=[True], lower=[3.0])
+    assert_fields(
+        _exact(3.0, left_trunc=1.0, right_trunc=3.0), exact=[True], lower=[3.0]
+    )
 
 
 @pytest.mark.step("A2")
@@ -217,7 +226,9 @@ def test_exact_time_above_right_truncation_sets_issue():
 @pytest.mark.step("A2")
 def test_exact_time_strictly_inside_window_is_accepted():
     """spec 3.3, rev 4: truncation membership is L<t<=U."""
-    assert_fields(_exact(2.0, left_trunc=1.0, right_trunc=3.0), exact=[True], lower=[2.0])
+    assert_fields(
+        _exact(2.0, left_trunc=1.0, right_trunc=3.0), exact=[True], lower=[2.0]
+    )
 
 
 # ------------------------------------------------- censored before entry
@@ -239,7 +250,9 @@ def test_right_censoring_at_entry_is_accepted():
 @pytest.mark.step("A2")
 def test_right_censoring_at_zero_without_truncation_is_accepted():
     """spec 3.3, rev 5: `(c, +inf]` with c=L=0 is valid (uninformative)."""
-    assert_fields(_right(0.0), exact=[False], lower=[0.0], upper=[INF], left_trunc=[0.0])
+    assert_fields(
+        _right(0.0), exact=[False], lower=[0.0], upper=[INF], left_trunc=[0.0]
+    )
 
 
 @pytest.mark.step("A2")
@@ -259,7 +272,9 @@ def test_interval_with_infinite_time2_starting_before_entry_sets_issue():
 @pytest.mark.step("A2")
 def test_interval_with_infinite_time2_starting_at_entry_is_accepted():
     """spec 3.1, rev 5: an interval-flag row with `time2=+inf` and `time=L` is valid (uninformative)."""
-    assert_fields(_interval(1.0, INF, left_trunc=1.0), exact=[False], lower=[1.0], upper=[INF])
+    assert_fields(
+        _interval(1.0, INF, left_trunc=1.0), exact=[False], lower=[1.0], upper=[INF]
+    )
 
 
 @pytest.mark.step("A2")
@@ -272,35 +287,37 @@ def test_interval_with_infinite_time2_at_entry_with_finite_right_truncation_is_a
 @pytest.mark.step("A2")
 def test_bounds_zero_to_infinity_without_truncation_is_accepted():
     """spec 3.3, rev 5: `from_bounds(0, inf)` is uninformative (valid) when L=0."""
-    data = cx.SurvivalData.from_bounds(f([0.0]), f([INF]))
+    data = survjax.SurvivalData.from_bounds(f([0.0]), f([INF]))
     assert_fields(data, exact=[False], lower=[0.0], upper=[INF])
 
 
 @pytest.mark.step("A2")
 def test_bounds_zero_to_infinity_with_left_truncation_sets_issue():
     """spec 3.3, rev 9: `from_bounds(0, inf)` is invalid when L>0."""
-    data = cx.SurvivalData.from_bounds(f([0.0]), f([INF]), left_trunc=f([1.0]))
+    data = survjax.SurvivalData.from_bounds(f([0.0]), f([INF]), left_trunc=f([1.0]))
     assert bool(np.asarray(data.issues.invalid_rows).any())
 
 
 @pytest.mark.step("A2")
 def test_bounds_right_censoring_before_entry_sets_issue():
     """spec 2, rev 9: c<L is invalid for any censored row with upper +inf, however it was constructed."""
-    data = cx.SurvivalData.from_bounds(f([0.5]), f([INF]), left_trunc=f([1.0]))
+    data = survjax.SurvivalData.from_bounds(f([0.5]), f([INF]), left_trunc=f([1.0]))
     assert bool(np.asarray(data.issues.invalid_rows).any())
 
 
 @pytest.mark.step("A2")
 def test_bounds_right_censoring_at_entry_is_accepted():
     """spec 2/3.3, rev 5: `from_bounds(L, inf)` is right censoring at entry, which is valid."""
-    data = cx.SurvivalData.from_bounds(f([1.0]), f([INF]), left_trunc=f([1.0]))
+    data = survjax.SurvivalData.from_bounds(f([1.0]), f([INF]), left_trunc=f([1.0]))
     assert_fields(data, exact=[False], lower=[1.0], upper=[INF], left_trunc=[1.0])
 
 
 @pytest.mark.step("A2")
 def test_right_censoring_after_entry_is_accepted():
     """spec 2, rev 4: partial overlap with the truncation window is allowed (L < c < U)."""
-    assert_fields(_right(2.0, left_trunc=1.0, right_trunc=5.0), lower=[2.0], upper=[INF])
+    assert_fields(
+        _right(2.0, left_trunc=1.0, right_trunc=5.0), lower=[2.0], upper=[INF]
+    )
 
 
 # ----------------------------------------------------- empty intersection
@@ -384,18 +401,24 @@ def test_left_censoring_beyond_upper_truncation_is_accepted():
 @pytest.mark.step("A2")
 def test_interval_containing_window_is_accepted():
     """spec 2, rev 4: an interval containing (L, U] is valid (uninformative)."""
-    assert_fields(_interval(0.5, 4.0, left_trunc=1.0, right_trunc=3.0), lower=[0.5], upper=[4.0])
+    assert_fields(
+        _interval(0.5, 4.0, left_trunc=1.0, right_trunc=3.0), lower=[0.5], upper=[4.0]
+    )
 
 
 @pytest.mark.step("A2")
 def test_interval_equal_to_window_is_accepted():
     """spec 2, rev 4: an interval containing (L, U], here equal to it, is valid (uninformative)."""
-    assert_fields(_interval(1.0, 3.0, left_trunc=1.0, right_trunc=3.0), lower=[1.0], upper=[3.0])
+    assert_fields(
+        _interval(1.0, 3.0, left_trunc=1.0, right_trunc=3.0), lower=[1.0], upper=[3.0]
+    )
 
 
 @pytest.mark.step("A2")
 def test_one_invalid_row_is_retained_with_its_issue():
     """spec 3.1/6.2, rev 9: no implicit dropping; all rows remain and the invalid row is flagged."""
-    data = cx.SurvivalData(f([1.0, 0.0, 2.0]), b(np.array([True, True, False])))
+    data = survjax.SurvivalData(f([1.0, 0.0, 2.0]), b(np.array([True, True, False])))
     assert np.shape(data.lower) == (3,)
-    np.testing.assert_array_equal(np.asarray(data.issues.invalid_rows), [False, True, False])
+    np.testing.assert_array_equal(
+        np.asarray(data.issues.invalid_rows), [False, True, False]
+    )

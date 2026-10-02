@@ -5,24 +5,25 @@ tests observe them through tree structures and jit retracing: datasets with
 different flags have different tree structures and compile separately.
 """
 
-import chronox_jax as cx
 import jax
 import pytest
 from helpers import INF, NAN, b, f, treedef
 
+import survjax
+
 
 def _exact_only(times=(1.0, 2.0, 3.0, 4.0)):
-    return cx.SurvivalData(f(list(times)))
+    return survjax.SurvivalData(f(list(times)))
 
 
 def _exact_and(kind):
     """Four rows: three exact and one row of the given kind (no truncation)."""
     flags = b([False, False, False, True])
     if kind == "right":
-        return cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0]), right_censored=flags)
+        return survjax.SurvivalData(f([1.0, 2.0, 3.0, 4.0]), right_censored=flags)
     if kind == "left":
-        return cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0]), left_censored=flags)
-    return cx.SurvivalData(
+        return survjax.SurvivalData(f([1.0, 2.0, 3.0, 4.0]), left_censored=flags)
+    return survjax.SurvivalData(
         f([1.0, 2.0, 3.0, 4.0]), interval_censored=flags, time2=f([NAN, NAN, NAN, 5.0])
     )
 
@@ -46,7 +47,7 @@ def _full_inputs():
 
 def _full():
     kw = _full_inputs()
-    return cx.SurvivalData(kw.pop("time"), **kw)
+    return survjax.SurvivalData(kw.pop("time"), **kw)
 
 
 def _traced(**kw):
@@ -55,7 +56,7 @@ def _traced(**kw):
 
     def build(*values):
         args = dict(zip(names, values, strict=True))
-        return cx.SurvivalData(args.pop("time"), **args)
+        return survjax.SurvivalData(args.pop("time"), **args)
 
     return jax.jit(build)(*kw.values())
 
@@ -66,7 +67,9 @@ def _traced(**kw):
 @pytest.mark.step("A3")
 def test_same_kinds_with_different_values_share_tree_structure():
     """spec 3.2, rev 4: flags record which kinds are present, not the values."""
-    assert treedef(_exact_only((1.0, 2.0, 3.0, 4.0))) == treedef(_exact_only((5.0, 6.0, 7.0, 8.0)))
+    assert treedef(_exact_only((1.0, 2.0, 3.0, 4.0))) == treedef(
+        _exact_only((5.0, 6.0, 7.0, 8.0))
+    )
 
 
 @pytest.mark.step("A3")
@@ -99,46 +102,58 @@ def test_each_censored_kind_gives_a_distinct_tree_structure():
 @pytest.mark.step("A3")
 def test_left_truncation_changes_tree_structure():
     """spec 3.2, rev 7: auxiliary data records whether any left truncation is present (any `left_trunc > 0`)."""
-    truncated = cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0]), left_trunc=f([0.0, 0.5, 0.0, 0.0]))
+    truncated = survjax.SurvivalData(
+        f([1.0, 2.0, 3.0, 4.0]), left_trunc=f([0.0, 0.5, 0.0, 0.0])
+    )
     assert treedef(truncated) != treedef(_exact_only())
 
 
 @pytest.mark.step("A3")
 def test_right_truncation_changes_tree_structure():
     """spec 3.2, rev 7: auxiliary data records whether any right truncation is present (any `right_trunc < +inf`)."""
-    truncated = cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0]), right_trunc=f([INF, 5.0, INF, INF]))
+    truncated = survjax.SurvivalData(
+        f([1.0, 2.0, 3.0, 4.0]), right_trunc=f([INF, 5.0, INF, INF])
+    )
     assert treedef(truncated) != treedef(_exact_only())
 
 
 @pytest.mark.step("A3")
 def test_left_and_right_truncation_give_different_tree_structures():
     """spec 3.2, rev 7: left and right truncation are separate flags."""
-    left_only = cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0]), left_trunc=f([0.0, 0.5, 0.0, 0.0]))
-    right_only = cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0]), right_trunc=f([INF, 5.0, INF, INF]))
+    left_only = survjax.SurvivalData(
+        f([1.0, 2.0, 3.0, 4.0]), left_trunc=f([0.0, 0.5, 0.0, 0.0])
+    )
+    right_only = survjax.SurvivalData(
+        f([1.0, 2.0, 3.0, 4.0]), right_trunc=f([INF, 5.0, INF, INF])
+    )
     assert treedef(left_only) != treedef(right_only)
 
 
 @pytest.mark.step("A3")
 def test_equal_flags_with_different_row_counts_share_tree_structure():
     """spec 3.2, rev 7: the auxiliary data holds only the flags, so equal flags give equal tree structures."""
-    assert treedef(_exact_only((1.0, 2.0))) == treedef(_exact_only((1.0, 2.0, 3.0, 4.0, 5.0)))
+    assert treedef(_exact_only((1.0, 2.0))) == treedef(
+        _exact_only((1.0, 2.0, 3.0, 4.0, 5.0))
+    )
     assert treedef(_exact_and("right")) == treedef(
-        cx.SurvivalData(f([1.0, 2.0]), right_censored=b([False, True]))
+        survjax.SurvivalData(f([1.0, 2.0]), right_censored=b([False, True]))
     )
 
 
 @pytest.mark.step("A3")
 def test_explicit_zero_and_infinite_truncation_give_the_same_flags_as_absent():
     """spec 3.2, rev 6: flags come from normalized fields; explicit L=0 and U=+inf normalize like absent truncation."""
-    explicit = cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0]), left_trunc=f([0.0] * 4), right_trunc=f([INF] * 4))
+    explicit = survjax.SurvivalData(
+        f([1.0, 2.0, 3.0, 4.0]), left_trunc=f([0.0] * 4), right_trunc=f([INF] * 4)
+    )
     assert treedef(explicit) == treedef(_exact_only())
 
 
 @pytest.mark.step("A3")
 def test_both_constructors_give_the_same_tree_structure():
     """spec 3.2/12.1, rev 4: both constructors normalize identically, including the static metadata."""
-    flags = cx.SurvivalData(f([1.0, 2.0, 3.0]), b([True, False, True]))
-    bounds = cx.SurvivalData.from_bounds(
+    flags = survjax.SurvivalData(f([1.0, 2.0, 3.0]), b([True, False, True]))
+    bounds = survjax.SurvivalData.from_bounds(
         f([1.0, 2.0, 3.0]), f([1.0, INF, 3.0]), exact=b([True, False, True])
     )
     assert treedef(flags) == treedef(bounds)
@@ -147,14 +162,16 @@ def test_both_constructors_give_the_same_tree_structure():
 @pytest.mark.step("A3")
 def test_eager_flag_constructor_computes_flags_from_values():
     """spec 3.2, rev 6: with no traced observation input, flags are computed from the normalized fields, by either route."""
-    eager = cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0]))
+    eager = survjax.SurvivalData(f([1.0, 2.0, 3.0, 4.0]))
     assert treedef(eager) == treedef(_exact_only())
 
 
 @pytest.mark.step("A3")
 def test_eager_bounds_constructor_computes_flags_from_values():
     """spec 3.2, rev 6: the bounds constructor with non-traced inputs computes flags from values."""
-    eager = cx.SurvivalData.from_bounds(f([1.0, 2.0, 3.0, 4.0]), f([NAN, NAN, NAN, NAN]), exact=b([True] * 4))
+    eager = survjax.SurvivalData.from_bounds(
+        f([1.0, 2.0, 3.0, 4.0]), f([NAN, NAN, NAN, NAN]), exact=b([True] * 4)
+    )
     assert treedef(eager) == treedef(_exact_only())
 
 
@@ -170,12 +187,16 @@ def test_flags_include_rows_with_issue_bits():
     the flags match a valid dataset with a right-censored row and right
     truncation.
     """
-    invalid = cx.SurvivalData(
-        f([1.0, 2.0, 3.0, 5.0]), right_censored=b([False, False, False, True]), right_trunc=f([INF, INF, INF, 5.0])
+    invalid = survjax.SurvivalData(
+        f([1.0, 2.0, 3.0, 5.0]),
+        right_censored=b([False, False, False, True]),
+        right_trunc=f([INF, INF, INF, 5.0]),
     )
     assert not bool(invalid.issues.ok)
-    valid = cx.SurvivalData(
-        f([1.0, 2.0, 3.0, 4.0]), right_censored=b([False, False, False, True]), right_trunc=f([INF, INF, INF, 5.0])
+    valid = survjax.SurvivalData(
+        f([1.0, 2.0, 3.0, 4.0]),
+        right_censored=b([False, False, False, True]),
+        right_trunc=f([INF, INF, INF, 5.0]),
     )
     assert treedef(invalid) == treedef(valid)
 
@@ -186,7 +207,7 @@ def test_flags_include_rows_with_issue_bits():
 @pytest.mark.step("A3")
 def test_ordinary_construction_inside_jit_computes_flags_from_values():
     """spec 3.2, rev 6: with no traced observation input, flags are computed from values even inside a transformed function."""
-    inside = jax.jit(lambda: cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0])))()
+    inside = jax.jit(lambda: survjax.SurvivalData(f([1.0, 2.0, 3.0, 4.0])))()
     assert treedef(inside) == treedef(_exact_only())
     assert treedef(inside) != treedef(_full())
 
@@ -194,7 +215,7 @@ def test_ordinary_construction_inside_jit_computes_flags_from_values():
 @pytest.mark.step("A3")
 def test_construction_from_concrete_inputs_inside_jit_computes_flags_from_values():
     """spec 3.2, rev 6: constructors classify inputs as in 6.2; non-traced inputs inside jit give value-based flags."""
-    inside = jax.jit(lambda: cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0])))()
+    inside = jax.jit(lambda: survjax.SurvivalData(f([1.0, 2.0, 3.0, 4.0])))()
     assert treedef(inside) == treedef(_exact_only())
 
 
@@ -204,7 +225,7 @@ def test_ordinary_construction_inside_jit_with_other_traced_args_computes_flags_
     structures = []
 
     def fn(scale):
-        data = cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0]))
+        data = survjax.SurvivalData(f([1.0, 2.0, 3.0, 4.0]))
         structures.append(treedef(data))
         return data.lower * scale
 
@@ -237,14 +258,20 @@ def test_integer_index_inherits_parent_flags():
 @pytest.mark.step("A3")
 def test_single_traced_observation_input_sets_all_flags():
     """spec 3.2, rev 6: any one traced observation input (here only `left_trunc`) makes all flags true."""
-    data = jax.jit(lambda lt: cx.SurvivalData(f([1.0, 2.0, 3.0, 4.0]), left_trunc=lt))(f([0.0, 0.0, 0.0, 0.0]))
+    data = jax.jit(
+        lambda lt: survjax.SurvivalData(f([1.0, 2.0, 3.0, 4.0]), left_trunc=lt)
+    )(f([0.0, 0.0, 0.0, 0.0]))
     assert treedef(data) == treedef(_full())
 
 
 @pytest.mark.step("A3")
 def test_traced_bounds_construction_sets_all_flags():
     """spec 3.2, rev 6: the bounds constructor with a traced observation input gives all flags true."""
-    data = jax.jit(lambda lo: cx.SurvivalData.from_bounds(lo, f([1.0, 2.0]), exact=b([True, True])))(f([1.0, 2.0]))
+    data = jax.jit(
+        lambda lo: survjax.SurvivalData.from_bounds(
+            lo, f([1.0, 2.0]), exact=b([True, True])
+        )
+    )(f([1.0, 2.0]))
     assert treedef(data) == treedef(_full())
 
 
