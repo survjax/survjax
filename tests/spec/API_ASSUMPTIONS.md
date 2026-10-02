@@ -40,7 +40,8 @@ on it. Guessed exception types and call shapes are centralised in
 - **Depends:** `test_float64_input_warns_once_per_call`,
   `test_pandas_float64_series_converts_to_float32_with_one_warning`,
   `test_repeated_calls_from_one_call_site_warn_once`,
-  `test_two_call_sites_warn_once_each`.
+  `test_two_call_sites_warn_once_each`, and for distribution parameters
+  (spec 3.3 bullet 4) `test_float64_parameters_warn_once_per_call`.
 
 ## Q-005: immutability error
 
@@ -184,17 +185,119 @@ on it. Guessed exception types and call shapes are centralised in
   integers in `str(InvalidDataError)`. No words or punctuation are asserted.
 - **Depends:** `test_host_checkpoint_reports_count_and_first_offending_index`.
 
-## Q-018: observing host callbacks and transfers (spec 7.2, performance draft)
+## Q-018: observing host callbacks and transfers (spec 7.2)
 
-- **Checked:** 7.2, 12.3 (performance amendment draft).
+- **Checked:** 7.2, 12.3 (performance amendment, accepted in rev 11).
 - **Guess:** "no host callbacks" is observable as no primitive whose name
   contains `callback` in the jaxpr of compiled construction plus `data.issues`
   (covers `pure_callback`, `io_callback`, `debug_callback`); "no host
   transfers" is observable as a warmed jitted call on device-resident inputs
   succeeding under `jax.transfer_guard("disallow")`. Both rely on JAX
   behaviour rather than a survjax name.
-- **Open:** these requirements come from a draft amendment the maintainer has
-  not accepted; drop or retag the tests if it changes.
+- **Status of the requirement:** accepted in spec rev 11 with the wording the
+  tests rely on; the tests are tagged `rev 11`. The observation method above
+  remains a guess.
 - **Depends:** `test_compiled_construction_and_diagnostics_install_no_host_callback`,
   `test_warm_compiled_construction_and_diagnostics_make_no_host_transfer`,
   `test_compiled_construction_reuses_compilation_for_new_observation_values`.
+
+## Q-019: does the base enforce spec 4.5 for custom families?
+
+- **Status:** resolved by spec rev 12 (4.2, 4.5; maintainer decision,
+  2026-10-02): the base applies the value policy for every registered family,
+  including overridden methods. Family code is called only with `t` in
+  `[0, +inf]`; for `t<0` and NaN `t` the base substitutes a safe input under
+  `stop_gradient`; at `0` and `+inf` the family supplies the values, except
+  that `log_prob(+inf)` is always `-inf`.
+- **Previously (rev 11):** the `log_survival` contract covered only the limits
+  at `0` and `+inf`, so it was open whether `t<0` and NaN were the family's or
+  the base's duty, and the literal default formulas gave NaN at `+inf`
+  (Weibull-like `k>1`) and a finite `log_hazard` at NaN `t`.
+- **Depends:** `test_a4_policy_enforcement.py` (unguarded families
+  `naive_power`, `naive_log_prob_override`). The guarded families of the
+  earlier A4 tests remain valid under rev 12; their tests are unchanged.
+
+## Q-020: `batch_shape`, and the error for shape mismatches
+
+- **Status:** resolved by spec rev 16 (4.1, 5; maintainer decision,
+  2026-10-02): `batch_shape` is a property returning a tuple of Python ints,
+  computed from the current parameter leaves (excluding component axes), so it
+  is the per-entry shape under `vmap` and follows `jax.tree.map` slicing.
+  Incompatible parameter batch shapes at construction, and a time argument
+  that does not broadcast against `batch_shape` in a direct method, raise
+  `TypeError` (static misuse, as for `SurvivalData`). Section 5 now also
+  states `TypeError` for a distribution batch against data of a different
+  length, which A6 likelihood tests will use.
+- **Depends:** the batch-shape tests in `test_a4_parameters.py` and
+  `test_a4_indexing.py`; `test_incompatible_batch_shapes_are_rejected`,
+  `test_component_parameter_with_incompatible_batch_is_rejected`,
+  `test_mismatched_lengths_do_not_broadcast` and the other
+  `test_mismatched_time_*` tests in `test_a4_log_prob_default.py`.
+
+## Q-021: no `.shape` attribute on distributions
+
+- **Status:** resolved by spec rev 17 (4.1; maintainer decision,
+  2026-10-02): the base class defines no `shape` attribute; on a family
+  without a `shape` field, `.shape` raises `AttributeError` (the message may
+  point to `batch_shape`). A Weibull-style `shape` field is the parameter.
+  Considered and rejected: a parameters container in place of attributes, and
+  NumPyro's `concentration` naming.
+- **Depends:** `test_distribution_without_shape_field_has_no_shape_attribute`,
+  `test_missing_shape_attribute_raises_attribute_error`,
+  `test_weibull_style_shape_keyword_is_the_parameter`.
+
+## Q-022: nested distribution fields
+
+- **Status:** resolved by spec rev 18 (4.2; maintainer decision,
+  2026-10-02): a nested distribution's batch shape counts like a parameter's;
+  the outer `batch_shape` is their broadcast; nested distributions are
+  broadcast at construction (keeping component axes and dtypes), so indexing,
+  tree-map slicing and `vmap` reach nested leaves; nested static fields are
+  part of the outer structure; `survjax.distribution()` takes no arguments.
+- **Depends:** `test_a4_nested.py`, and the scalar-batch nested tests in
+  `test_a4_registration.py` and `test_a4_log_prob_default.py` (still valid).
+
+## Q-023: parameter dtype policy details
+
+- **Status:** resolved by spec rev 15 (3.3; maintainer decision,
+  2026-10-02): `register_family` normalizes each family's own parameter
+  leaves, component parameters included, to one floating dtype by JAX
+  promotion (weak typing, at least float32, default float for integer- or
+  scalar-only input); float64 arrays under 32-bit mode convert with one warning
+  per call site (Q-004); boolean, complex, string and object inputs raise
+  `TypeError` (a dtype check, not a value check). Nested distribution fields
+  keep their own dtypes. Constructors take no `dtype` keyword.
+- **Depends:** the dtype block of `test_a4_parameters.py`, including
+  `test_object_parameter_is_rejected`,
+  `test_constructor_takes_no_dtype_keyword` and
+  `test_nested_distribution_keeps_its_own_dtype`.
+
+## Q-024: which generic defaults exist in Slice A
+
+- **Status:** resolved by spec rev 14 (12.2; maintainer decision,
+  2026-10-02): Slice A includes the pointwise direct methods `survival`,
+  `log_survival`, `log_prob`, `log_cdf`, `cumulative_hazard`, `log_hazard` and
+  `hazard`, with their generic defaults and the section 4.5 value policy. The
+  maintainer's delivery schedule places them at A4.
+- **Still outside Slice A:** `log_interval_prob`,
+  `log_conditional_interval_prob` (Slice B); `inverse_cumulative_hazard`,
+  `support()`, summaries, sampling and `check_family` (Slice D).
+- **Open for A6:** `parameter_issues()`, which 7.1 likelihood diagnostics may
+  need for invalid parameters; its return type is unspecified.
+- **Depends:** every test in `test_a4_generic_defaults.py` and
+  `test_a4_hazard_at_zero_survival.py`, and the `survival`,
+  `cumulative_hazard`, `log_cdf` and `hazard` tests in
+  `test_a4_policy_enforcement.py`.
+
+## Q-025: constructing registered families
+
+- **Status:** resolved by spec rev 19 (4.2; maintainer decision,
+  2026-10-02): registered families, built-in and custom, are constructed with
+  keyword arguments only (positional arguments raise `TypeError`); parameter
+  fields are required; static fields may have defaults; the recipe may use
+  `kw_only=True`.
+- **Still a test-side observation, not a guess:** `test_unflatten_bypasses_init`
+  checks that unflattening stores the given leaves unchanged (object identity),
+  which is what "bypassing `__init__` on reconstruction" implies.
+- **Depends:** the construction block of `test_a4_registration.py`; every A4
+  test constructs by keyword.
