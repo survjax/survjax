@@ -5,7 +5,7 @@ import jax.numpy as jnp
 
 
 def contains_tracer(value: object) -> bool:
-    """Classify supplied inputs, including nested Python lists and tuples."""
+    """Classify supplied inputs, including pytrees."""
     return any(isinstance(leaf, jax.core.Tracer) for leaf in jax.tree.leaves(value))
 
 
