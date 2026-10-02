@@ -1,5 +1,22 @@
 # Deviations and spec questions
 
+## D-013 Parameter diagnostic return contract
+- Step: A4 planning; deferred to A6 after acceptance-suite sync
+- Spec: sections 4.1, 4.2 and 4.5, revision 19
+- Spec says: invalid parameters surface through `parameter_issues()` and NaN
+  results; its generic default reports no known violation. The specification
+  does not define the return type, shape, mask polarity or treatment of nested
+  distribution diagnostics.
+- Did / propose: the synced `tests/spec/API_ASSUMPTIONS.md` Q-024 and
+  `TESTMAP.md` explicitly defer this unspecified interface to A6. Remove
+  `parameter_issues()` and nested diagnostic aggregation from the A4 plan;
+  this is no longer an A4 blocker. Preserve numerical NaN propagation without
+  assuming a generic custom-parameter validity domain. Before A6, ask the
+  maintainer to settle the return contract and ownership of nested diagnostics.
+  The earlier boolean-invalid-mask proposal is an option only, not an accepted
+  API. No spec change is made here, and this entry remains open.
+- Status: open
+
 ## D-012 Right precedence for the unbounded zero-lower observation
 - Step: A3 review fix-up
 - Spec: sections 3.2 and 3.3
