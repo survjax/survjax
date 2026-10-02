@@ -5,6 +5,13 @@ def test_public_package_imports() -> None:
     """Spec 10.2: the distribution imports as survjax."""
     import survjax
 
-    assert survjax.__all__ == ["SurvivalData", "InvalidDataError"]
+    assert set(survjax.__all__) == {
+        "SurvivalData",
+        "InvalidDataError",
+        "SurvivalDistribution",
+        "register_family",
+        "param",
+        "static",
+    }
     assert survjax.SurvivalData is not None
     assert issubclass(survjax.InvalidDataError, ValueError)

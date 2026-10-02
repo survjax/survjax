@@ -1,3 +1,113 @@
+# A4.2 — Registration and flat family construction (2026-10-02)
+
+Status: approved by the maintainer ("go for it and build it") and implemented
+on the existing `A4.2` branch; see REVIEW.md for verification. This is the active step plan; the broader A4 sequence below remains
+background. Based on specification revision 19 and completed A4.1 at
+`15cfc6f` (current HEAD also contains the D-013 handoff note).
+
+## Outcome and scope
+
+A custom frozen dataclass can be explicitly registered, constructed by keyword
+with normalized and broadcast parameter arrays, and passed through JAX as an
+immutable PyTree. This step covers spec 3.3, 4.1–4.2, construction shapes in
+section 5, and engineering/documentation requirements in 10.2–10.5.
+
+Public additions: `SurvivalDistribution`, `register_family`,
+`param(component_ndim=0)` and `static(...)`, exported from both `survjax` and
+`survjax.distributions`. The base exposes typed `batch_shape` and the typed
+`log_survival(t)` / `reference_time()` extension hooks. Hooks without family
+implementations fail explicitly; no numerical defaults are supplied yet.
+No base `shape` attribute: a family's own `shape` parameter remains usable.
+
+Nested `distribution()` fields and batch indexing stay in A4.3. Direct-method
+policy/defaults stay in A4.4–A4.5; built-ins and grids stay in A5. D-013 stays
+open for A6. The guide will state these intermediate limitations explicitly.
+No dependency, spec, protected-script or independent-test changes.
+
+## Files and implementation
+
+- Create `src/survjax/distributions/base.py` and its package `__init__.py`.
+  Use dataclass field metadata to distinguish parameters from static fields,
+  ordinary functions and explicit `jax.tree_util` registration. Require the
+  documented frozen-dataclass subclass recipe; no automatic registration,
+  metaclasses or dynamic attribute lookup. Keep the module under about 300 lines.
+- Wrap the dataclass-generated constructor to reject positional arguments,
+  preserving keyword argument errors, required parameters and static defaults.
+  Support `kw_only=True`, including a defaulted static field before parameters.
+  Static configuration must be hashable. Do not add parameter-value validation.
+- Reuse `_dtypes.normalize_parameters` for all own parameters, including
+  components. Pass the stack level needed for warnings to point to the user's
+  constructor call. Constructors accept no `dtype` keyword.
+- Derive each parameter's batch axes by excluding its declared trailing
+  component axes. Broadcast those batch shapes, then broadcast each array to
+  the common batch shape plus its original component shape. Translate
+  incompatible batch shapes into `TypeError`. Never broadcast component axes
+  against batch axes or inspect parameter values on the host.
+- Flatten arrays as dynamic children, with static configuration in auxiliary
+  data. Unflatten using allocation and frozen-field assignment, bypassing the
+  constructor, normalization and broadcasting; supplied leaves retain identity,
+  including JAX placeholders. Compute `batch_shape` from current leaves rather
+  than store cached shape metadata, so tree mapping and vmap update it naturally.
+- Update `src/survjax/__init__.py` and `tests/unit/test_import.py` for the four
+  new names; preserve existing exports.
+- Add `tests/unit/test_family_registration.py` with small independent custom
+  families. Do not import acceptance-suite recipes or helpers.
+- Create `docs/distributions.md` with an executable construction/PyTree example,
+  decorator order, keyword-only recipe, static defaults, component axes, dtype
+  behavior and absent `shape` alias. Add it to `docs/index.md` and update that
+  page's current-feature description. Use supported construction operations;
+  label numerical defaults, nested fields and indexing as planned.
+
+If registration edge cases require choices the specification does not settle,
+record a new open deviation and ask before implementing that behavior. If code,
+unit tests and docs exceed roughly 300 changed lines, propose a further split
+before expanding the step; approval here does not authorize a larger step.
+
+## Tests and evidence
+
+- Spec 4.1–4.2: immutability, explicit registration only, required/keyword-only
+  arguments, static defaults/overrides and the static-first kw-only recipe.
+- Spec 3.3: public-constructor dtype integration, components sharing dtype,
+  rejected nonreal inputs and None, unavailable-float64 warning count and caller
+  location, and rejection of `dtype=`. Reuse A4.1's detailed promotion tests.
+- Spec 4.1–4.2/5: scalar and multi-axis broadcasting, component preservation,
+  incompatible batch shapes, stored negative/NaN/infinite natural parameters,
+  and a family with its own `shape` field alongside a family without one.
+- Spec 4.2/7.2: round trips, static tree-structure equality/difference, sentinel
+  identity on unflatten, tree-map slicing, eager/jit construction, and vmap
+  construction/per-entry `batch_shape`. Use exact shape/value assertions where
+  applicable; no derivative or direct-method policy claims in this step.
+
+Run with `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`:
+
+1. `scripts/check.sh --through A3`: formatting, lint, mypy, all own tests and
+   prior independent tests, in separate dtype processes where applicable.
+2. Focused A4 acceptance nodes in separate processes with
+   `JAX_ENABLE_X64=1` and `0`, `SPEC_THROUGH=A4`, and
+   `uv run --locked --offline pytest -q`. Select registration tests except
+   the all-extension-names, method-purity and three nested-distribution tests;
+   select parameter tests except `test_nested_distribution_keeps_its_own_dtype`,
+   `test_construction_with_traced_parameters_inside_jit`,
+   `test_construction_inside_vmap` and `test_gradient_through_construction`
+   (these three use the later generic `log_prob`);
+   select `test_a4_indexing.py::test_tree_map_slicing_updates_batch_shape` and
+   `::test_batch_shape_inside_vmap_is_the_per_entry_shape`. Inspect dependencies
+   before execution and record the exact node selection in REVIEW.md. Never
+   skip/xfail or edit unfinished acceptance tests, or claim the full A4 gate.
+3. `scripts/build_docs.sh`: execute examples in x32/x64 and inspect the rendered
+   distribution guide. Report any permission or environment limitation honestly.
+4. `git diff --check`.
+
+Overwrite `REVIEW.md` with reading order, construction/PyTree invariants,
+requirement-to-test mapping, exact commands/results/skips and open questions.
+Commit this one implementation step on `A4.2` with an imperative subject and
+why in the body, then stop. The plan-only update remains uncommitted.
+
+Planning checks: read the spec, existing implementation/docs, A4.1 review and
+read-only A4 acceptance sources. Working tree was clean on `A4.2`. No runtime,
+lint, type or documentation checks were run for this planning update.
+`git diff --check` passed with no output.
+
 # A4.1 review fix-up (2026-10-02)
 
 Approved by the maintainer's request to implement `../review/slices/A4.1.md`.

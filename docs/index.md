@@ -2,7 +2,8 @@
 
 survjax is a JAX library for survival analysis. The current implementation
 provides `SurvivalData` construction, normalization, dtype handling and data
-diagnostics. Indexing, likelihoods, distributions and evaluation are planned;
+diagnostics, data indexing and flat custom-family registration. Likelihoods,
+built-in distributions and evaluation are planned;
 the Slice A completion gate has not yet been met.
 
 The [SurvivalData guide](survival-data.md) walks a synthetic cohort through
@@ -15,6 +16,7 @@ execute afresh when the site is built.
 
 playground
 survival-data
+distributions
 ```
 
 ## Local commands
