@@ -42,6 +42,7 @@ def floating_dtype(
     dtype: DTypeLike | None = None,
     *,
     input_kind: str,
+    warning_noun: str,
     warning_stacklevel: int = 3,
 ) -> np.dtype:
     """Choose a common floating dtype without inspecting array values."""
@@ -60,7 +61,8 @@ def floating_dtype(
 
     if not jax.config.jax_enable_x64 and any(warn for _, warn in inputs):
         warnings.warn(
-            f"float64 {'time' if input_kind == 'times' else 'parameter'} input converted to float32 because JAX 64-bit mode is disabled",
+            f"float64 {warning_noun} input converted to float32 "
+            "because JAX 64-bit mode is disabled",
             RuntimeWarning,
             stacklevel=warning_stacklevel,
         )
@@ -85,7 +87,14 @@ def normalize_parameters(
     Nested distributions are excluded by the caller and keep their own dtypes.
     This checks input kinds only, never parameter domains (spec 3.3, 4.1).
     """
+    for name, value in values.items():
+        # spec 4.2: required parameter leaves cannot mean an omitted input.
+        if value is None:
+            raise TypeError(f"{name} must contain real numeric parameters")
     common = floating_dtype(
-        values, input_kind="parameters", warning_stacklevel=warning_stacklevel + 1
+        values,
+        input_kind="parameters",
+        warning_noun="parameter",
+        warning_stacklevel=warning_stacklevel + 1,
     )
     return {name: jnp.asarray(value, dtype=common) for name, value in values.items()}

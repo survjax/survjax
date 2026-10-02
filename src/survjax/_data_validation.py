@@ -19,6 +19,7 @@ def time_dtype(
         values,
         dtype,
         input_kind="times",
+        warning_noun="time",
         warning_stacklevel=warning_stacklevel + 1,
     )
 

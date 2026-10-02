@@ -1,3 +1,21 @@
+# A4.1 review fix-up (2026-10-02)
+
+Approved by the maintainer's request to implement `../review/slices/A4.1.md`.
+One fix-up commit on `A4.1`, then stop; no A4.2 implementation.
+
+- F-1: reject explicit None own parameter leaves with a field-named TypeError
+  in `_dtypes.py`; add the case to `test_parameter_dtype.py` (spec 3.3, 4.2).
+- N-1: include a float32 leaf in the x32 warning test, so a single float64
+  leaf must still warn (spec 3.3).
+- N-2: pass the warning noun explicitly from `_data_validation.py` and
+  `normalize_parameters` rather than derive it from input-kind strings.
+- Public API unchanged. Preserve observation errors and warning attribution.
+- Run `scripts/check.sh --through A3`, `scripts/build_docs.sh` in both dtype
+  processes, and `git diff --check`; overwrite REVIEW.md with results.
+- Remove the obsolete D-001 template as requested in review bookkeeping.
+  Preserve the existing unstaged DEVIATIONS.md planning edit; no deviation
+  statuses are changed by this fix-up.
+
 # Step A4: distribution base and extension interface (2026-10-02)
 
 Status: A4.1 approved by the maintainer on 2026-10-02; later parts await approval. Based on specification revision

@@ -58,6 +58,7 @@ def test_float16_alone_promotes_to_float32() -> None:
 @pytest.mark.parametrize(
     "value",
     [
+        None,
         True,
         [True],
         1j,
@@ -102,7 +103,7 @@ def test_x32_warning_is_once_at_user_call_site(x64_enabled: bool) -> None:
     """Spec 3.3: default warning filtering deduplicates each user source line."""
     if x64_enabled:
         pytest.skip("conversion warning requires 64-bit mode disabled")
-    values = {"rate": np.ones(2, dtype=np.float64), "scale": np.float64(2)}
+    values = {"rate": np.ones(2, dtype=np.float32), "scale": np.float64(2)}
     with warnings.catch_warnings(record=True) as recorded:
         warnings.simplefilter("default")
         for _ in range(2):

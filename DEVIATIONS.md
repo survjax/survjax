@@ -43,16 +43,7 @@
   records them in sections 6.2, 10.2 and 13.
 - Status: resolved by maintainer, 2026-09-30; specification revision 10
 
-Entries are added by the implementer and resolved by the maintainer. Format:
-
-```
-## D-001 <short title>
-- Step: A1
-- Spec: section 3.3
-- Spec says: ...
-- Did / propose: ...
-- Status: open
-```
+Entries are added by the implementer and resolved by the maintainer.
 
 ## D-001 Inactive `time2` entries in mixed observations
 - Step: A1
