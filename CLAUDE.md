@@ -123,7 +123,7 @@ pyproject.toml  uv.lock  .python-version  .pre-commit-config.yaml
 src/survjax/          layout of spec 10.2; only modules Slice A needs
 tests/
     conftest.py           dtype handling, shared helpers (yours)
-    tolerances.py         tolerances for your tests (yours)
+    impl_tolerances.py    tolerances for your tests (yours)
     unit/                 hand-derived and analytical cases (yours)
     property/             hypothesis identity tests (yours)
     reference/            comparisons against committed fixtures (yours)
