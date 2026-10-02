@@ -57,6 +57,7 @@ There is no constructor `dtype=` keyword; cast inputs before construction.
 Nested fields retain their own parameter dtypes and static configuration. A
 scalar baseline broadcasts to the wrapper batch; `dist[idx]` selects batch
 axes while retaining trailing components. Ellipsis spans only batch axes.
+Out-of-bounds integer indices clamp to the nearest batch entry, following JAX.
 
 ```{code-cell} ipython3
 @survjax.register_family

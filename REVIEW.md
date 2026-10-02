@@ -1,114 +1,94 @@
-# A4.3 review — nested distributions and batch indexing
+# A4.3 review fixes — uncommitted
 
-One implementation step on `A4.3`, based on specification revision 19.
+Implements F-1/F-2 and N-1–N-3 from `../review/slices/A4.3.md`, preserving
+the concrete nested-field docstring requested in the preceding review.
+The maintainer asked to keep work uncommitted; no commit or staging performed.
 
 ## Reading order
 
-1. `src/survjax/distributions/base.py`: `distribution()`, leaf-derived
-   `batch_shape`, batch-only `__getitem__`, and nested construction/PyTree roles.
-2. `tests/unit/test_family_batching.py` and `tests/tolerances.py`.
-3. Public exports/import smoke test, then `docs/distributions.md` and
-   `docs/index.md` for the executable nested/batching example.
-4. The active A4.3 entry in `PLAN.md`, then evidence below.
+1. `src/survjax/distributions/base.py`: the class registration marker, nested
+   validation in `initialize`, and short `__getitem__` implementation.
+2. New nested-field rejection cases in `tests/unit/test_family_batching.py`,
+   its unique tolerance import, and `tests/impl_tolerances.py`.
+3. The concrete `distribution()` doctest; then docs wrapping/clamping wording.
+4. DEVIATIONS.md D-015 and the active review-fix entry in PLAN.md.
 
-## Invariants and requirement-to-test mapping
+## Invariants and coverage
 
-- Spec 4.2: nested fields are required, with a no-argument declaration helper.
-  `test_nested_field_is_required_and_helper_takes_no_arguments` covers both.
-  The only new exported name is `distribution`, from both public namespaces.
-- Spec 3.3/4.2: only own parameters undergo dtype normalization. Broadcasting
-  nested leaves preserves their original dtypes, trailing components, types
-  and static configuration, without reconstructing through public constructors.
-  `test_nested_dtype_survives_broadcast_and_index` covers float32 nested leaves
-  alongside float64 own leaves in x64; x32 checks its available floating dtype.
-- Spec 4.1–4.2/5: all dynamic leaves share leading batch axes after construction,
-  including at multiple nesting levels. Broadcasting appends the existing
-  component shape after the common batch shape. Inputs remain immutable.
-  `test_two_levels_broadcast_components_without_mutating_baseline` covers
-  `(2,1)` with `(3,)`, two nesting levels, two component axes and incompatibility.
-  Focused acceptance additionally covers scalar/vector baselines and wrappers.
-- Spec 4.2: nested families are children, not static objects; JAX recursively
-  flattens their parameter leaves and includes nested static values in structure.
-  `test_nested_round_trip_preserves_static_fields_and_sentinel_identity` proves
-  unflatten bypasses constructors even with sentinel leaves. Acceptance covers
-  nested family round trips; the two-level own case covers a nested-only wrapper.
-- Spec 4.1–4.2: indexing resolves the batch rank before appending full slices
-  for each leaf's component axes. Integers, slices, arrays, tuples, ellipsis,
-  None and boolean indices follow JAX rules; components cannot be consumed.
-  `test_indexing_preserves_two_component_axes_and_nested_configuration` has
-  nine explicit cases, comparing with a hand-built NumPy batch grid.
-  `test_index_cannot_consume_component_axes` covers scalar-batch rejection
-  and scalar ellipsis. No custom out-of-bounds behavior is introduced.
-- Spec 4.1/7.2: `batch_shape` follows current own and nested leaves; it is not
-  stored auxiliary data. `test_nested_tree_slicing_and_vmap_use_current_batch_shapes`
-  covers tree slicing, vmap per-entry shapes/full components, hand-derived
-  log-survival values and a jitted traced integer index.
-- Spec 7.2: `test_nested_construction_transforms_and_compilation_reuse` changes
-  own and nested dynamic values at fixed shapes/dtypes/structure and observes
-  one trace; changing nested static configuration observes a second trace.
-  Focused acceptance separately exercises construction under jit/vmap.
-- Spec 7.3: `test_gradients_through_nested_broadcast_and_selection` checks the
-  hand-derived gradients of `f(r,m)=-2*r*m` through construction/broadcasting/
-  indexing, under jit, and second-order forward/reverse `check_grads`.
-  Finite-difference tolerances have their scale rationale in `tests/tolerances.py`.
-
-The code/tests change is about 300 lines; the guide adds roughly 30 more.
-`base.py` is 280 lines; no private registration module or dependencies added.
+- F-1 / spec 4.2, 6.2 / D-015: each registered class receives its own private
+  marker after successful PyTree registration. Nested values must be instances
+  of SurvivalDistribution with a marker in their exact class dictionary;
+  inheriting a parent's marker is insufficient. Malformed values raise
+  `TypeError` naming the nested field before batch-shape access. Four new cases
+  cover an array, None, an unregistered dataclass and an unregistered subclass.
+  Existing construction/JAX acceptance cases prove valid nested inputs work.
+- F-2 / spec 4.1: construction gives every own/nested dynamic leaf exactly the
+  same leading batch rank. Appended full component slices protect the trailing
+  axes; JAX handles ellipsis, implicit trailing axes, advanced indices and
+  malformed-index errors. Removed custom expansion/counting and its branching.
+  Existing nine indexing cases, scalar component-axis rejection, tree slicing,
+  traced integer indexing and vmap cases pass. No custom index-error wording
+  is retained. As the review noted, a static-only family with no dynamic leaves
+  has no leaf operation to index and tree mapping returns it unchanged.
+- N-1: renamed the implementer's tolerance module to `impl_tolerances.py`.
+  The derivative test imports that unique name. Combined sessions collecting
+  both unit and independent suites pass; tests/spec remains untouched.
+- N-2 / spec 7.3, 12.1: float32 derivative atol/rtol are now **1e-3**, retaining
+  the finite-difference rounding-scale comment. The exact hand-derived
+  gradient assertion and second-order forward/reverse `check_grads` pass in
+  both dtype modes. Float64 tolerance is unchanged.
+- N-3: wrapped docs/index.md's feature line and the declaration error string.
+- Clamping: retained JAX's behavior and documented nearest-entry clamping for
+  out-of-bounds integer indices in docs/distributions.md.
+- Concrete example: complete constant-hazard/scaled-hazard families construct
+  a rate-2 baseline with factors `[1, 3]`; broadcasting, log-survival `[-2, -6]`,
+  indexing and unchanged baseline shape are executed via doctest in both modes.
 
 ## Checks actually run
 
 All uv commands used `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`.
 
-- Final `scripts/check.sh --through A3`: **all gates passed through A3**.
-  Guard: **ok (A4.3)**; **35 files already formatted**; Ruff **All checks passed!**;
+- `scripts/check.sh --through A3`: **all gates passed through A3**.
+  Guard **ok (A4.3)**; **35 files already formatted**; Ruff **All checks passed!**;
   mypy **Success: no issues found in 8 source files**.
-  Own x64: **175 passed, 6 skipped in 10.10s**.
-  Own x32: **180 passed, 1 skipped in 8.93s**.
-  Prior independent x64: **372 passed, 15 skipped, 203 deselected in 12.13s**.
-  Prior independent x32: **382 passed, 5 skipped, 203 deselected in 11.32s**.
-  Own skips are existing dtype-specific cases: x32 conversion/unavailable-dtype
-  checks in x64, and float64 promotion in x32. New A4.3 cases run in both modes.
-  Final own test runs emitted no warnings.
-- Final focused A4 acceptance, 89 nodes listed below, separately in both modes:
+  Own x64: **179 passed, 6 skipped in 8.85s**.
+  Own x32: **184 passed, 1 skipped in 7.80s**.
+  Prior independent x64: **372 passed, 15 skipped, 203 deselected in 11.42s**.
+  Prior independent x32: **382 passed, 5 skipped, 203 deselected in 11.22s**.
+- The same 89 focused A4 acceptance nodes as the original step, listed below:
   `JAX_ENABLE_X64=<mode> SPEC_THROUGH=A4 uv run --locked --offline pytest -q $(cat /private/tmp/survjax-a43-nodes.txt)`.
-  x64: **87 passed, 2 skipped in 0.92s**.
-  x32: **86 passed, 3 skipped in 0.65s**.
-  x64 skips require x32 conversion-warning behavior; x32 skips require
-  float64 promotion or mixed nested float32/float64.
-  Nine unselected nodes in these four files depend on later numerical defaults.
-  No acceptance files/markers/skips/xfails were changed.
-- Final `scripts/build_docs.sh`: **build succeeded** for both x32 and x64,
-  executing the distribution guide, playground and survival-data notebooks.
-  The first sandboxed attempt failed because Jupyter could not bind a local
-  kernel port (`PermissionError: Operation not permitted`). Approved escalation
-  allowed the build. Jupyter printed its TCP encryption warning.
-  Rendered HTML text in both modes contains `ScaledRecipe` and the paired/
-  all-pairs examples. Visual browser inspection was unavailable: the CUA
-  in-app browser returned **Browser is not available: iab**.
-- `git diff --check`: passed with no output before commit.
+  x64: **87 passed, 2 skipped in 0.74s**.
+  x32: **86 passed, 3 skipped in 0.61s**.
+- Combined session, in each separate dtype process:
+  `JAX_ENABLE_X64=<mode> SPEC_THROUGH=A3 uv run --locked --offline pytest tests/unit tests/spec -q`.
+  x64: **551 passed, 21 skipped, 203 deselected in 16.64s**.
+  x32: **566 passed, 6 skipped, 203 deselected in 14.21s**.
+  No tolerance import clash. The combined run includes the tightened
+  derivative check alongside the independent suites.
+- All skips above are existing dtype-specific skips. Focused A4 x64 skips
+  require x32 warning behavior; x32 skips require float64/mixed nested dtypes.
+  The 203 A4 nodes are deselected in through-A3 runs. No acceptance edits,
+  added skips or xfails.
+- `scripts/build_docs.sh`: **build succeeded** in x32 and x64; all three
+  executable notebooks per mode ran successfully. Used approved escalation
+  for local Jupyter kernel ports. Jupyter emitted its TCP encryption warning.
+  No visual browser inspection was repeated; the preceding attempt reported
+  that the in-app browser was unavailable.
+- Executed `distribution.__doc__` with `doctest.DocTestParser` and
+  `doctest.DocTestRunner` via `uv run --locked --offline python -c ...`:
+  **TestResults(failed=0, attempted=13)** in each separate x64/x32 process.
+- `git diff --check`: passed with no output after the final bookkeeping edits.
 
-Initial focused own runs found two incorrect test inputs (a missing singleton
-batch axis and an out-of-bounds NumPy index); both were corrected. An initial
-lint run found an unbound loop variable in the broadcasting lambda, now bound
-explicitly. An earlier successful gate preceded test simplification, removal
-of incidental float64-input warnings and the scalar-boolean indexing fix;
-the final gate and focused acceptance results above cover those refinements.
+## Remaining scope
 
-## Remaining scope and uncertainties
-
-No new spec ambiguity was encountered. D-013 remains open for the A6
-parameter-diagnostic contract; D-014 retains its maintainer-approved declaration
-policy and open status. No spec/deviation changes in this step.
-Direct-method defaults/policy remain A4.4–A4.5, built-ins/grids remain A5,
-and actual PH/AFT wrappers remain later scope. The full A4 gate, wheel/R
-fixture checks and likelihood debug-nan run were not run for this step.
-Stop after this commit and await review; do not start A4.4.
+D-015 records the review-directed TypeError policy; it remains open for the
+maintainer to resolve. The source review leaves the remaining CLAUDE.md
+wording fix to the maintainer; protected role files were not edited.
+D-013 remains an A6 handoff. No spec, independent-test or dependency changes.
+No mutation run, full A4 gate, wheel/R checks or likelihood debug-nan run.
+Direct-method defaults remain A4.4–A4.5. Stop for further review; do not commit.
 
 ## Exact focused acceptance nodes
-
-The temporary node file was generated by reading the four acceptance modules'
-ASTs and selecting their top-level test functions, excluding the nine names
-specified in PLAN.md. Its exact final contents are:
 
 ```text
 tests/spec/test_a4_registration.py::test_extension_names_are_exported_at_top_level

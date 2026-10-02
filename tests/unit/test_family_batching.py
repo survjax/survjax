@@ -158,7 +158,7 @@ def test_nested_construction_transforms_and_compilation_reuse():
 
 def test_gradients_through_nested_broadcast_and_selection(x64_enabled):
     """Spec 7.3: parameter derivatives survive broadcasting and indexing."""
-    from tolerances import DERIVATIVE_ATOL, DERIVATIVE_RTOL
+    from impl_tolerances import DERIVATIVE_ATOL, DERIVATIVE_RTOL
 
     def value(rate, multiplier):
         return Wrapper(
@@ -179,3 +179,33 @@ def test_gradients_through_nested_broadcast_and_selection(x64_enabled):
         atol=DERIVATIVE_ATOL[x64_enabled],
         rtol=DERIVATIVE_RTOL[x64_enabled],
     )
+
+
+@pytest.mark.parametrize("value", [None, jnp.ones(3)])
+def test_nested_field_rejects_non_distributions(value):
+    """Spec 4.2/6.2: static nested-field misuse names the field in TypeError."""
+    with pytest.raises(TypeError, match="base must be a registered distribution"):
+        Wrapper(base=value, multiplier=1)
+
+
+def test_nested_field_rejects_unregistered_dataclass():
+    """Spec 4.2: a baseline needs explicit registration before nesting."""
+
+    @dataclass(frozen=True)
+    class Unregistered(survjax.SurvivalDistribution):
+        rate: jax.Array = survjax.param()
+
+    with pytest.raises(TypeError, match="base must be a registered distribution"):
+        Wrapper(base=Unregistered(rate=jnp.asarray(1.0)), multiplier=1)
+
+
+def test_nested_field_rejects_inherited_registration():
+    """Spec 4.2: a parent's registration does not register its subclasses."""
+
+    @dataclass(frozen=True, kw_only=True)
+    class UnregisteredSubclass(Components):
+        pass
+
+    base = UnregisteredSubclass(rate=jnp.asarray(1.0), weights=jnp.ones((2, 2)))
+    with pytest.raises(TypeError, match="base must be a registered distribution"):
+        Wrapper(base=base, multiplier=1)

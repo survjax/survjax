@@ -1,7 +1,7 @@
 """Frozen-family registration and construction (spec 4.1–4.2)."""
 
 from dataclasses import MISSING, field, fields, is_dataclass
-from typing import Any, Self
+from typing import Any, ClassVar, Self
 
 import jax
 import jax.numpy as jnp
@@ -47,7 +47,44 @@ def static(*, default: Any = MISSING) -> Any:
 def distribution() -> Any:
     """Declare a required nested distribution field in a frozen family.
 
-    For example, ``base: SurvivalDistribution = survjax.distribution()``.
+    A scalar constant-hazard baseline can be shared by two parameter sets.
+    These custom families use the extension hooks already available; the
+    example evaluates at a positive time with valid positive parameters.
+
+    >>> from dataclasses import dataclass
+    >>> import jax
+    >>> import jax.numpy as jnp
+    >>> import survjax
+    >>> @survjax.register_family
+    ... @dataclass(frozen=True)
+    ... class ConstantHazard(survjax.SurvivalDistribution):
+    ...     rate: jax.Array = survjax.param()
+    ...     def log_survival(self, t):
+    ...         return -self.rate * jnp.asarray(t)
+    ...     def reference_time(self):
+    ...         return 1.0 / self.rate
+    >>> @survjax.register_family
+    ... @dataclass(frozen=True)
+    ... class ScaledHazard(survjax.SurvivalDistribution):
+    ...     base: survjax.SurvivalDistribution = survjax.distribution()
+    ...     factor: jax.Array = survjax.param()
+    ...     def log_survival(self, t):
+    ...         return self.factor * self.base.log_survival(t)
+    ...     def reference_time(self):
+    ...         return self.base.reference_time() / self.factor
+    >>> baseline = ConstantHazard(rate=2.0)
+    >>> scaled = ScaledHazard(base=baseline, factor=[1.0, 3.0])
+    >>> scaled.batch_shape
+    (2,)
+    >>> scaled.base.rate.tolist()
+    [2.0, 2.0]
+    >>> scaled.log_survival(1.0).tolist()
+    [-2.0, -6.0]
+    >>> scaled[1].log_survival(1.0).item()
+    -6.0
+    >>> baseline.batch_shape
+    ()
+
     The nested family's batch axes broadcast with the outer parameters.
     Its parameter dtypes, component axes and static configuration are retained.
     This helper takes no arguments and returns a dataclass field with no default.
@@ -68,6 +105,8 @@ class SurvivalDistribution:
     remain trailing. Use ``batch_shape`` for the batch dimensions: ``shape``
     is available as a parameter name and has no special meaning in the base.
     """
+
+    _survjax_registered: ClassVar[bool] = False
 
     @property
     def batch_shape(self) -> tuple[int, ...]:
@@ -100,27 +139,9 @@ class SurvivalDistribution:
         """
         rank = len(self.batch_shape)
         indices = index if isinstance(index, tuple) else (index,)
-        ellipses = sum(item is Ellipsis for item in indices)
-        if ellipses > 1:
-            raise IndexError("an index can only have a single ellipsis")
-        consumed = 0
-        for item in indices:
-            if item is not None and item is not Ellipsis:
-                # Boolean masks consume all their axes under ordinary JAX indexing.
-                dtype = getattr(item, "dtype", None)
-                if not isinstance(item, bool):
-                    consumed += item.ndim if dtype == jnp.bool_ else 1
-        if consumed > rank:
-            raise IndexError("too many indices for distribution batch axes")
-        remaining = (slice(None),) * (rank - consumed)
-        expanded: tuple[Any, ...] = ()
-        for item in indices:
-            expanded += remaining if item is Ellipsis else (item,)
-        if not ellipses:
-            expanded += remaining
-        # spec 4.2: all nested leaves share batch axes; components stay trailing.
+        # spec 4.1: every own/nested leaf has exactly rank leading batch axes.
         return jax.tree.map(
-            lambda value: value[expanded + (slice(None),) * (value.ndim - rank)],
+            lambda value: value[indices + (slice(None),) * (value.ndim - rank)],
             self,
         )
 
@@ -168,7 +189,8 @@ def register_family[Family: SurvivalDistribution](cls: type[Family]) -> type[Fam
 
     Registration raises TypeError for invalid class or field declarations.
     Construction raises TypeError for nonreal parameters, insufficient axes,
-    incompatible batch shapes or unhashable static configuration. JAX tree
+    incompatible batch shapes, unregistered nested distributions or unhashable
+    static configuration. JAX tree
     reconstruction preserves supplied leaves without calling the constructor.
     """
     if not issubclass(cls, SurvivalDistribution) or not is_dataclass(cls):
@@ -188,7 +210,8 @@ def register_family[Family: SurvivalDistribution](cls: type[Family]) -> type[Fam
             "distribution",
         ):
             raise TypeError(
-                f"{declared.name} must be declared with param() or static() or distribution()"
+                f"{declared.name} must be declared with "
+                "param() or static() or distribution()"
             )
     parameters = tuple(
         declared
@@ -228,7 +251,12 @@ def register_family[Family: SurvivalDistribution](cls: type[Family]) -> type[Fam
                 raise TypeError(f"{declared.name} has fewer axes than component_ndim")
             batch_shapes.append(value.shape[: value.ndim - count])
         for declared in nested:
-            batch_shapes.append(getattr(self, declared.name).batch_shape)
+            value = getattr(self, declared.name)
+            # spec 4.2: subclass registration is explicit, never inherited.
+            registered = type(value).__dict__.get("_survjax_registered", False)
+            if not isinstance(value, SurvivalDistribution) or not registered:
+                raise TypeError(f"{declared.name} must be a registered distribution")
+            batch_shapes.append(value.batch_shape)
         try:
             batch_shape = jnp.broadcast_shapes(*batch_shapes)
         except ValueError as exc:
@@ -277,4 +305,5 @@ def register_family[Family: SurvivalDistribution](cls: type[Family]) -> type[Fam
 
     cls.__init__ = initialize  # type: ignore[method-assign]
     jax.tree_util.register_pytree_node(cls, flatten, unflatten)
+    cls._survjax_registered = True
     return cls

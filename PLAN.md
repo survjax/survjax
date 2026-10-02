@@ -1,3 +1,44 @@
+# A4.3 review fixes — approved, uncommitted
+
+The maintainer requested implementation of `../review/slices/A4.3.md`.
+Preserve the prior concrete docstring change; leave all fixes uncommitted
+until further review, overriding the review file's suggested commit.
+
+- `src/survjax/distributions/base.py`: F-1, mark each explicitly registered
+  class and reject other nested values with field-named TypeError. Do not
+  inherit registration from a parent. F-2, use the short tree-map indexing
+  form and a spec 4.1 shared-leading-batch-rank comment; delegate index errors
+  to JAX. Wrap the long declaration error (N-3). No new public API.
+- `tests/unit/test_family_batching.py`: test array/None/unregistered nested
+  values and a subclass that inherits a registered parent's marker; update
+  the derivative-tolerance import (N-1). Existing indexing tests cover F-2.
+- Rename `tests/tolerances.py` to `tests/impl_tolerances.py` as decided by the
+  maintainer (N-1). Tighten float32 derivative tolerances to 1e-3 and justify
+  the rounding scale (N-2). Do not change the independent tolerance module.
+- `docs/index.md`: wrap the flagged line. `docs/distributions.md`: document
+  JAX's out-of-bounds integer clamping, as decided by the maintainer.
+- Record the review-directed nested-field TypeError policy as open D-015 in
+  DEVIATIONS.md; no approval question is needed because the maintainer
+  explicitly requested these fixes. Overwrite REVIEW.md with current reading
+  order, invariants and exact check results. Spec coverage: 3.3, 4.1–4.2, 5, 6.2, 7.3, 10.5, 12.1.
+
+Run `scripts/check.sh --through A3`, the previous 89 focused A4 nodes in both
+modes, `scripts/build_docs.sh`, combined `SPEC_THROUGH=A3` unit/spec pytest
+sessions in both modes, the concrete docstring doctest in both modes, and
+`git diff --check`. No new dependencies, spec or protected-file edits.
+
+# A4.3 review follow-up — concrete nested-field example
+
+Approved by the maintainer's request to do this edit and leave it uncommitted.
+Change only the `distribution()` docstring in
+`src/survjax/distributions/base.py`, plus this plan and the review note.
+Show complete custom constant-hazard and scaled-hazard families, then construct
+and index an actual nested instance with numerical outputs. Use the existing
+A4.3 API; no built-in families, numerical defaults or new public API.
+Covers spec 4.2, 5 and 10.5. Execute the docstring example in both dtype modes,
+run focused Ruff and mypy checks, and record results in REVIEW.md.
+No new test file or commit; stop for further review.
+
 # A4.3 — Nested distributions and batch indexing (2026-10-02)
 
 Status: approved by the maintainer ("ok implement it") and implemented on

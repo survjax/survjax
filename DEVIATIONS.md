@@ -1,5 +1,18 @@
 # Deviations and spec questions
 
+## D-015 Error policy for malformed nested distribution fields
+- Step: A4.3 review fixes
+- Spec: sections 4.2 and 6.2, revision 19
+- Spec says: `distribution()` holds a nested distribution; family registration
+  is explicit. Static misuse follows TypeError conventions, but the nested-field
+  paragraph does not explicitly assign an error class for malformed values.
+- Did / propose: the maintainer requested implementation of review F-1 in
+  `../review/slices/A4.3.md`: require an instance of an explicitly registered
+  family and raise a field-named TypeError otherwise. Implement this before
+  reading nested batch shapes, including rejecting unregistered subclasses
+  of registered parents. No parameter-value validation or spec change.
+- Status: open
+
 ## D-014 Unmarked family fields and inherited constructors
 - Step: A4.2 review fix-up
 - Spec: sections 4.1–4.2, revision 19; dtype warning attribution in 3.3
