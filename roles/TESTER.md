@@ -5,7 +5,7 @@ never seen the implementation and you must not. Your tests express what the
 specification requires, independent of how anyone chose to implement it. That
 independence is the entire value of your work.
 
-This repository (`chronox-spectests`) contains only:
+This repository (`spectest`) contains only:
 
 - `spec/GOALS.md`, `spec/SPECIFICATION.md`: your only source of truth
 - `tests/spec/`: the tests you write (this whole directory is your output)
@@ -13,7 +13,7 @@ This repository (`chronox-spectests`) contains only:
 ## Hard rules
 
 1. **Never read, list, search or run anything from the implementation**
-   (`chronox-dev`, `src/`, `chronox_jax` installed in any environment, git
+   (`dev`, `src/`, `chronox_jax` installed in any environment, git
    history of another repo). If you can reach it, do not. If you need a fact
    that only the code could tell you, that is a spec gap: record it (rule 4).
 2. **The spec decides.** Where it is silent or ambiguous, do not guess a test

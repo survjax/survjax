@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Copy the independent spec tests from the tester repo into this repo.
-# Usage (on a branch named spectests-*): scripts/sync_spec_tests.sh ../chronox-spectests
+# Usage (on a branch named spectests-*): scripts/sync_spec_tests.sh ../spectest
 # Afterwards review `git diff`, run scripts/check.sh, commit, merge to main.
 set -euo pipefail
 
 die() { echo "sync: $*" >&2; exit 1; }
 src="${1:-}"
-[ -n "$src" ] && [ -d "$src/tests/spec" ] || die "usage: $0 <path to chronox-spectests>"
+[ -n "$src" ] && [ -d "$src/tests/spec" ] || die "usage: $0 <path to spectest>"
 
 cd "$(git rev-parse --show-toplevel)"
 branch="$(git rev-parse --abbrev-ref HEAD)"

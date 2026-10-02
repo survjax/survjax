@@ -10,7 +10,7 @@ is ambiguous, wrong or awkward to implement, do not fix it and do not silently
 choose: log it in `DEVIATIONS.md` (spec section, what you did, why) and ask.
 
 The spec's links to REVIEW-DISPOSITIONS.md, claude-review.md, `docs/design/` and
-`notes/` point into the separate design repo (`chronox-design`). They are
+`notes/` point into the separate design repo (`design`). They are
 expected to be dead here. Do not go looking for them.
 
 Current target: **Slice A** (spec section 12.2). Do not implement anything
