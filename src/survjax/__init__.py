@@ -2,7 +2,13 @@
 
 from survjax.data import SurvivalData
 from survjax.diagnostics import InvalidDataError
-from survjax.distributions import SurvivalDistribution, param, register_family, static
+from survjax.distributions import (
+    SurvivalDistribution,
+    distribution,
+    param,
+    register_family,
+    static,
+)
 
 __all__ = [
     "SurvivalData",
@@ -10,5 +16,6 @@ __all__ = [
     "SurvivalDistribution",
     "register_family",
     "param",
+    "distribution",
     "static",
 ]

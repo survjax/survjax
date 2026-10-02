@@ -1,7 +1,7 @@
-"""Flat frozen-family registration and construction (spec 4.1–4.2)."""
+"""Frozen-family registration and construction (spec 4.1–4.2)."""
 
 from dataclasses import MISSING, field, fields, is_dataclass
-from typing import Any
+from typing import Any, Self
 
 import jax
 import jax.numpy as jnp
@@ -44,11 +44,23 @@ def static(*, default: Any = MISSING) -> Any:
     return field(default=default, metadata={"survjax_kind": "static"})
 
 
+def distribution() -> Any:
+    """Declare a required nested distribution field in a frozen family.
+
+    For example, ``base: SurvivalDistribution = survjax.distribution()``.
+    The nested family's batch axes broadcast with the outer parameters.
+    Its parameter dtypes, component axes and static configuration are retained.
+    This helper takes no arguments and returns a dataclass field with no default.
+    """
+    return field(metadata={"survjax_kind": "distribution"})
+
+
 class SurvivalDistribution:
     """Base class for custom survival distributions.
 
     Define a frozen dataclass subclass, mark its fields with ``param()`` or
-    ``static()``, then apply ``register_family`` above the dataclass decorator.
+    ``static()`` or ``distribution()``, then apply ``register_family`` above
+    the dataclass decorator.
     Implement ``log_survival(t)`` and ``reference_time()`` in the subclass.
 
     Parameters describe one distribution per batch entry. Their leading axes
@@ -64,7 +76,8 @@ class SurvivalDistribution:
         A scalar distribution returns ``()``. A parameter of shape ``(N, K)``
         with one component axis contributes batch shape ``(N,)``. The property
         follows current parameter shapes after tree mapping and reports the
-        per-entry batch shape inside ``jax.vmap``.
+        per-entry batch shape inside ``jax.vmap``. Nested distributions
+        contribute their current batch shapes too.
         """
         shapes = []
         for declared in fields(self):  # type: ignore[arg-type]
@@ -72,7 +85,44 @@ class SurvivalDistribution:
                 value = getattr(self, declared.name)
                 count = declared.metadata["component_ndim"]
                 shapes.append(value.shape[: value.ndim - count])
+            elif declared.metadata.get("survjax_kind") == "distribution":
+                shapes.append(getattr(self, declared.name).batch_shape)
         return jnp.broadcast_shapes(*shapes)
+
+    def __getitem__(self, index: Any) -> Self:
+        """Select batch entries, preserving trailing parameter components.
+
+        Integers, slices, index arrays and tuples follow JAX indexing rules.
+        Ellipsis spans batch axes only; None inserts a batch axis. Static
+        configuration and nested family types are preserved. A traced integer
+        index works under jit; dynamically sized selections follow JAX's
+        restrictions. Returns a reconstructed distribution, without construction.
+        """
+        rank = len(self.batch_shape)
+        indices = index if isinstance(index, tuple) else (index,)
+        ellipses = sum(item is Ellipsis for item in indices)
+        if ellipses > 1:
+            raise IndexError("an index can only have a single ellipsis")
+        consumed = 0
+        for item in indices:
+            if item is not None and item is not Ellipsis:
+                # Boolean masks consume all their axes under ordinary JAX indexing.
+                dtype = getattr(item, "dtype", None)
+                if not isinstance(item, bool):
+                    consumed += item.ndim if dtype == jnp.bool_ else 1
+        if consumed > rank:
+            raise IndexError("too many indices for distribution batch axes")
+        remaining = (slice(None),) * (rank - consumed)
+        expanded: tuple[Any, ...] = ()
+        for item in indices:
+            expanded += remaining if item is Ellipsis else (item,)
+        if not ellipses:
+            expanded += remaining
+        # spec 4.2: all nested leaves share batch axes; components stay trailing.
+        return jax.tree.map(
+            lambda value: value[expanded + (slice(None),) * (value.ndim - rank)],
+            self,
+        )
 
     def log_survival(self, t: ArrayLike) -> jax.Array:
         """Return log P(T > t); custom families must implement this method.
@@ -104,7 +154,8 @@ def register_family[Family: SurvivalDistribution](cls: type[Family]) -> type[Fam
     """Make a custom family usable with JAX transformations.
 
     Apply above ``@dataclasses.dataclass(frozen=True)`` on a subclass of
-    ``SurvivalDistribution``. Each field must use ``param()`` or ``static()``;
+    ``SurvivalDistribution``. Each field must use ``param()``, ``static()``
+    or ``distribution()``;
     subclasses must have their own dataclass-generated initializer. Returns
     the same class, registered as a PyTree with numerical parameter leaves.
 
@@ -113,6 +164,7 @@ def register_family[Family: SurvivalDistribution](cls: type[Family]) -> type[Fam
     axes while preserving trailing components. Values are stored without
     parameter-domain checks. There is no constructor ``dtype=`` argument.
     Float64 array inputs warn at the call site when JAX x64 is disabled.
+    Nested distributions broadcast with own parameters, preserving their dtypes.
 
     Registration raises TypeError for invalid class or field declarations.
     Construction raises TypeError for nonreal parameters, insufficient axes,
@@ -130,14 +182,28 @@ def register_family[Family: SurvivalDistribution](cls: type[Family]) -> type[Fam
     declared_fields = fields(cls)
     for declared in declared_fields:
         # D-014: losing an unmarked field on reconstruction changes user values.
-        if declared.metadata.get("survjax_kind") not in ("param", "static"):
+        if declared.metadata.get("survjax_kind") not in (
+            "param",
+            "static",
+            "distribution",
+        ):
             raise TypeError(
-                f"{declared.name} must be declared with param() or static()"
+                f"{declared.name} must be declared with param() or static() or distribution()"
             )
     parameters = tuple(
         declared
         for declared in declared_fields
         if declared.metadata.get("survjax_kind") == "param"
+    )
+    nested = tuple(
+        declared
+        for declared in declared_fields
+        if declared.metadata.get("survjax_kind") == "distribution"
+    )
+    dynamic = tuple(
+        declared
+        for declared in declared_fields
+        if declared.metadata.get("survjax_kind") in ("param", "distribution")
     )
     configuration = tuple(
         declared
@@ -161,6 +227,8 @@ def register_family[Family: SurvivalDistribution](cls: type[Family]) -> type[Fam
             if value.ndim < count:
                 raise TypeError(f"{declared.name} has fewer axes than component_ndim")
             batch_shapes.append(value.shape[: value.ndim - count])
+        for declared in nested:
+            batch_shapes.append(getattr(self, declared.name).batch_shape)
         try:
             batch_shape = jnp.broadcast_shapes(*batch_shapes)
         except ValueError as exc:
@@ -174,6 +242,17 @@ def register_family[Family: SurvivalDistribution](cls: type[Family]) -> type[Fam
                 declared.name,
                 jnp.broadcast_to(value, batch_shape + component_shape),
             )
+        for declared in nested:
+            value = getattr(self, declared.name)
+            rank = len(value.batch_shape)
+            # spec 3.3/4.2: broadcast nested leaves without dtype normalization.
+            broadcast = jax.tree.map(
+                lambda leaf, rank=rank: jnp.broadcast_to(
+                    leaf, batch_shape + leaf.shape[rank:]
+                ),
+                value,
+            )
+            object.__setattr__(self, declared.name, broadcast)
         for declared in configuration:
             try:
                 hash(getattr(self, declared.name))
@@ -183,14 +262,14 @@ def register_family[Family: SurvivalDistribution](cls: type[Family]) -> type[Fam
                 ) from exc
 
     def flatten(self: Family) -> tuple[tuple[Any, ...], tuple[Any, ...]]:
-        children = tuple(getattr(self, declared.name) for declared in parameters)
+        children = tuple(getattr(self, declared.name) for declared in dynamic)
         auxiliary = tuple(getattr(self, declared.name) for declared in configuration)
         return children, auxiliary
 
     def unflatten(auxiliary: tuple[Any, ...], children: tuple[Any, ...]) -> Family:
         # spec 4.2: JAX may supply sentinel leaves, so do not normalize here.
         result = object.__new__(cls)
-        for declared, value in zip(parameters, children, strict=True):
+        for declared, value in zip(dynamic, children, strict=True):
             object.__setattr__(result, declared.name, value)
         for declared, value in zip(configuration, auxiliary, strict=True):
             object.__setattr__(result, declared.name, value)

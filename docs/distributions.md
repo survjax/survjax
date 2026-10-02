@@ -9,8 +9,8 @@ kernelspec:
 
 # Registering a family
 
-Flat family construction and PyTree registration are available. Nested fields,
-batch indexing and generic direct methods are planned for later A4 steps;
+Family construction, nested fields, batch indexing and PyTree registration are
+available. Generic direct methods are planned for later A4 steps;
 built-in families and time-first survival grids are planned for A5. The base's
 `log_survival(t)` and `reference_time()` hooks raise `NotImplementedError`
 unless supplied by a family. The direct-method boundary policy is planned;
@@ -53,3 +53,28 @@ float32, with the configured default for integer-only or scalar-only inputs.
 Float64 arrays warn at the call site when x64 is disabled. Nonreal inputs are
 rejected; negative, NaN and infinite values are stored without domain checks.
 There is no constructor `dtype=` keyword; cast inputs before construction.
+
+Nested fields retain their own parameter dtypes and static configuration. A
+scalar baseline broadcasts to the wrapper batch; `dist[idx]` selects batch
+axes while retaining trailing components. Ellipsis spans only batch axes.
+
+```{code-cell} ipython3
+@survjax.register_family
+@dataclass(frozen=True)
+class ScaledRecipe(survjax.SurvivalDistribution):
+    base: survjax.SurvivalDistribution = survjax.distribution()
+    multiplier: jax.Array = survjax.param()
+
+    def log_survival(self, t):
+        return -self.base.rate * self.multiplier * t
+
+scaled = ScaledRecipe(base=Recipe(rate=2.0, weights=[1.0, 2.0]),
+                      multiplier=[1.0, 2.0, 3.0])
+assert scaled.base.batch_shape == (3,)
+assert scaled[1].base.weights.shape == (2,)
+assert scaled.log_survival(jnp.ones(3)).shape == (3,)  # paired entries
+assert scaled[:, None].log_survival(jnp.ones(4)).shape == (3, 4)  # every pair
+```
+
+The custom formula above illustrates positive-time broadcasting. The base's
+general direct-method boundary policy remains planned for the next A4 step.

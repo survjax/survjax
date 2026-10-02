@@ -11,6 +11,7 @@ def test_public_package_imports() -> None:
         "SurvivalDistribution",
         "register_family",
         "param",
+        "distribution",
         "static",
     }
     assert survjax.SurvivalData is not None

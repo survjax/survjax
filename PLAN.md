@@ -1,3 +1,131 @@
+# A4.3 — Nested distributions and batch indexing (2026-10-02)
+
+Status: approved by the maintainer ("ok implement it") and implemented on
+`A4.3`; see REVIEW.md for evidence. This is the active step plan; earlier plans below are history. Work on the maintainer-created
+`A4.3` branch, starting at `138db08` (A4.2 review fix-up), against specification
+revision 19. The working tree was clean before this plan update.
+
+## Outcome and public API
+
+Registered frozen families can declare a required nested distribution with
+`survjax.distribution()` and select batch entries with `dist[idx]`. Own
+parameters and all nested distributions share the outer batch shape after
+construction. Nested component axes, dtypes, family types and static
+configuration survive broadcasting, indexing and JAX transformations.
+
+Export `distribution()` from both `survjax` and `survjax.distributions`.
+Add typed `SurvivalDistribution.__getitem__`; extend the existing
+`batch_shape` property and `register_family` behavior. No other public names.
+Spec coverage: 3.3 (independent nested dtypes), 4.1–4.2 (representation,
+registration and indexing), 5 (batch shapes), 7.2–7.3 (compilation reuse and
+parameter transformations), 10.2–10.5 and 12.1 (engineering/docs/tests).
+
+## Files and implementation
+
+- `src/survjax/distributions/base.py`: add the no-argument, no-default
+  `distribution()` dataclass field helper. Recognize nested fields alongside
+  `param()` and `static()` in declaration checks and document all three roles.
+  Include nested objects as dynamic children, so their leaves and static
+  auxiliary data participate in the outer PyTree. Reconstruction continues
+  to bypass public constructors, normalization and value inspection.
+- Extend construction to broadcast own parameter batch shapes together with
+  nested `batch_shape` values. Normalize only own parameters, using the existing
+  helper and preserving warning attribution. Recursively broadcast nested
+  parameter leaves to the common batch shape plus their declared component
+  shapes, retaining their original dtypes and static values. Rebuild nested
+  objects without public constructors; leave the supplied baseline immutable.
+  Incompatible batch shapes raise TypeError. Support wrappers whose dynamic
+  fields are exclusively nested distributions.
+- Derive `batch_shape` from current own and nested leaves, excluding component
+  axes. Store no cached batch shape or extra static shape metadata.
+- Implement batch-only indexing for integers, slices, integer arrays and
+  tuples, including ellipsis and inserted singleton axes. Resolve indexing
+  against the batch rank before appending untouched component-axis slices;
+  ellipsis must never consume component axes. Recursively index nested
+  distributions and reconstruct without constructors. Follow ordinary JAX
+  indexing constraints, including traced integer indices under jit and the
+  restrictions on dynamic-size indexing. Do not add custom bounds semantics.
+- Keep `base.py` under about 300 lines. Only if necessary, move registration
+  internals to `src/survjax/distributions/_registration.py`, preserving public
+  imports and caller-site warning behavior; no general helper framework.
+- `src/survjax/distributions/__init__.py`, `src/survjax/__init__.py` and
+  `tests/unit/test_import.py`: add and check the new export.
+- Create `tests/unit/test_family_batching.py` with independently defined custom
+  families and small behavior-specific tests. Use existing tolerances;
+  derivative-specific additions belong only in `tests/tolerances.py` with a
+  scale justification.
+- `docs/distributions.md`: add executable nested-field and batch-selection
+  examples, explain component axes and independent nested dtypes, and show
+  paired `(N,)` versus explicit `(D,1)` evaluation using a simple custom
+  `log_survival` implementation at valid positive times.
+  `docs/index.md`: update the current-feature description.
+- Overwrite `REVIEW.md` after implementation with reading order, invariants,
+  spec-to-test mapping, exact checks/results/skips and remaining questions.
+
+## Tests and evidence
+
+- Spec 4.2: helper takes no arguments; nested fields are required; round trips
+  retain nested types, static configuration and supplied sentinel leaf identity.
+- Spec 4.1–4.2/5: scalar baseline/vector wrapper, vector baseline/scalar wrapper,
+  `(2,1)` with `(3,)`, nested-only wrapper and at least two nesting levels;
+  incompatible batches fail. Verify stored leaf shapes and explicit values,
+  nested components (including two component axes), and unchanged input objects.
+- Spec 3.3: x64-only mixed float32/float64 nesting preserves each family's dtype
+  through broadcasting and indexing; x32 covers available dtypes without
+  changing global configuration or claiming float64 preservation.
+- Spec 4.1–4.2: integer, slice, array and multi-axis tuple selection preserves
+  components/static fields; ellipsis and singleton insertion operate on batch
+  axes only. Compare indexed leaves to independently indexed input arrays.
+  Tree-map slicing agrees with batch selection and updates outer/nested shapes.
+- Spec 7.2–7.3: eager/jit/vmap construction and selection agree; jit supports
+  a traced integer index; vmap sees per-entry nested batch shapes and full
+  component vectors. Compile-count tests vary outer and nested dynamic values
+  at fixed shapes/dtypes/structure and require reuse; changed nested static
+  configuration specializes separately. Use a smooth custom log-survival
+  formula with hand-derived derivatives and second-order forward/reverse
+  `check_grads` to verify gradients through nested construction and selection.
+
+Run with `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`:
+
+1. `scripts/check.sh --through A3`: formatting, lint, mypy, all own tests and
+   prior independent tests, separately in both dtype modes.
+2. Focused read-only A4 acceptance nodes with `JAX_ENABLE_X64=1` and `0`,
+   `SPEC_THROUGH=A4`, and `uv run --locked --offline pytest -q`:
+   - `test_a4_registration.py`: all except `test_methods_do_not_mutate_parameters`.
+   - `test_a4_parameters.py`: all except
+     `test_construction_with_traced_parameters_inside_jit`,
+     `test_construction_inside_vmap` and `test_gradient_through_construction`.
+   - `test_a4_indexing.py`: all except
+     `test_indexed_distribution_matches_indexed_values`,
+     `test_vmap_over_distribution_matches_batched_call` and
+     `test_vmap_over_distribution_and_time_pairs_entries`.
+   - `test_a4_nested.py`: all except
+     `test_vmap_over_outer_distribution_with_broadcast_base` and
+     `test_broadcast_nested_values_in_log_prob`.
+   These excluded nodes require later generic numerical methods. Record the
+   exact node list and results in REVIEW.md; do not edit, skip or xfail tests.
+3. `scripts/build_docs.sh`: execute examples in separate x32/x64 processes and
+   inspect the rendered guide. Report any environment/permission limitations.
+4. `git diff --check`.
+
+## Boundaries and stopping point
+
+Direct-method policy/defaults remain A4.4–A4.5; built-ins, grids and actual
+PH/AFT wrappers remain later steps. D-013 remains an A6 diagnostic-contract
+handoff. Do not change dependencies, the spec, independent acceptance tests
+or protected scripts. Log any newly uncovered spec ambiguity as an open
+DEVIATIONS.md entry and ask before choosing its behavior.
+
+Aim for roughly 300 changed lines including code and tests. If the necessary
+implementation grows past that, propose a smaller split before expanding it.
+After approval, implement one concept on `A4.3`, write REVIEW.md, commit with
+an imperative subject and a body explaining why, then stop for review.
+This plan-only update remains uncommitted.
+
+Planning evidence: read the relevant spec, A4.2 implementation/review,
+dtype helper, docs and read-only A4 acceptance sources. No runtime, lint,
+type, derivative or documentation checks were run for this planning update.
+
 # A4.2 review fix-up (2026-10-02)
 
 Status: approved by the maintainer on 2026-10-02 after reading
