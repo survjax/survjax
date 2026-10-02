@@ -145,3 +145,20 @@ def raises_misuse():
     """Spec 6.2: structural argument misuse raises TypeError."""
     with pytest.raises(MISUSE) as info:
         yield info
+
+
+def assert_close(actual, expected, err_msg=""):
+    """Spec 12.1 ordinary finite-value tolerances of the active dtype mode.
+
+    Non-finite entries must match exactly (``assert_allclose`` compares
+    infinities and NaNs positionally).
+    """
+    from tolerances import TOLERANCES
+
+    actual = np.asarray(actual)
+    np.testing.assert_allclose(
+        actual.astype(np.float64),
+        np.asarray(expected, dtype=np.float64),
+        err_msg=err_msg,
+        **TOLERANCES[FLOAT],
+    )

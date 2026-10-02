@@ -1,11 +1,15 @@
 # Test map
 
-Spec: performance amendment draft (2026-09-30), including the revision 10
-diagnostic compatibility decision. Unchanged requirements keep their earlier
-revision tags. Tests from the revision 10 decision (sections 6.2, 10.2, 13) are
-tagged `rev 10`. Tests from the unaccepted performance amendment (section 7.2)
-are tagged `rev perf-draft` and should be retagged with the final revision
-number when the maintainer accepts it. Tests are static acceptance tests and have never
+Spec: revision 19 (see `.spec-seen`). Unchanged requirements keep their
+earlier revision tags. Tests from the revision 10 decision (sections 6.2, 10.2,
+13) are tagged `rev 10`. Tests from the performance amendment (section 7.2),
+accepted in revision 11, are tagged `rev 11`. A4 tests derive from revision 11 and
+are tagged `rev 11`, except `test_a4_policy_enforcement.py` (rev 12, base
+enforcement of section 4.5) and `test_a4_hazard_at_zero_survival.py` (rev 13,
+`log_hazard` where `S(t)=0`), and the parameter dtype tests on bool, complex,
+string and object inputs, `dtype=` and nested dtypes (rev 15), and the `batch_shape` and shape-misuse tests
+(rev 16), the `.shape` attribute tests (rev 17), `test_a4_nested.py` (rev 18), and the keyword-only construction tests
+(rev 19). Tests are static acceptance tests and have never
 been executed against survjax. Test names below are relative to `tests/spec/`.
 
 ## A1: representation and dtype policy (`test_a1_representation.py`, `test_a1_dtype.py`)
@@ -426,9 +430,9 @@ been executed against survjax. Test names below are relative to `tests/spec/`.
 | 6.2/13 | raise_if_invalid on traced diagnostics "raises a plain `ValueError` with a host-only message, not `InvalidDataError`". | `test_traced_diagnostics_cannot_raise_at_host_checkpoint` |
 | 6.2/13 | the same, when the traced rows are invalid. | `test_traced_invalid_diagnostics_misuse_is_not_invalid_data_error` |
 | 6.2 | concrete diagnostics returned from jit raise only at the host checkpoint. | `test_compiled_invalid_diagnostics_raise_at_explicit_host_checkpoint` |
-| 7.2 (draft) | compiled construction and diagnostic access run "without ... host callbacks". | `test_compiled_construction_and_diagnostics_install_no_host_callback` |
-| 7.2 (draft) | ... "without library-induced host transfers" once warmed. | `test_warm_compiled_construction_and_diagnostics_make_no_host_transfer` |
-| 7.2 (draft) | "Changing dynamic ... observation values must reuse compilation" (construction inside jit). | `test_compiled_construction_reuses_compilation_for_new_observation_values` |
+| 7.2 | compiled construction and diagnostic access run "without ... host callbacks". | `test_compiled_construction_and_diagnostics_install_no_host_callback` |
+| 7.2 | ... "without library-induced host transfers" once warmed. | `test_warm_compiled_construction_and_diagnostics_make_no_host_transfer` |
+| 7.2 | "Changing dynamic ... observation values must reuse compilation" (construction inside jit). | `test_compiled_construction_reuses_compilation_for_new_observation_values` |
 
 ## A2–A3: deliberately not tested
 
@@ -456,3 +460,283 @@ been executed against survjax. Test names below are relative to `tests/spec/`.
   so it belongs to A6/A9.
 - Branch pruning by static metadata (3.2, 7.2): likelihood behavior belongs
   to a later step/slice; A3 covers tree structures and compile counts.
+
+## A4: distribution base (spec 4.1, 4.2, 4.5; rev 11)
+
+All A4 tests use custom families defined in `spec_families.py` through the
+public extension interface; built-in families start at A5.
+
+### `test_a4_registration.py`: registration, PyTree, static and nested fields
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 4.2 | `survjax.SurvivalDistribution`, `register_family`, `param`, `static` and `distribution` exist. | `test_extension_names_are_exported_at_top_level` |
+| 4.2 | the decorator keeps the class a subclass of `SurvivalDistribution`. | `test_registered_family_is_a_survival_distribution` |
+| 4.2 | registered families are constructed with keyword arguments only; positional raises `TypeError`. | `test_positional_parameters_are_rejected` |
+| 4.2 | a single positional parameter also raises `TypeError`. | `test_single_positional_parameter_is_rejected` |
+| 4.2 | keyword-only applies to static fields too. | `test_positional_static_is_rejected` |
+| 4.2 | "Parameter fields have no default and are required". | `test_missing_parameter_is_rejected` |
+| 4.2 | with `kw_only=True`, a defaulted static field may precede a required parameter. | `test_kw_only_recipe_allows_static_before_parameter` |
+| 4.1/4.2 | parameter arrays are dynamic leaves; a static field is not a leaf. | `test_parameters_are_the_only_leaves` |
+| 4.1 | natural parameters are stored as the leaves (values unchanged, not transformed). | `test_leaves_hold_the_natural_parameter_values` |
+| 4.2 | register_family generates PyTree flatten/unflatten. | `test_flatten_unflatten_round_trip_preserves_type_and_parameters` |
+| 4.2 | reconstruction bypasses `__init__` (arbitrary leaves are neither broadcast nor converted). | `test_unflatten_bypasses_init` |
+| 4.2 | `static(...)` holds hashable configuration carried by the PyTree. | `test_static_field_is_preserved_through_round_trip` |
+| 4.2 | `survjax.static(default=...)` supplies the field default. | `test_static_default_is_used_when_omitted` |
+| 4.2 | static configuration is not data; equal configuration and shapes share a structure. | `test_equal_static_values_give_equal_tree_structures` |
+| 4.2 | static configuration is part of the tree structure. | `test_different_static_values_give_different_tree_structures` |
+| 4.2 | "There is no automatic subclass registration": an undecorated subclass is a PyTree leaf. | `test_no_automatic_subclass_registration` |
+| 4.1/4.2 | distributions are immutable frozen dataclasses. | `test_distribution_is_immutable` |
+| 4.1 | methods are pure (no mutation or caches): leaves are unchanged after calls. | `test_methods_do_not_mutate_parameters` |
+| 4.1 | a distribution is a PyTree that can be passed into and returned from jit. | `test_distribution_passes_through_jit` |
+| 4.1 and 7.2 | parameters are dynamic leaves; changed values with equal shapes, dtypes and statics do not retrace. | `test_new_parameter_values_reuse_compilation` |
+| 4.2 and 7.2 | static configuration is compile-time; a different value retraces. | `test_different_static_values_compile_separately` |
+| 4.2 | a static field is concrete during tracing, so Python control flow on it works under jit. | `test_static_value_selects_behaviour_under_jit` |
+| 4.2 | `survjax.distribution()` declares a nested distribution; its parameters are dynamic leaves too. | `test_nested_distribution_parameters_are_leaves_of_the_outer_family` |
+| 4.2 | flatten/unflatten reconstructs the nested distribution with its own type. | `test_nested_distribution_round_trips_with_its_type` |
+| 4.1/4.2 | nested parameters are dynamic leaves, differentiable under jit. | `test_nested_distribution_is_differentiable_through_jit` |
+
+### `test_a4_parameters.py`: batch shape, broadcasting, values, traced construction, dtype
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 4.2 | `batch_shape` from parameter fields; scalars give `()`. | `test_scalar_parameters_give_empty_batch_shape` |
+| 4.2 | `batch_shape` from parameter fields. | `test_batch_shape_is_the_parameter_shape` |
+| 4.1/4.2 | `batch_shape` excludes component axes (here `w` has `component_ndim=1`). | `test_batch_shape_excludes_component_axes` |
+| 4.1 | batch dimensions may be multidimensional, e.g. `(D, N)`. | `test_multidimensional_batch_shape` |
+| 4.1 | `batch_shape` is "a property returning a tuple of Python ints". | `test_batch_shape_is_a_tuple_of_python_ints` |
+| 4.1 | `batch_shape` is Python ints, so it can size arrays inside `jit`. | `test_batch_shape_is_static_under_jit` |
+| 4.1 | leading (batch) axes of a component parameter that do not broadcast raise `TypeError`. | `test_component_parameter_with_incompatible_batch_is_rejected` |
+| 4.1 | "every parameter leaf shares the leading batch shape" after construction. | `test_batch_dimensions_are_broadcast_at_construction` |
+| 4.1 | broadcasting replicates values; it does not transform them. | `test_broadcasting_keeps_parameter_values` |
+| 4.1 | a scalar parameter leaf gains the batch shape of the others. | `test_scalar_parameter_is_broadcast_to_batch_shape` |
+| 4.1 | "component axes such as a coefficient vector stay trailing". | `test_component_axis_stays_trailing_when_batch_is_broadcast` |
+| 4.1/4.2 | a component axis whose length equals the batch length is still a component axis. | `test_component_axis_is_not_broadcast_against_batch` |
+| 4.1/4.2 | leading axes of a component parameter are batch axes and broadcast the others. | `test_batch_shape_can_come_from_a_component_parameter` |
+| 4.1 | incompatible parameter batch shapes at construction are static misuse (`TypeError`). | `test_incompatible_batch_shapes_are_rejected` |
+| 4.1 | `.shape` is never the array shape; a `shape` keyword is a parameter leaf. | `test_weibull_style_shape_keyword_is_the_parameter` |
+| 4.1 | "The base class defines no `shape` attribute". | `test_distribution_without_shape_field_has_no_shape_attribute` |
+| 4.1 | accessing `.shape` on a family without that field raises `AttributeError`, so `getattr` defaults work. | `test_missing_shape_attribute_raises_attribute_error` |
+| 4.1 | "Constructors never check parameter values"; the value is stored unchanged. | `test_constructor_accepts_negative_parameter_eagerly` |
+| 4.1 | constructors never check parameter values (NaN, inf are stored). | `test_constructor_accepts_nan_and_infinite_parameters_eagerly` |
+| 4.1 | eager and jit construction behave the same for invalid parameter values. | `test_constructor_accepts_invalid_parameters_under_jit` |
+| 4.1 | construction with traced parameters inside a model must work. | `test_construction_with_traced_parameters_inside_jit` |
+| 4.1 | batch broadcasting at construction also applies to traced parameters. | `test_traced_construction_broadcasts_like_eager` |
+| 4.1 | construction from batched traced parameters inside `vmap` works. | `test_construction_inside_vmap` |
+| 4.1 | traced construction inside an objective is differentiable. | `test_gradient_through_construction` |
+| 3.3 | parameters follow the data dtype policy; integer-only input uses the default float dtype. | `test_integer_parameters_use_default_float_dtype` |
+| 3.3 | scalar-only input uses the configured default floating dtype. | `test_python_scalar_parameters_use_default_float_dtype` |
+| 3.3 | Python lists behave as `jnp.asarray` of the list (floats: default float dtype). | `test_python_list_parameter_behaves_as_jnp_asarray` |
+| 3.3 | the result is at least float32. | `test_float16_parameter_is_promoted_to_float32` |
+| 3.3 | weak typing: a Python scalar parameter adopts the dtype of an array parameter. | `test_python_scalar_adopts_float32_array_dtype` |
+| 3.3 | parameters normalize to a common floating dtype using JAX promotion. | `test_mixed_float_parameters_share_promoted_dtype` |
+| 3.3 | the dtype policy keeps structured (component) dimensions and applies to them too. | `test_component_parameter_shares_the_common_dtype` |
+| 3.3 | float64 array input with 64-bit mode disabled converts to float32; not an error. | `test_float64_parameter_converts_to_float32_under_32bit_mode` |
+| 3.3 | one warning per call site, even when several parameters arrive as float64 (Q-004). | `test_float64_parameters_warn_once_per_call` |
+| 3.3 | Python scalars and lists carry no chosen precision and convert without a warning. | `test_python_scalar_parameters_convert_without_warning` |
+| 3.3 | boolean values are argument misuse (`TypeError`) for parameters as for times. | `test_boolean_parameter_is_rejected` |
+| 3.3 | complex values are argument misuse (`TypeError`). | `test_complex_parameter_is_rejected` |
+| 3.3 | strings are argument misuse (`TypeError`). | `test_string_parameter_is_rejected` |
+| 4.2 | dtype normalization applies to parameters; static configuration stays as given. | `test_static_field_is_not_converted` |
+| 3.3 | traced parameters follow the same policy (float32 traced input stays float32). | `test_traced_parameters_keep_their_dtype` |
+| 3.3 | object inputs raise `TypeError`. | `test_object_parameter_is_rejected` |
+| 3.3 | "Constructors take no `dtype` keyword; callers cast inputs themselves". | `test_constructor_takes_no_dtype_keyword` |
+| 3.3 | "Nested distribution fields keep their own dtypes"; the outer family's leaves are normalized on their own. | `test_nested_distribution_keeps_its_own_dtype` |
+
+### `test_a4_indexing.py`: batch indexing, tree-map slicing, vmap
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 4.1 | `dist[idx]` indexes batch dimensions. | `test_integer_index_gives_scalar_batch` |
+| 4.1 | `dist[idx]` with a slice selects batch entries. | `test_slice_index_keeps_selected_entries` |
+| 4.1 | `dist[idx]` with an integer array (a minibatch) selects batch entries. | `test_integer_array_index_selects_entries` |
+| 4.1 | indexing a `(2, 3)` batch on its first axis gives batch `(3,)` for every leaf. | `test_first_axis_index_of_two_dimensional_batch` |
+| 4.1 | `dist[:, j]` indexes the second batch axis. | `test_second_axis_index_of_two_dimensional_batch` |
+| 4.1 | indexing every batch axis gives a scalar distribution. | `test_full_index_of_two_dimensional_batch` |
+| 4.1/4.2 | batch indexing never touches trailing component axes. | `test_indexing_keeps_component_axes` |
+| 4.2 | indexing changes leaves, not static configuration. | `test_indexing_preserves_static_fields` |
+| 4.1 | `dist[idx].log_prob(t)` equals `dist.log_prob(t)[idx]`. | `test_indexed_distribution_matches_indexed_values` |
+| 4.1 | `batch_shape` follows the current leaves after `jax.tree.map` slicing (it is not stored). | `test_tree_map_slicing_updates_batch_shape` |
+| 4.1 | "`jax.tree.map` slicing ... over a distribution work[s]". | `test_tree_map_slicing_works` |
+| 4.1 | tree-map slicing and `dist[idx]` agree on leaves and tree structure. | `test_tree_map_slice_matches_index_slice` |
+| 4.1 | `vmap` over a distribution works and agrees with the batched method. | `test_vmap_over_distribution_matches_batched_call` |
+| 4.1/5 | `vmap` over a distribution and a time vector pairs entries, like the batched call. | `test_vmap_over_distribution_and_time_pairs_entries` |
+| 4.1 | `batch_shape` is "computed from the current parameter leaves ...; under `vmap` it is the per-entry shape". | `test_batch_shape_inside_vmap_is_the_per_entry_shape` |
+| 4.1/4.2 | under `vmap` each entry sees its full component vector. | `test_vmap_over_component_family_keeps_components_inside` |
+| 4.1 | batch indexing composes with jit (dynamic integer index). | `test_jit_of_indexing_with_traced_index` |
+
+### `test_a4_log_prob_default.py`: autodiff `log_prob` default, shapes, derivatives
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 4.2 | default `log_prob` is `log(-d/dt log S) + log S`; here `log r - r t`. | `test_default_log_prob_of_constant_hazard` |
+| 4.2 | default `log_prob` for a Weibull-like family with `k<1`. | `test_default_log_prob_of_power_hazard_decreasing_hazard` |
+| 4.2 | default `log_prob` for a Weibull-like family with `k=1` (`log(1/b) - t/b`). | `test_default_log_prob_of_power_hazard_constant_hazard` |
+| 4.2 | default `log_prob` for a Weibull-like family with `k>1`. | `test_default_log_prob_of_power_hazard_increasing_hazard` |
+| 4.2 | the default is accurate "wherever the hazard is representable in linear space". | `test_default_log_prob_over_wide_time_range` |
+| 4.2 | the default works for families with component axes. | `test_default_log_prob_with_component_parameter` |
+| 4.2 | the default works through a nested distribution field. | `test_default_log_prob_of_nested_family` |
+| 4.2 | `log_prob` is an optional override; a family's own method replaces the default. | `test_log_prob_override_is_used` |
+| 4.5 | direct methods "carry no issue masks": the result is one array, not a tuple. | `test_log_prob_returns_a_single_array` |
+| 3.3 | calculations use the common promoted dtype (default float here). | `test_log_prob_dtype_matches_parameters` |
+| 5 | scalar time and scalar distribution give `()`. | `test_scalar_time_scalar_distribution_gives_scalar` |
+| 5 | time scalar, distribution `(N,)` gives `(N,)`. | `test_scalar_time_batched_distribution_gives_batch_shape` |
+| 5 | time `(N,)`, distribution `(N,)` pair elementwise. | `test_paired_time_and_distribution` |
+| 5 | trailing-axis broadcasting: time `(K, 1)` against batch `(N,)` gives `(K, N)`. | `test_time_column_against_batch_gives_outer_shape` |
+| 5 | time `(K,)` against a scalar distribution gives `(K,)`. | `test_time_vector_against_scalar_distribution` |
+| 5 | "Component axes never appear in outputs". | `test_component_axes_never_appear_in_outputs` |
+| 4.1/5 | a batch `(D,)` against time `(N,)` with different lengths, neither 1, raises `TypeError`. | `test_mismatched_lengths_do_not_broadcast` |
+| 4.1 | time `(4, 1)` against batch `(2, 3)` does not broadcast: `TypeError`. | `test_time_column_not_broadcasting_against_two_dimensional_batch_is_rejected` |
+| 4.1 | the shape rule applies to "a direct method", including `log_survival` and `survival`. | `test_mismatched_time_is_rejected_by_every_direct_method` |
+| 4.1 | a nested family's direct method also raises `TypeError` on a non-broadcasting time. | `test_mismatched_time_is_rejected_for_nested_family` |
+| 4.1/6.2 | static shape misuse raises also when traced. | `test_mismatched_time_is_rejected_under_jit` |
+| 12.1 | eager and `jit` agree. | `test_default_log_prob_agrees_under_jit` |
+| 12.1 | eager and `vmap` (over a time axis) agree. | `test_default_log_prob_agrees_under_vmap_over_time` |
+| 7.3 | parameter gradient of the default; `d/dr (log r - r t) = 1/r - t`. | `test_gradient_of_default_log_prob_constant_hazard` |
+| 7.3 | parameter gradients of the default for a Weibull-like family. | `test_gradient_of_default_log_prob_power_hazard` |
+| 7.3 | first parameter derivatives in forward and reverse mode agree. | `test_forward_and_reverse_gradients_agree` |
+| 7.3 | second parameter derivatives of the default (one extra autodiff order); `d2/dr2 = -1/r**2`. | `test_hessian_of_default_log_prob_constant_hazard` |
+| 7.3 | `d2/dk2 log f = -1/k**2 - z**k u**2` (from `d/dk = 1/k + u - z**k u`). | `test_hessian_of_default_log_prob_power_hazard_in_shape` |
+| 7.3/12.1 | `check_grads(order=2, modes=("fwd","rev"))` on an interior case. | `test_check_grads_order_two_constant_hazard` |
+| 7.3/12.1 | `check_grads(order=2, modes=("fwd","rev"))` for the Weibull-like default. | `test_check_grads_order_two_power_hazard` |
+| 7.3 | parameter gradients compose with `jit` and `vmap`; `d/dr = 1/r - t`. | `test_gradient_of_default_log_prob_under_jit_and_vmap` |
+
+### `test_a4_value_policy.py`: direct-method value policy for `log_prob`
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 4.5 | `t<0` gives `log_prob=-inf`. | `test_negative_time_log_prob_is_minus_infinity` |
+| 4.5 | methods are total over `[-inf, +inf]`; `t=-inf` is `t<0`. | `test_minus_infinity_time_log_prob_is_minus_infinity` |
+| 4.5 | `t<0` gives `-inf` even when the density is infinite at `0` (Weibull-like `k<1`). | `test_negative_time_log_prob_for_infinite_density_at_zero` |
+| 4.5 | at `t=0`, boundary values come from the family; Weibull-like `k<1` gives infinite density. | `test_zero_time_infinite_density_for_shape_below_one` |
+| 4.5 | Weibull-like `k=1` at `t=0` gives `log(1/b)` (no epsilon, no NaN). | `test_zero_time_density_for_shape_one` |
+| 4.5 | Weibull-like `k>1` at `t=0` gives `-inf`. | `test_zero_time_zero_density_for_shape_above_one` |
+| 4.5 | at `t=0` an exponential-like family gives `log r`. | `test_zero_time_constant_hazard_density` |
+| 4.5 | a grid starting at `t=0` with Weibull-like `k=1` is finite throughout: `log(1/b) - t/b`. | `test_grid_from_zero_with_shape_one_is_finite` |
+| 4.5 | `t=+inf` gives `log_prob=-inf`. | `test_infinite_time_log_prob_constant_hazard` |
+| 4.5 | `t=+inf` gives `-inf` for a decreasing hazard (Weibull-like `k<1`). | `test_infinite_time_log_prob_with_vanishing_hazard` |
+| 4.5 | `t=+inf` gives `-inf`, not NaN, when the hazard diverges (Weibull-like `k>1`). | `test_infinite_time_log_prob_with_diverging_hazard` |
+| 4.5 | NaN `t` gives NaN. | `test_nan_time_log_prob_is_nan` |
+| 4.5 | NaN `t` gives NaN (Weibull-like family). | `test_nan_time_log_prob_is_nan_for_power_hazard` |
+| 4.5 | every case is handled per element of one array, without raising. | `test_policy_applies_elementwise_in_one_call` |
+| 4.5/12.1 | boundary values are the same eagerly and under `jit`. | `test_policy_values_agree_under_jit` |
+| 4.5/12.1 | boundary values are the same eagerly and under `vmap` over time. | `test_boundary_values_agree_under_vmap` |
+| 4.5 | invalid parameters give NaN, without raising. | `test_invalid_parameter_gives_nan_log_prob` |
+| 4.5 | invalid (NaN) parameters give NaN at an interior time. | `test_nan_parameter_gives_nan_log_prob` |
+| 4.5 | an invalid batch entry gives NaN only in its own position. | `test_invalid_parameter_does_not_affect_other_batch_entries` |
+
+### `test_a4_generic_defaults.py`: other pointwise direct-method defaults (Slice A by rev 14)
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 8.1 | `survival(t)` is `P(T>t)`, i.e. `exp(log_survival(t))`. | `test_default_survival_is_exp_log_survival` |
+| 4.2 | default `cumulative_hazard = -log S`. | `test_default_cumulative_hazard_is_minus_log_survival` |
+| 4.2 | default `log_cdf = log(-expm1(log S))`. | `test_default_log_cdf` |
+| 4.2 | the default `log_cdf` is accurate until `\|log S\|` underflows. | `test_default_log_cdf_keeps_precision_for_tiny_cdf` |
+| 4.2 | default `log_hazard = log(-d/dt log S)`; here `log r` at every time. | `test_default_log_hazard_constant_hazard` |
+| 8.1 | `hazard(t) = f(t)/S(t)`; here `r`. | `test_default_hazard_constant_hazard` |
+| 4.2 | default `log_hazard` for a Weibull-like family: `log(k/b) + (k-1) log(t/b)`. | `test_default_log_hazard_power_hazard` |
+| 4.2 | the derivative form stays accurate where `H` is large (no `log_prob - log_survival` cancellation). | `test_default_log_hazard_with_large_cumulative_hazard` |
+| 4.5 | `t<0` gives `S=1`. | `test_negative_time_survival_is_one` |
+| 4.5 | `t<0` gives `log_cdf=-inf`. | `test_negative_time_log_cdf_is_minus_infinity` |
+| 4.5 | `t<0` gives `H=0`. | `test_negative_time_cumulative_hazard_is_zero` |
+| 4.5 | `t<0` gives `h=0`. | `test_negative_time_hazard_is_zero` |
+| 4.5 | at `t=0` the family's limits: `S(0)=1`, `H(0)=0`, `log F(0)=-inf`. | `test_zero_time_survival_cumulative_hazard_and_log_cdf` |
+| 4.5 | `t=+inf` gives `log S(+inf)` from the family (`-inf`, so `S=0`, for a proper family). | `test_infinite_time_survival_is_zero` |
+| 4.5 | `t=+inf` gives `H = -log S(+inf) = +inf` for a proper family. | `test_infinite_time_cumulative_hazard_is_infinite` |
+| 4.5 | `t=+inf` gives `log F = log(-expm1(-inf)) = 0` for a proper family. | `test_infinite_time_log_cdf_is_zero` |
+| 4.5 | NaN `t` gives NaN (`survival`). | `test_nan_time_survival_is_nan` |
+| 4.5 | NaN `t` gives NaN (`cumulative_hazard`). | `test_nan_time_cumulative_hazard_is_nan` |
+| 4.5 | NaN `t` gives NaN (`log_cdf`). | `test_nan_time_log_cdf_is_nan` |
+| 4.5 | NaN `t` gives NaN (`log_hazard`). | `test_nan_time_log_hazard_is_nan` |
+| 4.5 | NaN `t` gives NaN (`hazard`). | `test_nan_time_hazard_is_nan` |
+| 4.5 | invalid (NaN) parameters give NaN. | `test_invalid_parameter_gives_nan_survival_and_log_cdf_defaults` |
+| 12.1 | eager and `jit` agree for the generic defaults, including boundary inputs. | `test_defaults_agree_under_jit` |
+
+### `test_a4_policy_enforcement.py`: base applies the value policy (rev 12, Q-019 resolved)
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 4.2/4.5 | `log_survival` is called only on `[0, +inf]`; `t<0` gives `log S = 0`. | `test_unguarded_log_survival_is_zero_for_negative_time` |
+| 4.5 | `t<0` gives `log_prob=-inf` for a family whose formula is undefined there. | `test_unguarded_default_log_prob_is_minus_infinity_for_negative_time` |
+| 4.5 | `t<0` gives `S=1`. | `test_unguarded_survival_is_one_for_negative_time` |
+| 4.5 | `t<0` gives `H=0`. | `test_unguarded_cumulative_hazard_is_zero_for_negative_time` |
+| 4.5 | `t<0` gives `log_cdf=-inf`. | `test_unguarded_log_cdf_is_minus_infinity_for_negative_time` |
+| 4.5 | `t<0` gives `h=0`. | `test_unguarded_hazard_is_zero_for_negative_time` |
+| 4.5 | NaN `t` gives NaN for `log_survival` and `log_prob`. | `test_unguarded_nan_time_gives_nan` |
+| 4.5 | at `t=0` the family is called: Weibull-like `k<1` `+inf`, `k=1` `log(1/b)`, `k>1` `-inf`. | `test_unguarded_zero_time_values_come_from_the_family` |
+| 4.5 | "the base returns `log_prob(+inf)=-inf` even where a default formula would give `+inf - inf`". | `test_unguarded_infinite_time_log_prob_is_minus_infinity` |
+| 4.5 | at `t=+inf` the family supplies `log S(+inf)` (`-inf` here). | `test_unguarded_infinite_time_log_survival_comes_from_the_family` |
+| 4.2 | on `[0, +inf]` the family's own formula is used. | `test_unguarded_interior_values_are_the_family_formula` |
+| 4.5/5 | the policy applies per element of a broadcast `(K, N)` result. | `test_unguarded_policy_applies_elementwise_with_batches` |
+| 4.5/12.1 | policy values are the same eagerly and under `jit`. | `test_unguarded_policy_agrees_under_jit` |
+| 4.5 | the base applies the policy to "methods the family overrides" (`t<0`: `-inf`). | `test_unguarded_log_prob_override_is_minus_infinity_for_negative_time` |
+| 4.5 | NaN `t` gives NaN for an overridden method. | `test_unguarded_log_prob_override_nan_time_gives_nan` |
+| 4.2 | the override is used on `[0, +inf]` (same value as the hand-derived density). | `test_unguarded_log_prob_override_supplies_interior_values` |
+| 4.5 | policy values have no NaN parameter gradients; `log S = 0` is constant, so gradients are 0. | `test_negative_time_log_survival_has_zero_parameter_gradients` |
+| 4.5 | `S=1` for `t<0` has zero parameter gradients. | `test_negative_time_survival_has_zero_parameter_gradients` |
+| 4.5 | the `-inf` policy value of `log_prob` at `t<0` has no NaN parameter gradients. | `test_negative_time_log_prob_has_finite_parameter_gradients` |
+| 4.5 | an overridden method is also called only on a safe input under `stop_gradient`. | `test_negative_time_override_has_finite_parameter_gradients` |
+
+### `test_a4_hazard_at_zero_survival.py`: `log_hazard` and `hazard` where `S(t)=0` (rev 13)
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 4.2/4.5 | where `S(t)=0` (`t=+inf`), the generic `log_hazard` default gives NaN. | `test_default_log_hazard_is_nan_at_infinity` |
+| 4.5 | `hazard` follows `log_hazard`: NaN from the generic default where `S(t)=0`. | `test_default_hazard_is_nan_at_infinity` |
+| 4.5 | the same for a Weibull-like family (`k=2`, derivative form `+inf`) and `k=0.5` (`-inf`). | `test_default_log_hazard_is_nan_at_infinity_for_unguarded_family` |
+| 4.2 | elementwise: `log r` where `S>0`, NaN at `+inf`, in one call. | `test_default_log_hazard_is_nan_only_where_survival_is_zero` |
+| 4.2 | `S(t)>0` is the mathematical condition, read from `log S`, not from an underflowed `exp(log S)`. | `test_default_log_hazard_with_tiny_but_positive_survival_is_not_nan` |
+| 4.5 | where `S(t)=0`, a family overriding `log_hazard` gives its analytic value (the limit `log r`). | `test_log_hazard_override_supplies_value_at_infinity` |
+| 4.5 | `hazard` where `S(t)=0` is the analytic value from the `log_hazard` override (`r`). | `test_hazard_uses_log_hazard_override_at_infinity` |
+| 4.5 | the override is wrapped by the base: `t<0` gives `h=0`, NaN `t` gives NaN. | `test_log_hazard_override_still_follows_policy_for_negative_and_nan_time` |
+| 4.2 | inside the support the default is `log(-d/dt log S)`; for uniform on `(0, c]`, `-log(c - t)`. | `test_default_log_hazard_inside_bounded_support` |
+| 4.5 | where `S(t)=0` beyond a finite support end (`t=c`, `t>c`, `t=+inf`), the default gives NaN. | `test_default_log_hazard_is_nan_at_and_beyond_support_end` |
+| 4.5 | `hazard` beyond a finite support end is NaN from the generic default. | `test_default_hazard_is_nan_beyond_support_end` |
+| 4.5/12.1 | the same values eagerly and under `jit`. | `test_zero_survival_rule_agrees_under_jit` |
+
+### `test_a4_nested.py`: nested distribution fields (rev 18)
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 4.2 | the outer `batch_shape` is the broadcast of parameter and nested batch shapes. | `test_outer_batch_shape_includes_parameter_batch_with_scalar_base` |
+| 4.2 | "nested distributions are broadcast to it" at construction. | `test_scalar_base_is_broadcast_to_outer_batch` |
+| 4.2 | a nested batch shape counts like a parameter's; outer parameters broadcast to it. | `test_outer_batch_shape_comes_from_nested_distribution` |
+| 4.2 | base `(2, 1)` and outer parameter `(3,)` give batch `(2, 3)` for every leaf. | `test_nested_and_parameter_batches_broadcast_together` |
+| 4.2 | broadcasting a nested distribution keeps its component axes. | `test_nested_component_axis_stays_trailing` |
+| 4.1/4.2 | nested and parameter batches that do not broadcast raise `TypeError`. | `test_incompatible_nested_and_parameter_batches_are_rejected` |
+| 3.3/4.2 | broadcasting keeps the nested distribution's dtype (rev 15: nested dtypes are kept). | `test_broadcast_nested_distribution_keeps_its_dtype` |
+| 4.2 | "nested static fields are part of its structure". | `test_nested_static_fields_are_part_of_outer_structure` |
+| 4.2 | "`survjax.distribution()` takes no arguments in v0". | `test_distribution_helper_takes_no_arguments` |
+| 4.2 | `dist[idx]` indexes nested leaves too. | `test_indexing_applies_to_nested_leaves` |
+| 4.2 | a base that was scalar before broadcasting is indexed like any batch leaf. | `test_indexing_a_broadcast_scalar_base` |
+| 4.2 | `jax.tree.map` slicing reaches nested leaves. | `test_tree_map_slicing_applies_to_nested_leaves` |
+| 4.2 | `vmap` over a family built from a scalar base works and matches the batched call. | `test_vmap_over_outer_distribution_with_broadcast_base` |
+| 4.2 | values with a `(2, 3)` broadcast of base and outer parameter. | `test_broadcast_nested_values_in_log_prob` |
+
+### A4: deliberately not tested
+
+- **`reference_time()`** (4.2): required of every family, but A4 has no
+  behaviour that consumes it; it is exercised by the inactive-input rules of
+  7.2 (A6) and by summaries (Slice D). The spec does not say what happens when
+  a family omits a required member, so no test defines a family without one.
+- **Built-in families and `from_log` constructors** (4.1, 4.5 Weibull rows on
+  `Weibull` itself, gradient of `S(0)` in `k`, survival grids): A5.
+- **`log_interval_prob`, `log_conditional_interval_prob`,
+  `inverse_cumulative_hazard`, `support()`, `parameter_issues()`, summaries,
+  `sample`, `check_family`** (4.2 optional members): Slices B and D under
+  spec 12.2 (rev 14). `parameter_issues()` may be needed for likelihood
+  diagnostics at A6 (7.1); its return type is unspecified, to be raised then.
+- **Gradients with respect to time, and of boundary values for custom
+  families:** 7.3 puts time gradients outside the guarantee; the 4.5 NaN-free
+  boundary-gradient requirement is tested on built-in Weibull at A5, and for
+  custom code it depends on the author's `log_survival`.
+- **Forward-mode specifically** (4.2: "by forward-mode autodiff"): the method
+  of differentiation is not observable from values; tests check the result,
+  first and second parameter derivatives in both modes.
+- **Float32 `check_grads(order=2)`:** second-order finite differences in
+  float32 are too noisy at `check_grads` default tolerances; float32 runs the
+  hand-derived first and second derivative tests instead.
+- **Derivative tolerances:** hand-derived gradient and Hessian checks use the
+  12.1 ordinary tolerances; the expected values are O(1) smooth interior
+  quantities, for which autodiff error is far below those scales.

@@ -369,7 +369,7 @@ def _construct_and_diagnose(time, right):
 
 @pytest.mark.step("A3")
 def test_compiled_construction_and_diagnostics_install_no_host_callback():
-    """spec 7.2, rev perf-draft: compiled construction and diagnostic access use no host callbacks."""
+    """spec 7.2, rev 11: compiled construction and diagnostic access use no host callbacks."""
     jaxpr = jax.make_jaxpr(_construct_and_diagnose)(
         f([1.0, 0.0, 2.0]), b([False, True, False])
     )
@@ -379,7 +379,7 @@ def test_compiled_construction_and_diagnostics_install_no_host_callback():
 
 @pytest.mark.step("A3")
 def test_warm_compiled_construction_and_diagnostics_make_no_host_transfer():
-    """spec 7.2, rev perf-draft: warmed compiled construction and diagnostics run without library-induced host transfers."""
+    """spec 7.2, rev 11: warmed compiled construction and diagnostics run without library-induced host transfers."""
     compiled = jax.jit(_construct_and_diagnose)
     time = jax.device_put(f([1.0, 0.0, 2.0]))
     right = jax.device_put(b([False, True, False]))
@@ -391,7 +391,7 @@ def test_warm_compiled_construction_and_diagnostics_make_no_host_transfer():
 
 @pytest.mark.step("A3")
 def test_compiled_construction_reuses_compilation_for_new_observation_values():
-    """spec 7.2, rev perf-draft: changing observation values with unchanged shapes and dtypes reuses compilation."""
+    """spec 7.2, rev 11: changing observation values with unchanged shapes and dtypes reuses compilation."""
     traces = []
 
     @jax.jit
