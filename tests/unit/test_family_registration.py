@@ -114,3 +114,95 @@ def test_constructor_warning_points_to_user(x64_enabled):
             Recipe(rate=np.float64(1), weights=np.ones(2, dtype=np.float32))
     assert len(recorded) == 1
     assert (recorded[0].filename, recorded[0].lineno) == (__file__, call_line)
+
+
+def test_plain_default_field_is_rejected_at_registration():
+    """Spec 4.2 / D-014: a plain default must not silently replace user values."""
+
+    @dataclasses.dataclass(frozen=True)
+    class Plain(survjax.SurvivalDistribution):
+        rate: jax.Array = survjax.param()
+        extra: int = 3
+
+    with pytest.raises(
+        TypeError, match=r"extra must be declared with param\(\) or static\(\)"
+    ):
+        survjax.register_family(Plain)
+
+
+def test_plain_factory_field_is_rejected_at_registration():
+    """Spec 4.2 / D-014: a factory field must not vanish on reconstruction."""
+
+    @dataclasses.dataclass(frozen=True)
+    class Plain(survjax.SurvivalDistribution):
+        rate: jax.Array = survjax.param()
+        coef: jax.Array = dataclasses.field(default_factory=lambda: jnp.ones(2))
+
+    with pytest.raises(TypeError, match="coef must be declared"):
+        survjax.register_family(Plain)
+
+
+@pytest.mark.parametrize("count", [True, False, 1.5, "1", None])
+def test_component_count_rejects_noninteger_kinds(count):
+    """Spec 4.2: component_ndim counts axes and cannot be a bool or noninteger."""
+    with pytest.raises(TypeError, match="component_ndim"):
+        survjax.param(component_ndim=count)
+
+
+def test_component_count_rejects_negative_integer():
+    """Spec 4.2: a number of trailing component axes cannot be negative."""
+    with pytest.raises(ValueError, match="component_ndim"):
+        survjax.param(component_ndim=-1)
+
+
+def test_inherited_initializer_is_rejected_at_registration():
+    """Spec 3.3 / D-014: do not wrap an already-registered initializer again."""
+
+    class Subclass(Recipe):
+        pass
+
+    with pytest.raises(TypeError, match="decorate the subclass itself"):
+        survjax.register_family(Subclass)
+
+
+def test_redecorated_subclass_warning_points_to_user(x64_enabled):
+    """Spec 3.3: an explicitly decorated subclass keeps caller-site warnings."""
+    if x64_enabled:
+        pytest.skip("conversion warning requires 64-bit mode disabled")
+
+    @survjax.register_family
+    @dataclasses.dataclass(frozen=True, kw_only=True)
+    class Subclass(Recipe):
+        pass
+
+    with warnings.catch_warnings(record=True) as recorded:
+        warnings.simplefilter("default")
+        for _ in range(2):
+            call_line = inspect.currentframe().f_lineno + 1
+            result = Subclass(rate=np.float64(1), weights=[1.0])
+    assert result.rate.dtype == jnp.float32
+    assert len(recorded) == 1
+    assert (recorded[0].filename, recorded[0].lineno) == (__file__, call_line)
+
+
+def test_unhashable_static_error_names_field():
+    """Spec 4.2: malformed static configuration is reported at construction."""
+    with pytest.raises(TypeError, match="method: static fields must be hashable"):
+        Recipe(rate=1.0, weights=[1.0], method=[])
+
+
+def test_component_parameter_requires_declared_axes():
+    """Spec 4.2/5: a scalar lacks the vector's declared component axis."""
+    with pytest.raises(TypeError, match="weights has fewer axes than component_ndim"):
+        Recipe(rate=1.0, weights=1.0)
+
+
+def test_mutable_dataclass_is_rejected_at_registration():
+    """Spec 4.1–4.2: distribution instances must be frozen dataclasses."""
+
+    @dataclasses.dataclass
+    class Mutable(survjax.SurvivalDistribution):
+        rate: jax.Array = survjax.param()
+
+    with pytest.raises(TypeError, match="frozen dataclasses"):
+        survjax.register_family(Mutable)

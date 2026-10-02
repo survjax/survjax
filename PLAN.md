@@ -1,3 +1,52 @@
+# A4.2 review fix-up (2026-10-02)
+
+Status: approved by the maintainer on 2026-10-02 after reading
+`../review/slices/A4.2.md`, with public-docstring improvements added. One extra commit on `A4.2`, then stop.
+No A4.3 implementation or documentation-page rewrite.
+
+## Changes
+
+- `src/survjax/distributions/base.py`, F-1: reject dataclass fields whose
+  metadata does not identify an available field role (`param` or `static`),
+  with a field-named TypeError at registration. Record the unspecified plain
+  field policy in D-014; the maintainer approved this implementation policy.
+- N-1: validate `component_ndim` in `param()`: a non-negative Python int,
+  excluding bool. Use TypeError for wrong kinds and ValueError for negatives.
+- N-2: require an initializer owned by the class before wrapping it. Reject
+  inherited initializers with a TypeError explaining that the subclass must
+  be decorated with `@dataclass` itself. This prevents double normalization
+  and incorrect warning attribution; retain the documented decorator recipe.
+- N-3: catch static hashability TypeError and re-raise naming the field and
+  stating that static fields must be hashable.
+- Rewrite the public field helpers, base, batch-shape property, extension hooks
+  and registration docstrings for users: purpose, arguments, shapes, errors and
+  one short declaration example. Keep spec/development bookkeeping out of them.
+- `tests/unit/test_family_registration.py`: add separate tests for plain
+  default/default-factory field rejection; invalid component counts; inherited
+  initializer rejection and a re-decorated subclass's x32 warning location;
+  field-named static hashability errors; insufficient component rank and
+  non-frozen registration guards. Keep tests independent of tests/spec.
+- `DEVIATIONS.md`: add open D-014. Do not change existing statuses or spec.
+- `REVIEW.md`: overwrite with reading order, requirement coverage, exact
+  check outcomes and remaining scope; correct the earlier claim that no
+  registration ambiguity existed.
+
+Public names stay unchanged. These are declaration/error checks for the
+extension interface (spec 3.3, 4.1–4.2, 5); no parameter-value checks or
+numerical-method work. Aim below 300 changed lines including tests.
+
+## Verification
+
+Run `scripts/check.sh --through A3`, the same 60 focused A4 acceptance nodes
+listed in the prior REVIEW.md in both dtype processes, `scripts/build_docs.sh`
+in both modes, and `git diff --check`. Use
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache`. Record dtype-specific skips and
+any failures. Commit this fix-up only after checks pass, then stop.
+
+Planning checks: read the external review and current implementation;
+working tree was clean before this plan/deviation update. Runtime checks
+were not rerun for this plan-only task.
+
 # A4.2 — Registration and flat family construction (2026-10-02)
 
 Status: approved by the maintainer ("go for it and build it") and implemented

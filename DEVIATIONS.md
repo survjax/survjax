@@ -1,5 +1,21 @@
 # Deviations and spec questions
 
+## D-014 Unmarked family fields and inherited constructors
+- Step: A4.2 review fix-up
+- Spec: sections 4.1–4.2, revision 19; dtype warning attribution in 3.3
+- Spec says: frozen dataclass families use parameter/static/nested field helpers
+  and preserve dynamic parameters through PyTree transformations. It does not
+  define plain dataclass fields or registration of subclasses that inherit an
+  already-registered initializer without being re-decorated as a dataclass.
+- Did / propose: A4.2 silently omitted unmarked fields from flatten/unflatten;
+  the review demonstrates changed defaults or missing attributes after jit.
+  It also allowed wrapping an inherited registered initializer twice, which
+  misattributes x32 warnings. Propose field-named TypeError for unmarked fields
+  at registration, and rejection of classes without their own initializer.
+  The maintainer approved both rejections on 2026-10-02; this fix-up
+  implements them. The specification is unchanged; this entry remains open.
+- Status: open
+
 ## D-013 Parameter diagnostic return contract
 - Step: A4 planning; deferred to A6 after acceptance-suite sync
 - Spec: sections 4.1, 4.2 and 4.5, revision 19

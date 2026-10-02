@@ -1,90 +1,80 @@
-# A4.2 — Flat family construction and registration
+# A4.2 review fix-up
+
+Addresses `../review/slices/A4.2.md` F-1 and N-1–N-4, plus the maintainer's
+request for clearer public docstrings. One extra commit on `A4.2`, then stop.
 
 ## Reading order
 
-1. `src/survjax/distributions/base.py`: field declarations, current-leaf batch
-   shape, constructor normalization/broadcasting and PyTree reconstruction.
-2. `tests/unit/test_family_registration.py`: independent construction cases.
-3. Package exports and `tests/unit/test_import.py`.
-4. `docs/distributions.md` and `docs/index.md`: executable construction guide
-   and explicit intermediate scope. `PLAN.md` records the approved step.
+1. `src/survjax/distributions/base.py`: public docstrings, declaration checks,
+   inherited-initializer rejection and field-named static hashability errors.
+2. New tests at the end of `tests/unit/test_family_registration.py`.
+3. `DEVIATIONS.md` D-014: previously omitted plain fields and inherited
+   constructors; approved implementation policy, status still open.
+4. `PLAN.md`: approved fix-up and added docstring scope.
 
-## Invariants and requirement coverage
+## Invariants and tests
 
-- Spec 3.3: all own parameters use A4.1's shared dtype helper. Components
-  participate in promotion; numerical values are never validated. New tests
-  cover public dtype integration, rejected kinds/None and warning attribution;
-  the existing parameter-dtype suite covers detailed promotion rules.
-- Spec 4.1–4.2: families are explicitly registered frozen dataclasses. Tests
-  cover required keyword arguments, kw-only static-first recipes, defaults,
-  immutability, hashable static configuration and absence of implicit registration.
-  The base defines no `shape`; a family's `shape` parameter remains available.
-- Spec 4.1/5: constructor broadcasting operates only on leading batch axes;
-  components retain their trailing shapes. Tests use the hand-specified
-  broadcast `(2,1)` with `(3,)` to `(2,3)`, and incompatible `(2,)`/`(3,)`.
-- Spec 4.2/7.2: parameters are children and statics are auxiliary data.
-  Reconstruction bypasses initialization and preserves supplied leaf identity.
-  Batch shape is computed from current leaves, including after tree mapping
-  and inside vmap. Tests check sentinels, static structure, jit round trips,
-  traced construction and storage of negative/NaN/infinite values.
-- Independent focused acceptance tests additionally exercise dynamic-value
-  compilation reuse and specialization on changed static configuration.
-- Spec 10.2–10.5: four new exports, typed extension hooks and executable
-  documentation. No dependencies, spec files or independent tests changed.
+- F-1 / spec 4.2, D-014: every dataclass field has an available role. Plain
+  fields raise a field-named TypeError before registration; tests cover both
+  ordinary defaults and default factories. They cannot silently reset or
+  disappear after JAX reconstruction. The earlier REVIEW.md claim that no
+  registration ambiguity existed was wrong; D-014 records the gap.
+- N-1 / spec 4.2: component counts are non-negative Python ints, excluding
+  bool. Separate tests cover wrong kinds and negative values.
+- N-2 / spec 3.3, D-014: the initializer must belong to the class being
+  registered. An undecorated subclass raises TypeError instead of wrapping
+  its parent's registered initializer. A separately decorated subclass remains
+  supported, with an x32 test checking warning count and caller filename/line.
+- N-3 / spec 4.2: unhashable static configuration raises TypeError naming the
+  field. The new test requires the explanatory message.
+- N-4 / spec 4.1–4.2, 5: tests now require rejection of non-frozen dataclasses
+  and scalar inputs lacking a declared component axis. Removing either guard
+  would fail its explicit rejection test; mutation testing was not rerun.
+- No parameter-value checks added. Normalization, broadcasting, PyTree children,
+  auxiliary data and reconstruction stay unchanged for valid declarations.
+  Existing unit and focused acceptance cases cover these paths in both modes.
+- Public docstrings explain usage, arguments, shapes, returns and errors for
+  `param`, `static`, `register_family`, `SurvivalDistribution`, `batch_shape`,
+  `log_survival` and `reference_time`. Development/spec bookkeeping was removed
+  from those docstrings. Documentation pages remain for the maintainer's later
+  review; no page rewrite or new public names in this fix-up.
 
 ## Checks actually run
 
 All uv commands used `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`.
 
-- Initial `scripts/check.sh --through A3`: stopped in own x64 tests with
-  **1 failed, 145 passed, 5 skipped**. A new test incorrectly assumed a Python
-  list would remain float32 in x64. Fixed the test to supply explicit float32
-  arrays; no dtype implementation or tolerances changed.
-- First successful A3 gate: own x64 **146 passed, 5 skipped**; own x32
-  **150 passed, 1 skipped**, with one unintended conversion warning in the
-  incompatible-shape test. Changed that test's unrelated input to float32.
-- Focused acceptance command, separately for x64=1 and x64=0:
-  `JAX_ENABLE_X64=<mode> SPEC_THROUGH=A4 uv run --locked --offline pytest -q $(cat /private/tmp/survjax-a42-nodes.txt)`.
-  The temporary node list was generated by enumerating test functions in
-  `test_a4_registration.py` and `test_a4_parameters.py`, excluding:
-  `test_extension_names_are_exported_at_top_level`,
-  `test_methods_do_not_mutate_parameters`,
-  `test_nested_distribution_parameters_are_leaves_of_the_outer_family`,
-  `test_nested_distribution_round_trips_with_its_type`,
-  `test_nested_distribution_is_differentiable_through_jit`,
-  `test_nested_distribution_keeps_its_own_dtype`,
-  `test_construction_with_traced_parameters_inside_jit`,
-  `test_construction_inside_vmap`, `test_gradient_through_construction`.
-  It also included `test_a4_indexing.py` nodes
-  `test_tree_map_slicing_updates_batch_shape` and
-  `test_batch_shape_inside_vmap_is_the_per_entry_shape`.
-  **60 selected:** x64 **58 passed, 2 skipped**; x32 **59 passed, 1 skipped**.
-  Skips are unavailable-dtype conversion warnings in x64 and float64 promotion
-  in x32. Exclusions defer dependencies to later steps; no skip/xfail was added.
-- `scripts/build_docs.sh`: sandbox attempt failed starting the first Jupyter
-  kernel with `PermissionError` binding a local port. Reran with approved
-  escalation: **build succeeded in x32 and x64**, executing distributions,
-  playground and survival-data examples per process.
-  Generated HTML text contains the construction assertions, field explanations,
-  scope limitations and navigation in both modes. Visual browser inspection
-  was not completed: the in-app browser was unavailable and Chrome policy
-  blocked the local `file:` URL. No workaround was attempted.
-
-- Final `scripts/check.sh --through A3`: **all gates passed through A3**.
+- `scripts/check.sh --through A3`: **all gates passed through A3**.
   Guard passed; **33 files already formatted**; Ruff **All checks passed!**;
   mypy **Success: no issues found in 8 source files**.
-  Own x64 **146 passed, 5 skipped in 9.47s**; own x32
-  **150 passed, 1 skipped in 8.32s**, with no warnings.
-  Prior independent x64 **372 passed, 15 skipped, 203 deselected in 12.48s**;
-  x32 **382 passed, 5 skipped, 203 deselected in 12.04s**.
-  Own skips are dtype-specific: x64 excludes x32 conversion/unavailable-dtype
-  cases; x32 excludes float64 promotion. A4 tests remain deselected by this gate.
+  Own x64: **158 passed, 6 skipped in 9.84s**.
+  Own x32: **163 passed, 1 skipped in 8.77s**.
+  Prior independent x64: **372 passed, 15 skipped, 203 deselected in 12.44s**.
+  Prior independent x32: **382 passed, 5 skipped, 203 deselected in 12.34s**.
+  Own x64 skips are x32 conversion/unavailable-dtype cases, including the new
+  subclass warning test; the x32 skip is float64 promotion.
+- Focused A4 acceptance, separately for mode=1 and mode=0:
+  `JAX_ENABLE_X64=<mode> SPEC_THROUGH=A4 uv run --locked --offline pytest -q $(cat /private/tmp/survjax-a42-nodes.txt)`.
+  Same 60 nodes as commit `6ea4814`'s REVIEW.md: registration and parameter
+  tests excluding the nine tests that depend on later A4 scope, plus
+  `test_a4_indexing.py::test_tree_map_slicing_updates_batch_shape` and
+  `test_a4_indexing.py::test_batch_shape_inside_vmap_is_the_per_entry_shape`.
+  x64: **58 passed, 2 skipped in 0.43s**.
+  x32: **59 passed, 1 skipped in 0.36s**.
+  These skips cover x32 warnings in x64 and float64 promotion in x32.
+- `scripts/build_docs.sh`, with approved escalation for local Jupyter kernel
+  ports: **build succeeded in x32 and x64**, executing all three example
+  notebooks per process. Kernel startup printed its TCP encryption warning.
+  No visual browser inspection was run in this fix-up; local HTML browser
+  access was blocked during the original step.
+- Final docstring wording adjustment was followed by Ruff format/lint and
+  mypy checks: **33 files already formatted**, **All checks passed!**,
+  **Success: no issues found in 8 source files**. Runtime tests were not
+  repeated for prose only.
 - `git diff --check`: passed with no output.
 
 ## Remaining scope
 
-Nested fields and batch indexing are A4.3; value-policy enforcement and numerical
-method defaults are A4.4–A4.5. The base hooks fail explicitly without a family's
-implementation. D-013 remains open for A6. No new spec ambiguity was encountered
-in the supported flat-family recipe. No R fixtures, derivative suite, wheel
-smoke test, benchmark or full A4 gate was run. Stop after this step's commit.
+D-014 remains open for maintainer resolution; D-013 stays open for A6.
+No spec or tests/spec changes. No R, wheel smoke test, benchmark, derivative
+suite, mutation run or full A4 gate was run. Nested fields/indexing and numerical
+methods remain later A4 steps. Stop after this fix-up commit.
