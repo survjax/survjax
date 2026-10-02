@@ -178,7 +178,7 @@ environment via a fixture in `conftest.py` and never set it themselves. Tests
 that are only meaningful in one mode are skipped in the other with an explicit
 reason (for example, mpmath tail checks at float64 precision).
 
-**Tolerances live in `tests/tolerances.py` only** (spec 12.1):
+**Tolerances live in `tests/impl_tolerances.py` only** (spec 12.1):
 
 | dtype | `atol` | `rtol` |
 | --- | --- | --- |
