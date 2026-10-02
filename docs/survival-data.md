@@ -259,6 +259,19 @@ cohort.lower.dtype
 You can pass `dtype=` to either constructor. Asking for float64 while 64-bit
 mode is off raises a `ValueError`.
 
+Python scalars adopt the precision of floating array inputs; lists follow
+`jnp.asarray`. Integer-only and scalar-only inputs use the configured default,
+and float16 arrays promote to at least float32. Boolean, complex, string and
+object inputs raise `TypeError`. A float64 array supplied with 64-bit mode off
+converts to float32 with a warning attributed to the caller; ordinary warning
+filtering shows it once per call site. Python scalars and lists do not warn.
+
+The shared normalization policy also prepares distribution parameter leaves.
+Distribution registration and its examples are planned for a later A4 step:
+each family's own parameters, including component arrays, will share a dtype
+while keeping their shapes. Nested distributions will retain their own dtypes.
+This normalization checks input kinds, not parameter values.
+
 ## Comparison with R's `survival::Surv`
 
 The R calls below follow the official

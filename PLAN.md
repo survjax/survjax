@@ -1,3 +1,240 @@
+# Step A4: distribution base and extension interface (2026-10-02)
+
+Status: A4.1 approved by the maintainer on 2026-10-02; later parts await approval. Based on specification revision
+19; re-evaluated against the synced A4 acceptance suite at source commit
+`f62c81ff5b2317ecf692e546a2d3beeafd5c683f`. A4.1 implementation is on the maintainer-created `A4.1` branch. Earlier plans below
+are history; `REVIEW.md` continues to describe the completed A3 work.
+
+## Scope and decisions needed
+
+Implement the Slice A distribution foundation: frozen registered families,
+parameter/static/nested fields, construction and reconstruction, batch indexing,
+and the seven pointwise direct methods. Cover sections 3.3, 4.1, 4.2, 4.5, 5,
+7.2–7.3, 10.2–10.5 and the relevant parts of 12.1–12.2.
+
+New top-level exports: `SurvivalDistribution`, `register_family`, `param`,
+`static`, `distribution`. Existing exports remain. Methods added by completion:
+`batch_shape`, `__getitem__`, `reference_time`,
+`log_survival`, `survival`, `log_prob`, `log_cdf`, `cumulative_hazard`,
+`log_hazard`, `hazard`. `log_survival` and `reference_time` are the required
+family primitives. There is no base `shape` attribute and no constructor
+`dtype` keyword. Signatures, public fields and extension interfaces are typed.
+
+The nine A4 acceptance files are now present: 203 tests collect in each dtype
+mode. Read-only `API_ASSUMPTIONS.md` Q-019–Q-025 and `TESTMAP.md` confirm the
+scope below. In particular, Q-024 explicitly leaves `parameter_issues()` and
+its unspecified return type for A6. Remove that API and generic nested-issue
+aggregation from A4; D-013 remains open as an A6 handoff, not an A4 blocker.
+Do not infer domain validity for arbitrary custom parameters. A4 preserves
+NaNs produced by family formulas and generic defaults; its acceptance examples
+exercise a negative rate through `log_prob` and NaN parameters through direct
+methods. Passing them is not evidence for general parameter diagnostics.
+
+Built-in Exponential/Weibull families, log-parameter constructors and survival
+grids remain A5. Likelihoods/result containers remain A6. Interval methods,
+wrappers, summaries, sampling, `HazardFamily` and `check_family` remain their
+later slices. Use small analytical custom families in tests and documentation
+to exercise A4 without introducing built-ins early.
+
+## Review-sized implementation sequence
+
+A4 needs multiple commits to respect the roughly 300-line review target,
+including tests. Each numbered part below is a separate step: confirm its
+scope in this plan, obtain approval, implement with tests, overwrite `REVIEW.md`,
+commit on the maintainer's branch, then stop. Approval to begin A4.1 does not
+authorize automatically continuing through the remaining parts. If a part
+exceeds the target, propose a further split before expanding it.
+
+### A4.1 — Shared floating-dtype normalization
+
+- Files: new `src/survjax/_dtypes.py`; update `_data_validation.py`; add
+  `tests/unit/test_parameter_dtype.py`. Reuse the existing dtype logic by a
+  narrow extraction rather than coupling distributions to observation rules.
+  Preserve observation behavior, error meaning and warning attribution.
+- Normalize each family's own parameters to one dtype, including components;
+  nested distributions retain their dtype. Preserve weak promotion, the
+  configured default for integer/scalar-only inputs, and the float32 minimum.
+  Reject bool, complex, string and object inputs. Warn once per user call site
+  for float64 arrays under x32; do not warn for Python scalars/lists. Never
+  inspect traced values on the host or change global JAX configuration.
+- Tests: dtype combinations, float16 promotion, weak inputs, rejected input
+  kinds, x32 warning count/location and traced normalization. Existing data
+  dtype tests protect the extraction. Public API unchanged (spec 3.3).
+- Docs: explain the shared policy in `docs/survival-data.md`; mark distribution
+  examples as planned until registration exists.
+
+### A4.2 — Registration and flat family construction
+
+- Files: new `src/survjax/distributions/base.py` and package `__init__.py`;
+  update top-level `__init__.py` and `tests/unit/test_import.py`; add
+  `tests/unit/test_family_registration.py`.
+- Add the base, `param(component_ndim=0)`, `static(...)` and explicit
+  `register_family`. Use dataclass field metadata and small ordinary functions;
+  no metaclasses, dynamic attribute lookup or automatic subclass registration.
+- Enforce keyword-only construction, required parameter fields and optional
+  static defaults. Normalize parameter dtypes; broadcast leading batch axes
+  while retaining trailing component axes. Incompatible batch shapes raise
+  `TypeError`. Construction does not validate parameter values.
+- Register dynamic arrays as children and hashable static configuration as
+  auxiliary data. Reconstruct using allocation/field assignment, bypassing
+  construction and normalization, including for JAX placeholders.
+  Derive `batch_shape` from current leaves, never cached shape metadata.
+- Tests: immutability; required/keyword-only arguments; static defaults;
+  component and batch shapes; dtype integration; eager/jit construction;
+  flatten/unflatten and tree mapping; no implicit registration; absent base
+  `shape`. Explicitly test the `kw_only=True` recipe with a defaulted static
+  field before required parameters, unchanged object identity for unflattened
+  sentinel leaves, and storage of negative/NaN/infinite parameter values.
+  Test malformed static structure without checking parameter values.
+- Docs: add `docs/distributions.md` to `docs/index.md`, showing the decorator
+  order, field roles and construction; label methods not yet implemented.
+  Spec: 3.3, 4.1–4.2, 5, 10.2–10.5.
+
+### A4.3 — Nested distributions and batch indexing
+
+- Files: extend `distributions/base.py`; add a focused private
+  `distributions/_registration.py` if needed to keep responsibilities and
+  modules small; export `distribution()`; update import tests; add
+  `tests/unit/test_family_batching.py`.
+- Include nested batch shapes in outer broadcasting. Broadcast nested leaves
+  recursively, preserving their component axes, own dtypes and static fields.
+  The no-argument `distribution()` field is a required nested distribution.
+- Implement batch-only indexing, applying indices to leading axes while
+  retaining component axes. Rebuild without public constructors. Support
+  scalar/slice/array/tuple indexing within ordinary JAX indexing constraints.
+- Tests: nested scalar/vector/multi-axis broadcasting; incompatible shapes;
+  nested component axes and mixed dtypes; indexing, tree-map slicing and
+  vmap agreement; per-entry `batch_shape` inside vmap. Confirm changed dynamic
+  values reuse compilation with equal shapes/dtypes/structure/configuration,
+  and changed static configuration may specialize separately.
+- Docs: expand `docs/distributions.md` with nested fields and batching;
+  distinguish paired `(N,)` evaluation from explicit `(D,1)` broadcasting.
+  Spec: 3.3, 4.1–4.2, 5, 7.2, 12.1.
+
+### A4.4 — Direct-method policy and survival/CDF defaults
+
+- Files: `distributions/base.py`,
+  registration integration, new private `distributions/_direct.py` for the
+  shared value-policy machinery; `tests/unit/test_family_direct.py`; create
+  `tests/tolerances.py` for numerical tolerances with the mandated scales.
+- Implement `survival = exp(log_survival)`,
+  `log_cdf = log(-expm1(log_survival))`, and
+  `cumulative_hazard = -log_survival`.
+  Keep the log-CDF calculation stable without probability floors.
+- Apply section 4.5 at explicit registration to both inherited defaults and
+  family overrides. Use one understandable policy wrapper, preserving raw
+  family implementations for internal composition and avoiding recursion.
+  Static time/batch mismatch raises `TypeError`; numerical time values follow
+  the total-function policy. Do not confuse this with observation validation.
+- For negative/NaN times, substitute a safe stopped-gradient reference before
+  invoking family code; select policy outputs afterwards. Pass zero and positive
+  infinity to the family. Preserve NaNs from family calculations without
+  inventing generic domain checks for unknown custom parameters. Retain
+  `reference_time()` as the required family hook; our choice to use it for
+  safe negative/NaN-time substitution needs our own tests because the A4
+  acceptance suite does not test that hook directly.
+- Tests: analytical exponential-survival recipe; scalar/paired/draw broadcasting;
+  all time-policy rows for these four methods, defaults and overrides; NaN
+  parameter propagation;
+  family code never receives negative/NaN times; finite parameter gradients
+  through inactive branches and reference-input isolation. Test log-CDF tails
+  against analytical/mpmath values in representable ranges.
+- Docs: runnable primitive-family example in `docs/distributions.md`, direct
+  method boundaries, dtype behavior and precision limits of the CDF default.
+  Spec: 4.2, 4.5, 5, 7.2, 12.1.
+
+### A4.5 — Autodiff density/hazard and A4 completion
+
+- Files: `distributions/base.py`, `_direct.py`; new
+  `tests/unit/test_family_autodiff.py`; extend `tests/tolerances.py` with
+  justified derivative scales; finish `docs/distributions.md` and update
+  `docs/playground.ipynb` with a short custom-family example.
+- Compute the elementwise time derivative of log survival with forward-mode
+  autodiff after broadcasting, holding parameters fixed. An all-ones time
+  tangent yields the pointwise derivative; do not differentiate a batch sum
+  or materialize a full Jacobian. Use it for generic log hazard and log density;
+  do not recover hazard by subtracting two large log values. Keep the density
+  calculation independent of the public `log_hazard` result: its zero-survival
+  NaN policy must not contaminate a density that should be `-inf`.
+- Supply `hazard = exp(log_hazard)`. Apply the same policy to density/hazard
+  overrides. Detect zero survival from `log_survival == -inf`, not from
+  `exp(log_survival) == 0`: finite log survival such as `-1000` still gives a
+  valid generic hazard. Generic log hazard is NaN at true zero survival,
+  including finite support endpoints; analytic overrides retain their values,
+  and generic `hazard` uses the `log_hazard` override. Enforce
+  `log_prob(+inf)=-inf` for valid
+  parameters. Substitute safe inputs before logarithms and other potentially
+  invalid inactive operations; use no clipping, epsilon or probability floor.
+- Tests: hand-derived density/hazard for exponential and a smooth nonlinear
+  cumulative-hazard recipe; bounded-support and infinite-time generic/override
+  distinctions; zero hazard; eager/jit/vmap agreement; nested transformed
+  construction. Cover zero-time density values for power-family shapes below,
+  equal to and above one; negative-rate density NaNs and isolation of invalid
+  batch entries; large cumulative hazards and tiny positive survival.
+  Use `check_grads(order=2, modes=("fwd", "rev"))` on smooth parameter
+  interiors in float64, with an explicit float32 skip for noisy second-order
+  finite differences. Check analytical first derivatives and Hessians in both
+  modes, including jit/vmap composition. Test finite gradients for the base's
+  negative-time substitutions and use boundary-safe custom recipes for any
+  additional boundary-gradient checks; do not promise that the base repairs
+  arbitrary custom derivatives at zero or infinity. Built-in Weibull's `S(0)`
+  shape-gradient requirement remains A5. Expected values come from algebra or mpmath,
+  never from the implementation being tested. State the extra derivative order
+  required of a primitive when density comes from autodiff.
+- Finish the seven-method policy matrix and run the synced independent A4
+  suite. Examples explain the extension contract and generic numerical limits;
+  keep built-in grids, likelihood debug-NaN batches, R fixtures, wheel tests and
+  performance baselines assigned to their later Slice A steps.
+  Spec: 4.2, 4.5, 7.2–7.3, 10.5, 12.1–12.2.
+
+## Acceptance coverage and checks at each stop
+
+All paths below are under read-only `tests/spec/`. Keep implementer tests
+independent: do not import `spec_families.py`, helpers or tolerances from there.
+
+| Acceptance file | Planned coverage |
+| --- | --- |
+| `test_a4_registration.py` (25) | A4.2 registration, constructors and PyTrees; A4.3 nested fields; method-purity checks complete with A4.5 |
+| `test_a4_parameters.py` (42) | A4.1 dtype helper, A4.2 public integration, A4.3 nested dtypes; tests using default density complete with A4.5 |
+| `test_a4_indexing.py` (17) | A4.3 indexing and current-leaf batch shapes; density comparisons complete with A4.5 |
+| `test_a4_nested.py` (14) | A4.3 broadcasting, components, dtypes and structure; density/vmap comparisons complete with A4.5 |
+| `test_a4_generic_defaults.py` (23) | A4.4 survival/CDF/cumulative hazard; A4.5 hazard defaults |
+| `test_a4_policy_enforcement.py` (20) | A4.4 primitive and derived policy; A4.5 density/hazard, overrides and inactive gradients |
+| `test_a4_log_prob_default.py` (31) | A4.5 autodiff, shape/dtype, dispatch, gradients and Hessians |
+| `test_a4_value_policy.py` (19) | A4.5 zero/negative/infinite/NaN times, invalid density and elementwise isolation |
+| `test_a4_hazard_at_zero_survival.py` (12) | A4.5 true zero versus underflow, bounded support and analytic override dispatch |
+
+These files cross substep boundaries. Use relevant explicit node selections
+for intermediate feedback when their dependencies exist, in both dtype
+processes, recording the selection; do not claim an entire file passes early,
+change its step markers, or skip/xfail unfinished tests. The complete A4 gate
+is required after A4.5.
+
+Use `UV_CACHE_DIR=/private/tmp/survjax-uv-cache` for uv-based commands.
+For A4.1–A4.4 run `scripts/check.sh --through A3` (all implementer tests
+including the new ones, plus prior acceptance tests) and
+`scripts/build_docs.sh`, both using separate x32/x64 processes. At A4.5 run
+`scripts/check.sh --through A4` and the docs build. Run `git diff --check` at
+every stop. The gate already includes Ruff formatting/lint and mypy.
+
+Record exact commands, test counts, skips and failures. In particular, report
+dtype-specific skips (float64 normalization cases and float64-only finite
+differences) separately from failures.
+Inspect the rendered distribution guide after its runnable examples are added.
+No dependency additions, R execution or spec edits are planned.
+
+Each `REVIEW.md` gives reading order, construction/PyTree/numerical invariants,
+tests mapped to spec requirements, actual check output and open questions.
+Each commit has an imperative subject and a body explaining why. Stop after
+each commit; never commit to `main`. This planning change is left uncommitted.
+
+Planning re-evaluation checks (2026-10-02): with the cache directory above,
+`JAX_ENABLE_X64=1 SPEC_THROUGH=A4 uv run --locked --offline pytest --collect-only -qq tests/spec/test_a4*.py`
+and the same command with `JAX_ENABLE_X64=0` both exited 0 and collected 203
+A4 tests across nine files. Collection does not execute tests or establish
+implementation correctness. No implementation tests, type/lint checks or docs
+build were run for this plan-only update. `git diff --check` passed.
+
 # A3 review fix-up: constructor consistency and metadata evidence (2026-10-01)
 
 Status: approved and implemented on 2026-10-01; A3 gate passed. Source: `A3-review-handoff.md`,
