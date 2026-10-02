@@ -14,9 +14,9 @@ case "$branch" in spectests-*) ;; *) die "must be on a spectests-* branch (on '$
 [ -z "$(git status --porcelain)" ] || die "working tree not clean"
 [ -z "$(git -C "$src" status --porcelain)" ] || die "tester repo has uncommitted changes"
 
-# The tester must have worked from the same specification we have.
-cmp -s spec/SPECIFICATION.md "$src/spec/SPECIFICATION.md" \
-  || die "spec/SPECIFICATION.md differs from the tester's copy: propagate the spec revision first"
+# The tester must have worked from the same spec version as this repo.
+[ "$(cat .spec-seen)" = "$(cat "$src/.spec-seen")" ] \
+  || die ".spec-seen differs from the tester's: align both with the spec first (../scripts/spec-since.sh)"
 
 # Replace tests/spec wholesale so files deleted by the tester disappear here too.
 rm -rf tests/spec

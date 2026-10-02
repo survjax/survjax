@@ -22,17 +22,17 @@ cd "$(git rev-parse --show-toplevel)"
 # --- 1. guard -------------------------------------------------------------
 # Implementation branches must not touch these. Branch prefixes grant access:
 #   spectests-*  may change tests/spec/
-#   spec-*       may change spec/
-#   meta-*       may change roles/, CLAUDE.md, AGENTS.md, scripts/check.sh,
+#   meta-*       may change CLAUDE.md, AGENTS.md, scripts/check.sh,
 #                scripts/sync_spec_tests.sh
+# The spec itself lives in ../design (spec is a symlink); no branch here may
+# change the symlink.
 branch="$(git rev-parse --abbrev-ref HEAD)"
 allowed=""
 case "$branch" in
   spectests-*) allowed='^tests/spec/' ;;
-  spec-*)      allowed='^spec/' ;;
-  meta-*)      allowed='^(roles/|CLAUDE\.md$|AGENTS\.md$|scripts/check\.sh$|scripts/sync_spec_tests\.sh$)' ;;
+  meta-*)      allowed='^(CLAUDE\.md$|AGENTS\.md$|scripts/check\.sh$|scripts/sync_spec_tests\.sh$)' ;;
 esac
-protected='^(tests/spec/|spec/|roles/|CLAUDE\.md$|AGENTS\.md$|scripts/check\.sh$|scripts/sync_spec_tests\.sh$)'
+protected='^(tests/spec/|spec$|spec/|CLAUDE\.md$|AGENTS\.md$|scripts/check\.sh$|scripts/sync_spec_tests\.sh$)'
 if git rev-parse --verify -q main >/dev/null; then
   touched="$(git diff --name-only main...HEAD | grep -E "$protected" || true)"
   if [ -n "$allowed" ]; then

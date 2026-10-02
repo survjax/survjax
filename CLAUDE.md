@@ -5,13 +5,21 @@ evaluation. Distribution name `chronox-jax`, import `chronox_jax as cx`. There i
 no top-level `chronox` import.
 
 The goals are in `spec/GOALS.md`. The normative contract is
-`spec/SPECIFICATION.md`. **Both are read-only for you.** If the spec
+`spec/SPECIFICATION.md`. `spec/` is a symlink to the spec in the separate design
+repo (`../design/spec`). **Both are read-only for you**, unless the maintainer
+explicitly asks you to change the spec in the current conversation. If the spec
 is ambiguous, wrong or awkward to implement, do not fix it and do not silently
 choose: log it in `DEVIATIONS.md` (spec section, what you did, why) and ask.
 
-The spec's links to REVIEW-DISPOSITIONS.md, claude-review.md, `docs/design/` and
-`notes/` point into the separate design repo (`design`). They are
-expected to be dead here. Do not go looking for them.
+When the maintainer asks you to change the spec: edit `spec/`, then commit the
+change on its own in the design repo, never together with code:
+`git -C spec add -A . && git -C spec commit -m "spec(<sections>): <what> [from dev]"`.
+Bump the revision line at the top of `SPECIFICATION.md` if a requirement changed
+(typo fixes need no bump). Then run `../scripts/spec-since.sh dev --mark` and
+commit `.spec-seen` here.
+
+The other files in `spec/` and the spec's links into the design repo are
+background for the maintainer. You do not need them.
 
 Current target: **Slice A** (spec section 12.2). Do not implement anything
 belonging to slices B to F. Unimplemented observation modes must fail
@@ -107,11 +115,10 @@ each numerical step.
 ## Repository layout
 
 ```text
-spec/                     GOALS.md, SPECIFICATION.md (copied, read-only)
+spec -> ../design/spec    GOALS.md, SPECIFICATION.md (symlink; read-only, see above)
+.spec-seen                design commit of the spec this repo is aligned with
 CLAUDE.md                 this file (AGENTS.md is a symlink to it)
 PLAN.md  REVIEW.md  DEVIATIONS.md
-roles/                    prompts for the independent tester and reviewer
-                          (not for you; do not act on them)
 pyproject.toml  uv.lock  .python-version  .pre-commit-config.yaml
 .gitignore  LICENSE
 src/chronox_jax/          layout of spec 10.2; only modules Slice A needs
