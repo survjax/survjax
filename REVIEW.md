@@ -1,92 +1,110 @@
-# A4.3 review fixes — uncommitted
+# A4.4 review — direct-method policy and survival/CDF defaults
 
-Implements F-1/F-2 and N-1–N-3 from `../review/slices/A4.3.md`, preserving
-the concrete nested-field docstring requested in the preceding review.
-The maintainer asked to keep work uncommitted; no commit or staging performed.
+Implemented on `A4.4` against spec revision 19. Changes remain uncommitted
+as requested. No new top-level exports.
 
 ## Reading order
 
-1. `src/survjax/distributions/base.py`: the class registration marker, nested
-   validation in `initialize`, and short `__getitem__` implementation.
-2. New nested-field rejection cases in `tests/unit/test_family_batching.py`,
-   its unique tolerance import, and `tests/impl_tolerances.py`.
-3. The concrete `distribution()` doctest; then docs wrapping/clamping wording.
-4. DEVIATIONS.md D-015 and the active review-fix entry in PLAN.md.
+1. `src/survjax/distributions/_direct.py`: defaults, safe log-CDF calculation,
+   and the registration-time policy wrapper.
+2. `src/survjax/distributions/base.py`: explicit default bindings and wrapping
+   of log_survival/survival/log_cdf/cumulative_hazard at registration.
+3. `tests/unit/test_family_direct.py`, value tolerances in
+   `tests/impl_tolerances.py`, and the batching fixture's reference hook.
+4. Executable docs/distributions.md, docs index, and the active PLAN.md entry.
 
-## Invariants and coverage
+## Invariants and tests
 
-- F-1 / spec 4.2, 6.2 / D-015: each registered class receives its own private
-  marker after successful PyTree registration. Nested values must be instances
-  of SurvivalDistribution with a marker in their exact class dictionary;
-  inheriting a parent's marker is insufficient. Malformed values raise
-  `TypeError` naming the nested field before batch-shape access. Four new cases
-  cover an array, None, an unregistered dataclass and an unregistered subclass.
-  Existing construction/JAX acceptance cases prove valid nested inputs work.
-- F-2 / spec 4.1: construction gives every own/nested dynamic leaf exactly the
-  same leading batch rank. Appended full component slices protect the trailing
-  axes; JAX handles ellipsis, implicit trailing axes, advanced indices and
-  malformed-index errors. Removed custom expansion/counting and its branching.
-  Existing nine indexing cases, scalar component-axis rejection, tree slicing,
-  traced integer indexing and vmap cases pass. No custom index-error wording
-  is retained. As the review noted, a static-only family with no dynamic leaves
-  has no leaf operation to index and tree mapping returns it unchanged.
-- N-1: renamed the implementer's tolerance module to `impl_tolerances.py`.
-  The derivative test imports that unique name. Combined sessions collecting
-  both unit and independent suites pass; tests/spec remains untouched.
-- N-2 / spec 7.3, 12.1: float32 derivative atol/rtol are now **1e-3**, retaining
-  the finite-difference rounding-scale comment. The exact hand-derived
-  gradient assertion and second-order forward/reverse `check_grads` pass in
-  both dtype modes. Float64 tolerance is unchanged.
-- N-3: wrapped docs/index.md's feature line and the declaration error string.
-- Clamping: retained JAX's behavior and documented nearest-entry clamping for
-  out-of-bounds integer indices in docs/distributions.md.
-- Concrete example: complete constant-hazard/scaled-hazard families construct
-  a rate-2 baseline with factors `[1, 3]`; broadcasting, log-survival `[-2, -6]`,
-  indexing and unchanged baseline shape are executed via doctest in both modes.
+- Spec 4.2: defaults are exp(log S), -log S and log(-expm1(log S)). They call
+  the preserved raw primitive after the outer wrapper substitutes safe times,
+  avoiding recursive dispatch and repeated library policy application.
+  `test_mixed_time_policy_eager_jit_vmap` uses hand-derived exponential values
+  for all four methods and all time-policy rows, eager/jit/vmap.
+- Spec 4.5/7.2: broadcast first, substitute negative/NaN inputs with the
+  family's reference under stop_gradient before family calculations, then
+  select negative-time constants and NaN outputs. Active parameters are never
+  stopped. `test_safe_reference_substitution_and_inactive_gradients` uses
+  an unguarded sqrt primitive and parameter-dependent reference; negative and
+  NaN times have zero parameter gradients under jit. Valid family parameters
+  require a positive finite reference; no domain/reference validator is added.
+- Spec 4.5/7.1, D-013: preserve numerical family NaNs without inferring custom
+  parameter domains or adding issue masks.
+  `test_nan_parameters_propagate_without_poisoning_valid_entries` tests NaN
+  parameters beside valid entries at negative and positive times.
+- Spec 7.2: for zero CDF, substitute a negative log-S constant before log,
+  then return -inf. No floors, clipping or epsilons.
+  `test_log_cdf_tiny_mass_against_mpmath` uses an independent 100-digit
+  mpmath log-CDF at tiny mass, checks -inf at zero and its parameter gradient.
+  The generic lower-tail underflow limit is documented, not repaired.
+- Spec 4.2/4.5: defaults and overrides are wrapped. A private function marker
+  retains raw methods so a decorated subclass does not stack inherited policy
+  wrappers. `test_overrides_and_decorated_subclasses_dispatch_without_primitive`
+  checks each derived override at positive/negative/NaN times, raw-marker
+  structure, and dispatch with the primitive patched to raise if called.
+- Spec 5: `test_paired_and_draw_broadcasting_and_shape_misuse` checks paired
+  vectors, explicit (D,1) broadcasting and incompatible-shape TypeError under jit.
+- Spec 7.3/12.1: `test_second_order_parameter_derivatives_and_purity` checks
+  forward/reverse derivatives through order two on smooth interior cases
+  for all four methods and verifies leaf identities remain unchanged.
+  Existing compilation and PyTree tests pass after registration integration.
+- The batching fixture and both docs recipes now supply required reference
+  hooks. Docs execute cumulative hazards [6,12,18], negative-time survival
+  [1,1,1], and paired/all-pairs shapes. The concrete nested-field docstring stays.
+
+About 290 changed source/test lines plus the small guide update, excluding
+plan/review bookkeeping. The base is 320 lines including its existing concrete
+example; the private numerical module keeps this step separate from registration.
+No dependencies, global JAX config, protected paths or spec changes.
 
 ## Checks actually run
 
-All uv commands used `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`.
+All uv commands used UV_CACHE_DIR=/private/tmp/survjax-uv-cache. Final results
+include raw-primitive composition in the defaults.
 
 - `scripts/check.sh --through A3`: **all gates passed through A3**.
-  Guard **ok (A4.3)**; **35 files already formatted**; Ruff **All checks passed!**;
-  mypy **Success: no issues found in 8 source files**.
-  Own x64: **179 passed, 6 skipped in 8.85s**.
-  Own x32: **184 passed, 1 skipped in 7.80s**.
-  Prior independent x64: **372 passed, 15 skipped, 203 deselected in 11.42s**.
-  Prior independent x32: **382 passed, 5 skipped, 203 deselected in 11.22s**.
-- The same 89 focused A4 acceptance nodes as the original step, listed below:
-  `JAX_ENABLE_X64=<mode> SPEC_THROUGH=A4 uv run --locked --offline pytest -q $(cat /private/tmp/survjax-a43-nodes.txt)`.
-  x64: **87 passed, 2 skipped in 0.74s**.
-  x32: **86 passed, 3 skipped in 0.61s**.
-- Combined session, in each separate dtype process:
-  `JAX_ENABLE_X64=<mode> SPEC_THROUGH=A3 uv run --locked --offline pytest tests/unit tests/spec -q`.
-  x64: **551 passed, 21 skipped, 203 deselected in 16.64s**.
-  x32: **566 passed, 6 skipped, 203 deselected in 14.21s**.
-  No tolerance import clash. The combined run includes the tightened
-  derivative check alongside the independent suites.
-- All skips above are existing dtype-specific skips. Focused A4 x64 skips
-  require x32 warning behavior; x32 skips require float64/mixed nested dtypes.
-  The 203 A4 nodes are deselected in through-A3 runs. No acceptance edits,
-  added skips or xfails.
-- `scripts/build_docs.sh`: **build succeeded** in x32 and x64; all three
-  executable notebooks per mode ran successfully. Used approved escalation
-  for local Jupyter kernel ports. Jupyter emitted its TCP encryption warning.
-  No visual browser inspection was repeated; the preceding attempt reported
-  that the in-app browser was unavailable.
-- Executed `distribution.__doc__` with `doctest.DocTestParser` and
-  `doctest.DocTestRunner` via `uv run --locked --offline python -c ...`:
-  **TestResults(failed=0, attempted=13)** in each separate x64/x32 process.
-- `git diff --check`: passed with no output after the final bookkeeping edits.
+  Guard **ok (A4.4)**; **37 files already formatted**; Ruff **All checks passed!**;
+  mypy **Success: no issues found in 9 source files**.
+  Own x64: **200 passed, 6 skipped in 9.80s**.
+  Own x32: **205 passed, 1 skipped in 9.23s**.
+  Independent x64: **372 passed, 15 skipped, 203 deselected in 9.65s**.
+  Independent x32: **382 passed, 5 skipped, 203 deselected in 9.33s**.
+- 112 focused A4 nodes listed below: previous 89 plus 16 generic-default nodes
+  and seven primitive/derived policy nodes.
+  `JAX_ENABLE_X64=<mode> SPEC_THROUGH=A4 uv run --locked --offline pytest -q $(cat /private/tmp/survjax-a44-nodes.txt)`.
+  x64: **110 passed, 2 skipped in 1.37s**.
+  x32: **109 passed, 3 skipped in 1.27s**.
+- Combined `JAX_ENABLE_X64=<mode> SPEC_THROUGH=A3 uv run --locked --offline pytest tests/unit tests/spec -q`:
+  x64: **572 passed, 21 skipped, 203 deselected in 15.87s**.
+  x32: **587 passed, 6 skipped, 203 deselected in 15.14s**.
+- Skips are existing dtype-specific cases. Focused x64 skips require x32
+  warnings; x32 skips require float64 promotion/mixed nested dtypes. The new
+  21 direct-method cases run in both modes without warnings. No acceptance
+  edits/skips/xfails were introduced; the full 203 A4 nodes remain deselected
+  by SPEC_THROUGH=A3 in gate/combined sessions.
+- `scripts/build_docs.sh`: **build succeeded** in x32 and x64, executing all
+  three notebooks per mode. Approved escalation permits Jupyter kernel ports;
+  kernels print their TCP encryption warning. Rendered HTML text in both modes
+  contains the new values and precision-limit paragraph. No visual inspection.
+- Concrete nested-field docstring run with doctest.DocTestParser/DocTestRunner
+  in separate x64/x32 `uv run --locked --offline python -c ...` processes:
+  **TestResults(failed=0, attempted=13)** each.
+- `git diff --check`: passed with no output after final bookkeeping edits.
+
+Initial focused x32 result: **2 failed, 19 passed**, from an incorrect exact
+comparison of JAX float32 and NumPy float64 transcendental results. Corrected
+that assertion to use the mandated shared dtype tolerances; no shared tolerance
+was loosened. An earlier gate passed before raw-primitive composition; final
+checks above were rerun for that change. The first rendered-text probe inserted
+spaces between HTML text chunks and failed its literal-value search; joining
+chunks without extra spaces verified the same generated content in both modes.
 
 ## Remaining scope
 
-D-015 records the review-directed TypeError policy; it remains open for the
-maintainer to resolve. The source review leaves the remaining CLAUDE.md
-wording fix to the maintainer; protected role files were not edited.
-D-013 remains an A6 handoff. No spec, independent-test or dependency changes.
-No mutation run, full A4 gate, wheel/R checks or likelihood debug-nan run.
-Direct-method defaults remain A4.4–A4.5. Stop for further review; do not commit.
+No new spec ambiguity. Existing deviations unchanged; D-013 remains an A6
+handoff. Density/hazard methods and their policy/defaults stay A4.5; built-ins/
+grids stay A5. No full A4 gate, likelihood debug-nan run, R fixtures, wheel smoke
+checks, mutation run or performance measurements were run for this step.
+Stop for review; leave changes uncommitted and do not start A4.5.
 
 ## Exact focused acceptance nodes
 
@@ -180,4 +198,27 @@ tests/spec/test_a4_nested.py::test_distribution_helper_takes_no_arguments
 tests/spec/test_a4_nested.py::test_indexing_applies_to_nested_leaves
 tests/spec/test_a4_nested.py::test_indexing_a_broadcast_scalar_base
 tests/spec/test_a4_nested.py::test_tree_map_slicing_applies_to_nested_leaves
+tests/spec/test_a4_generic_defaults.py::test_default_survival_is_exp_log_survival
+tests/spec/test_a4_generic_defaults.py::test_default_cumulative_hazard_is_minus_log_survival
+tests/spec/test_a4_generic_defaults.py::test_default_log_cdf
+tests/spec/test_a4_generic_defaults.py::test_default_log_cdf_keeps_precision_for_tiny_cdf
+tests/spec/test_a4_generic_defaults.py::test_negative_time_survival_is_one
+tests/spec/test_a4_generic_defaults.py::test_negative_time_log_cdf_is_minus_infinity
+tests/spec/test_a4_generic_defaults.py::test_negative_time_cumulative_hazard_is_zero
+tests/spec/test_a4_generic_defaults.py::test_zero_time_survival_cumulative_hazard_and_log_cdf
+tests/spec/test_a4_generic_defaults.py::test_infinite_time_survival_is_zero
+tests/spec/test_a4_generic_defaults.py::test_infinite_time_cumulative_hazard_is_infinite
+tests/spec/test_a4_generic_defaults.py::test_infinite_time_log_cdf_is_zero
+tests/spec/test_a4_generic_defaults.py::test_nan_time_survival_is_nan
+tests/spec/test_a4_generic_defaults.py::test_nan_time_cumulative_hazard_is_nan
+tests/spec/test_a4_generic_defaults.py::test_nan_time_log_cdf_is_nan
+tests/spec/test_a4_generic_defaults.py::test_invalid_parameter_gives_nan_survival_and_log_cdf_defaults
+tests/spec/test_a4_generic_defaults.py::test_defaults_agree_under_jit
+tests/spec/test_a4_policy_enforcement.py::test_unguarded_log_survival_is_zero_for_negative_time
+tests/spec/test_a4_policy_enforcement.py::test_unguarded_survival_is_one_for_negative_time
+tests/spec/test_a4_policy_enforcement.py::test_unguarded_cumulative_hazard_is_zero_for_negative_time
+tests/spec/test_a4_policy_enforcement.py::test_unguarded_log_cdf_is_minus_infinity_for_negative_time
+tests/spec/test_a4_policy_enforcement.py::test_unguarded_infinite_time_log_survival_comes_from_the_family
+tests/spec/test_a4_policy_enforcement.py::test_negative_time_log_survival_has_zero_parameter_gradients
+tests/spec/test_a4_policy_enforcement.py::test_negative_time_survival_has_zero_parameter_gradients
 ```

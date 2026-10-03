@@ -10,11 +10,12 @@ kernelspec:
 # Registering a family
 
 Family construction, nested fields, batch indexing and PyTree registration are
-available. Generic direct methods are planned for later A4 steps;
+available, with survival, log-CDF and cumulative-hazard defaults. Density and
+hazard defaults are planned for A4.5;
 built-in families and time-first survival grids are planned for A5. The base's
 `log_survival(t)` and `reference_time()` hooks raise `NotImplementedError`
-unless supplied by a family. The direct-method boundary policy is planned;
-this example demonstrates construction only.
+unless supplied by a family. The base handles negative and NaN times; family
+code supplies limits at zero and positive infinity.
 
 Put `register_family` above a frozen dataclass. Construction uses keyword
 arguments, and parameters are required. `kw_only=True` allows a static field
@@ -32,6 +33,12 @@ class Recipe(survjax.SurvivalDistribution):
     method: str = survjax.static(default="sum")
     rate: jax.Array = survjax.param()
     weights: jax.Array = survjax.param(component_ndim=1)
+
+    def log_survival(self, t):
+        return -self.rate * jnp.sum(self.weights, axis=-1) * t
+
+    def reference_time(self):
+        return 1.0 / (self.rate * jnp.sum(self.weights, axis=-1))
 
 recipe = Recipe(rate=[[1.0], [2.0]], weights=jnp.ones((3, 4)))
 assert recipe.batch_shape == (2, 3)
@@ -67,15 +74,23 @@ class ScaledRecipe(survjax.SurvivalDistribution):
     multiplier: jax.Array = survjax.param()
 
     def log_survival(self, t):
-        return -self.base.rate * self.multiplier * t
+        return self.multiplier * self.base.log_survival(t)
+
+    def reference_time(self):
+        return self.base.reference_time() / self.multiplier
 
 scaled = ScaledRecipe(base=Recipe(rate=2.0, weights=[1.0, 2.0]),
                       multiplier=[1.0, 2.0, 3.0])
 assert scaled.base.batch_shape == (3,)
 assert scaled[1].base.weights.shape == (2,)
+assert scaled.cumulative_hazard(1.0).tolist() == [6.0, 12.0, 18.0]
+assert scaled.survival(-1.0).tolist() == [1.0, 1.0, 1.0]
 assert scaled.log_survival(jnp.ones(3)).shape == (3,)  # paired entries
 assert scaled[:, None].log_survival(jnp.ones(4)).shape == (3, 4)  # every pair
 ```
 
-The custom formula above illustrates positive-time broadcasting. The base's
-general direct-method boundary policy remains planned for the next A4 step.
+Negative times give log survival zero, survival one, log-CDF minus infinity,
+and cumulative hazard zero. NaN times give NaN. These pointwise methods use
+trailing-axis broadcasting; shared time-first grids remain planned for A5.
+The log-CDF default uses `log(-expm1(log_survival(t)))` and retains small CDFs
+until log survival underflows to zero; override it for smaller lower tails.

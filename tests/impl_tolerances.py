@@ -6,3 +6,6 @@
 # scale; this exactly bilinear test needs only 1e-3 in both derivative modes.
 DERIVATIVE_ATOL = {True: 1e-7, False: 1e-3}
 DERIVATIVE_RTOL = {True: 1e-7, False: 1e-3}
+
+ATOL = {True: 1e-10, False: 1e-5}
+RTOL = {True: 1e-8, False: 1e-4}

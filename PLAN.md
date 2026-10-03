@@ -1,3 +1,121 @@
+# A4.4 — Direct-method policy and survival/CDF defaults
+
+Status: approved by the maintainer ("go for it and implement") and implemented
+on `A4.4`; see REVIEW.md for verification. Changes remain uncommitted. The maintainer-created `A4.4` branch starts at `6dc4747`;
+the working tree was clean. Specification revision 19 is unchanged. This is
+the active plan; earlier plans below are history.
+
+## Outcome and public API
+
+Registered custom families gain `survival(t)`, `log_cdf(t)` and
+`cumulative_hazard(t)` defaults. Registration enforces the section 4.5 time
+policy for these methods and `log_survival(t)`, including family overrides.
+The primitive family implementation sees only nonnegative, non-NaN times;
+zero and positive infinity still reach it. Pointwise shapes follow ordinary
+trailing-axis broadcasting, with TypeError for static time/batch mismatches.
+
+No new top-level exports. Density and hazard defaults/policy stay A4.5;
+built-ins and time-first grids stay A5. D-013 remains an A6 handoff: do not
+invent a parameter diagnostic contract or custom parameter validity domain.
+
+## Files and implementation
+
+- Create `src/survjax/distributions/_direct.py`: typed ordinary functions for
+  the three generic defaults and a single registration-time policy wrapper.
+  Keep this numerical responsibility separate from construction/PyTrees.
+  Use TYPE_CHECKING imports for the base type to avoid import cycles.
+- `src/survjax/distributions/base.py`: explicitly bind the three default
+  functions as base methods and integrate policy wrapping at registration.
+  Preserve the concrete nested-family docstring and all A4.3 behavior.
+  Avoid a large mechanical registration refactor just to add these methods.
+- Defaults are `exp(log_survival(t))`, `-log_survival(t)`, and
+  `log(-expm1(log_survival(t)))`. Guard zero CDF with safe inputs before the
+  logarithm, then return -inf for true zero; no floors, epsilons or clipping.
+  NaNs remain NaNs. Document the generic CDF lower-tail underflow limit.
+- The policy wrapper first broadcasts times against `batch_shape`. For
+  negative/NaN times, substitute the family's reference time before executing
+  family code and stop gradients only through the substituted input. Apply
+  negative-time constants (0, 1, -inf, 0 respectively) and NaN-time outputs
+  afterwards. Preserve NaN family outputs; do not hide invalid parameters
+  behind a negative-time constant or add host-side parameter inspection.
+- Wrap both inherited defaults and overrides of the four in-scope methods.
+  Retain raw implementations through a transparent wrapping convention, so
+  registration of explicitly decorated subclasses does not stack policy
+  wrappers or introduce recursion. Cover inherited overrides in own tests.
+  This is registration-time setup, not a mutable evaluation cache.
+- `tests/unit/test_family_direct.py`: independent custom primitive and override
+  families, one behavior per test. Extend `tests/impl_tolerances.py` with the
+  mandated float32/float64 value tolerances and any justified tail-specific
+  tolerance; retain existing derivative tolerances.
+- Add the required reference hook to the existing batching-test Wrapper,
+  whose numerical method now goes through the policy.
+- `docs/distributions.md` and `docs/index.md`: describe the now-available
+  methods, boundary policy and shape convention. Add an executable primitive
+  family example with actual output values and positive-time/negative-time
+  evaluation; mark density/hazard defaults as later A4 scope.
+- Overwrite REVIEW.md after implementation: reading order, raw/policy method
+  dispatch invariants, spec-to-test mapping, exact checks/results and limits.
+
+Spec coverage: 4.2, 4.5, 5, 7.1–7.3, 10.2–10.5 and 12.1.
+
+## Tests and evidence
+
+- Hand-derived constant-hazard values: `log S=-r*t`, `S=exp(-r*t)`,
+  `H=r*t`, `log F=log(-expm1(-r*t))`. Check scalar, paired vectors and
+  explicit `(D,1)` by `(N,)` evaluation; incompatible shapes raise TypeError.
+- All four methods: negative infinity/negative/zero/interior/positive infinity/
+  NaN time values, eagerly and under jit/vmap, including mixed batches.
+  Include invalid parameter NaNs beside valid entries and verify isolation.
+- Independently override each derived method and verify dispatch plus policy
+  enforcement; register a decorated subclass inheriting an override and
+  verify it is not wrapped twice. Methods do not mutate PyTree leaves.
+- A deliberately unguarded positive-time primitive verifies safe substituted
+  times and finite zero parameter gradients for negative policy values.
+  Test parameter-dependent reference times without stopping active parameter
+  calculations; test second-order forward/reverse gradients on valid smooth
+  interior cases using existing justified derivative tolerances.
+- Generic log-CDF tails: tiny representable mass compared in log space against
+  high-precision mpmath; zero mass remains -inf. No expected value is derived
+  from the implementation under test. Include zero-boundary inputs where
+  inactive operations must not produce spurious gradient NaNs.
+
+## Validation and stopping point
+
+Use `UV_CACHE_DIR=/private/tmp/survjax-uv-cache` throughout:
+
+1. `scripts/check.sh --through A3`: formatting, lint, mypy, all own tests and
+   prior independent tests in separate dtype processes.
+2. Repeat the existing 89 focused A4 nodes in x64/x32. Additionally select
+   from `test_a4_generic_defaults.py` every test except the seven tests using
+   `log_hazard`/`hazard`; from `test_a4_policy_enforcement.py`, select
+   `test_unguarded_log_survival_is_zero_for_negative_time`,
+   `test_unguarded_survival_is_one_for_negative_time`,
+   `test_unguarded_cumulative_hazard_is_zero_for_negative_time`,
+   `test_unguarded_log_cdf_is_minus_infinity_for_negative_time`,
+   `test_unguarded_infinite_time_log_survival_comes_from_the_family`,
+   `test_negative_time_log_survival_has_zero_parameter_gradients` and
+   `test_negative_time_survival_has_zero_parameter_gradients`.
+   Inspect dependencies and record exact selectors/results in REVIEW.md.
+   Do not edit, skip or xfail protected acceptance tests. The full A4 gate
+   remains required at A4.5.
+3. Combined own/independent sessions with `SPEC_THROUGH=A3`, in both dtype
+   modes, preserving the unique implementer tolerance-module name.
+4. `scripts/build_docs.sh` (approved kernel-port escalation if needed), plus
+   the existing concrete nested-field doctest in both modes.
+5. `git diff --check`.
+
+Aim for about 300 changed code/test lines. If implementation requires a
+larger refactor or split, propose it before exceeding the approved step.
+Do not change dependencies, the specification, protected scripts or tests/spec.
+Log newly uncovered spec ambiguities as open deviations and ask before choosing.
+The earlier no-commit instruction remains in effect: implement and verify after
+approval, leave the result uncommitted, then stop for review.
+
+Planning evidence: inspected branch/status, current source, relevant spec,
+existing plans/deviations, docs and read-only generic-default/policy acceptance
+sources. No runtime, lint, type or documentation checks ran in this planning
+turn. `git diff --check` passed with no output.
+
 # A4.3 review fixes — approved, uncommitted
 
 The maintainer requested implementation of `../review/slices/A4.3.md`.

@@ -8,6 +8,7 @@ import jax.numpy as jnp
 from jax.typing import ArrayLike
 
 from survjax._dtypes import normalize_parameters
+from survjax.distributions import _direct
 
 
 def param(component_ndim: int = 0) -> Any:
@@ -107,6 +108,9 @@ class SurvivalDistribution:
     """
 
     _survjax_registered: ClassVar[bool] = False
+    survival = _direct.survival
+    log_cdf = _direct.log_cdf
+    cumulative_hazard = _direct.cumulative_hazard
 
     @property
     def batch_shape(self) -> tuple[int, ...]:
@@ -305,5 +309,12 @@ def register_family[Family: SurvivalDistribution](cls: type[Family]) -> type[Fam
 
     cls.__init__ = initialize  # type: ignore[method-assign]
     jax.tree_util.register_pytree_node(cls, flatten, unflatten)
+    for name, negative_value in (
+        ("log_survival", 0.0),
+        ("survival", 1.0),
+        ("log_cdf", -jnp.inf),
+        ("cumulative_hazard", 0.0),
+    ):
+        setattr(cls, name, _direct.apply_policy(getattr(cls, name), negative_value))
     cls._survjax_registered = True
     return cls

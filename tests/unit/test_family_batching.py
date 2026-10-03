@@ -28,6 +28,9 @@ class Wrapper(survjax.SurvivalDistribution):
     def log_survival(self, t):
         return -self.base.rate * self.multiplier * t
 
+    def reference_time(self):
+        return 1.0 / self.base.rate
+
 
 @survjax.register_family
 @dataclass(frozen=True)
