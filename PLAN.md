@@ -1,3 +1,119 @@
+# A4.5 — Autodiff density and hazard defaults
+
+Status: implemented and verified on maintainer-selected branch `A4.5`,
+starting at `9d1d08d`, against specification revision 21 (2026-10-08).
+The maintainer approved implementation and keeping density/hazard together
+despite the roughly 375-line source/test/doc diff. See REVIEW.md for exact
+evidence. The maintainer authorized the completion commit on 2026-10-08;
+commit this step, then stop for review.
+This is the active plan; the A4.4 entries below are completed history.
+
+## Outcome and scope
+
+Complete the Slice A distribution base's pointwise methods by adding typed
+`SurvivalDistribution.log_prob(t)`, `log_hazard(t)` and `hazard(t)` defaults,
+with the section 4.5 policy enforced for defaults and family overrides.
+No new top-level exports. Their output shape is the ordinary broadcast of
+`t.shape` and `batch_shape`; equal-length vectors pair entries, and singleton
+axes request all pairs. These are not shared time-first grid methods.
+
+Covered spec: 3.3, 4.1–4.2, 4.5, 5, 6.2, 7.2–7.3, 8.1 and 12.1–12.2.
+Built-in Exponential/Weibull families and survival grids remain A5; likelihoods
+and `parameter_issues()` remain A6. The review's D-016 positive-infinity
+survival/log-CDF gradient fix stays explicitly deferred to A5. No dependencies,
+support API, custom derivative rules, parameter-domain validator or new cache.
+
+## Files and numerical implementation
+
+1. Extend `src/survjax/distributions/_survival_methods.py`; keep numerical
+   additions here, as directed by the A4.4 review, rather than growing base.py.
+   Add a small typed private helper returning raw log survival and its pointwise
+   time derivative using forward-mode `jax.jvp` with an all-ones time tangent.
+   Reuse `_raw_log_survival`; differentiate the family primitive on the times
+   already substituted by the outer policy, not the policy constants.
+   Do not build a full time Jacobian or flatten distribution batch/component
+   axes. Cast integer times to the common promoted floating calculation dtype
+   before JVP; preserve normal weak typing and time/parameter promotion.
+2. `log_prob(t)` uses `log(-d log S/dt) + log S`; it is independent of any
+   `log_hazard` override. `log_hazard(t)` uses the derivative directly, avoiding
+   cancellation from `log_prob - log_survival` at large cumulative hazard.
+   Its generic result is NaN where raw log survival is exactly `-inf`, including
+   at finite support ends; finite log survival remains eligible even when
+   exp(log survival) underflows to zero. `hazard(t)` is exp(log hazard) and
+   honors the family's `log_hazard` override, including its analytic +inf limit.
+3. Substitute safe operands before inactive logarithms/additions; use the
+   double-where pattern, stopping only placeholders/substituted inputs.
+   True zero hazard gives log hazard/log density `-inf` where the formulas
+   apply. Invalid negative/NaN derivatives stay NaN; never clip, floor, add an
+   epsilon or infer a custom family's parameter validity domain.
+4. Extend the existing policy wrapper only as needed for density at +inf.
+   Negative times give log density/log hazard `-inf`, hazard zero; NaN times
+   give NaN. Preserve the revision-21 NaN precedence at negative/NaN times.
+   Zero remains active and obtains boundary values from the primitive or
+   override. Enforce `log_prob(+inf)=-inf` for defaults and overrides, including
+   formulas that otherwise yield `+inf - inf`. Keep family evaluation at zero
+   and +inf consistent with 4.5, and do not change existing survival/CDF policy.
+5. `src/survjax/distributions/base.py`: bind the three defaults explicitly and
+   add them to registration's policy list. Keep the raw-method marker behavior
+   so decorated subclasses preserve overrides without stacking wrappers.
+   No construction, PyTree, static metadata or public diagnostic changes.
+
+## Own tests, with the implementation
+
+Create `tests/unit/test_family_density.py` (aim below 200 lines), using small
+custom frozen dataclass families and hand-derived expectations. Extend the
+existing method-name cases in `test_family_direct.py` only where they give
+useful dtype/policy coverage for the three added methods. Use shared value and
+existing justified derivative tolerances from `tests/impl_tolerances.py`;
+change that file only if a distinct numerical scale needs justification.
+
+- Constant hazard: log density `log r-r*t`, log hazard `log r`, hazard `r`;
+  scalar, paired vectors, explicit outer broadcasting, integer times and
+  mixed time/parameter dtypes. Exercise jit/vmap, shape-mismatch TypeError,
+  and repeat compiled calls with changed parameter values.
+- Power survival `log S=-(t/b)**k`: hand-derived log density/hazard across
+  decreasing, constant and increasing hazards, zero-time values for k below,
+  equal to and above one, and large H with representable hazard. Pin density
+  at +inf to -inf and distinguish generic hazards from analytic overrides.
+- A bounded-support primitive: generic hazards become NaN at/beyond the
+  support end; finite very negative log survival keeps a valid hazard despite
+  linear survival underflow. Include a locally zero hazard without log(0)
+  contaminating an otherwise active batch's finite derivatives.
+- Explicit/inherited density and log-hazard overrides: verify dispatch,
+  hazard's use of the log-hazard override, policy at negative/NaN/+inf times,
+  no mutation, and no stacked wrappers after subclass registration.
+- Unguarded primitive and parameter-dependent reference: negative/NaN time
+  slots see safe inputs and retain zero parameter gradients with valid
+  parameters. Mixed valid/NaN parameters keep NaNs isolated by entry.
+- Smooth positive-time interior: hand-derived gradient and Hessian (constant
+  density has `d/dr=1/r-t`, `d2/dr2=-1/r**2`); check first/second parameter
+  derivatives forward/reverse, composed with jit/vmap. Run order-two
+  `check_grads` with the established tolerances. Do not promise parameter
+  derivatives at invalid inputs, support changes or infinite log densities.
+
+## Documentation, verification and stopping point
+
+- Update `docs/distributions.md` with an executable concrete density/hazard
+  example, the complete negative-time policy, generic zero-survival behavior,
+  override dispatch, and the representable-linear-hazard limitation of the
+  autodiff defaults. Update `docs/index.md` to reflect the completed methods.
+- Use `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`. Run the full maintainer gate
+  `scripts/check.sh --through A4`: Ruff, mypy, own tests and all independent A4
+  tests in separate x64/x32 processes. The former focused subset is no longer
+  sufficient; this step completes the remaining A4 acceptance surface.
+- Run combined own/independent sessions with `SPEC_THROUGH=A4` in both modes
+  to catch collection/import conflicts, source doctests on base.py and
+  _survival_methods.py in both modes, executable docs in both modes, and
+  `git diff --check`. No network, R fixture generation or wheel work here.
+- Keep spec, acceptance tests, gate scripts and alignment markers read-only.
+  On a genuine contract ambiguity or apparent acceptance-test error, record
+  an open deviation and ask rather than silently choosing or editing tests.
+- Aim for roughly 300 changed source/test/doc lines. If it grows materially
+  beyond that, propose a split before expanding the implementation.
+- Overwrite REVIEW.md with reading order, numerical/dispatch invariants,
+  spec-to-test mapping, exact results/skips and D-016's A5 handoff. Update this
+  status, then stop for review. Do not begin A5 or commit until instructed.
+
 # A4.4 completion — specification revision 21 (2026-10-08)
 
 Status: implemented and verified; the maintainer authorized the completion

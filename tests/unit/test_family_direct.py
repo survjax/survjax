@@ -55,6 +55,9 @@ class Overrides(Constant):
         ("survival", [1, 1, 1, np.exp(-2), 0, np.nan]),
         ("log_cdf", [-np.inf, -np.inf, -np.inf, np.log(-np.expm1(-2)), 0, np.nan]),
         ("cumulative_hazard", [0, 0, 0, 2, np.inf, np.nan]),
+        ("log_prob", [-np.inf, -np.inf, np.log(2), np.log(2) - 2, -np.inf, np.nan]),
+        ("log_hazard", [-np.inf, -np.inf, np.log(2), np.log(2), np.nan, np.nan]),
+        ("hazard", [0, 0, 2, 2, np.nan, np.nan]),
     ],
 )
 def test_mixed_time_policy_eager_jit_vmap(name, expected, x64_enabled):
@@ -80,7 +83,16 @@ def test_paired_and_draw_broadcasting_and_shape_misuse():
 
 
 @pytest.mark.parametrize(
-    "name", ["log_survival", "survival", "log_cdf", "cumulative_hazard"]
+    "name",
+    [
+        "log_survival",
+        "survival",
+        "log_cdf",
+        "cumulative_hazard",
+        "log_prob",
+        "log_hazard",
+        "hazard",
+    ],
 )
 def test_safe_reference_substitution_and_inactive_gradients(name):
     """Spec 7.2: sqrt receives positive references, including NaN time slots."""
@@ -179,7 +191,16 @@ def test_second_order_parameter_derivatives_and_purity(name, x64_enabled):
 
 
 @pytest.mark.parametrize(
-    "name", ["log_survival", "survival", "log_cdf", "cumulative_hazard"]
+    "name",
+    [
+        "log_survival",
+        "survival",
+        "log_cdf",
+        "cumulative_hazard",
+        "log_prob",
+        "log_hazard",
+        "hazard",
+    ],
 )
 @pytest.mark.parametrize(
     "time",
@@ -199,7 +220,16 @@ def test_direct_times_reject_dtype_misuse(name, time):
 
 
 @pytest.mark.parametrize(
-    "name", ["log_survival", "survival", "log_cdf", "cumulative_hazard"]
+    "name",
+    [
+        "log_survival",
+        "survival",
+        "log_cdf",
+        "cumulative_hazard",
+        "log_prob",
+        "log_hazard",
+        "hazard",
+    ],
 )
 @pytest.mark.parametrize("time", [np.array([True, False]), np.array([1j, 2j])])
 def test_direct_dtype_rejection_works_on_tracers(name, time):
@@ -211,18 +241,27 @@ def test_direct_dtype_rejection_works_on_tracers(name, time):
         jax.vmap(method)(time)
 
 
-def test_float64_times_follow_promotion_without_warning(x64_enabled):
+@pytest.mark.parametrize("name", ["log_survival", "log_prob", "log_hazard", "hazard"])
+def test_float64_times_follow_promotion_without_warning(name, x64_enabled):
     """Spec 4.5 rev 21: transient float64 times convert silently under x32."""
     import warnings
 
     dist = Constant(rate=np.float32(2))
     with warnings.catch_warnings(record=True) as recorded:
         warnings.simplefilter("always")
-        actual = dist.log_survival(np.array([1.0, 2.0], dtype=np.float64))
+        actual = getattr(dist, name)(np.array([1.0, 2.0], dtype=np.float64))
     assert recorded == []
     assert actual.dtype == (np.float64 if x64_enabled else np.float32)
-    # Hand derivation: -rate*t = -2*(1,2).
-    np.testing.assert_array_equal(actual, [-2.0, -4.0])
+    # Hand derivation: log S=-2*t, log f=log(2)-2*t, log h=log(2), h=2.
+    expected = {
+        "log_survival": [-2, -4],
+        "log_prob": np.log(2) - np.array([2, 4]),
+        "log_hazard": np.log(2),
+        "hazard": 2,
+    }
+    np.testing.assert_allclose(
+        actual, expected[name], atol=ATOL[x64_enabled], rtol=RTOL[x64_enabled]
+    )
 
 
 def test_zero_time_reaches_family_time_derivative():

@@ -1,284 +1,123 @@
-# A4.4 completion review — specification revision 21
+# A4.5 — Autodiff density and hazard defaults
 
-Implemented on `A4.4`, continuing maintainer commit `8326b45` after the spec
-and acceptance updates merged at `d0b5538`. The maintainer authorized this
-completion commit on 2026-10-08. No public API additions, dependencies or
-protected-file edits.
+Implemented on `A4.5` from `9d1d08d`, against specification revision 21
+(2026-10-08). The maintainer authorized the completion commit on 2026-10-08;
+stop here for maintainer review after committing. The maintainer
+approved keeping this roughly 375-line source/test/doc change together.
+No A5 implementation, dependency changes, protected-file edits or new exports.
 
 ## Reading order
 
-1. `src/survjax/distributions/_survival_methods.py`: renamed from `_direct.py`;
-   read dtype rejection and safe-time substitution in `apply_policy` first,
-   then `_raw_log_survival` and the three defaults.
-2. `src/survjax/distributions/base.py`: updated import, default bindings and
-   registration calls. Construction and PyTree behavior are unchanged.
-3. `tests/unit/test_family_direct.py`: the four new test functions at the end,
-   followed by the existing numerical and transformation coverage.
-4. `docs/distributions.md`, `DEVIATIONS.md` D-016 through D-018, and the active
-   completion status in `PLAN.md`.
+1. `src/survjax/distributions/_survival_methods.py`: the JVP helper,
+   zero-rate logarithm guard, three defaults and positive-infinity density policy.
+2. `src/survjax/distributions/base.py`: explicit default bindings and seven
+   registration-time policy wrappers.
+3. `tests/unit/test_family_density.py`: hand-derived formulas, broadcasting,
+   compilation reuse, support ends, overrides and parameter derivatives.
+4. `tests/unit/test_family_direct.py`: added mixed-time policy rows, safe-reference
+   derivatives, dtype rejection and mixed-dtype promotion cases.
+5. `docs/distributions.md` and `docs/index.md`: executed examples and limitations.
 
-## Invariants and requirement evidence
+## Invariants and numerical decisions
 
-- Spec 4.5 revision 21: times follow JAX conversion/promotion, but boolean,
-  complex, string and object dtypes raise TypeError. Inspection uses dtype,
-  never tracer values. `test_direct_times_reject_dtype_misuse` covers all four
-  methods and six inputs; `test_direct_dtype_rejection_works_on_tracers`
-  checks boolean/complex inputs under both jit and vmap.
-- Spec 4.5: transient float64 times convert silently under x32, unlike stored
-  parameters/data. `test_float64_times_follow_promotion_without_warning`
-  checks no warning, output dtype and hand-derived values `-2*(1,2)` in both
-  modes. New acceptance cases cover integer times and float64 promotion too.
-- Spec 4.5/7.2: negative/NaN times are substituted before family evaluation;
-  only the substituted reference is stopped. Zero and positive infinity
-  reach the family. `test_zero_time_reaches_family_time_derivative` pins the
-  exact derivative `d(-2*t)/dt = -2` at zero, eagerly and under jit; changing
-  the negative-time predicate to include zero would fail it. Existing Root
-  tests demonstrate safe sqrt inputs and zero inactive parameter gradients.
-- Spec 4.5 revision 21: NaN family values at substituted inputs take precedence
-  over negative-time constants. No family validity domain is inferred; finite
-  invalid parameters need not yield NaN. Existing own NaN-isolation tests and
-  the new acceptance cases demonstrate negative time, minus infinity, NaN
-  time, unguarded formulas and mixed valid/NaN batches.
-- Spec 4.2/7.2: defaults call the raw primitive on already-substituted times.
-  The typed `_raw_log_survival` helper centralizes this invariant. Raw method
-  markers prevent stacked inherited wrappers. Existing override-dispatch
-  tests check that inherited overrides bypass the primitive.
-- Spec 4.2: survival is exp(log S), cumulative hazard is -log S, log CDF is
-  log(-expm1(log S)). Zero CDF is guarded before log; there are no floors,
-  epsilons or clipping. Existing 100-digit mpmath and zero-gradient tests
-  verify tiny mass and zero CDF. The generic lower-tail limit is documented.
-- Spec 5/7.3: existing paired/draw broadcasting and shape-error tests, mixed
-  eager/jit/vmap values, and order-two forward/reverse parameter checks pass.
-  Existing registration, nesting, indexing and compilation checks pass too.
+- Pointwise output shapes are the ordinary broadcast of time and batch shapes.
+  The all-ones JVP tangent obtains elementwise time derivatives from a pointwise
+  primitive without a full Jacobian or flattened batch/component axes.
+- Defaults differentiate the raw primitive after outer time substitution.
+  Integer inputs are converted to the promoted floating calculation dtype before
+  JVP when necessary; floating inputs retain JAX promotion and weak typing.
+- Generic density is `log(-d log S/dt) + log S`, independently of log-hazard
+  overrides. Generic log hazard uses the derivative directly, avoiding large-H
+  subtraction. Hazard calls the log-hazard method, including family overrides.
+- A zero derivative has a safe logarithm operand before selecting minus infinity.
+  Negative and NaN rates retain NaN; no floors, clipping, epsilons or inferred
+  parameter validity domain. Exactly minus-infinite or NaN log survival makes
+  generic log hazard NaN; finite log survival remains eligible after linear
+  survival underflow.
+- Negative/NaN time substitutions stop only the substituted reference input.
+  Active parameters/calculations retain their gradients. NaN family values retain
+  precedence at negative/NaN times. Zero and positive infinity reach family code.
+- The default substitutes safe operands before an inactive infinite-time density
+  addition. The outer density policy also enforces minus infinity for overrides
+  at positive infinity, even if their result was NaN. No claim is made about
+  gradients of infinite densities or invalid inputs.
+- Inheritance retains raw methods without stacking wrappers. Construction,
+  PyTree reconstruction, batch indexing and static metadata are unchanged.
 
-## Checks actually run
+## Spec-to-test mapping
 
-All uv commands used `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`. Dtype modes
-ran in separate processes.
+| Requirement | Own evidence | Independent evidence (read-only) |
+| --- | --- | --- |
+| 4.2: autodiff density/hazard identities | density suite: constant and power formulas, large-H test | `test_a4_log_prob_default.py`, `test_a4_generic_defaults.py` |
+| 4.1/5: pointwise shapes and components | constant paired/outer broadcasting, integer times, shape TypeError | density default tests: shapes, components, nested families |
+| 3.3/4.5/6.2: time dtype rejection/promotion | direct dtype misuse/tracer/promotion tests, including added methods | `test_a4_time_dtypes.py` |
+| 4.5: negative/zero/infinite/NaN values | direct mixed-time test; power boundary and bounded-support tests | `test_a4_value_policy.py`, `test_a4_policy_enforcement.py`, `test_a4_nan_precedence.py` |
+| 4.5: generic zero-survival behavior | bounded-support and underflow test | `test_a4_hazard_at_zero_survival.py` |
+| 4.2/4.5: overrides/inheritance/purity | inherited override dispatch test; raw markers and leaf identity | override cases in density, hazard and policy suites |
+| 7.2: safe inputs and zero-rate logs | direct Root safe-reference tests; density zero-hazard active-derivative test | negative-time parameter-gradient tests |
+| 7.2: reuse compilation | two successful shape traces across changed rates | existing registration/static-configuration tests |
+| 7.3/12.1: second derivatives and transformations | density gradient/Hessian cases with jit/vmap, order-two forward/reverse check_grads using unchanged justified tolerances | analytical gradients/Hessians and x64 finite-difference checks in density suite |
+| 10.5: executable docs | both documentation builds and source doctests | not claimed as complete Slice A evidence |
 
-- `scripts/check.sh --through A3`: exit 0, **all gates passed through A3**.
-  Guard **ok (A4.4)**; Ruff **37 files already formatted**, **All checks
-  passed!**; mypy **Success: no issues found in 9 source files**.
-  Own x64: **234 passed, 6 skipped in 9.52s**.
-  Own x32: **239 passed, 1 skipped in 9.44s**.
-  Independent x64: **372 passed, 15 skipped, 314 deselected in 9.60s**.
-  Independent x32: **382 passed, 5 skipped, 314 deselected in 9.40s**.
-- Exact 172 focused A4 nodes listed below: previous 112 plus 60 new in-scope
-  time-dtype/NaN-precedence nodes. With `SPEC_THROUGH=A4`,
-  `uv run --locked --offline pytest -q <listed node IDs>`:
-  x64: **165 passed, 7 skipped in 1.46s**.
-  x32: **168 passed, 4 skipped in 1.42s**.
-  Skips retain the independent suite's dtype-specific requirements. No
-  acceptance tests were edited, skipped or xfailed by this implementation.
-- Combined `SPEC_THROUGH=A3 uv run --locked --offline pytest tests/unit tests/spec -q`:
-  x64: **606 passed, 21 skipped, 314 deselected in 16.08s**.
-  x32: **621 passed, 6 skipped, 314 deselected in 15.25s**.
-- `scripts/build_docs.sh`: exit 0; **build succeeded** for x32 and x64,
-  executing all three notebooks per mode. Approved escalation allowed local
-  Jupyter kernel ports; kernels printed their TCP encryption warning. Both
-  generated guides contain the added dtype and NaN-policy text. No visual
-  browser inspection was performed.
-- Source doctests via `pytest --doctest-modules` on `base.py` and
-  `_survival_methods.py`: x64 **1 passed in 0.50s**, x32 **1 passed in 0.53s**.
-  The concrete nested-family example remains intact.
-- `git diff --check`: exit 0, no output, after the final bookkeeping edits.
+Expected values come from the documented constant-hazard and power identities
+or uniform survival `S(t)=1-t/end`. No expected values come from library outputs.
+The vmap checks additionally compare transformation agreement, not mathematical
+correctness. Tolerances in `tests/impl_tolerances.py` are unchanged.
 
-One initial lint run rejected an assigned lambda (E731); replaced it with a
-plain function before the passing gate. A temporary selector-generation command
-also referenced an absent old manifest. The shell then launched unfiltered
-pytest instead of the intended focused selection; that attempt failed on
-unfinished density/hazard methods (last x32 summary: **134 failed, 795 passed,
-12 skipped**). This attempt is not acceptance evidence. Recovered the exact
-112 prior selectors from the previous REVIEW.md, added the 60 new selectors,
-and reran the intended selection successfully with a fail-fast shell.
+## Exact verification results
 
-## Limits and handoff
+All uv commands used `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`. Environment:
+Python 3.12.9, JAX 0.11.2, NumPy 2.5.3, pytest 9.1.1. CPU; no versions changed.
 
-D-016 is recorded verbatim as reviewed: generic survival/log-CDF parameter
-gradients at positive infinity can be NaN despite finite values. The maintainer
-explicitly deferred this fix to A5; it is unchanged here. D-017/D-018 now have
-normative spec text and acceptance coverage, but their drafted open statuses
-are retained for maintainer closure. No new unresolved implementation choice.
+`scripts/check.sh --through A4` exited 0:
 
-Density/hazard defaults and policy remain A4.5; built-ins/grids remain A5.
-No full A4 gate, new mutation run, performance measurements, likelihood
-jax_debug_nans run, R fixtures or wheel smoke test was completed for this step.
-The two new untracked acceptance files remain untouched and unstaged.
-Commit this completion as authorized, then stop before A4.5.
+- `guard: ok (A4.5)`.
+- Ruff format: `38 files already formatted`; lint: `All checks passed!`.
+- mypy: `Success: no issues found in 9 source files`.
+- Own tests, x64: **282 passed, 6 skipped** (10.64s).
+- Own tests, x32: **287 passed, 1 skipped** (10.48s).
+- Independent tests through A4, x64: **676 passed, 25 skipped** (15.45s).
+- Independent tests through A4, x32: **690 passed, 11 skipped** (13.05s).
+- Final output: `check: all gates passed through A4`.
 
-## Exact focused acceptance nodes
+Combined `JAX_ENABLE_X64=<mode> SPEC_THROUGH=A4 uv run pytest tests -q`:
 
-```text
-tests/spec/test_a4_registration.py::test_extension_names_are_exported_at_top_level
-tests/spec/test_a4_registration.py::test_registered_family_is_a_survival_distribution
-tests/spec/test_a4_registration.py::test_positional_parameters_are_rejected
-tests/spec/test_a4_registration.py::test_single_positional_parameter_is_rejected
-tests/spec/test_a4_registration.py::test_positional_static_is_rejected
-tests/spec/test_a4_registration.py::test_missing_parameter_is_rejected
-tests/spec/test_a4_registration.py::test_kw_only_recipe_allows_static_before_parameter
-tests/spec/test_a4_registration.py::test_parameters_are_the_only_leaves
-tests/spec/test_a4_registration.py::test_leaves_hold_the_natural_parameter_values
-tests/spec/test_a4_registration.py::test_flatten_unflatten_round_trip_preserves_type_and_parameters
-tests/spec/test_a4_registration.py::test_unflatten_bypasses_init
-tests/spec/test_a4_registration.py::test_static_field_is_preserved_through_round_trip
-tests/spec/test_a4_registration.py::test_static_default_is_used_when_omitted
-tests/spec/test_a4_registration.py::test_equal_static_values_give_equal_tree_structures
-tests/spec/test_a4_registration.py::test_different_static_values_give_different_tree_structures
-tests/spec/test_a4_registration.py::test_no_automatic_subclass_registration
-tests/spec/test_a4_registration.py::test_distribution_is_immutable
-tests/spec/test_a4_registration.py::test_distribution_passes_through_jit
-tests/spec/test_a4_registration.py::test_new_parameter_values_reuse_compilation
-tests/spec/test_a4_registration.py::test_different_static_values_compile_separately
-tests/spec/test_a4_registration.py::test_static_value_selects_behaviour_under_jit
-tests/spec/test_a4_registration.py::test_nested_distribution_parameters_are_leaves_of_the_outer_family
-tests/spec/test_a4_registration.py::test_nested_distribution_round_trips_with_its_type
-tests/spec/test_a4_registration.py::test_nested_distribution_is_differentiable_through_jit
-tests/spec/test_a4_parameters.py::test_scalar_parameters_give_empty_batch_shape
-tests/spec/test_a4_parameters.py::test_batch_shape_is_the_parameter_shape
-tests/spec/test_a4_parameters.py::test_batch_shape_excludes_component_axes
-tests/spec/test_a4_parameters.py::test_multidimensional_batch_shape
-tests/spec/test_a4_parameters.py::test_batch_shape_is_a_tuple_of_python_ints
-tests/spec/test_a4_parameters.py::test_batch_shape_is_static_under_jit
-tests/spec/test_a4_parameters.py::test_component_parameter_with_incompatible_batch_is_rejected
-tests/spec/test_a4_parameters.py::test_batch_dimensions_are_broadcast_at_construction
-tests/spec/test_a4_parameters.py::test_broadcasting_keeps_parameter_values
-tests/spec/test_a4_parameters.py::test_scalar_parameter_is_broadcast_to_batch_shape
-tests/spec/test_a4_parameters.py::test_component_axis_stays_trailing_when_batch_is_broadcast
-tests/spec/test_a4_parameters.py::test_component_axis_is_not_broadcast_against_batch
-tests/spec/test_a4_parameters.py::test_batch_shape_can_come_from_a_component_parameter
-tests/spec/test_a4_parameters.py::test_incompatible_batch_shapes_are_rejected
-tests/spec/test_a4_parameters.py::test_weibull_style_shape_keyword_is_the_parameter
-tests/spec/test_a4_parameters.py::test_distribution_without_shape_field_has_no_shape_attribute
-tests/spec/test_a4_parameters.py::test_missing_shape_attribute_raises_attribute_error
-tests/spec/test_a4_parameters.py::test_constructor_accepts_negative_parameter_eagerly
-tests/spec/test_a4_parameters.py::test_constructor_accepts_nan_and_infinite_parameters_eagerly
-tests/spec/test_a4_parameters.py::test_constructor_accepts_invalid_parameters_under_jit
-tests/spec/test_a4_parameters.py::test_traced_construction_broadcasts_like_eager
-tests/spec/test_a4_parameters.py::test_integer_parameters_use_default_float_dtype
-tests/spec/test_a4_parameters.py::test_python_scalar_parameters_use_default_float_dtype
-tests/spec/test_a4_parameters.py::test_python_list_parameter_behaves_as_jnp_asarray
-tests/spec/test_a4_parameters.py::test_float16_parameter_is_promoted_to_float32
-tests/spec/test_a4_parameters.py::test_python_scalar_adopts_float32_array_dtype
-tests/spec/test_a4_parameters.py::test_mixed_float_parameters_share_promoted_dtype
-tests/spec/test_a4_parameters.py::test_component_parameter_shares_the_common_dtype
-tests/spec/test_a4_parameters.py::test_float64_parameter_converts_to_float32_under_32bit_mode
-tests/spec/test_a4_parameters.py::test_float64_parameters_warn_once_per_call
-tests/spec/test_a4_parameters.py::test_python_scalar_parameters_convert_without_warning
-tests/spec/test_a4_parameters.py::test_boolean_parameter_is_rejected
-tests/spec/test_a4_parameters.py::test_complex_parameter_is_rejected
-tests/spec/test_a4_parameters.py::test_string_parameter_is_rejected
-tests/spec/test_a4_parameters.py::test_static_field_is_not_converted
-tests/spec/test_a4_parameters.py::test_traced_parameters_keep_their_dtype
-tests/spec/test_a4_parameters.py::test_object_parameter_is_rejected
-tests/spec/test_a4_parameters.py::test_constructor_takes_no_dtype_keyword
-tests/spec/test_a4_parameters.py::test_nested_distribution_keeps_its_own_dtype
-tests/spec/test_a4_indexing.py::test_integer_index_gives_scalar_batch
-tests/spec/test_a4_indexing.py::test_slice_index_keeps_selected_entries
-tests/spec/test_a4_indexing.py::test_integer_array_index_selects_entries
-tests/spec/test_a4_indexing.py::test_first_axis_index_of_two_dimensional_batch
-tests/spec/test_a4_indexing.py::test_second_axis_index_of_two_dimensional_batch
-tests/spec/test_a4_indexing.py::test_full_index_of_two_dimensional_batch
-tests/spec/test_a4_indexing.py::test_indexing_keeps_component_axes
-tests/spec/test_a4_indexing.py::test_indexing_preserves_static_fields
-tests/spec/test_a4_indexing.py::test_tree_map_slicing_updates_batch_shape
-tests/spec/test_a4_indexing.py::test_tree_map_slicing_works
-tests/spec/test_a4_indexing.py::test_tree_map_slice_matches_index_slice
-tests/spec/test_a4_indexing.py::test_batch_shape_inside_vmap_is_the_per_entry_shape
-tests/spec/test_a4_indexing.py::test_vmap_over_component_family_keeps_components_inside
-tests/spec/test_a4_indexing.py::test_jit_of_indexing_with_traced_index
-tests/spec/test_a4_nested.py::test_outer_batch_shape_includes_parameter_batch_with_scalar_base
-tests/spec/test_a4_nested.py::test_scalar_base_is_broadcast_to_outer_batch
-tests/spec/test_a4_nested.py::test_outer_batch_shape_comes_from_nested_distribution
-tests/spec/test_a4_nested.py::test_nested_and_parameter_batches_broadcast_together
-tests/spec/test_a4_nested.py::test_nested_component_axis_stays_trailing
-tests/spec/test_a4_nested.py::test_incompatible_nested_and_parameter_batches_are_rejected
-tests/spec/test_a4_nested.py::test_broadcast_nested_distribution_keeps_its_dtype
-tests/spec/test_a4_nested.py::test_nested_static_fields_are_part_of_outer_structure
-tests/spec/test_a4_nested.py::test_distribution_helper_takes_no_arguments
-tests/spec/test_a4_nested.py::test_indexing_applies_to_nested_leaves
-tests/spec/test_a4_nested.py::test_indexing_a_broadcast_scalar_base
-tests/spec/test_a4_nested.py::test_tree_map_slicing_applies_to_nested_leaves
-tests/spec/test_a4_generic_defaults.py::test_default_survival_is_exp_log_survival
-tests/spec/test_a4_generic_defaults.py::test_default_cumulative_hazard_is_minus_log_survival
-tests/spec/test_a4_generic_defaults.py::test_default_log_cdf
-tests/spec/test_a4_generic_defaults.py::test_default_log_cdf_keeps_precision_for_tiny_cdf
-tests/spec/test_a4_generic_defaults.py::test_negative_time_survival_is_one
-tests/spec/test_a4_generic_defaults.py::test_negative_time_log_cdf_is_minus_infinity
-tests/spec/test_a4_generic_defaults.py::test_negative_time_cumulative_hazard_is_zero
-tests/spec/test_a4_generic_defaults.py::test_zero_time_survival_cumulative_hazard_and_log_cdf
-tests/spec/test_a4_generic_defaults.py::test_infinite_time_survival_is_zero
-tests/spec/test_a4_generic_defaults.py::test_infinite_time_cumulative_hazard_is_infinite
-tests/spec/test_a4_generic_defaults.py::test_infinite_time_log_cdf_is_zero
-tests/spec/test_a4_generic_defaults.py::test_nan_time_survival_is_nan
-tests/spec/test_a4_generic_defaults.py::test_nan_time_cumulative_hazard_is_nan
-tests/spec/test_a4_generic_defaults.py::test_nan_time_log_cdf_is_nan
-tests/spec/test_a4_generic_defaults.py::test_invalid_parameter_gives_nan_survival_and_log_cdf_defaults
-tests/spec/test_a4_generic_defaults.py::test_defaults_agree_under_jit
-tests/spec/test_a4_policy_enforcement.py::test_unguarded_log_survival_is_zero_for_negative_time
-tests/spec/test_a4_policy_enforcement.py::test_unguarded_survival_is_one_for_negative_time
-tests/spec/test_a4_policy_enforcement.py::test_unguarded_cumulative_hazard_is_zero_for_negative_time
-tests/spec/test_a4_policy_enforcement.py::test_unguarded_log_cdf_is_minus_infinity_for_negative_time
-tests/spec/test_a4_policy_enforcement.py::test_unguarded_infinite_time_log_survival_comes_from_the_family
-tests/spec/test_a4_policy_enforcement.py::test_negative_time_log_survival_has_zero_parameter_gradients
-tests/spec/test_a4_policy_enforcement.py::test_negative_time_survival_has_zero_parameter_gradients
-tests/spec/test_a4_time_dtypes.py::test_python_bool_time_is_rejected[log_survival]
-tests/spec/test_a4_time_dtypes.py::test_python_bool_time_is_rejected[survival]
-tests/spec/test_a4_time_dtypes.py::test_python_bool_time_is_rejected[log_cdf]
-tests/spec/test_a4_time_dtypes.py::test_python_bool_time_is_rejected[cumulative_hazard]
-tests/spec/test_a4_time_dtypes.py::test_numpy_boolean_array_time_is_rejected[log_survival]
-tests/spec/test_a4_time_dtypes.py::test_numpy_boolean_array_time_is_rejected[survival]
-tests/spec/test_a4_time_dtypes.py::test_numpy_boolean_array_time_is_rejected[log_cdf]
-tests/spec/test_a4_time_dtypes.py::test_numpy_boolean_array_time_is_rejected[cumulative_hazard]
-tests/spec/test_a4_time_dtypes.py::test_jax_boolean_array_time_is_rejected[log_survival]
-tests/spec/test_a4_time_dtypes.py::test_jax_boolean_array_time_is_rejected[survival]
-tests/spec/test_a4_time_dtypes.py::test_jax_boolean_array_time_is_rejected[log_cdf]
-tests/spec/test_a4_time_dtypes.py::test_jax_boolean_array_time_is_rejected[cumulative_hazard]
-tests/spec/test_a4_time_dtypes.py::test_complex_array_time_is_rejected[log_survival]
-tests/spec/test_a4_time_dtypes.py::test_complex_array_time_is_rejected[survival]
-tests/spec/test_a4_time_dtypes.py::test_complex_array_time_is_rejected[log_cdf]
-tests/spec/test_a4_time_dtypes.py::test_complex_array_time_is_rejected[cumulative_hazard]
-tests/spec/test_a4_time_dtypes.py::test_python_complex_time_is_rejected[log_survival]
-tests/spec/test_a4_time_dtypes.py::test_python_complex_time_is_rejected[survival]
-tests/spec/test_a4_time_dtypes.py::test_python_complex_time_is_rejected[log_cdf]
-tests/spec/test_a4_time_dtypes.py::test_python_complex_time_is_rejected[cumulative_hazard]
-tests/spec/test_a4_time_dtypes.py::test_string_time_is_rejected[log_survival]
-tests/spec/test_a4_time_dtypes.py::test_string_time_is_rejected[survival]
-tests/spec/test_a4_time_dtypes.py::test_string_time_is_rejected[log_cdf]
-tests/spec/test_a4_time_dtypes.py::test_string_time_is_rejected[cumulative_hazard]
-tests/spec/test_a4_time_dtypes.py::test_object_array_time_is_rejected[log_survival]
-tests/spec/test_a4_time_dtypes.py::test_object_array_time_is_rejected[survival]
-tests/spec/test_a4_time_dtypes.py::test_object_array_time_is_rejected[log_cdf]
-tests/spec/test_a4_time_dtypes.py::test_object_array_time_is_rejected[cumulative_hazard]
-tests/spec/test_a4_time_dtypes.py::test_boolean_time_is_rejected_under_jit
-tests/spec/test_a4_time_dtypes.py::test_boolean_time_is_rejected_under_jit_for_every_method[log_survival]
-tests/spec/test_a4_time_dtypes.py::test_boolean_time_is_rejected_under_jit_for_every_method[survival]
-tests/spec/test_a4_time_dtypes.py::test_boolean_time_is_rejected_under_jit_for_every_method[log_cdf]
-tests/spec/test_a4_time_dtypes.py::test_boolean_time_is_rejected_under_jit_for_every_method[cumulative_hazard]
-tests/spec/test_a4_time_dtypes.py::test_boolean_time_is_rejected_under_vmap
-tests/spec/test_a4_time_dtypes.py::test_float64_time_converts_without_warning_under_32bit_mode[log_survival]
-tests/spec/test_a4_time_dtypes.py::test_float64_time_converts_without_warning_under_32bit_mode[survival]
-tests/spec/test_a4_time_dtypes.py::test_float64_time_converts_without_warning_under_32bit_mode[log_cdf]
-tests/spec/test_a4_time_dtypes.py::test_float64_time_converts_without_warning_under_32bit_mode[cumulative_hazard]
-tests/spec/test_a4_time_dtypes.py::test_float64_time_result_is_float32_under_32bit_mode
-tests/spec/test_a4_time_dtypes.py::test_float32_time_promotes_to_parameter_dtype_under_64bit_mode
-tests/spec/test_a4_time_dtypes.py::test_integer_array_time_log_survival_matches_float_time
-tests/spec/test_a4_time_dtypes.py::test_python_int_time_matches_float_time
-tests/spec/test_a4_nan_precedence.py::test_nan_parameter_gives_nan_at_negative_time[log_survival]
-tests/spec/test_a4_nan_precedence.py::test_nan_parameter_gives_nan_at_negative_time[survival]
-tests/spec/test_a4_nan_precedence.py::test_nan_parameter_gives_nan_at_negative_time[log_cdf]
-tests/spec/test_a4_nan_precedence.py::test_nan_parameter_gives_nan_at_negative_time[cumulative_hazard]
-tests/spec/test_a4_nan_precedence.py::test_nan_parameter_gives_nan_at_minus_infinity[log_survival]
-tests/spec/test_a4_nan_precedence.py::test_nan_parameter_gives_nan_at_minus_infinity[survival]
-tests/spec/test_a4_nan_precedence.py::test_nan_parameter_gives_nan_at_minus_infinity[log_cdf]
-tests/spec/test_a4_nan_precedence.py::test_nan_parameter_gives_nan_at_minus_infinity[cumulative_hazard]
-tests/spec/test_a4_nan_precedence.py::test_nan_parameter_gives_nan_at_negative_time_for_unguarded_family[log_survival]
-tests/spec/test_a4_nan_precedence.py::test_nan_parameter_gives_nan_at_negative_time_for_unguarded_family[survival]
-tests/spec/test_a4_nan_precedence.py::test_nan_parameter_gives_nan_at_negative_time_for_unguarded_family[log_cdf]
-tests/spec/test_a4_nan_precedence.py::test_nan_parameter_gives_nan_at_negative_time_for_unguarded_family[cumulative_hazard]
-tests/spec/test_a4_nan_precedence.py::test_nan_batch_entry_does_not_change_valid_entry_policy_value[cumulative_hazard]
-tests/spec/test_a4_nan_precedence.py::test_nan_batch_entry_does_not_change_valid_entry_policy_value[log_cdf]
-tests/spec/test_a4_nan_precedence.py::test_nan_batch_entry_does_not_change_valid_entry_policy_value[log_survival]
-tests/spec/test_a4_nan_precedence.py::test_nan_batch_entry_does_not_change_valid_entry_policy_value[survival]
-tests/spec/test_a4_nan_precedence.py::test_nan_precedence_applies_elementwise_over_times
-tests/spec/test_a4_nan_precedence.py::test_nan_parameter_with_nan_time_gives_nan
-```
+- x64: **958 passed, 31 skipped** (24.03s), exit 0.
+- x32: **977 passed, 12 skipped** (21.35s), exit 0.
+
+Own skips are existing conversion-warning/promotion cases specific to one mode.
+Independent skips are existing dtype-specific cases, optional pandas (not a
+runtime dependency), and the two second-order finite-difference density checks
+restricted to x64. No tests were edited, skipped or xfailed in `tests/spec`.
+
+`JAX_ENABLE_X64=<mode> uv run python -m doctest -v
+src/survjax/distributions/base.py
+src/survjax/distributions/_survival_methods.py`, in each mode: **13 passed,
+0 failed** in base.py; **0 examples** in _survival_methods.py; exit 0.
+
+`scripts/build_docs.sh`: **build succeeded** in both x32 and x64, exit 0.
+All three executable pages ran afresh, including the added density/hazard cell.
+The kernel printed its existing TCP-without-encryption notice; Sphinx emitted
+no build warnings. Rendered pages were not inspected visually in this step.
+
+`git diff --check`: exit 0, no output.
+
+Development checks before the final gate: Ruff initially found two lambda-style
+violations and a loop-variable binding violation in the new tests; fixed them.
+The first focused x64 density run had **3 failed, 12 passed**: the compilation
+counter also counted deliberately failed shape traces. Moved shape misuse after
+successful-trace assertions; no tolerance changed. A subsequent focused x32
+run of density/direct tests had **76 passed**, before adding the last dtype cases.
+The final full gate and combined sessions above include every final code/test edit.
+
+## Limits, uncertainties and A5 handoff
+
+- D-016 remains open and explicitly deferred to A5: generic survival/log-CDF
+  values at positive infinity can have NaN parameter gradients. This step does
+  not change those methods or claim the issue is fixed.
+- Autodiff defaults retain the documented representable-linear-hazard limit;
+  custom families still need correct primitive boundary values/derivatives.
+  No parameter diagnostics, built-ins, shared grids or likelihoods were added.
+- No new spec ambiguity was identified. Existing deviation statuses are untouched.
+- R fixtures, wheel checks, benchmarks and the complete Slice A gate were not
+  run; they are outside A4.5. No publication or A5 work was performed.

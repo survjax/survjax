@@ -3,8 +3,8 @@
 survjax is a JAX library for survival analysis. The current implementation
 provides `SurvivalData` construction, normalization, dtype handling and data
 diagnostics, data indexing, custom-family registration, nested distributions
-and batch indexing, plus pointwise survival, log-CDF and cumulative-hazard
-defaults. Likelihoods,
+and batch indexing, plus pointwise survival, log-CDF, cumulative-hazard, density
+and hazard defaults. Likelihoods,
 built-in distributions and evaluation are planned;
 the Slice A completion gate has not yet been met.
 

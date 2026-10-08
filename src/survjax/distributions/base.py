@@ -111,6 +111,9 @@ class SurvivalDistribution:
     survival = _survival_methods.survival
     log_cdf = _survival_methods.log_cdf
     cumulative_hazard = _survival_methods.cumulative_hazard
+    log_prob = _survival_methods.log_prob
+    log_hazard = _survival_methods.log_hazard
+    hazard = _survival_methods.hazard
 
     @property
     def batch_shape(self) -> tuple[int, ...]:
@@ -314,11 +317,16 @@ def register_family[Family: SurvivalDistribution](cls: type[Family]) -> type[Fam
         ("survival", 1.0),
         ("log_cdf", -jnp.inf),
         ("cumulative_hazard", 0.0),
+        ("log_prob", -jnp.inf),
+        ("log_hazard", -jnp.inf),
+        ("hazard", 0.0),
     ):
         setattr(
             cls,
             name,
-            _survival_methods.apply_policy(getattr(cls, name), negative_value),
+            _survival_methods.apply_policy(
+                getattr(cls, name), negative_value, density=name == "log_prob"
+            ),
         )
     cls._survjax_registered = True
     return cls
