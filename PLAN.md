@@ -1,3 +1,21 @@
+# A4.5 review fixes — WA naming comments
+
+Status: implemented and verified; see REVIEW.md. Authorized by the maintainer's
+request to address the inline WA comments. Continue on `A4.5` after `e2c08af`;
+one naming-only fix-up commit, then stop.
+
+- `src/survjax/distributions/_survival_methods.py`: rename the JVP helper to
+  `_log_survival_and_derivative`, matching its actual return values. Rename
+  `_log_rate` to `_log_hazard`, name its argument and safe operands for hazard,
+  and document that it takes the logarithm of a linear hazard value. Update
+  both defaults' calls and remove the three addressed WA comments.
+- Public API and numerical behavior: unchanged. No new tests; existing density,
+  hazard, zero-hazard derivative and transformation cases cover spec 4.2/7.2.
+- Run `scripts/check.sh --through A4` with the existing temporary uv cache,
+  check for remaining WA/stale helper names and run `git diff --check`.
+- Overwrite REVIEW.md with the fixes, invariants and exact results. Commit this
+  review fix-up on the same branch under the working agreement, then stop.
+
 # A4.5 — Autodiff density and hazard defaults
 
 Status: implemented and verified on maintainer-selected branch `A4.5`,

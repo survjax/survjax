@@ -30,7 +30,7 @@ def survival(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     return jnp.exp(raw(self, t))
 
 
-def _survival_and_derivative(
+def _log_survival_and_derivative(
     self: "SurvivalDistribution", t: ArrayLike
 ) -> tuple[jax.Array, jax.Array]:
     time = jnp.asarray(t)
@@ -42,11 +42,14 @@ def _survival_and_derivative(
     return jax.jvp(lambda time: raw(self, time), (time,), (jnp.ones_like(time),))
 
 
-def _log_rate(rate: jax.Array) -> jax.Array:
-    zero = rate == 0
+def _log_hazard(hazard_value: jax.Array) -> jax.Array:
+    """Take the log of a linear hazard value, preserving zero hazard as -inf."""
+    zero = hazard_value == 0
     # spec 7.2: inactive log(0) must not contaminate active parameter derivatives.
-    safe_rate = jnp.where(zero, jax.lax.stop_gradient(jnp.ones_like(rate)), rate)
-    return jnp.where(zero, -jnp.inf, jnp.log(safe_rate))
+    safe_hazard = jnp.where(
+        zero, jax.lax.stop_gradient(jnp.ones_like(hazard_value)), hazard_value
+    )
+    return jnp.where(zero, -jnp.inf, jnp.log(safe_hazard))
 
 
 def log_prob(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
@@ -57,12 +60,12 @@ def log_prob(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     Negative times and +inf return -inf; zero uses the primitive's boundary
     derivative, and NaN times return NaN.
     """
-    log_s, derivative = _survival_and_derivative(self, t)
+    log_s, derivative = _log_survival_and_derivative(self, t)
     infinite_time = jnp.isposinf(t)
     # spec 4.5/7.2: avoid +inf - inf in the inactive density addition.
-    safe_rate = jnp.where(infinite_time, 1.0, -derivative)
+    safe_hazard = jnp.where(infinite_time, 1.0, -derivative)
     safe_log_s = jnp.where(infinite_time, 0.0, log_s)
-    return jnp.where(infinite_time, -jnp.inf, _log_rate(safe_rate) + safe_log_s)
+    return jnp.where(infinite_time, -jnp.inf, _log_hazard(safe_hazard) + safe_log_s)
 
 
 def log_hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
@@ -75,10 +78,10 @@ def log_hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     Zero uses the primitive's derivative; NaN times return NaN. Override
     this method to supply analytic limits where survival is zero.
     """
-    log_s, derivative = _survival_and_derivative(self, t)
+    log_s, derivative = _log_survival_and_derivative(self, t)
     undefined = jnp.isneginf(log_s) | jnp.isnan(log_s)
-    safe_rate = jnp.where(undefined, 1.0, -derivative)
-    return jnp.where(undefined, jnp.nan, _log_rate(safe_rate))
+    safe_hazard = jnp.where(undefined, 1.0, -derivative)
+    return jnp.where(undefined, jnp.nan, _log_hazard(safe_hazard))
 
 
 def hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
