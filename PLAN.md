@@ -1,9 +1,45 @@
+# A4.4 completion — specification revision 21 (2026-10-08)
+
+Status: implemented and verified; the maintainer authorized the completion
+commit on 2026-10-08. See REVIEW.md for current results and the A5 handoff.
+
+Approved by the maintainer's request to finish A4.4 after spec/acceptance updates.
+This continues the existing approved step on `A4.4` at `d0b5538`; no A4.5 work.
+The earlier implementation was committed by the maintainer as `8326b45`.
+Two new untracked files under tests/spec are read-only inputs; leave them alone.
+The maintainer's 2026-10-08 commit request supersedes the earlier hold.
+
+- Rename `distributions/_direct.py` to `_survival_methods.py` and update the
+  base import/bindings/wrapping calls, as directed by review A4.4 item 3.
+- In that module, reject nonreal/non-numeric times with field-independent
+  TypeError using dtype only, including under jit/vmap. Preserve JAX conversion
+  and promotion without float64-time warnings (spec 4.5 revision 21).
+- Keep numerical NaN precedence; replace its D-013 comment with the now-settled
+  spec 4.5 citation. Consolidate repeated raw-primitive lookups into the
+  review-requested typed `_raw_log_survival` helper. No public API additions.
+- Add own dtype rejection/transformation and no-warning/promotion tests in
+  `tests/unit/test_family_direct.py`, plus the exact hand-derived time derivative
+  at zero (`-rate = -2`). Keep existing tolerances unchanged.
+- Add the review's D-016/D-017/D-018 entries to DEVIATIONS.md. D-016's fix is
+  explicitly deferred to A5. D-017/D-018 now have normative revision-21 text;
+  annotate that evidence but leave all statuses open for maintainer closure.
+- Update docs/distributions.md for direct-time dtypes, NaN precedence and
+  finite-invalid-parameter behavior. Update the active plan/status and overwrite
+  REVIEW.md with current invariants and exact evidence. No protected edits.
+
+Coverage: spec 3.3, 4.2, 4.5, 5, 6.2, 7.2–7.3, 12.1. Validation: through-A3
+maintainer gate; prior 112 A4 nodes plus new acceptance nodes using only the
+four A4.4 methods, in both dtype modes; combined own/spec through-A3 sessions;
+docs build and source doctests in both modes; git diff --check. Do not run or
+claim the full A4 gate until A4.5. Keep this fix-up under roughly 300 lines.
+Commit this completion as authorized, then stop before A4.5.
+
 # A4.4 — Direct-method policy and survival/CDF defaults
 
-Status: approved by the maintainer ("go for it and implement") and implemented
-on `A4.4`; see REVIEW.md for verification. Changes remain uncommitted. The maintainer-created `A4.4` branch starts at `6dc4747`;
-the working tree was clean. Specification revision 19 is unchanged. This is
-the active plan; earlier plans below are history.
+Historical plan: approved by the maintainer ("go for it and implement") and
+implemented on `A4.4`, starting at `6dc4747` against specification revision 19.
+The maintainer committed that implementation as `8326b45`. The revision-21
+completion above is the active plan; this and earlier plans are history.
 
 ## Outcome and public API
 

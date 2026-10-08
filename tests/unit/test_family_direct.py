@@ -176,3 +176,61 @@ def test_second_order_parameter_derivatives_and_purity(name, x64_enabled):
     before = jax.tree.leaves(dist)
     getattr(dist, name)(2)
     assert all(a is b for a, b in zip(before, jax.tree.leaves(dist), strict=True))
+
+
+@pytest.mark.parametrize(
+    "name", ["log_survival", "survival", "log_cdf", "cumulative_hazard"]
+)
+@pytest.mark.parametrize(
+    "time",
+    [
+        True,
+        np.array([True, False]),
+        1j,
+        np.array([1 + 0j]),
+        "1",
+        np.array([1], dtype=object),
+    ],
+)
+def test_direct_times_reject_dtype_misuse(name, time):
+    """Spec 4.5 rev 21: nonreal time dtypes are static argument misuse."""
+    with pytest.raises(TypeError):
+        getattr(Constant(rate=2), name)(time)
+
+
+@pytest.mark.parametrize(
+    "name", ["log_survival", "survival", "log_cdf", "cumulative_hazard"]
+)
+@pytest.mark.parametrize("time", [np.array([True, False]), np.array([1j, 2j])])
+def test_direct_dtype_rejection_works_on_tracers(name, time):
+    """Spec 4.5 rev 21: dtype-only rejection composes with jit and vmap."""
+    method = getattr(Constant(rate=2), name)
+    with pytest.raises(TypeError):
+        jax.jit(method)(time)
+    with pytest.raises(TypeError):
+        jax.vmap(method)(time)
+
+
+def test_float64_times_follow_promotion_without_warning(x64_enabled):
+    """Spec 4.5 rev 21: transient float64 times convert silently under x32."""
+    import warnings
+
+    dist = Constant(rate=np.float32(2))
+    with warnings.catch_warnings(record=True) as recorded:
+        warnings.simplefilter("always")
+        actual = dist.log_survival(np.array([1.0, 2.0], dtype=np.float64))
+    assert recorded == []
+    assert actual.dtype == (np.float64 if x64_enabled else np.float32)
+    # Hand derivation: -rate*t = -2*(1,2).
+    np.testing.assert_array_equal(actual, [-2.0, -4.0])
+
+
+def test_zero_time_reaches_family_time_derivative():
+    """Spec 4.5: t=0 is active, needed by A4.5's density autodiff default."""
+
+    # Hand derivation: d(-rate*t)/dt = -rate = -2, also at zero.
+    def value(t):
+        return Constant(rate=2).log_survival(t)
+
+    np.testing.assert_array_equal(jax.grad(value)(0.0), -2.0)
+    np.testing.assert_array_equal(jax.jit(jax.grad(value))(0.0), -2.0)

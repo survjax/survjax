@@ -94,3 +94,12 @@ and cumulative hazard zero. NaN times give NaN. These pointwise methods use
 trailing-axis broadcasting; shared time-first grids remain planned for A5.
 The log-CDF default uses `log(-expm1(log_survival(t)))` and retains small CDFs
 until log survival underflows to zero; override it for smaller lower tails.
+
+Direct-method times follow JAX conversion and promotion. Boolean, complex,
+string and object times raise `TypeError`, including during tracing. A float64
+NumPy time array converts silently to float32 when x64 is disabled; times are
+transient arguments, unlike stored observation fields and parameters.
+
+For negative or NaN times, NaN family values at the substituted input remain
+NaN. Finite invalid parameters can give NaN or the policy value, depending on
+the family's formula at that input; the base infers no parameter validity domain.

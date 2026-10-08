@@ -1,4 +1,4 @@
-"""Pointwise defaults and registration-time policy (spec 4.2, 4.5)."""
+"""Pointwise survival methods: generic defaults (4.2) and value policy (4.5)."""
 
 from collections.abc import Callable
 from functools import wraps
@@ -12,6 +12,13 @@ if TYPE_CHECKING:
     from survjax.distributions.base import SurvivalDistribution
 
 
+def _raw_log_survival(
+    self: "SurvivalDistribution",
+) -> Callable[["SurvivalDistribution", ArrayLike], jax.Array]:
+    # spec 4.5: defaults call the raw primitive on already-substituted safe times.
+    return getattr(type(self).log_survival, "_survjax_raw", type(self).log_survival)
+
+
 def survival(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     """Return P(T > t), with the broadcast shape of t and batch_shape.
 
@@ -19,7 +26,7 @@ def survival(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     use singleton axes for all pairs. Shared time-first grids are separate.
     Negative times return one; NaN times return NaN.
     """
-    raw = getattr(type(self).log_survival, "_survjax_raw", type(self).log_survival)
+    raw = _raw_log_survival(self)
     return jnp.exp(raw(self, t))
 
 
@@ -29,7 +36,7 @@ def cumulative_hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     Negative times return zero; NaN times return NaN. This is pointwise,
     rather than a shared time-first grid operation.
     """
-    raw = getattr(type(self).log_survival, "_survjax_raw", type(self).log_survival)
+    raw = _raw_log_survival(self)
     return -raw(self, t)
 
 
@@ -44,7 +51,7 @@ def log_cdf(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     not a shared time-first grid operation.
     """
     # spec 4.5: the outer wrapper already substituted safe times.
-    raw = getattr(type(self).log_survival, "_survjax_raw", type(self).log_survival)
+    raw = _raw_log_survival(self)
     log_s = raw(self, t)
     zero_mass = log_s == 0
     # spec 7.2: substitute before log; an unselected log(0) poisons gradients.
@@ -64,7 +71,16 @@ def apply_policy(
 
     @wraps(raw)
     def evaluate(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
-        time = jnp.asarray(t)
+        # spec 4.5: reject dtype misuse during tracing, without inspecting values.
+        try:
+            time = jnp.asarray(t)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("time must contain real numeric values") from exc
+        if not (
+            jnp.issubdtype(time.dtype, jnp.integer)
+            or jnp.issubdtype(time.dtype, jnp.floating)
+        ):
+            raise TypeError("time must contain real numeric values")
         try:
             output_shape = jnp.broadcast_shapes(time.shape, self.batch_shape)
         except ValueError as exc:
@@ -81,7 +97,7 @@ def apply_policy(
         )
         value = raw(self, safe_time)
         policy_value = jnp.where(negative, negative_value, value)
-        # D-013: preserve numerical NaNs without inventing parameter diagnostics.
+        # spec 4.5: a NaN family value takes precedence over policy constants.
         policy_value = jnp.where(jnp.isnan(value), value, policy_value)
         return jnp.where(nan_time, jnp.nan, policy_value)
 

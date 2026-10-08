@@ -1,5 +1,67 @@
 # Deviations and spec questions
 
+## D-016 NaN parameter gradients of finite values at `t=+inf`
+- Step: A4.4 review; decision deferred to A5
+- Spec: section 4.5 (boundary rows and "Boundary values must also avoid NaN
+  parameter gradients where the value is finite"), revision 19
+- Spec says: at `t=+inf` the family supplies the value; finite boundary
+  values have no NaN parameter gradients.
+- Observed: for a correct family (`log S = -rate*t`), the generic defaults
+  give `survival(+inf) = 0` and `log_cdf(+inf) = 0` with NaN `d/d rate`,
+  because `exp(-inf) * (-inf)` is `0 * inf`. One `+inf` entry makes the
+  gradient of a sum NaN. `log_survival` and `cumulative_hazard` at `+inf`
+  are infinite, so the rule does not apply to them.
+- Why not fixed now: masking the output cannot remove a NaN that arises
+  inside the family's derivative. Applying `stop_gradient` at `+inf`
+  would be wrong for improper (cure) families, where `S(+inf)` depends on
+  the parameters. A generic fix needs a second family evaluation on a safe
+  input for the gradient path. The A5 built-in overrides (`exp(-r*t)`,
+  Weibull) face the same `0 * inf`.
+- Did / propose: no change in A4.4. Decide in A5 with Exponential and
+  Weibull as concrete cases. Options: a two-pass guard in the base,
+  analytic built-in overrides plus a documented generic limitation, or a
+  spec clarification limiting the rule to `t=0`. Likelihoods at A6 use
+  `log S` at finite times and are unaffected.
+- Status: open (maintainer decision 2026-10-03: defer to A5)
+
+## D-017 Dtype policy for direct-method times
+- Step: A4.4 review
+- Spec: sections 3.3 and 4.5, revision 19
+- Spec says: 3.3 sets the dtype policy for observation fields and
+  parameters (reject boolean/complex; warn once when float64 arrays are
+  converted under x32). It does not cover the `t` argument of direct
+  methods.
+- Did / propose (maintainer decision 2026-10-03): direct-method times
+  reject boolean and complex dtypes with TypeError and otherwise follow JAX
+  conversion and promotion, without the float64-under-x32 warning. Reasons:
+  NumPy grids are float64 by default, so the warning would fire on nearly
+  every evaluation; output precision is already set by the parameters;
+  and `t` is a transient argument, not stored data. Proposed spec sentence
+  for 4.5.
+- Status: open until the spec states it
+
+## D-018 Precedence of NaN family values over the negative-time policy
+- Step: A4.4 review
+- Spec: sections 4.1, 4.5 and 7.1, revision 19; D-013
+- Spec says: 4.5 lists both "`t<0` -> policy value" and "invalid parameters
+  -> NaN" without precedence; 4.1 says invalid parameters surface through
+  NaN results.
+- Did / propose (maintainer decision 2026-10-03): for `t<0` and NaN `t`, if
+  the family's value at the substituted input is NaN, the result is NaN;
+  otherwise the policy value applies. This detects NaN-producing parameters
+  only; no validity domain is inferred (D-013). Valid parameters keep zero
+  policy gradients. The same rule applies to `log_prob` at A4.5. Proposed
+  spec wording for 4.5: "For `t<0` and NaN `t`, if the family's value at the
+  substituted input is NaN, the result is NaN (this is how invalid
+  parameters surface; no validity domain is inferred); otherwise the policy
+  value applies." No acceptance test covers this yet (spectest request).
+- Status: open until the spec states it
+
+D-017/D-018 follow-up evidence (2026-10-08): specification revisions 20–21
+now state these policies in section 4.5. New acceptance files cover time dtypes
+and NaN precedence. Entries remain open for the maintainer to close; the
+reviewer's drafted statuses above are retained verbatim.
+
 ## D-015 Error policy for malformed nested distribution fields
 - Step: A4.3 review fixes
 - Spec: sections 4.2 and 6.2, revision 19
