@@ -81,6 +81,13 @@ def test_log_hazard_override_still_follows_policy_for_negative_and_nan_time():
     assert np.isnan(np.asarray(dist.log_hazard(f(np.nan))))
 
 
+@pytest.mark.step("A4")
+def test_log_hazard_override_is_minus_infinity_for_negative_time():
+    """spec 4.5, rev 21: the base applies the `t<0` row to a `log_hazard` override: `log_hazard=-inf`, not `log r`."""
+    out = fam.log_hazard_override()(rate=f(0.5)).log_hazard(f([-INF, -1.0]))
+    np.testing.assert_array_equal(np.asarray(out), [-INF, -INF])
+
+
 # --------------------------------------------------------------- beyond a finite support end
 
 

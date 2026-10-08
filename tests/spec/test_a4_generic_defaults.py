@@ -119,6 +119,14 @@ def test_negative_time_hazard_is_zero():
     )
 
 
+@pytest.mark.step("A4")
+def test_negative_time_log_hazard_is_minus_infinity():
+    """spec 4.5, rev 21: `t<0` gives `log_hazard=-inf`."""
+    np.testing.assert_array_equal(
+        np.asarray(_exp().log_hazard(f([-INF, -1.0]))), [-INF, -INF]
+    )
+
+
 # --------------------------------------------------------------- policy: t = 0 and t = +inf
 
 

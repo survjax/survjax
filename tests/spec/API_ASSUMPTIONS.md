@@ -301,3 +301,29 @@ on it. Guessed exception types and call shapes are centralised in
   which is what "bypassing `__init__` on reconstruction" implies.
 - **Depends:** the construction block of `test_a4_registration.py`; every A4
   test constructs by keyword.
+
+## Q-026: finite invalid parameters at `t<0` (spec 4.5, rev 20)
+
+- **Status:** resolved by spec rev 21 (4.5; maintainer decision,
+  2026-10-08): "The substituted input itself is not specified"; for invalid
+  parameters at which the family is finite at some inputs and NaN at others,
+  the result for `t<0` and NaN `t` "may be NaN or the policy value, and may
+  differ between methods". Rejected alternative: fix the input as
+  `reference_time()` under `stop_gradient`. No test depends on it.
+- **Checked:** 4.5 (rev 20: "if the family's value at the substituted input is
+  NaN, the result is NaN; otherwise the policy value applies ... invalid
+  parameters for which the family is finite at the substituted input give the
+  policy value"), 4.2, 7.2.
+- **Question:** the spec does not say which safe input the base substitutes
+  for `t<0` and NaN `t` (only that it is safe and under `stop_gradient`). For
+  invalid parameters that are finite in some places and NaN in others (for
+  example a constant-hazard `rate<0`: `log S = -r t` is `0` at `t=0` but its
+  `log_prob` is `log(-|r|) = NaN` for every `t`; or Weibull `shape<0` at
+  `t=0`), whether `t<0` gives NaN or the policy value depends on that choice,
+  and may differ between methods of the same distribution. Should the spec fix
+  the substituted input (e.g. `t=0`), or state that the outcome for such
+  parameters is unspecified?
+- **Guess made:** none. Tests use only parameters for which the family is NaN
+  at every input in `[0, +inf]` (`rate=NaN`, `scale=NaN`), and valid
+  parameters.
+- **Depends:** none (`test_a4_nan_precedence.py` avoids the case).

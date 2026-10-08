@@ -1,6 +1,6 @@
 # Test map
 
-Spec: revision 19 (see `.spec-seen`). Unchanged requirements keep their
+Spec: revision 21 (see `.spec-seen`). Unchanged requirements keep their
 earlier revision tags. Tests from the revision 10 decision (sections 6.2, 10.2,
 13) are tagged `rev 10`. Tests from the performance amendment (section 7.2),
 accepted in revision 11, are tagged `rev 11`. A4 tests derive from revision 11 and
@@ -9,7 +9,10 @@ enforcement of section 4.5) and `test_a4_hazard_at_zero_survival.py` (rev 13,
 `log_hazard` where `S(t)=0`), and the parameter dtype tests on bool, complex,
 string and object inputs, `dtype=` and nested dtypes (rev 15), and the `batch_shape` and shape-misuse tests
 (rev 16), the `.shape` attribute tests (rev 17), `test_a4_nested.py` (rev 18), and the keyword-only construction tests
-(rev 19). Tests are static acceptance tests and have never
+(rev 19), and `test_a4_time_dtypes.py`, `test_a4_nan_precedence.py` and the
+`t<0` zero-gradient tests in `test_a4_policy_enforcement.py` (rev 20), and
+the `log_hazard=-inf` at `t<0`, string and object `t`, and traced-`TypeError`
+tests (rev 21). Tests are static acceptance tests and have never
 been executed against survjax. Test names below are relative to `tests/spec/`.
 
 ## A1: representation and dtype policy (`test_a1_representation.py`, `test_a1_dtype.py`)
@@ -641,6 +644,7 @@ public extension interface; built-in families start at A5.
 | 4.5 | `t<0` gives `log_cdf=-inf`. | `test_negative_time_log_cdf_is_minus_infinity` |
 | 4.5 | `t<0` gives `H=0`. | `test_negative_time_cumulative_hazard_is_zero` |
 | 4.5 | `t<0` gives `h=0`. | `test_negative_time_hazard_is_zero` |
+| 4.5 | rev 21: `t<0` gives `log_hazard=-inf`. | `test_negative_time_log_hazard_is_minus_infinity` |
 | 4.5 | at `t=0` the family's limits: `S(0)=1`, `H(0)=0`, `log F(0)=-inf`. | `test_zero_time_survival_cumulative_hazard_and_log_cdf` |
 | 4.5 | `t=+inf` gives `log S(+inf)` from the family (`-inf`, so `S=0`, for a proper family). | `test_infinite_time_survival_is_zero` |
 | 4.5 | `t=+inf` gives `H = -log S(+inf) = +inf` for a proper family. | `test_infinite_time_cumulative_hazard_is_infinite` |
@@ -663,6 +667,7 @@ public extension interface; built-in families start at A5.
 | 4.5 | `t<0` gives `H=0`. | `test_unguarded_cumulative_hazard_is_zero_for_negative_time` |
 | 4.5 | `t<0` gives `log_cdf=-inf`. | `test_unguarded_log_cdf_is_minus_infinity_for_negative_time` |
 | 4.5 | `t<0` gives `h=0`. | `test_unguarded_hazard_is_zero_for_negative_time` |
+| 4.5 | rev 21: `t<0` gives `log_hazard=-inf` for a family whose formula is undefined there. | `test_unguarded_log_hazard_is_minus_infinity_for_negative_time` |
 | 4.5 | NaN `t` gives NaN for `log_survival` and `log_prob`. | `test_unguarded_nan_time_gives_nan` |
 | 4.5 | at `t=0` the family is called: Weibull-like `k<1` `+inf`, `k=1` `log(1/b)`, `k>1` `-inf`. | `test_unguarded_zero_time_values_come_from_the_family` |
 | 4.5 | "the base returns `log_prob(+inf)=-inf` even where a default formula would give `+inf - inf`". | `test_unguarded_infinite_time_log_prob_is_minus_infinity` |
@@ -675,8 +680,59 @@ public extension interface; built-in families start at A5.
 | 4.2 | the override is used on `[0, +inf]` (same value as the hand-derived density). | `test_unguarded_log_prob_override_supplies_interior_values` |
 | 4.5 | policy values have no NaN parameter gradients; `log S = 0` is constant, so gradients are 0. | `test_negative_time_log_survival_has_zero_parameter_gradients` |
 | 4.5 | `S=1` for `t<0` has zero parameter gradients. | `test_negative_time_survival_has_zero_parameter_gradients` |
-| 4.5 | the `-inf` policy value of `log_prob` at `t<0` has no NaN parameter gradients. | `test_negative_time_log_prob_has_finite_parameter_gradients` |
-| 4.5 | an overridden method is also called only on a safe input under `stop_gradient`. | `test_negative_time_override_has_finite_parameter_gradients` |
+| 4.5 | rev 20: "With valid parameters the policy values keep zero parameter gradients" (`log_prob=-inf`). | `test_negative_time_log_prob_has_zero_parameter_gradients` |
+| 4.5 | rev 20: `H=0` for `t<0` keeps zero parameter gradients. | `test_negative_time_cumulative_hazard_has_zero_parameter_gradients` |
+| 4.5 | rev 20: `log_cdf=-inf` for `t<0` keeps zero parameter gradients. | `test_negative_time_log_cdf_has_zero_parameter_gradients` |
+| 4.5 | rev 20: `h=0` for `t<0` keeps zero parameter gradients. | `test_negative_time_hazard_has_zero_parameter_gradients` |
+| 4.5 | rev 21: `log_hazard=-inf` for `t<0` keeps zero parameter gradients. | `test_negative_time_log_hazard_has_zero_parameter_gradients` |
+| 4.5 | an overridden method is called only on a safe input under `stop_gradient`; rev 20: its policy value keeps zero parameter gradients. | `test_negative_time_override_has_zero_parameter_gradients` |
+
+### `test_a4_time_dtypes.py`: dtype of the direct-method `t` (rev 20)
+
+Spec 4.5: "The `t` argument follows JAX conversion and promotion. Boolean,
+complex, string and object `t` raise `TypeError` ..., also during tracing"
+(rev 21; bool and complex since rev 20); "a float64 array `t` with 64-bit mode
+disabled is converted to float32 without a warning" (rev 20). Parametrized tests run
+for all seven Slice A direct methods (`log_survival`, `survival`, `log_cdf`,
+`cumulative_hazard`, `log_prob`, `log_hazard`, `hazard`).
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 4.5 | boolean `t` raises `TypeError` (Python `bool`). | `test_python_bool_time_is_rejected[*]` |
+| 4.5 | boolean `t` raises `TypeError` (NumPy boolean array). | `test_numpy_boolean_array_time_is_rejected[*]` |
+| 4.5 | boolean `t` raises `TypeError` (JAX boolean array). | `test_jax_boolean_array_time_is_rejected[*]` |
+| 4.5 | complex `t` raises `TypeError` (NumPy complex array). | `test_complex_array_time_is_rejected[*]` |
+| 4.5 | complex `t` raises `TypeError` (Python `complex`). | `test_python_complex_time_is_rejected[*]` |
+| 4.5 | rev 21: string `t` raises `TypeError`. | `test_string_time_is_rejected[*]` |
+| 4.5 | rev 21: object `t` raises `TypeError`. | `test_object_array_time_is_rejected[*]` |
+| 4.5 | rev 21: boolean `t` raises `TypeError` "also during tracing" (`jit`). | `test_boolean_time_is_rejected_under_jit` |
+| 4.5 | rev 21: complex `t` raises `TypeError` "also during tracing" (`jit`). | `test_complex_time_is_rejected_under_jit` |
+| 4.5 | rev 21: the traced check covers every direct method. | `test_boolean_time_is_rejected_under_jit_for_every_method[*]` |
+| 4.5 | rev 21: boolean `t` raises `TypeError` when traced by `vmap`. | `test_boolean_time_is_rejected_under_vmap` |
+| 4.5 | float64 array `t` under 32-bit mode converts without a warning (skipped under 64-bit mode). | `test_float64_time_converts_without_warning_under_32bit_mode[*]` |
+| 4.5 | float64 `t` is converted to float32; result float32 with the hand value (32-bit mode only). | `test_float64_time_result_is_float32_under_32bit_mode` |
+| 4.5 | `t` follows JAX promotion; "the output precision is set by the parameters" (float32 `t`, float64 parameters; 64-bit mode only). | `test_float32_time_promotes_to_parameter_dtype_under_64bit_mode` |
+| 4.5 | integer `t` gives the equal float time's value (`log_survival`, hand-derived). | `test_integer_array_time_log_survival_matches_float_time` |
+| 4.5 | integer `t` gives the equal float time's value for the autodiff `log_prob` default. | `test_integer_array_time_log_prob_matches_float_time` |
+| 4.5 | integer `t` gives the equal float time's value for the `hazard` default. | `test_integer_array_time_hazard_matches_float_time` |
+| 4.5 | Python `int` `t` gives the equal float time's value. | `test_python_int_time_matches_float_time` |
+| 4.5 | integer `t<0` gets the `t<0` policy value. | `test_negative_integer_time_gets_policy_value` |
+
+### `test_a4_nan_precedence.py`: NaN family value at `t<0` and NaN `t` (rev 20)
+
+Spec 4.5: "For `t<0` and NaN `t`, if the family's value at the substituted
+input is NaN, the result is NaN; otherwise the policy value applies."
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 4.5 | `rate=NaN` at `t=-1` gives NaN, for each of the seven direct methods. | `test_nan_parameter_gives_nan_at_negative_time[*]` |
+| 4.5 | the same at `t=-inf`. | `test_nan_parameter_gives_nan_at_minus_infinity[*]` |
+| 4.5 | the same for an unguarded family (`naive_power`, `scale=NaN`). | `test_nan_parameter_gives_nan_at_negative_time_for_unguarded_family[*]` |
+| 4.5 | batch `rate=(NaN, 2)` at `t=-1`: NaN entry NaN; valid entry keeps `log S=0`, `S=1`, `log F=-inf`, `H=0`, `log_prob=-inf`, `h=0`, and (rev 21) `log_hazard=-inf`. | `test_nan_batch_entry_does_not_change_valid_entry_policy_value[*]` |
+| 4.5/5 | elementwise over a broadcast `(N, K)` result of times and batch. | `test_nan_precedence_applies_elementwise_over_times` |
+| 4.5/12.1 | the same values eagerly and under `jit`. | `test_nan_precedence_agrees_under_jit` |
+| 4.5 | the rule covers NaN `t`: NaN `t` with a NaN parameter is NaN. | `test_nan_parameter_with_nan_time_gives_nan` |
+| 4.5 | "With valid parameters the policy values keep zero parameter gradients". | the six `test_negative_time_*_has_zero_parameter_gradients` tests above, plus the rev 12 `log_survival` and `survival` ones |
 
 ### `test_a4_hazard_at_zero_survival.py`: `log_hazard` and `hazard` where `S(t)=0` (rev 13)
 
@@ -690,6 +746,7 @@ public extension interface; built-in families start at A5.
 | 4.5 | where `S(t)=0`, a family overriding `log_hazard` gives its analytic value (the limit `log r`). | `test_log_hazard_override_supplies_value_at_infinity` |
 | 4.5 | `hazard` where `S(t)=0` is the analytic value from the `log_hazard` override (`r`). | `test_hazard_uses_log_hazard_override_at_infinity` |
 | 4.5 | the override is wrapped by the base: `t<0` gives `h=0`, NaN `t` gives NaN. | `test_log_hazard_override_still_follows_policy_for_negative_and_nan_time` |
+| 4.5 | rev 21: the `t<0` row applies to a `log_hazard` override: `-inf`, not `log r`. | `test_log_hazard_override_is_minus_infinity_for_negative_time` |
 | 4.2 | inside the support the default is `log(-d/dt log S)`; for uniform on `(0, c]`, `-log(c - t)`. | `test_default_log_hazard_inside_bounded_support` |
 | 4.5 | where `S(t)=0` beyond a finite support end (`t=c`, `t>c`, `t=+inf`), the default gives NaN. | `test_default_log_hazard_is_nan_at_and_beyond_support_end` |
 | 4.5 | `hazard` beyond a finite support end is NaN from the generic default. | `test_default_hazard_is_nan_beyond_support_end` |
@@ -715,6 +772,16 @@ public extension interface; built-in families start at A5.
 | 4.2 | values with a `(2, 3)` broadcast of base and outer parameter. | `test_broadcast_nested_values_in_log_prob` |
 
 ### A4: deliberately not tested
+
+- **Finite invalid parameters at `t<0`, and finite invalid parameters on
+  `[0, +inf]`** (4.5, rev 21): the substituted input is not specified, so the
+  result "may be NaN or the policy value"; on `[0, +inf]` the invalid-parameters
+  row gives "whatever the family's formula gives". Neither is a testable
+  requirement beyond the NaN cases already covered (Q-026, resolved).
+- **Absence of a float64 `t` warning deduplicated by the implementation:**
+  `test_float64_time_converts_without_warning_under_32bit_mode` resets
+  Python's warning registry but cannot detect a warning that an earlier call
+  in the same process suppressed through its own once-only flag.
 
 - **`reference_time()`** (4.2): required of every family, but A4 has no
   behaviour that consumes it; it is exercised by the inactive-input rules of

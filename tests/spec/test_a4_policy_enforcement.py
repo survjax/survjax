@@ -79,6 +79,14 @@ def test_unguarded_hazard_is_zero_for_negative_time():
     )
 
 
+@pytest.mark.step("A4")
+def test_unguarded_log_hazard_is_minus_infinity_for_negative_time():
+    """spec 4.5, rev 21: `t<0` gives `log_hazard=-inf` for a family whose formula is undefined there."""
+    for k in (0.5, 2.0):
+        out = _naive(k).log_hazard(f([-INF, -1.0]))
+        np.testing.assert_array_equal(np.asarray(out), [-INF, -INF], err_msg=f"k={k}")
+
+
 # --------------------------------------------------------------- NaN, zero and +inf
 
 
@@ -204,19 +212,52 @@ def test_negative_time_survival_has_zero_parameter_gradients():
 
 
 @pytest.mark.step("A4")
-def test_negative_time_log_prob_has_finite_parameter_gradients():
-    """spec 4.5, rev 12: the `-inf` policy value of `log_prob` at `t<0` has no NaN parameter gradients."""
+def test_negative_time_log_prob_has_zero_parameter_gradients():
+    """spec 4.5, rev 20: "With valid parameters the policy values keep zero parameter gradients" (`log_prob=-inf`)."""
     for k in (0.5, 2.0):
         for g in _param_grads("log_prob", -1.0, k):
-            assert np.all(np.isfinite(np.asarray(g))), f"k={k}"
+            np.testing.assert_array_equal(np.asarray(g), 0.0, err_msg=f"k={k}")
 
 
 @pytest.mark.step("A4")
-def test_negative_time_override_has_finite_parameter_gradients():
-    """spec 4.5, rev 12: an overridden method is also called only on a safe input under `stop_gradient`."""
+def test_negative_time_cumulative_hazard_has_zero_parameter_gradients():
+    """spec 4.5, rev 20: `H=0` for `t<0` keeps zero parameter gradients with valid parameters."""
+    for k in (0.5, 2.0):
+        for g in _param_grads("cumulative_hazard", -1.0, k):
+            np.testing.assert_array_equal(np.asarray(g), 0.0, err_msg=f"k={k}")
+
+
+@pytest.mark.step("A4")
+def test_negative_time_log_cdf_has_zero_parameter_gradients():
+    """spec 4.5, rev 20: `log_cdf=-inf` for `t<0` keeps zero parameter gradients with valid parameters."""
+    for k in (0.5, 2.0):
+        for g in _param_grads("log_cdf", -1.0, k):
+            np.testing.assert_array_equal(np.asarray(g), 0.0, err_msg=f"k={k}")
+
+
+@pytest.mark.step("A4")
+def test_negative_time_hazard_has_zero_parameter_gradients():
+    """spec 4.5, rev 20: `h=0` for `t<0` keeps zero parameter gradients with valid parameters."""
+    for k in (0.5, 2.0):
+        for g in _param_grads("hazard", -1.0, k):
+            np.testing.assert_array_equal(np.asarray(g), 0.0, err_msg=f"k={k}")
+
+
+@pytest.mark.step("A4")
+def test_negative_time_log_hazard_has_zero_parameter_gradients():
+    """spec 4.5, rev 21: `log_hazard=-inf` for `t<0` keeps zero parameter gradients with valid parameters."""
+    for k in (0.5, 2.0):
+        for g in _param_grads("log_hazard", -1.0, k):
+            np.testing.assert_array_equal(np.asarray(g), 0.0, err_msg=f"k={k}")
+
+
+@pytest.mark.step("A4")
+def test_negative_time_override_has_zero_parameter_gradients():
+    """spec 4.5, rev 20: an overridden method is also called only on a safe input under `stop_gradient`;
+    with valid parameters its policy value keeps zero parameter gradients."""
 
     def value(kk, bb):
         return fam.naive_log_prob_override()(shape=kk, scale=bb).log_prob(f(-1.0))
 
     for g in jax.grad(value, argnums=(0, 1))(f(0.5), f(2.0)):
-        assert np.all(np.isfinite(np.asarray(g)))
+        np.testing.assert_array_equal(np.asarray(g), 0.0)
