@@ -1,3 +1,27 @@
+# A4.5 reviewer fix-up — F-1 and N-1 through N-4
+
+Status: implemented and verified; see REVIEW.md for the successful A4 gate and
+D1 mutation evidence. Authorized by the maintainer's request to address
+`../review/slices/A4.5.md`.
+Continue on `A4.5` after `fe9aa8e`; implement the review checklist in one
+fix-up commit, then stop. No public API, protected-file or A5 changes.
+
+- `_survival_methods.py`: rename the guarded logarithm to `_safe_log(x)`;
+  remove the default density's duplicate +inf guard and the unreachable
+  integer cast, retaining either only if a test result changes; have hazard
+  resolve the raw log-hazard method via its marker, honoring overrides.
+- `tests/unit/test_family_density.py`: add the quadratic-survival zero-time
+  hazard gradients (single time and mixed batch, hand-derived 0 and 2);
+  make the override deliberately different from the primitive hazard; count
+  reference-time calls for every direct method. Covers spec 4.2/4.5/7.2/7.3.
+- Temporarily remove the safe logarithm operand and show that the new F-1
+  tests fail with NaN in both dtype modes; restore the implementation before
+  final validation. No tolerance or independent-test changes.
+- Run the full A4 gate, whole-word stale-name search and git diff checks.
+  Overwrite REVIEW.md with findings addressed, corrected evidence, mutation
+  results, exact gate output and the unchanged A5/D-016 handoff.
+- Commit the review checklist as one fix-up with an imperative subject, then stop.
+
 # A4.5 review fixes — WA naming comments
 
 Status: implemented and verified; see REVIEW.md. Authorized by the maintainer's

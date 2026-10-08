@@ -33,6 +33,13 @@ class Power(Constant):
 
 @survjax.register_family
 @dataclass(frozen=True)
+class Quadratic(Constant):
+    def log_survival(self, t):
+        return -self.rate * t**2
+
+
+@survjax.register_family
+@dataclass(frozen=True)
 class Bounded(Constant):
     def log_survival(self, t):
         inside = t < self.rate
@@ -128,6 +135,48 @@ def test_zero_hazard_does_not_poison_active_derivatives(name):
     )
 
 
+def test_zero_time_hazard_has_zero_parameter_gradient():
+    """Spec 4.5/7.2: h(0)=2*r*0=0, so d h(0)/dr=0."""
+    derivative = jax.grad(lambda r: Quadratic(rate=r).hazard(0.0))(1.5)
+    assert np.isfinite(derivative)
+    assert derivative == 0
+
+
+def test_zero_time_hazard_gradient_is_finite_in_mixed_batch():
+    """Spec 7.2: d/dr [h(0)+h(1)] = d/dr [0+2*r] = 2."""
+    derivative = jax.grad(
+        lambda r: Quadratic(rate=r).hazard(jnp.array([0.0, 1.0])).sum()
+    )(1.5)
+    assert np.isfinite(derivative)
+    assert derivative == 2
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "log_survival",
+        "survival",
+        "log_prob",
+        "log_cdf",
+        "cumulative_hazard",
+        "log_hazard",
+        "hazard",
+    ],
+)
+def test_direct_method_calls_reference_time_once(name, monkeypatch):
+    """Spec 4.5: generic direct methods apply the safe-time policy once."""
+    calls = []
+    original = Constant.reference_time
+
+    def reference_time(self):
+        calls.append(None)
+        return original(self)
+
+    monkeypatch.setattr(Constant, "reference_time", reference_time)
+    getattr(Constant(rate=2), name)(1.0)
+    assert len(calls) == 1
+
+
 def test_inherited_overrides_dispatch_and_policy(x64_enabled):
     """Spec 4.2/4.5: density is independent of log-hazard overrides."""
 
@@ -135,7 +184,8 @@ def test_inherited_overrides_dispatch_and_policy(x64_enabled):
     @dataclass(frozen=True)
     class Analytic(Constant):
         def log_hazard(self, t):
-            return jnp.log(self.rate) + jnp.zeros_like(t)
+            # Deliberately different from -d log S/dt to distinguish dispatch.
+            return jnp.log(2 * self.rate) + jnp.zeros_like(t)
 
     @survjax.register_family
     @dataclass(frozen=True)
@@ -147,7 +197,7 @@ def test_inherited_overrides_dispatch_and_policy(x64_enabled):
     before = jax.tree.leaves(dist)
     np.testing.assert_allclose(
         dist.hazard([1, jnp.inf]),
-        [2, 2],
+        [4, 4],
         atol=ATOL[x64_enabled],
         rtol=RTOL[x64_enabled],
     )
