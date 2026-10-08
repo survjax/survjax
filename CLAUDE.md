@@ -258,7 +258,7 @@ a `REVIEW.md` and a stop.
 | A1 | `SurvivalData` fields, pytree registration, dtype policy | 3.2, 3.3 |
 | A2 | Constructors (flag and bounds), boundary rules, `DataIssues` bitfield | 3.1, 3.3, 6.2 |
 | A3 | Indexing and slicing, static metadata, compile-count test | 3.2 |
-| A4 | Distribution base: `register_family`, param and static handling, `log_survival` plus `reference_time`, autodiff `log_prob` default, direct-method value policy | 4.1, 4.2, 4.5 |
+| A4 | Distribution base: `register_family`, param and static handling, `log_survival` plus `reference_time`, autodiff `log_prob` and `log_hazard` defaults, `hazard` default, other direct methods (`survival`, `log_cdf`, `cumulative_hazard`), direct-method value policy | 4.1, 4.2, 4.5 |
 | A5 | `Exponential` and `Weibull` closed forms, boundary values, survival grids | 4.1, 4.5, 5 |
 | A6 | Exact and right-censored likelihood without truncation, result containers, explicit failure for unimplemented modes | 6.3, 7.1, 7.2 |
 | A7 | Hand-derived, tail and boundary tests; mpmath checks; `jax_debug_nans` run | 7, 12.1 |

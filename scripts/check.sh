@@ -4,7 +4,8 @@
 # 1. protected-path guard (branch name decides what a branch may touch)
 # 2. ruff format + lint, mypy
 # 3. the implementer's own tests, both dtype modes (scripts/run_tests.sh)
-# 4. independent spec tests up to step <N>, both dtype modes
+# 4. source doctests, both dtype modes
+# 5. independent spec tests up to step <N>, both dtype modes
 set -euo pipefail
 
 usage() { echo "usage: scripts/check.sh --through A<N>" >&2; exit 2; }
@@ -55,7 +56,13 @@ uv run mypy src
 # --- 3. implementer tests (both dtype modes handled inside) ---------------
 scripts/run_tests.sh
 
-# --- 4. spec tests, one process per dtype mode ----------------------------
+# --- 4. executable source documentation, one process per dtype mode ------
+for x64 in 1 0; do
+  echo "source doctests, JAX_ENABLE_X64=$x64"
+  JAX_ENABLE_X64=$x64 uv run --group test pytest src --doctest-modules -q
+done
+
+# --- 5. spec tests, one process per dtype mode ----------------------------
 # pytest exit code 5 means "no tests collected": fine while tests/spec is empty.
 for x64 in 1 0; do
   echo "spec tests through $through, JAX_ENABLE_X64=$x64"

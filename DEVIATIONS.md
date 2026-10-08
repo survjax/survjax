@@ -38,7 +38,8 @@
   every evaluation; output precision is already set by the parameters;
   and `t` is a transient argument, not stored data. Proposed spec sentence
   for 4.5.
-- Status: open until the spec states it
+- Status: resolved by maintainer, 2026-10-08; specification revisions 20–21,
+  section 4.5 now states the direct-time dtype policy.
 
 ## D-018 Precedence of NaN family values over the negative-time policy
 - Step: A4.4 review
@@ -54,13 +55,14 @@
   spec wording for 4.5: "For `t<0` and NaN `t`, if the family's value at the
   substituted input is NaN, the result is NaN (this is how invalid
   parameters surface; no validity domain is inferred); otherwise the policy
-  value applies." No acceptance test covers this yet (spectest request).
-- Status: open until the spec states it
+  value applies." The synced A4 acceptance tests now cover this policy.
+- Status: resolved by maintainer, 2026-10-08; specification revisions 20–21,
+  section 4.5 now states NaN precedence and the unspecified substituted input.
 
 D-017/D-018 follow-up evidence (2026-10-08): specification revisions 20–21
 now state these policies in section 4.5. New acceptance files cover time dtypes
-and NaN precedence. Entries remain open for the maintainer to close; the
-reviewer's drafted statuses above are retained verbatim.
+and NaN precedence. Both entries are closed above; their original gap and
+decision descriptions are retained as history.
 
 ## D-015 Error policy for malformed nested distribution fields
 - Step: A4.3 review fixes
