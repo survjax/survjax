@@ -30,6 +30,64 @@ def survival(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     return jnp.exp(raw(self, t))
 
 
+def _log_survival_and_derivative(
+    self: "SurvivalDistribution", t: ArrayLike
+) -> tuple[jax.Array, jax.Array]:
+    time = jnp.asarray(t)
+    raw = _raw_log_survival(self)
+    # spec 4.2/5: pointwise times need only a directional derivative, not a Jacobian.
+    return jax.jvp(lambda time: raw(self, time), (time,), (jnp.ones_like(time),))
+
+
+def _safe_log(x: jax.Array) -> jax.Array:
+    """Log a nonnegative value; zero gives -inf without a NaN gradient."""
+    zero = x == 0
+    # spec 7.2: inactive log(0) must not contaminate active parameter derivatives.
+    safe_x = jnp.where(zero, jax.lax.stop_gradient(jnp.ones_like(x)), x)
+    return jnp.where(zero, -jnp.inf, jnp.log(safe_x))
+
+
+def log_prob(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
+    """Return log density, broadcasting t against batch_shape (not a grid).
+
+    Forward-mode autodiff gives log(-d log S/dt) + log S independently of
+    log_hazard overrides. The hazard must be representable in linear space.
+    Negative times and +inf return -inf; zero uses the primitive's boundary
+    derivative, and NaN times return NaN.
+    """
+    log_s, derivative = _log_survival_and_derivative(self, t)
+    return _safe_log(-derivative) + log_s
+
+
+def log_hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
+    """Return log hazard, broadcasting t against batch_shape (not a grid).
+
+    Uses log(-d log S/dt) directly to avoid large-H cancellation. The hazard
+    must be representable in linear space. Exactly -inf log survival gives
+    NaN, even at finite support ends; finite log survival remains eligible
+    when exp(log survival) underflows. Negative times return -inf.
+    Zero uses the primitive's derivative; NaN times return NaN. Override
+    this method to supply analytic limits where survival is zero.
+    """
+    log_s, derivative = _log_survival_and_derivative(self, t)
+    undefined = jnp.isneginf(log_s) | jnp.isnan(log_s)
+    safe_hazard = jnp.where(undefined, 1.0, -derivative)
+    return jnp.where(undefined, jnp.nan, _safe_log(safe_hazard))
+
+
+def hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
+    """Return exp(log_hazard(t)), honoring the family's log-hazard override.
+
+    Output broadcasts t against batch_shape; shared time-first grids are
+    separate. Negative times return zero; NaN times return NaN. At zero or
+    +inf the log-hazard method supplies its boundary value.
+    """
+    # spec 4.5: hazard's wrapper has already applied the input policy.
+    method = type(self).log_hazard
+    raw = getattr(method, "_survjax_raw", method)
+    return jnp.exp(raw(self, t))
+
+
 def cumulative_hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     """Return -log P(T > t), broadcasting t against batch_shape.
 
@@ -65,6 +123,8 @@ def log_cdf(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
 def apply_policy(
     method: Callable[["SurvivalDistribution", ArrayLike], jax.Array],
     negative_value: float,
+    *,
+    density: bool = False,
 ) -> Callable[["SurvivalDistribution", ArrayLike], jax.Array]:
     """Wrap one direct method, preserving its raw implementation on inheritance."""
     raw = getattr(method, "_survjax_raw", method)
@@ -99,7 +159,11 @@ def apply_policy(
         policy_value = jnp.where(negative, negative_value, value)
         # spec 4.5: a NaN family value takes precedence over policy constants.
         policy_value = jnp.where(jnp.isnan(value), value, policy_value)
-        return jnp.where(nan_time, jnp.nan, policy_value)
+        policy_value = jnp.where(nan_time, jnp.nan, policy_value)
+        if density:
+            # spec 4.5: the +inf density rule also applies to family overrides.
+            policy_value = jnp.where(jnp.isposinf(time), -jnp.inf, policy_value)
+        return policy_value
 
     # A decorated subclass reuses the raw override, not its parent's wrapper.
     evaluate._survjax_raw = raw  # type: ignore[attr-defined]

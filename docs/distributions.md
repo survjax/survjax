@@ -10,8 +10,7 @@ kernelspec:
 # Registering a family
 
 Family construction, nested fields, batch indexing and PyTree registration are
-available, with survival, log-CDF and cumulative-hazard defaults. Density and
-hazard defaults are planned for A4.5;
+available, with survival, log-CDF, cumulative-hazard, density and hazard defaults;
 built-in families and time-first survival grids are planned for A5. The base's
 `log_survival(t)` and `reference_time()` hooks raise `NotImplementedError`
 unless supplied by a family. The base handles negative and NaN times; family
@@ -90,10 +89,33 @@ assert scaled[:, None].log_survival(jnp.ones(4)).shape == (3, 4)  # every pair
 ```
 
 Negative times give log survival zero, survival one, log-CDF minus infinity,
-and cumulative hazard zero. NaN times give NaN. These pointwise methods use
+log density and log hazard minus infinity, and cumulative hazard and hazard
+zero. NaN times give NaN. These pointwise methods use
 trailing-axis broadcasting; shared time-first grids remain planned for A5.
 The log-CDF default uses `log(-expm1(log_survival(t)))` and retains small CDFs
 until log survival underflows to zero; override it for smaller lower tails.
+
+```{code-cell} ipython3
+single = Recipe(rate=2.0, weights=[1.0, 2.0])  # constant hazard 6
+assert jnp.allclose(single.log_prob(jnp.array([0.0, 1.0])),
+                    jnp.log(6.0) - jnp.array([0.0, 6.0]))
+assert jnp.allclose(single.log_hazard(1000.0), jnp.log(6.0))
+assert jnp.allclose(jax.jit(single.hazard)(1.0), 6.0)
+assert single.log_prob(jnp.inf) == -jnp.inf
+assert jnp.isnan(single.hazard(jnp.inf))
+```
+
+The density default is `log(-d log S/dt) + log S`, computed by forward-mode
+autodiff independently of log-hazard overrides. The log-hazard default uses
+the derivative directly, avoiding cancellation at large cumulative hazards.
+Both defaults require the hazard to be representable in linear space.
+Zero time uses the primitive's boundary derivative; density at positive
+infinity is always minus infinity, including for overrides.
+
+Generic log hazard and hazard give NaN where log survival is exactly minus
+infinity, including at finite support ends. Finite log survival still permits
+a hazard when linear survival underflows. Override `log_hazard` for analytic
+limits where survival is zero; the hazard default calls that override.
 
 Direct-method times follow JAX conversion and promotion. Boolean, complex,
 string and object times raise `TypeError`, including during tracing. A float64
