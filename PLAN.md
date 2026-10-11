@@ -1,7 +1,8 @@
 # A5 — Exponential, Weibull and time-first grids
 
-Status: A5.1 approved by the maintainer's request to implement the plan.
-Implement A5.1, commit it and stop for review; A5.2–A5.5 remain future steps.
+Status: A5.1 implemented and verified; see REVIEW.md for evidence.
+Approved by the maintainer's request to implement the plan. Commit A5.1 and
+stop for review; A5.2–A5.5 remain future steps requiring their own approval.
 Based on
 specification revision 22, design commit `9323cb5`, and the independent tester
 commit `7f1d6df`. Implementation starts on the maintainer-selected branch `A5`

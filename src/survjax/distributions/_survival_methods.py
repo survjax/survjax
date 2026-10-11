@@ -52,8 +52,9 @@ def log_prob(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
 
     Forward-mode autodiff gives log(-d log S/dt) + log S independently of
     log_hazard overrides. The hazard must be representable in linear space.
-    Negative times and +inf return -inf; zero uses the primitive's boundary
-    derivative, and NaN times return NaN.
+    Negative times return -inf; +inf returns -inf unless the primitive's
+    log survival there is NaN. Zero uses the primitive's boundary derivative,
+    and NaN times return NaN.
     """
     log_s, derivative = _log_survival_and_derivative(self, t)
     return _safe_log(-derivative) + log_s
@@ -161,8 +162,11 @@ def apply_policy(
         policy_value = jnp.where(jnp.isnan(value), value, policy_value)
         policy_value = jnp.where(nan_time, jnp.nan, policy_value)
         if density:
-            # spec 4.5: the +inf density rule also applies to family overrides.
-            policy_value = jnp.where(jnp.isposinf(time), -jnp.inf, policy_value)
+            # spec 4.5: inf-inf in density is not the primitive's NaN limit.
+            raw_log_s = _raw_log_survival(self)
+            log_s = raw_log_s(self, safe_time)
+            infinite_value = jnp.where(jnp.isnan(log_s), jnp.nan, -jnp.inf)
+            policy_value = jnp.where(jnp.isposinf(time), infinite_value, policy_value)
         return policy_value
 
     # A decorated subclass reuses the raw override, not its parent's wrapper.

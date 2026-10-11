@@ -385,7 +385,7 @@ to handle $t \ge 0$, including $t = \infty$:
 | --- | --- | --- |
 | $t < 0$ | before the time origin | $S = 1$, $H = 0$, $h = 0$, log density and log CDF $-\infty$ |
 | $t = 0$ | the origin | your family's values, $S(0) = 1$ |
-| $t = \infty$ | never | your family's values, usually $S = 0$; log density is $-\infty$ |
+| $t = \infty$ | never | your family's values, usually $S = 0$; log density is $-\infty$, or NaN if log survival is NaN |
 | NaN | missing | NaN |
 
 survjax does not pass negative or NaN times to your code. It substitutes the
@@ -394,6 +394,17 @@ reference time, evaluates, and then replaces the result.
 ```{code-cell} ipython3
 edge_times = jnp.array([-1.0, 0.0, jnp.inf, jnp.nan])
 progression.survival(edge_times), progression.log_prob(edge_times)
+```
+
+At infinity, survjax checks your `log_survival` even if you override
+`log_prob`. A NaN survival limit gives NaN log density; a defined survival
+limit gives minus infinity, including when the density formula itself has
+an undefined infinity-minus-infinity expression.
+
+```{code-cell} ipython3
+invalid_progression = ConstantHazard(rate=jnp.nan)
+assert jnp.isnan(invalid_progression.log_prob(jnp.inf))
+assert progression.log_prob(jnp.inf) == -jnp.inf
 ```
 
 Parameter values are not checked. A negative rate is stored as given and
