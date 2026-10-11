@@ -2,6 +2,8 @@
 
 project = "survjax"
 extensions = ["myst_nb"]
+# The distributions guide writes formulas as $...$ and $$...$$.
+myst_enable_extensions = ["dollarmath"]
 # The existing simulation guide describes unimplemented likelihood workflows.
 exclude_patterns = ["_build", ".ipynb_checkpoints", "simulation-guide.md"]
 html_theme = "alabaster"

@@ -266,11 +266,8 @@ object inputs raise `TypeError`. A float64 array supplied with 64-bit mode off
 converts to float32 with a warning attributed to the caller; ordinary warning
 filtering shows it once per call site. Python scalars and lists do not warn.
 
-The shared normalization policy also prepares distribution parameter leaves.
-Distribution registration and its examples are planned for a later A4 step:
-each family's own parameters, including component arrays, will share a dtype
-while keeping their shapes. Nested distributions will retain their own dtypes.
-This normalization checks input kinds, not parameter values.
+Distribution parameters follow the same policy; see the
+[distributions guide](distributions.md), under "Details".
 
 ## Comparison with R's `survival::Surv`
 

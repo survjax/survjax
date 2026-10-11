@@ -1,15 +1,16 @@
 # survjax documentation
 
 survjax is a JAX library for survival analysis. The current implementation
-provides `SurvivalData` construction, normalization, dtype handling and data
-diagnostics, data indexing, custom-family registration, nested distributions
-and batch indexing, plus pointwise survival, log-CDF, cumulative-hazard, density
-and hazard defaults. Likelihoods,
-built-in distributions and evaluation are planned;
-the Slice A completion gate has not yet been met.
+can describe survival observations (`SurvivalData`) and lets you write your
+own survival distributions, from which survjax derives survival, cumulative
+hazard, hazard, density and CDF. Likelihoods, built-in distributions and
+evaluation are planned; the Slice A completion gate has not yet been met.
 
 The [SurvivalData guide](survival-data.md) walks a synthetic cohort through
-both constructors, diagnostics and R input conventions. The [playground](playground.ipynb) uses
+both constructors, diagnostics and R input conventions. The
+[distributions guide](distributions.md) builds constant-hazard, Gompertz,
+piecewise-constant and proportional-hazards models from their survival
+functions. The [playground](playground.ipynb) uses
 only synthetic observations and the current public API. Runnable examples
 execute afresh when the site is built.
 
