@@ -121,3 +121,30 @@ def test_nan_parameter_with_nan_time_gives_nan():
     """spec 4.5, rev 20: the rule also covers NaN `t`; NaN `t` with a NaN parameter is NaN."""
     out = fam.const_hazard()(rate=f(NAN)).log_survival(f(NAN))
     assert np.isnan(np.asarray(out))
+
+
+# --------------------------------------------------------------- log_prob(+inf) (rev 22)
+
+
+@pytest.mark.step("A4")
+def test_nan_parameter_log_prob_at_infinity_is_nan():
+    """spec 4.5, rev 22: `log_prob(+inf)=-inf` "unless the family's `log_survival(+inf)` is NaN, in which case `log_prob(+inf)` is NaN"."""
+    out = fam.const_hazard()(rate=f(NAN)).log_prob(f(INF))
+    assert np.isnan(np.asarray(out))
+
+
+@pytest.mark.step("A4")
+def test_nan_parameter_log_prob_at_infinity_is_nan_for_unguarded_family():
+    """spec 4.5, rev 22: the same for an unguarded family (`naive_power`, `scale=NaN`: `log S(+inf) = -(inf/NaN)**k` is NaN)."""
+    out = fam.naive_power()(shape=f(2.0), scale=f(NAN)).log_prob(f(INF))
+    assert np.isnan(np.asarray(out))
+
+
+@pytest.mark.step("A4")
+def test_nan_batch_entry_log_prob_at_infinity_keeps_valid_entry_minus_infinity():
+    """spec 4.5, rev 22: elementwise: a valid entry with a diverging hazard (`k=2`) keeps `log_prob(+inf)=-inf` next to a NaN entry."""
+    out = np.asarray(
+        fam.naive_power()(shape=f([2.0, 2.0]), scale=f([NAN, 2.0])).log_prob(f(INF))
+    )
+    assert np.isnan(out[0])
+    assert out[1] == -INF

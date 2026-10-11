@@ -1,6 +1,6 @@
 # Test map
 
-Spec: revision 21 (see `.spec-seen`). Unchanged requirements keep their
+Spec: revision 22 (see `.spec-seen`). Unchanged requirements keep their
 earlier revision tags. Tests from the revision 10 decision (sections 6.2, 10.2,
 13) are tagged `rev 10`. Tests from the performance amendment (section 7.2),
 accepted in revision 11, are tagged `rev 11`. A4 tests derive from revision 11 and
@@ -12,7 +12,11 @@ string and object inputs, `dtype=` and nested dtypes (rev 15), and the `batch_sh
 (rev 19), and `test_a4_time_dtypes.py`, `test_a4_nan_precedence.py` and the
 `t<0` zero-gradient tests in `test_a4_policy_enforcement.py` (rev 20), and
 the `log_hazard=-inf` at `t<0`, string and object `t`, and traced-`TypeError`
-tests (rev 21). Tests are static acceptance tests and have never
+tests (rev 21). A5 tests were written against revision 21 and are tagged
+`rev 21`, except those whose requirements revision 22 settled (built-ins as
+subclasses, `from_log`, `reference_time()` shape and dtype, NaN at `t=+inf`,
+boundary gradients, the grid argument, the `bc` vector), tagged `rev 22`, as
+are the `log_prob(+inf)` NaN tests in `test_a4_nan_precedence.py`. Tests are static acceptance tests and have never
 been executed against survjax. Test names below are relative to `tests/spec/`.
 
 ## A1: representation and dtype policy (`test_a1_representation.py`, `test_a1_dtype.py`)
@@ -732,6 +736,8 @@ input is NaN, the result is NaN; otherwise the policy value applies."
 | 4.5/5 | elementwise over a broadcast `(N, K)` result of times and batch. | `test_nan_precedence_applies_elementwise_over_times` |
 | 4.5/12.1 | the same values eagerly and under `jit`. | `test_nan_precedence_agrees_under_jit` |
 | 4.5 | the rule covers NaN `t`: NaN `t` with a NaN parameter is NaN. | `test_nan_parameter_with_nan_time_gives_nan` |
+| 4.5 | rev 22: `log_prob(+inf)` is NaN when the family's `log_survival(+inf)` is NaN (guarded and unguarded families). | `test_nan_parameter_log_prob_at_infinity_is_nan`, `test_nan_parameter_log_prob_at_infinity_is_nan_for_unguarded_family` |
+| 4.5 | rev 22: elementwise: a valid `k=2` entry keeps `log_prob(+inf)=-inf` next to a NaN entry. | `test_nan_batch_entry_log_prob_at_infinity_keeps_valid_entry_minus_infinity` |
 | 4.5 | "With valid parameters the policy values keep zero parameter gradients". | the six `test_negative_time_*_has_zero_parameter_gradients` tests above, plus the rev 12 `log_survival` and `survival` ones |
 
 ### `test_a4_hazard_at_zero_survival.py`: `log_hazard` and `hazard` where `S(t)=0` (rev 13)
@@ -788,7 +794,8 @@ input is NaN, the result is NaN; otherwise the policy value applies."
   7.2 (A6) and by summaries (Slice D). The spec does not say what happens when
   a family omits a required member, so no test defines a family without one.
 - **Built-in families and `from_log` constructors** (4.1, 4.5 Weibull rows on
-  `Weibull` itself, gradient of `S(0)` in `k`, survival grids): A5.
+  `Weibull` itself, gradient of `S(0)` in `k`, survival grids): covered at A5
+  (section below).
 - **`log_interval_prob`, `log_conditional_interval_prob`,
   `inverse_cumulative_hazard`, `support()`, `parameter_issues()`, summaries,
   `sample`, `check_family`** (4.2 optional members): Slices B and D under
@@ -807,3 +814,138 @@ input is NaN, the result is NaN; otherwise the policy value applies."
 - **Derivative tolerances:** hand-derived gradient and Hessian checks use the
   12.1 ordinary tolerances; the expected values are O(1) smooth interior
   quantities, for which autodiff error is far below those scales.
+
+## A5: Exponential and Weibull closed forms, boundary values, survival grids (spec 4.1, 4.5, 5; rev 21–22)
+
+Hand derivations are in each module docstring. `[*]` marks a test
+parametrized over the seven Slice A direct methods (`log_survival`,
+`survival`, `log_cdf`, `cumulative_hazard`, `log_prob`, `log_hazard`,
+`hazard`) and, in `test_a5_boundaries.py`, over four cases: Exponential
+`r=0.5` and Weibull `b=2` with `k` in `(0.5, 1, 2)`.
+
+### `test_a5_construction.py`: built-in classes, keywords, leaves, batch, `reference_time`
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 10.2 | distributions are re-exported at top level. | `test_exponential_is_exported_at_top_level`, `test_weibull_is_exported_at_top_level` |
+| 4.1 | rev 22: "Built-in families are registered subclasses of `SurvivalDistribution`". | `test_exponential_is_a_survival_distribution`, `test_weibull_is_a_survival_distribution` |
+| 4.2 | "Registered families, built-in and custom, are constructed with keyword arguments only". | `test_exponential_rejects_positional_rate`, `test_weibull_rejects_positional_parameters` |
+| 4.2 | "Parameter fields have no default and are required". | `test_weibull_requires_both_parameters`, `test_exponential_requires_rate` |
+| 4.1 | "Natural parameters are stored as the leaves, under the names the constructor uses" (`rate`; `shape`, `scale`). | `test_exponential_stores_rate_as_its_only_leaf`, `test_weibull_stores_shape_and_scale_as_its_only_leaves` |
+| 4.1 | "The Weibull keyword stays `shape`"; `batch_shape` is the array shape. | `test_weibull_shape_attribute_is_the_parameter_not_the_batch_shape` |
+| 4.1 | no `shape` field: `.shape` raises `AttributeError`. | `test_exponential_has_no_shape_attribute` |
+| 4.1 | `batch_shape` from the parameter leaves. | `test_scalar_exponential_has_empty_batch_shape` |
+| 4.1 | "Batch dimensions are broadcast at construction". | `test_weibull_parameters_are_broadcast_at_construction` |
+| 4.1/5 | incompatible parameter batches raise `TypeError`. | `test_weibull_incompatible_parameter_batches_are_rejected` |
+| 5 | `Weibull(shape=k[:, None], scale=...)` gives batch `(D,N)`. | `test_weibull_posterior_style_construction_gives_draw_by_individual_batch` |
+| 4.1 | "Constructors never check parameter values", eagerly and under `jit`. | `test_built_in_constructors_accept_invalid_values_eagerly`, `test_built_in_constructors_accept_invalid_values_under_jit` |
+| 4.1 | construction with traced parameters (`jit`, `vmap`). | `test_weibull_construction_with_traced_parameters_matches_eager`, `test_exponential_construction_inside_vmap` |
+| 4.1 | `dist[idx]`, `jax.tree.map` slicing, `vmap` over a built-in. | `test_weibull_indexing_selects_batch_entries`, `test_exponential_tree_map_slicing`, `test_vmap_over_weibull_matches_batched_call` |
+| 3.3 | parameter dtype policy on built-ins: integer input, weak typing, promotion (64-bit mode only). | `test_integer_rate_uses_default_float_dtype`, `test_weibull_python_scalar_adopts_float32_array_dtype`, `test_weibull_mixed_float_parameters_share_promoted_dtype` |
+| 4.2 | rev 22: `reference_time()` is an array of shape `batch_shape` in the parameter dtype, positive and finite for valid parameters. | `test_exponential_reference_time_is_positive_finite_per_batch_entry`, `test_weibull_reference_time_is_positive_finite_per_batch_entry` |
+| 4.1/12.1 | `reference_time()` eager and `jit` agree. | `test_weibull_reference_time_under_jit_matches_eager` |
+
+### `test_a5_from_log.py`: log-parameter constructors
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 4.1 | `from_log` "return[s] the same class". | `test_exponential_from_log_returns_exponential`, `test_weibull_from_log_returns_weibull` |
+| 4.1/4.6 | rev 22: `k=exp(log_shape)`, `b=exp(log_scale)`, `r=exp(log_rate)`, "stored as the natural-parameter leaves". | `test_exponential_from_log_stores_natural_rate`, `test_weibull_from_log_stores_natural_shape_and_scale` |
+| 4.1 | batch dimensions broadcast as at construction. | `test_weibull_from_log_broadcasts_batch_dimensions` |
+| 4.1 | rev 22: values and gradients "equal those of the ordinary constructor wherever `exp` is finite". | `test_exponential_from_log_values_match_natural_constructor`, `test_weibull_from_log_values_match_natural_constructor` |
+| 4.1 | traced construction through `from_log`. | `test_from_log_with_traced_inputs_under_jit` |
+| 4.1/7.3 | parameter gradients with respect to the log parameters. | `test_gradient_through_exponential_from_log`, `test_gradient_through_weibull_from_log` |
+
+### `test_a5_closed_forms.py`: values and tails
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 4.1/8.1 | Exponential `S=exp(-r*t)` and derived methods, paired batch. | `test_exponential_interior_values[*]` |
+| 4.1/8.1 | Weibull `S=exp(-(t/b)**k)` for `k<1`, `k=1`, `k>1`. | `test_weibull_interior_values_decreasing_hazard[*]`, `test_weibull_interior_values_constant_hazard[*]`, `test_weibull_interior_values_increasing_hazard[*]` |
+| 4.1/5 | batch `(N,)` against times `(N,)` pairs entries. | `test_weibull_paired_batch_values[*]` |
+| 4.1 | identity `Weibull(shape=1, scale=b) = Exponential(rate=1/b)`, `t=0` included. | `test_weibull_with_shape_one_equals_exponential_with_rate_one_over_scale[*]` |
+| 4.2 | `log_survival` keeps relative precision when `\|log S\|` is small (`H=2e-30`, `1e-20`). | `test_exponential_small_cumulative_hazard_keeps_relative_precision`, `test_weibull_small_cumulative_hazard_keeps_relative_precision` |
+| 4.2 | `log_cdf` accurate in the lower tail. | `test_exponential_log_cdf_in_lower_tail`, `test_weibull_log_cdf_in_lower_tail` |
+| 4.1 | Weibull `k<1` near `t=0`: large finite `log h`, `log f`. | `test_weibull_log_hazard_near_zero_with_decreasing_hazard`, `test_weibull_log_prob_near_zero_with_decreasing_hazard` |
+| 4.1/12.1 | upper tail in log space where `S`, `f` underflow. | `test_exponential_log_survival_in_upper_tail`, `test_exponential_log_prob_in_upper_tail`, `test_weibull_log_survival_in_upper_tail`, `test_weibull_log_prob_in_upper_tail`, `test_weibull_cumulative_hazard_in_upper_tail` |
+| 4.2 | "Built-ins override [`log_hazard`] analytically"; the generic form cancels when `H` is large. | `test_exponential_log_hazard_in_upper_tail_is_analytic`, `test_exponential_hazard_in_upper_tail_is_analytic`, `test_weibull_log_hazard_in_upper_tail_is_analytic`, `test_weibull_hazard_in_upper_tail_is_analytic` |
+| 8.1 | `survival` underflows to `0`, not NaN. | `test_survival_underflows_to_zero_not_nan_in_upper_tail` |
+
+### `test_a5_boundaries.py`: value policy and boundary values on built-ins
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 4.5 | `t<0` row (`-1e-30`, `-1`, `-inf`) for all seven methods. | `test_negative_time_gives_policy_value[*]` |
+| 4.5 | `t<0` policy values keep zero parameter gradients. | `test_negative_time_policy_values_have_zero_weibull_gradients[*]`, `test_negative_time_policy_values_have_zero_exponential_gradient[*]` |
+| 4.5 | `t=0` row: Weibull `k<1` infinite density, `k=1` `log(1/b)`, `k>1` `-inf`; Exponential `log r`. | `test_zero_time_boundary_value[*]` |
+| 4.1 | `xlogy`-style term: `k=1`, `t=0` gives `log(1/b)`, not NaN. | `test_weibull_shape_one_density_at_zero_is_not_nan` |
+| 4.5 | `t=+inf` row; `log_hazard`/`hazard` where `S=0` are the override's limit. | `test_infinite_time_boundary_value[*]` |
+| 4.5 | NaN `t` gives NaN. | `test_nan_time_gives_nan[*]` |
+| 4.5 | NaN parameters give NaN at every `t`; rev 22: `log_prob(+inf)` is NaN when the family's `log S(+inf)` is NaN. | `test_nan_rate_gives_nan_for_every_time[*]`, `test_nan_weibull_scale_gives_nan_for_every_time[*]` |
+| 4.5 | an invalid batch entry affects only its own position. | `test_nan_batch_entry_does_not_affect_other_entries` |
+| 4.5 | elementwise over one array, without raising. | `test_weibull_policy_applies_elementwise_in_one_call` |
+| 4.5/12.1 | boundary values agree under `jit` and `vmap`. | `test_boundary_values_agree_under_jit[*]`, `test_boundary_values_agree_under_vmap_over_time[*]` |
+| 4.5 | test case "the gradient of `S(0)` with respect to `k`" (`k` in `0.5, 1, 2`), also in `b`. | `test_gradient_of_weibull_survival_at_zero_in_shape[*]`, `test_gradient_of_weibull_survival_at_zero_in_scale[*]` |
+| 4.5 | "avoid NaN parameter gradients where the value is finite": `log S(0)`, `H(0)`; `k=1` `log f(0)`, `log h(0)` in `b`; Exponential in `r`. | `test_gradient_of_weibull_log_survival_and_cumulative_hazard_at_zero[*]`, `test_gradient_in_scale_of_weibull_shape_one_density_at_zero[*]`, `test_gradient_of_exponential_density_at_zero[*]` |
+| 4.5/7.3 | the `S(0)` gradient under `jit` and `vmap`. | `test_gradient_of_weibull_survival_at_zero_under_jit_and_vmap` |
+| 4.5 | rev 22: at `t=+inf`, `S` and `log F` have zero parameter gradients (Weibull `k` in `0.5, 1, 2`; Exponential). | `test_gradient_of_weibull_finite_values_at_infinity[*]`, `test_gradient_of_exponential_finite_values_at_infinity[*]` |
+| 4.5 | rev 22: gradients at `+inf` equal the derivative of the limit: Exponential `log h`, `h`; Weibull `k=1` `log h` in `b`. | `test_gradient_of_exponential_hazard_at_infinity`, `test_gradient_of_weibull_shape_one_log_hazard_at_infinity` |
+| 4.5/7.3 | rev 22: the `+inf` gradients under `jit` and `vmap`. | `test_gradient_at_infinity_under_jit_and_vmap[*]` |
+
+### `test_a5_survival_grids.py`: grids and shape rules
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 5 | scalar time against `(N,)`; paired `(N,)`; `(K,1,1)` against `(D,N)`. | `test_scalar_time_against_batch_gives_batch_shape`, `test_time_vector_against_equal_batch_pairs_entries`, `test_explicit_time_first_axis_gives_shared_grid_shape` |
+| 4.1/5 | a time that does not broadcast raises `TypeError`. | `test_time_that_does_not_broadcast_against_batch_is_rejected` |
+| 5 | grids are time-first: `(K,)`, `(K,N)`, `(K,D,N)`. | `test_grid_on_scalar_distribution_has_grid_shape[*]`, `test_grid_on_batch_is_time_first[*]`, `test_grid_on_two_dimensional_batch_gives_k_d_n[*]` (each over the three grid methods) |
+| 5 | grids equal the direct method on `grid[:, None, None]`. | `test_grid_equals_direct_method_on_grid_with_new_axes[*]` |
+| 5 | a grid is shared, never paired, even when `K=N`. | `test_grid_with_length_equal_to_batch_is_not_paired` |
+| 5 | "Component axes never appear in outputs"; rev 22: the base provides grids for every registered family (custom family). | `test_grid_has_no_component_axes` |
+| 5/8.1 | grid values for each grid method and family. | `test_weibull_survival_grid_values`, `test_weibull_cumulative_hazard_grid_values`, `test_weibull_hazard_grid_values`, `test_exponential_grids_values` |
+| 4.5/12.1 | "survival grid from `t=0` with Weibull `k=1`", with the section 11.1 `bc` fixed vector (rev 22); hazard and density from `t=0` finite. | `test_survival_grid_from_zero_with_weibull_shape_one`, `test_hazard_grid_from_zero_with_weibull_shape_one_is_finite`, `test_log_prob_on_grid_from_zero_with_weibull_shape_one_is_finite` |
+| 4.5 | grids follow the value policy, including the `S=0` analytic limit. | `test_survival_grid_applies_value_policy`, `test_hazard_grid_at_infinity_uses_analytic_limit` |
+| 4.5 | float64 NumPy grid under 32-bit mode converts without warning (32-bit mode only). | `test_float64_numpy_grid_converts_without_warning_under_32bit_mode` |
+| 12.1/7.3 | grids under `jit`, `vmap` over the distribution, and parameter gradients. | `test_grid_agrees_under_jit[*]`, `test_vmap_over_distribution_of_survival_grid`, `test_gradient_through_survival_grid` |
+| 5 | rev 22: the time vector is "the first positional argument, named `t`". | `test_grid_time_can_be_passed_as_keyword_t[*]` |
+| 5 | rev 22: a scalar or 2-D `t` (including `(K,1)`) raises `TypeError`, also under `jit`. | `test_scalar_grid_is_rejected[*]`, `test_two_dimensional_grid_is_rejected[*]`, `test_column_grid_is_rejected`, `test_two_dimensional_grid_is_rejected_under_jit` |
+| 5/4.5 | rev 22: grid `t` follows the 4.5 dtype rules: boolean raises `TypeError`; integer converts. | `test_boolean_grid_is_rejected[*]`, `test_integer_grid_matches_float_grid` |
+
+### `test_a5_derivatives.py`: transformations and parameter derivatives
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 12.1 | eager and `jit` agree for every direct method. | `test_weibull_methods_agree_under_jit[*]`, `test_exponential_methods_agree_under_jit[*]` |
+| 4.1/12.1 | `vmap` over paired distribution and time agrees. | `test_weibull_methods_agree_under_vmap_over_distribution_and_time[*]` |
+| 7.3 | hand-derived first derivatives of `log f` and `log S`. | `test_exponential_log_prob_gradient`, `test_exponential_log_survival_gradient`, `test_weibull_log_prob_gradient`, `test_weibull_log_survival_gradient` |
+| 7.3 | forward and reverse modes agree; gradients under `jit` and `vmap`. | `test_weibull_forward_and_reverse_gradients_agree`, `test_weibull_gradient_under_jit_and_vmap` |
+| 7.3 | hand-derived second derivatives. | `test_exponential_log_prob_hessian`, `test_weibull_log_prob_hessian_in_shape`, `test_weibull_log_prob_hessian_in_scale` |
+| 7.3/12.1 | `check_grads(order=2, modes=("fwd","rev"))` for `log_prob`, `log_survival`, `log_cdf`, `log_hazard` (64-bit mode only), and at Weibull `k=1`. | `test_check_grads_order_two_exponential[*]`, `test_check_grads_order_two_weibull[*]`, `test_check_grads_order_two_weibull_at_shape_one` |
+
+### A5: deliberately not tested
+
+- **`from_log` with overflowing log parameters** (4.1, rev 22): the result
+  falls under the invalid-parameters row, which fixes no value (Q-028).
+- **Gradient in `k` of Weibull `log f(0)` at `k=1`** (4.5, rev 22): "outside
+  the guarantee" (Q-029).
+- **NaN-free boundary gradients for custom families** (4.5, rev 22): they
+  hold "when their `log_survival` does", which is the author's duty, not the
+  base's.
+- **Finite invalid parameters** (for example `rate<0`, `shape=0`): the family
+  formula decides (4.5 invalid-parameters row); there is no specified value
+  to assert beyond NaN parameters.
+- **Value of `reference_time()`**: only "positive finite" is specified; its
+  value is implementation work (13).
+- **Exact equality of the `k=1` Weibull and the exponential:** compared at
+  12.1 tolerances, not bitwise.
+- **Float64 parameter warning on built-ins** (3.3): the base rule is tested
+  at A4 on custom families; built-ins add nothing family-specific.
+- **Log-normal and log-logistic, `inverse_cumulative_hazard`, summaries,
+  `check_family`:** Slice D.
+- **Float32 `check_grads(order=2)`:** as at A4, float32 runs the
+  hand-derived first and second derivatives instead.
+- **Tail scales:** tail tests use the 12.1 tolerances; where the expected
+  value is far below 1 (`H=1e-20`, `2e-30`) or far above it (`1e14`), the
+  12.1 relative tolerance alone (`helpers.assert_rel_close`), since the
+  absolute tolerance would be vacuous or the absolute error scales with the
+  magnitude.

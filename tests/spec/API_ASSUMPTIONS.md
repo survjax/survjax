@@ -327,3 +327,73 @@ on it. Guessed exception types and call shapes are centralised in
   at every input in `[0, +inf]` (`rate=NaN`, `scale=NaN`), and valid
   parameters.
 - **Depends:** none (`test_a4_nan_precedence.py` avoids the case).
+
+## Q-027: built-in families are `SurvivalDistribution` subclasses
+
+- **Status:** resolved by spec rev 22 (4.1; maintainer decision,
+  2026-10-11): "Built-in families are registered subclasses of
+  `SurvivalDistribution` and implement the interface of section 4.2".
+- **Depends:** `test_exponential_is_a_survival_distribution`,
+  `test_weibull_is_a_survival_distribution`.
+
+## Q-028: what `from_log` guarantees about overflow
+
+- **Status:** resolved by spec rev 22 (4.1; maintainer decision,
+  2026-10-11). The overflow-avoidance claim is dropped. `from_log` returns the
+  same class with `exp` of the log parameters stored as natural leaves; values
+  and parameter gradients equal the ordinary constructor's wherever `exp` is
+  finite; overflowing log parameters give infinite parameters and fall under
+  the invalid-parameters row of 4.5. Rejected: a log-space representation in
+  the leaves.
+- **Previously (rev 21):** 4.1 said `from_log` avoids float32 overflow by
+  computing in log space, which natural-parameter leaves cannot deliver.
+- **Depends:** `test_a5_from_log.py` (finite cases only; the overflow case
+  has no specified value).
+
+## Q-029: scope of "avoid NaN parameter gradients where the value is finite"
+
+- **Status:** resolved by spec rev 22 (4.5; maintainer decision,
+  2026-10-11): the rule covers `t=0` and `t=+inf` for built-ins, with
+  gradients "equal to the derivative of the value as a function of the
+  parameters" (for example `0` for `S(0)`, `S(+inf)`, `log F(+inf)`). A
+  derivative across a discontinuity (Weibull `log f(0)` in `k` at `k=1`) is
+  outside the guarantee. Custom families meet the rule when their
+  `log_survival` does.
+- **Depends:** the `t=0` gradient tests and the rev 22 `t=+inf` gradient
+  tests in `test_a5_boundaries.py`.
+
+## Q-030: grid method signature and availability
+
+- **Status:** resolved by spec rev 22 (5; maintainer decision, 2026-10-11):
+  the base provides the grid methods for every registered family; the time
+  vector is the first positional argument, named `t`, and follows the 4.5
+  conversion and dtype rules; a `t` that is not one-dimensional raises
+  `TypeError`.
+- **Depends:** `test_a5_survival_grids.py`, including
+  `test_grid_has_no_component_axes` (custom family) and the rev 22
+  grid-argument tests.
+
+## Q-031: shape of `reference_time()`
+
+- **Status:** resolved by spec rev 22 (4.2; maintainer decision,
+  2026-10-11): "an array of shape `batch_shape` in the parameter dtype,
+  positive and finite for valid parameters (unspecified for invalid ones)".
+- **Depends:** `test_exponential_reference_time_is_positive_finite_per_batch_entry`,
+  `test_weibull_reference_time_is_positive_finite_per_batch_entry`.
+
+## Q-032: `log_prob(+inf)` with NaN parameters
+
+- **Status:** resolved by spec rev 22 (4.5; maintainer decision,
+  2026-10-11): `log_prob(+inf)` is `-inf` unless the family's
+  `log_survival(+inf)` is NaN, in which case it is NaN.
+- **Depends:** `test_nan_rate_gives_nan_for_every_time`,
+  `test_nan_weibull_scale_gives_nan_for_every_time` (now including
+  `t=+inf`), and the rev 22 tests in `test_a4_nan_precedence.py`.
+
+## Q-033: the `bc` fixed vector `(1,10,-0.5,-1)`
+
+- **Status:** resolved by spec rev 22 (4.5; maintainer decision,
+  2026-10-11). The question was mistaken: section 11.1 defines the vector as
+  `(k, Good-group scale, beta_Medium, beta_Poor)`, and the test's reading was
+  correct. Section 4.5 now gives a self-contained example and points to 11.1.
+- **Depends:** `test_survival_grid_from_zero_with_weibull_shape_one`.

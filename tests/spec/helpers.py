@@ -162,3 +162,21 @@ def assert_close(actual, expected, err_msg=""):
         err_msg=err_msg,
         **TOLERANCES[FLOAT],
     )
+
+
+def assert_rel_close(actual, expected, err_msg=""):
+    """Spec 12.1 relative tolerance of the active dtype mode, with no absolute floor.
+
+    For tail quantities far below 1 (for example ``H = 1e-20``) the 12.1
+    absolute tolerance would accept any value near zero; spec 4.2 asks for
+    relative precision there, so only the 12.1 ``rtol`` is applied.
+    """
+    from tolerances import TOLERANCES
+
+    np.testing.assert_allclose(
+        np.asarray(actual).astype(np.float64),
+        np.asarray(expected, dtype=np.float64),
+        rtol=TOLERANCES[FLOAT]["rtol"],
+        atol=0.0,
+        err_msg=err_msg,
+    )
