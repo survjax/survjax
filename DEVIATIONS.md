@@ -1,5 +1,29 @@
 # Deviations and spec questions
 
+## D-019 Natural parameter leaves versus overflow-safe log constructors
+- Step: A5 planning
+- Spec: section 4.1, revision 21; dtype policy in 3.3
+- Spec says: natural parameters are stored as leaves under constructor names;
+  `Exponential.from_log` and `Weibull.from_log` compute in log space internally,
+  avoid float32 exponentiation overflow and return the same class.
+- Conflict: float32 `exp(100)` cannot store a finite natural scale, and an
+  underflowing natural rate loses its original finite log rate. Keeping only
+  natural leaves cannot preserve these inputs for later log-space calculations.
+- Did / propose: no implementation. Ask the maintainer to clarify retained
+  log-parameter leaves for `from_log`, natural-field access, PyTree structure
+  and normalization; alternatively narrow the guarantee to representable
+  natural parameters. Do not choose a representation or edit the spec here.
+- Planning decision (2026-10-08): the maintainer selected retained log leaves
+  and a spec clarification before implementation. Details of field access,
+  PyTree structure and normalization remain to be specified.
+- Follow-up evidence (2026-10-11): specification revision 22, section 4.1,
+  supersedes that direction. `from_log` exponentiates inputs and stores natural
+  leaves; it keeps no log-space representation and makes no overflow-avoidance
+  claim. Independent Q-028 and `test_a5_from_log.py` at tester commit `7f1d6df`
+  follow the new contract. The revised A5 plan implements that contract; no
+  representation decision remains pending. Formal closure stays with the maintainer.
+- Status: open
+
 ## D-016 NaN parameter gradients of finite values at `t=+inf`
 - Step: A4.4 review; decision deferred to A5
 - Spec: section 4.5 (boundary rows and "Boundary values must also avoid NaN
@@ -22,6 +46,16 @@
   analytic built-in overrides plus a documented generic limitation, or a
   spec clarification limiting the rule to `t=0`. Likelihoods at A6 use
   `log S` at finite times and are unaffected.
+- A5 planning decision (2026-10-08): include the generic base fix preserving
+  parameter-dependent finite limits, alongside guarded built-in formulas.
+  No implementation has been performed as part of planning.
+- Follow-up evidence (2026-10-11): revision 22 section 4.5 explicitly requires
+  the actual finite boundary derivatives at zero and infinity for built-ins,
+  excluding derivatives across discontinuous parameter limits. Custom-family
+  guarantees depend on the author's primitive, with a documented extension
+  recipe. The revised A5 plan retains the selected generic improvement but
+  does not promise repair of arbitrary custom primitives. Tester Q-029 and
+  the new infinity-gradient cases in `test_a5_boundaries.py` cover this reading.
 - Status: open (maintainer decision 2026-10-03: defer to A5)
 
 ## D-017 Dtype policy for direct-method times

@@ -1,3 +1,258 @@
+# A5 — Exponential, Weibull and time-first grids
+
+Status: A5.1 approved by the maintainer's request to implement the plan.
+Implement A5.1, commit it and stop for review; A5.2–A5.5 remain future steps.
+Based on
+specification revision 22, design commit `9323cb5`, and the independent tester
+commit `7f1d6df`. Implementation starts on the maintainer-selected branch `A5`
+at `89cb9f4`, after the maintainer aligned the marker and synchronized tests.
+Commit this approved planning/deviation record separately from the A5.1
+implementation so each diff remains reviewable. The A4 plans below are history.
+
+## What changed after the spec/test review
+
+Read the complete revision-21-to-22 diff, the six new A5 test modules,
+Q-027–Q-033 and their TESTMAP entries, plus the three new A4 NaN-precedence
+cases. Revision 22 replaces the earlier log-leaf proposal: `from_log` simply
+exponentiates inputs and stores the resulting natural parameters. The previous
+requirement to retain extreme log inputs is removed. No log storage, private
+representation flag or registration redesign is needed (D-019).
+
+Other settled requirements:
+
+- Built-ins are registered frozen subclasses of `SurvivalDistribution`, with
+  natural `rate` or `shape`/`scale` as their only dynamic leaves (4.1–4.2).
+- `reference_time()` returns an array of exactly `batch_shape`, in the parameter
+  dtype, positive and finite for valid parameters; invalid cases are unspecified.
+- `log_prob(+inf)` is NaN when the family's raw `log_survival(+inf)` is NaN;
+  otherwise it is -inf, including when a density formula yields inf-inf.
+  Testing the raw density for NaN alone cannot distinguish these cases (4.5).
+- At zero and infinity, finite built-in values have the actual parameter
+  derivatives of their limits. Derivatives across a discontinuity are excluded:
+  do not require the Weibull shape derivative of log density at zero and k=1.
+  The scale derivative there is required. Custom-family guarantees depend on
+  the author's primitive; the extension recipe must explain this (D-016/4.5).
+- The base supplies all three methods `survival_grid(t)`,
+  `cumulative_hazard_grid(t)` and `hazard_grid(t)`, for every registered family.
+  The first positional argument is named `t` and also accepts `t=...`; it must
+  be one-dimensional and follows the direct-time dtype rules (5/8.1).
+- The zero-time grid example is self-contained: Weibull shape 1, scale 10.
+  The section 11.1 fixed vector additionally gives group scales
+  `10 * exp([0, -0.5, -1])`; it requires no R fixture.
+
+These decisions supersede the old pending choices; no new spec ambiguity was
+identified in this review. Record revision-22 evidence in DEVIATIONS.md and
+leave formal deviation closure to the maintainer.
+
+## Scope, staging and independent-test availability
+
+Public additions: `survjax.Exponential(rate=...)`,
+`survjax.Weibull(shape=..., scale=...)`, keyword-only `from_log` classmethods,
+all seven direct methods on both families, and the three grid base methods.
+Covered spec: 3.3, 4.1–4.2, 4.5–4.6, 5, 7.2–7.3, 8.1 (grids only),
+10.2–10.5 and applicable family/boundary requirements of 12.1–12.2.
+No likelihoods, interval/truncation methods, parameter diagnostics (D-013),
+summaries, sampling, wrappers, `check_family` or new dependencies. R fixtures,
+installation checks and the CPU likelihood baseline remain later Slice A work.
+
+There are five commit-sized steps below, separating the newly specified policy
+correction from the generic gradient work. Aim for roughly 300 changed
+source/test/doc lines per step; split before expanding if necessary. Each step
+requires its own plan approval, tests/docs with the code, one commit and an
+updated REVIEW.md, then a stop. This proposal does not authorize proceeding
+through all five steps. Use the maintainer-selected branch; never commit on main.
+
+The maintainer aligned `.spec-seen` to `9323cb5` in `96fc32d` and synchronized
+the independent suite from `7f1d6df` in `89cb9f4` before implementation. The
+local through-A4 gate now includes the three revision-22 regressions, and
+through-A5 includes all 370 A5 cases. Both independent suites and the alignment
+marker remain untouched by the implementation agent. Never edit, skip or xfail
+acceptance tests to obtain a pass.
+
+## A5.1 — Correct NaN precedence for density at infinity
+
+- Change `src/survjax/distributions/_survival_methods.py`'s density policy to
+  consult the raw primitive at +inf. Return NaN iff that primitive value is NaN;
+  otherwise preserve the unconditional -inf density limit. Leave negative/NaN
+  time handling, normal broadcasting, override dispatch and non-density methods
+  unchanged. No exports, signature changes or generic validity-domain inference.
+- Add `tests/unit/test_family_infinity.py`: constant-hazard and power custom
+  families with NaN parameters; mixed NaN/valid entries where the valid generic
+  density formula is NaN at infinity; an explicit density override whose result
+  differs from the primitive's NaN status. Exercise eager/jit/vmap. Expected
+  constants follow the revision-22 policy, not the implementation.
+- Preserve the existing one-reference-call invariant. Keep any extra primitive
+  evaluation restricted to the density rule; do not double-wrap methods.
+- Update the infinity rule in `docs/distributions.md` and relevant base-method
+  docstrings. Cover 4.2/4.5/7.2. Run the three new acceptance tests in
+  `test_a4_nan_precedence.py`, then the complete through-A4 regression gate
+  once the suite is synced. Stop with REVIEW.md and the step commit.
+
+## A5.2 — Generic finite boundary gradients and extension recipe (D-016)
+
+- Change survival/log-CDF defaults locally in `_survival_methods.py`; retain the
+  previously selected generic base improvement. Obtain true boundary values
+  and substitute safe inputs before gradient-path operations that form 0*inf;
+  a second primitive evaluation may be needed. Stop only placeholders, preserve
+  finite parameter-dependent limits, and never convert finite-time precision
+  loss into a zero-mass claim. No new public API or blanket stop at +inf.
+- Extend `tests/unit/test_family_infinity.py` with proper custom primitives,
+  survival(+inf)=0 and log-CDF(+inf)=0, and hand-derived zero gradients in both
+  autodiff modes. Mixed finite/+inf sums retain finite-entry derivatives.
+  Include a well-guarded cure primitive with S(+inf)=p: survival's derivative
+  in p is 1, and log-CDF=log(1-p) has derivative -1/(1-p).
+- Custom authors remain responsible for differentiability inside their own
+  primitives. Do not promise repair of arbitrary custom code. Add an executable
+  guarded boundary recipe in `docs/distributions.md`, including a batched
+  `reference_time()` with exact batch shape and parameter dtype. Update the
+  existing PiecewiseHazard reference example/checklist, which currently promises
+  only a broadcastable scalar. Preserve the maintainer's tutorial structure.
+- Cover 4.2/4.5/7.2/7.3. Regression-check zero time, NaN precedence, dispatch,
+  correct finite cure limits and the existing A4 cases. Stop after this step.
+
+## A5.3 — Exponential
+
+- Create `src/survjax/distributions/exponential.py`, a registered frozen dataclass
+  with typed `rate: jax.Array = param()`. Export it in the distribution and
+  top-level initializers; update `tests/unit/test_import.py`'s exact export set.
+- Implement `from_log(*, log_rate)` using exp then the natural constructor.
+  Normalize/reject log-input dtypes before exponentiation using the existing
+  dtype policy, preserving weak promotion and the float64 conversion warning;
+  booleans must not turn into valid floats through exp. No value checks or
+  retained log state. Test equality of values and log-input gradients with the
+  ordinary exp-parameterized constructor on finite valid cases.
+- Implement log survival -r*t, cumulative hazard r*t, analytical log density
+  log(r)-r*t and log hazard log(r). Inherited derived defaults are used only
+  where value/tail accuracy and boundary gradients are verified. Guard infinity
+  operands before operations, preserving NaN parameters. Analytical h(+inf)=r
+  must retain derivatives 1 for h and 1/r for log h.
+- Return a parameter-dtype reference array of batch_shape: 1/r on ordinary
+  scales. Ensure a positive finite reference even if the reciprocal of a valid
+  positive finite rate overflows; any safe alternative is a reference choice,
+  not a floor on active probabilities or parameters.
+- Add `tests/unit/test_exponential.py`: hand-derived seven-method values,
+  negative/zero/finite/+inf/NaN times, invalid-parameter formula behavior,
+  natural leaves, required keywords, indexing/PyTree/traced construction,
+  scalar/paired/multiaxis batches and dtype cases. Include relative precision
+  at H=2e-30, log-CDF tails, large-H analytic hazard, jit/vmap, interior gradient
+  1/r-t and Hessian -1/r**2, and finite boundary gradients. Compare log
+  probabilities when linear survival/density underflows.
+- Docstring/executable tutorial examples cover units, positive-rate domain,
+  rate=1/mean, log-rate/log-mean conversions and the overflow limitation of
+  from_log. Update `docs/index.md`. Cover 3.3/4.1/4.2/4.5/4.6/7.2/7.3.
+
+## A5.4 — Weibull
+
+- Create `src/survjax/distributions/weibull.py`, a registered frozen dataclass
+  with typed natural `shape` and `scale` parameters as its only two leaves.
+  Export it in both initializers; update the explicit import expectation.
+- Implement `from_log(*, log_shape, log_scale)` with common input dtype
+  normalization before exponentiation, then ordinary construction/broadcasting.
+  Return the same class and preserve no log leaves; overflow becomes infinite
+  natural parameters with the section 4.5 formula-driven behavior.
+- Reference time is scale b, exactly batch_shape and parameter dtype. Implement
+  log S=-(t/b)**k, H=(t/b)**k, analytic log h=log(k)-log(b)+(k-1)*log(t/b),
+  and log density=log h-H. Work in log space where needed; guard xlogy-style
+  operands before operations. Avoid inactive log(0), 0*inf and inf-inf.
+- At zero S=1 and H=0; log density/log hazard are +inf, -log(b), -inf for
+  k<1, k=1, k>1. At infinity survival=0, log-CDF=0, density=0; hazard
+  limits are 0, 1/b, +inf. Preserve NaN parameters rather than hiding them
+  behind boundary constants. No floors, epsilons or clipping.
+- Add `tests/unit/test_weibull.py`: analytical seven-method values in all
+  shape regimes, shape-one Exponential identity, natural/from_log values and
+  chain-rule derivatives, batching/PyTree/indexing/dtypes, eager/jit/vmap,
+  H=1e-20 relative precision, early decreasing-hazard density and large-H
+  tails. Check gradients/full Hessian against algebra on positive-time
+  interior cases, including mixed shape/scale derivative entries.
+- Pin zero gradients of S(0), log S(0), H(0) in k/b and of survival/log-CDF
+  at +inf, including transformed/mixed batches. At k=1, log density/log hazard
+  at zero and log hazard at infinity have scale derivative -1/b. Do not test
+  a shape derivative across these discontinuous boundary limits as a guarantee.
+- Docstring/tutorial: complete 4.6 table and conversion example for R/flexsurv,
+  NumPyro, survreg mu=log(b), sigma=1/k, WeibullPH m=b**(-k), inverse scale
+  and log inputs; common-shape PH gamma=-k*beta. Cover 3.3/4.1/4.2/4.5/4.6/
+  7.2/7.3/12.1. If tests/docs exceed the size target, split before implementation.
+
+## A5.5 — Three time-first grid methods and A5 documentation
+
+- Bind typed `survival_grid(t)`, `cumulative_hazard_grid(t)`, `hazard_grid(t)`
+  in `src/survjax/distributions/base.py`. Keep thin implementations in
+  `_survival_methods.py`, reshaping a 1-D time vector to
+  `(K,) + (1,)*len(batch_shape)` and calling the corresponding public direct
+  method, honoring overrides and the complete time policy. No grid registration
+  wrapper is needed. Keep modules below roughly 300 lines; if needed, put grid
+  functions in one private `_grid_methods.py` with only this responsibility.
+- Add `tests/unit/test_survival_grid.py` for all three methods: positional and
+  keyword t; scalar/1-D/2-D distribution batches, K=N still shared rather than
+  paired, more batch axes/empty grids, custom component families without
+  component axes in outputs, dtype/rank misuse eagerly and during tracing,
+  integer grids and silent float64-time conversion under x32. Include override
+  dispatch and analytical entries, not just comparisons between library calls.
+- Check eager/jit/vmap agreement, survival-grid parameter gradients and the
+  zero-time shape-one survival/hazard/density example, including the three
+  synthetic group scales of section 11.1. Hazards at infinity use analytic
+  limits; NaN times and parameters stay isolated by entry.
+- Update `docs/distributions.md`, `docs/index.md`, `docs/playground.ipynb`:
+  both built-ins, log constructors, conversions, all direct methods/grids,
+  paired-vector pitfalls and posterior batch `shape=k[:, None]`,
+  `scale=jnp.exp(beta @ X.T)`. Preserve the tutorial and use executable synthetic
+  examples. No R agreement or full-Slice-A completion claim. Cover 4.5/5/8.1/
+  10.5/12.1; inspect rendered pages at this final A5 stop.
+
+## Verification and acceptance mapping
+
+Independent A5 modules: construction/reference arrays -> A5.3/A5.4;
+from_log -> A5.3/A5.4; closed forms/tails -> A5.3/A5.4;
+boundaries -> A5.1/A5.2/A5.3/A5.4; derivatives -> A5.3/A5.4;
+survival grids (all three methods) -> A5.5. The three revision-22 A4 additions
+are A5.1 regressions. Tests purposely do not define finite-invalid-parameter
+values, overflowing-from_log method values, discontinuous shape gradients,
+arbitrary custom boundary derivatives or a particular reference-time formula.
+
+- Own value tolerances remain in `tests/impl_tolerances.py`. For tiny H use
+  relative-only comparisons at the existing rtol, with zero atol; do not accept
+  an absolute tolerance that makes zero pass. New derivative/tail scales need
+  justification in that same file. Expected values have stated algebra/identity
+  origins. Never loosen tolerances to make failures pass.
+- Run interior order-two forward/reverse `check_grads` with justified tolerances;
+  independent finite-difference cases are x64-only, while hand-derived first/
+  second derivatives run in both modes. Own x32 finite differences need their
+  own scale justification. Do not toggle JAX x64 inside a process.
+- Use `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`. Each step runs
+  `scripts/check.sh --through A4`, `scripts/build_docs.sh`, and
+  `git diff --check`, plus read-only independent tests for completed behavior
+  in separate x64/x32 processes. At A5.5 run the full
+  `scripts/check.sh --through A5` against the synced revision-22 suite.
+  Report focused selection and still-unimplemented cases explicitly; never
+  present an unsynced local gate as revision-22 acceptance.
+- REVIEW.md records reading order, numerical/storage invariants, spec-to-test
+  mapping, exact outputs/skips, executable docs and open deviations. One commit,
+  then stop. No merge, publishing, remote setup or next-step work without approval.
+
+## Evidence gathered while updating this plan
+
+Read-only execution used this checkout's `.venv/bin/python -B`, with
+`-p no:cacheprovider`, against `../spectest` at `7f1d6df` (no sync or writes):
+
+- x64: `JAX_ENABLE_X64=1 SPEC_THROUGH=A5 .venv/bin/python -B -m pytest
+  ../spectest/tests/spec --collect-only -q -k test_a5 -p no:cacheprovider`
+  exited 0: **370/1074 tests collected (704 deselected)**, 0.44s.
+- x32: `JAX_ENABLE_X64=0 SPEC_THROUGH=A5 .venv/bin/python -B -m pytest
+  ../spectest/tests/spec --collect-only -qq -k test_a5 -p no:cacheprovider`
+  exited 0: boundaries 186, closed forms 58, construction 29, derivatives 39,
+  from_log 10, grids 48 (**370 total**).
+- Ran `JAX_ENABLE_X64=1 SPEC_THROUGH=A4 .venv/bin/python -B -m pytest
+  ../spectest/tests/spec/test_a4_nan_precedence.py -q -k infinity
+  -p no:cacheprovider`, then the identical command with `JAX_ENABLE_X64=0`.
+  Both exited 1:
+  **3 failed, 7 passed, 24 deselected** (x64 0.66s; x32 0.46s).
+  The three new NaN-parameter cases get -inf rather than NaN from the current
+  density policy. This is an implementation gap against the changed contract,
+  not a suspected spec-test error; no new deviation is needed.
+- A5 tests were collected/read, not executed. The full gate, docs build,
+  numerical A5 implementation checks and R work were not run for this plan.
+- `git diff --check` exited 0 with no output after the planning edits.
+
 # A4.5 reviewer fix-up — F-1 and N-1 through N-4
 
 Status: implemented and verified; see REVIEW.md for the successful A4 gate and
