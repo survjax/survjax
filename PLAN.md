@@ -1,9 +1,11 @@
 # A5 — Exponential, Weibull and time-first grids
 
-Status: A5.1 implemented and verified; see REVIEW.md for evidence.
-Approved by the maintainer's request to implement the plan. Commit A5.1 and
-stop for review; A5.2–A5.5 remain future steps requiring their own approval.
-Based on
+Status: A5.1 (`3f50962`) was approved by the reviewer and merged into main by
+the maintainer. A5.2's approved plan below is implemented, awaiting review
+(2026-10-12); A5.3–A5.5 remain future steps. Planning starts from a
+clean `A5` checkout at `3f50962`, also the current main tip. No branch is created
+or switched by this planning request; implementation uses the maintainer's
+selected step branch after approval. Based on
 specification revision 22, design commit `9323cb5`, and the independent tester
 commit `7f1d6df`. Implementation starts on the maintainer-selected branch `A5`
 at `89cb9f4`, after the maintainer aligned the marker and synchronized tests.
@@ -91,25 +93,106 @@ acceptance tests to obtain a pass.
 
 ## A5.2 — Generic finite boundary gradients and extension recipe (D-016)
 
-- Change survival/log-CDF defaults locally in `_survival_methods.py`; retain the
-  previously selected generic base improvement. Obtain true boundary values
-  and substitute safe inputs before gradient-path operations that form 0*inf;
-  a second primitive evaluation may be needed. Stop only placeholders, preserve
-  finite parameter-dependent limits, and never convert finite-time precision
-  loss into a zero-mass claim. No new public API or blanket stop at +inf.
-- Extend `tests/unit/test_family_infinity.py` with proper custom primitives,
-  survival(+inf)=0 and log-CDF(+inf)=0, and hand-derived zero gradients in both
-  autodiff modes. Mixed finite/+inf sums retain finite-entry derivatives.
-  Include a well-guarded cure primitive with S(+inf)=p: survival's derivative
-  in p is 1, and log-CDF=log(1-p) has derivative -1/(1-p).
-- Custom authors remain responsible for differentiability inside their own
-  primitives. Do not promise repair of arbitrary custom code. Add an executable
-  guarded boundary recipe in `docs/distributions.md`, including a batched
-  `reference_time()` with exact batch shape and parameter dtype. Update the
-  existing PiecewiseHazard reference example/checklist, which currently promises
-  only a broadcastable scalar. Preserve the maintainer's tutorial structure.
-- Cover 4.2/4.5/7.2/7.3. Regression-check zero time, NaN precedence, dispatch,
-  correct finite cure limits and the existing A4 cases. Stop after this step.
+Outcome: generic survival and log-CDF give their correct finite values and
+parameter gradients at +inf for proper primitives such as `log S=-r*t`, while
+preserving finite, parameter-dependent limits of custom cure families. Public
+API, exports, constructors, dtypes and broadcasting are unchanged. Covered spec:
+4.2, 4.5, 5, 7.2–7.3, 10.5 and relevant transformations in 12.1. No built-ins,
+grids, density/hazard changes, dependency additions or custom derivative rules.
+
+### Numerical change — `src/survjax/distributions/_survival_methods.py`
+
+- Integrate the guard in the existing policy wrapper, where its already-computed
+  reference input can be reused. This refines the earlier defaults-local sketch:
+  calling `reference_time()` again inside each default would break the existing
+  one-reference-call invariant. Keep the change in this module; registration
+  and `base.py` need no change.
+- After resolving the existing raw-method marker, recognize only the generic
+  `survival` and `log_cdf` functions using function identity, a static Python
+  decision. Explicit and inherited family overrides retain their dispatch.
+  No new marker protocol, cache, parameter specialization or wrapper stack.
+- Retain the single stopped reference input in a named local. Evaluate raw
+  `log_survival` on the current safe times to obtain the true limit. The guard
+  is elementwise: original time is positive infinity AND raw log survival is
+  negative infinity. Use this result only as a Boolean selection condition.
+- Before the default's numerical operations, replace those guarded times with
+  the stopped reference input. Evaluate the default on these safe times, then
+  select the exact finite boundary value 0 for survival or log-CDF. The raw
+  primitive has still been called at the actual infinity to establish its limit.
+  Stop only the substituted reference, never real parameters or active results.
+- Leave finite raw limits at +inf active: if S(+inf)=p, gradients in p must
+  survive. NaN raw limits must remain NaN. The guard must not activate at finite
+  times, even when linear survival underflows or log survival overflows to -inf;
+  no precision loss is reclassified as zero mass. Preserve zero-time behavior,
+  A5.1's density rule and negative/NaN-time policy.
+- A second primitive evaluation is expected for these generic methods, including
+  finite calls. Record that cost without claiming a measured speedup or adding
+  an optimization layer. Custom authors remain responsible for primitive
+  differentiability and safe behavior at their chosen reference inputs.
+
+### Own tests — `tests/unit/test_family_infinity.py`
+
+Extend the existing 111-line module, keeping it below roughly 300 lines.
+Expected values/derivatives come from algebra written in each test; run both
+dtype modes with `tests/impl_tolerances.py`'s existing appropriate tolerances.
+Add a scale only with a separate numerical justification in that file.
+
+- Existing Constant and Quadratic primitives: survival(+inf)=0 and
+  log-CDF(+inf)=0; first parameter derivatives are exactly 0 in forward and
+  reverse modes, eagerly and composed with jit/vmap.
+- Scalar rate with times [1,+inf]: sum survival=e**(-r), derivative=-e**(-r)
+  and second derivative=e**(-r). Sum log-CDF=log(1-e**(-r)), derivative
+  1/expm1(r) and second derivative=-e**r/expm1(r)**2. Cover per-entry parameter
+  batches as well, so an inactive infinity entry cannot poison active entries.
+- A guarded cure primitive S(t)=p+(1-p)*e**(-r*t), with 0<p<1 and r>0:
+  at infinity survival=p and log-CDF=log(1-p). Their p derivatives are 1 and
+  -1/(1-p), and their r derivatives are 0. Preserve these under jit/vmap and
+  check a finite-time case; the primitive itself guards its infinity operands.
+- NaN parameter entries beside valid entries at +inf retain NaNs only in their
+  positions; finite-time underflow and active lower-tail values retain current
+  behavior. Do not assert derivative guarantees for invalid parameters.
+- Explicit/inherited survival and log-CDF overrides remain honored. Extend
+  reference-call coverage to these methods at infinity, checking one call.
+  Existing finite/negative-time, zero-CDF, primitive time-derivative, density
+  and second-order interior tests remain regressions, not targets for alteration.
+- Demonstrate before/after evidence with the new infinity-gradient cases.
+  After the fix, temporarily remove only the safe-time substitution: the
+  constant-family gradient cases must detect NaN despite final output masking.
+  Restore the source before final checks; never mutate independent tests.
+
+### Documentation — `docs/distributions.md`
+
+Preserve the maintainer's tutorial. Add a short executable guarded-boundary
+extension recipe and parameter-gradient assertions, explain the proper-family
+zero limit and the parameter-dependent cure limit, and state the author's
+responsibility for safe primitive operands/NaN propagation. Update method
+docstrings with the same scope. Amend PiecewiseHazard's `reference_time()` to
+return exactly `batch_shape` in `rates.dtype`, and revise the checklist's
+current "broadcastable" promise to the revision-22 exact-shape contract.
+No new page, notebook or later-slice feature is needed.
+
+The separately requested Gompertz notation correction is applied during this
+planning turn: display `-(b/c)*(e**(c*t)-1)` mathematically, with `jnp.expm1`
+still explained in prose and used by executable code. It changes no computation.
+Planning verification: `UV_CACHE_DIR=/private/tmp/survjax-uv-cache
+scripts/build_docs.sh` exited 0, reporting `build succeeded` for x32 and x64
+and executing the existing examples afresh. `git diff --check` passed with no
+output. No numerical implementation tests were run during this planning turn.
+
+### Validation, commit and stop
+
+Use `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`. Run the focused own suite in
+separate x64/x32 processes, then `scripts/check.sh --through A4`,
+`scripts/build_docs.sh` (both modes), and `git diff --check`. The independent
+author does not guarantee arbitrary custom-family boundary gradients; the new
+own tests supply that evidence. All 370 A5 cases remain outside this step's
+gate, since built-ins/grids are not yet implemented. Do not edit or skip them.
+
+Aim for roughly 300 changed source/test/doc lines; split before expanding if
+necessary. Overwrite REVIEW.md with reading order, safe-input/dispatch invariants,
+spec-to-test mapping, mutation evidence, exact results/skips and the unmeasured
+extra-evaluation cost. Leave D-016 open for maintainer closure. Commit the
+approved step on the maintainer-selected branch, then stop before A5.3.
 
 ## A5.3 — Exponential
 

@@ -25,6 +25,9 @@ def survival(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     The default is exp(log_survival(t)). Equal-length vectors pair entries;
     use singleton axes for all pairs. Shared time-first grids are separate.
     Negative times return one; NaN times return NaN.
+    At +inf, a raw log-survival limit of -inf gives zero with zero parameter
+    gradient. Finite, parameter-dependent limits remain active; the primitive
+    author must make their operands safe for differentiation.
     """
     raw = _raw_log_survival(self)
     return jnp.exp(raw(self, t))
@@ -108,6 +111,9 @@ def log_cdf(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     Override for CDF-natural families or smaller lower tails. Negative times
     and true zero CDF return -inf; NaN times return NaN. Evaluation is pointwise,
     not a shared time-first grid operation.
+    At +inf, a raw log-survival limit of -inf gives zero with zero parameter
+    gradient. Finite cure limits retain their parameter dependence, provided
+    the primitive's operands are safe for differentiation.
     """
     # spec 4.5: the outer wrapper already substituted safe times.
     raw = _raw_log_survival(self)
@@ -129,6 +135,7 @@ def apply_policy(
 ) -> Callable[["SurvivalDistribution", ArrayLike], jax.Array]:
     """Wrap one direct method, preserving its raw implementation on inheritance."""
     raw = getattr(method, "_survjax_raw", method)
+    guard_zero_limit = raw is survival or raw is log_cdf
 
     @wraps(raw)
     def evaluate(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
@@ -153,10 +160,18 @@ def apply_policy(
         nan_time = jnp.isnan(time)
         inactive = negative | nan_time
         # spec 4.5/7.2: stop only substituted inputs, never real parameters.
-        safe_time = jnp.where(
-            inactive, jax.lax.stop_gradient(self.reference_time()), time
-        )
+        reference = jax.lax.stop_gradient(self.reference_time())
+        safe_time = jnp.where(inactive, reference, time)
+        if guard_zero_limit:
+            # spec 4.5/7.2: probe the true limit only for a Boolean condition.
+            # Finite cure limits must retain their parameter dependence.
+            log_s = _raw_log_survival(self)(self, safe_time)
+            zero_limit = jnp.isposinf(time) & jnp.isneginf(log_s)
+            safe_time = jnp.where(zero_limit, reference, safe_time)
         value = raw(self, safe_time)
+        if guard_zero_limit:
+            # Substitute before operating: a final mask alone gives 0 * inf AD.
+            value = jnp.where(zero_limit, 0.0, value)
         policy_value = jnp.where(negative, negative_value, value)
         # spec 4.5: a NaN family value takes precedence over policy constants.
         policy_value = jnp.where(jnp.isnan(value), value, policy_value)

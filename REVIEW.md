@@ -1,61 +1,86 @@
-# A5.1 — NaN precedence for density at infinity
+# A5.2 — Generic finite boundary gradients and extension recipe
 
-Implemented on `A5` after maintainer sync `89cb9f4`, against specification
-revision 22. Approved planning record: `b85f2a1`. Commit this step, then stop.
+Implemented on the maintainer-selected `A5` branch, starting at `3f50962`,
+against specification revision 22 and independent tests `7f1d6df`.
+The maintainer approved the detailed PLAN.md before implementation.
 
 ## Reading order and invariants
 
-1. `tests/unit/test_family_infinity.py`: constant/quadratic primitives and
-   deliberately conflicting density overrides; all expected constants come
-   from section 4.5's boundary policy, not the implementation.
-2. `_survival_methods.py`: the density wrapper checks raw log survival on the
-   already-substituted safe times. At +inf, only NaN log survival gives NaN
-   density; otherwise density is -inf, even if its raw formula gives inf-inf.
-3. `docs/distributions.md`: the updated infinity row and executable assertions.
-   `PLAN.md` records the remaining separately approved steps.
+1. `tests/unit/test_family_infinity.py`: read the proper-family gradient tests,
+   mixed finite/infinite Hessians, then the guarded cure primitive and its
+   analytical fraction derivatives. Earlier A5.1 density cases remain intact.
+2. `src/survjax/distributions/_survival_methods.py`: the existing policy wrapper
+   recognizes only the generic survival/log-CDF by static function identity.
+   It probes raw log survival at the actual infinity, uses that result only
+   as a Boolean mask, substitutes the stopped reference before the default's
+   operations, then selects zero. One reference call is reused throughout.
+3. `docs/distributions.md`: the executable cure recipe and gradient assertions,
+   exact-shape/dtype PiecewiseHazard reference, and Gompertz display correction.
+   PLAN.md contains the approved scope and remaining separately planned steps.
 
-Spec 4.2/4.5: the default and overrides follow the same infinity rule.
-`test_nan_parameter_density_at_infinity_is_nan` covers scalar eager/jit/vmap;
-`test_infinite_density_keeps_nan_and_valid_batch_entries_separate` covers
-mixed batches and divergent valid density formulas. The two conflicting-override
-tests prove that primitive NaN status, rather than density NaN status, decides.
-The remaining tests pin finite and negative-time override behavior.
+The guard requires both positive infinite time and negative infinite raw log
+survival. Finite cure limits remain active; their parameter derivatives survive.
+NaN limits remain NaN. Finite times are never guarded by this new condition,
+including tails where survival underflows. Overrides, density/hazard policy,
+zero-time behavior, exports, dependencies and tolerances are unchanged.
+Only the substituted reference is stopped; real parameters and active results
+are not. Custom authors remain responsible for safe primitive operands and a
+valid reference input. The guarantee does not extend to arbitrary unsafe cure
+primitives, invalid parameters or discontinuous parameter boundaries.
 
-Spec 7.2: the additional raw call receives the existing safe_time; it never
-calls the policy wrapper or obtains another reference. Existing seven-method
-reference-call tests still pass. No parameter domain is inferred, gradients
-are not stopped on real parameters, and no public API or tolerance changes.
+## Requirements demonstrated by tests
+
+- Spec 4.5/7.2: `test_proper_infinity_has_zero_parameter_gradient` tests constant
+  and quadratic primitives, exact zero first parameter derivatives in forward
+  and reverse modes, eager/jit and jit/vmap composition.
+- Spec 7.2/7.3: `test_mixed_finite_infinite_gradient_and_hessian` checks sums
+  against analytical values, gradients and Hessians, plus independent batched
+  parameters. An inactive infinity entry cannot contaminate the finite entry.
+- Spec 4.2/7.3: `test_cure_limit_preserves_fraction_derivative` checks finite
+  and infinite values and forward/reverse fraction/rate derivatives under
+  jit/vmap, including the nonzero derivative of log(1-p).
+- Spec 4.5: `test_infinite_survival_methods_keep_nan_entries` preserves entrywise
+  NaN precedence; `test_infinite_survival_overrides_are_honored` checks explicit
+  and inherited dispatch. `test_infinite_default_uses_one_reference_call`
+  pins reference reuse. Existing seven-method finite reference tests also pass.
+- Spec 4.2/7.2: `test_finite_tail_and_lower_tail_remain_active` checks finite
+  underflow values and the analytical lower-tail log-CDF/rate derivative.
+  Existing zero-CDF, negative/NaN-time, interior second-order and density tests
+  remain regressions. Spec 10.5: the extension recipe executes in both modes.
 
 ## Checks and exact results
 
-Before the source fix, `JAX_ENABLE_X64=1` and `0` with
-`.venv/bin/python -m pytest tests/unit/test_family_infinity.py -q` each gave
-**7 failed, 1 passed** (1.26s); a repeated pre-fix run gave the same counts
-(0.81s). After the fix, each gave **8 passed** (1.09s).
-Ruff formatting of the changed source/test files: **1 reformatted, 1 unchanged**.
+Before the fix, the focused module gave **6 failed, 16 passed** in each dtype
+mode: infinity parameter derivatives and mixed-batch derivatives were NaN.
+After the fix and final test additions, `JAX_ENABLE_X64=1` and `0` with
+`.venv/bin/pytest -q tests/unit/test_family_infinity.py` each gave **23 passed**
+(2.34s/2.49s). Mutation: removing only the safe-time substitution while retaining
+final output masking gave **4 failed, 19 deselected** in each mode (1.03s/1.04s).
+The source was restored before all final checks.
 
 `UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A4`
 exited 0: **guard: ok (A5)**; Ruff **39 files already formatted**, **All checks
-passed!**; mypy **no issues in 9 source files**. Own x64: **299 passed, 6 skipped**
-(11.73s); own x32: **304 passed, 1 skipped** (10.73s). Source doctests:
-**1 passed** each (0.48s/0.46s). Independent x64: **679 passed, 25 skipped,
-370 deselected** (15.45s); x32: **693 passed, 11 skipped, 370 deselected**
-(12.91s). Final output: **check: all gates passed through A4**.
-All three new revision-22 A4 regressions pass in the synced suite (`7f1d6df`).
-Existing skips are dtype-specific, optional pandas, or x64-only finite differences.
+passed!**; mypy **no issues in 9 source files**. Own x64: **314 passed, 6 skipped**
+(12.12s); x32: **319 passed, 1 skipped** (11.70s). Source doctests: **1 passed**
+each (0.50s/0.49s). Independent x64: **679 passed, 25 skipped, 370 deselected**
+(15.19s); x32: **693 passed, 11 skipped, 370 deselected** (12.61s).
+Final output: **check: all gates passed through A4**. Existing skip counts are
+unchanged; independent tests were not edited, skipped or xfailed by this step.
 
-`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/build_docs.sh` exited 0:
-**build succeeded** for x32 and x64. The distribution guide, playground and
-SurvivalData guide executed afresh in both modes, including both new assertions.
-Kernels printed their existing TCP transport warning; Sphinx reported no errors.
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/build_docs.sh` initially
+failed with sandbox `PermissionError` during kernel startup. The permitted
+rerun exited 0: **build succeeded** for x32 and x64; all three executable guides
+ran afresh, including the new cure and infinity-gradient assertions. Kernels
+printed the existing TCP transport warning; Sphinx reported no errors.
 `git diff --check` passed with no output.
 
-## Limits and next stop
+## Limits and stop
 
-Density now evaluates the raw primitive once more per call, also at finite
-times; performance was not measured. No custom-family boundary-gradient repair,
-built-ins or grids were implemented. The 370 A5 acceptance cases remain
-unimplemented/deselected; the full A5 gate was not run. No R, installation or
-rendered-page visual check was run. Independent tests, spec, alignment marker,
-exports and dependencies were untouched. D-016/D-019 remain open for maintainer
-closure. Stop here before A5.2, as required by the approved plan and AGENTS.md.
+Generic survival/log-CDF now evaluate the raw primitive once more per call,
+including finite calls; performance was not measured. Source/test/doc changes
+are about 230 added lines; planning and review records add documentation overhead.
+No R fixture, wheel installation or rendered-page visual check was run.
+Built-ins and grids are future steps: all 370 A5 acceptance cases remain
+unimplemented/deselected and the full A5 gate was not run. Spec, independent
+tests, alignment marker and DEVIATIONS.md remain untouched; D-016 stays open
+for maintainer closure. Commit this step and stop before A5.3.

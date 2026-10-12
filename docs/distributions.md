@@ -128,7 +128,7 @@ h(t) = b\,e^{c t},
 \qquad
 H(t) = \frac{b}{c}\left(e^{c t} - 1\right),
 \qquad
-\log S(t) = -\frac{b}{c}\,\operatorname{expm1}(c t).
+\log S(t) = -\frac{b}{c}\left(e^{c t} - 1\right).
 $$
 
 Take $t$ as years since age 30, a hazard of $b = 0.0005$ per year at age 30,
@@ -243,7 +243,8 @@ class PiecewiseHazard(survjax.SurvivalDistribution):
         return -jnp.sum(self.rates * exposure, axis=-1)
 
     def reference_time(self):
-        return jnp.asarray(self.starts[1] / 2)  # middle of the first interval
+        # Middle of the first interval, one reference per batch entry.
+        return jnp.full(self.batch_shape, self.starts[1] / 2, dtype=self.rates.dtype)
 
 
 relapse = PiecewiseHazard(starts=(0.0, 6.0, 12.0), rates=jnp.array([0.08, 0.05, 0.02]))
@@ -407,6 +408,46 @@ assert jnp.isnan(invalid_progression.log_prob(jnp.inf))
 assert progression.log_prob(jnp.inf) == -jnp.inf
 ```
 
+For the generic `survival` and `log_cdf`, a raw log-survival limit of
+minus infinity gives zero with zero parameter gradient. survjax evaluates
+the default at the reference time before selecting that boundary value.
+A finite limit stays active: for a cure fraction $p$, $S(\infty)=p$ and
+$\log F(\infty)=\log(1-p)$ retain their derivatives in $p$.
+
+Your primitive must still use safe operands wherever differentiation is
+needed. For example, this cure family substitutes before multiplying by
+infinity, then selects the remaining susceptible fraction. It preserves NaN
+from the parameter calculation rather than hiding it behind the limit.
+
+```{code-cell} ipython3
+@survjax.register_family
+@dataclass(frozen=True)
+class CureHazard(ConstantHazard):
+    fraction: jax.Array = survjax.param()
+
+    def log_survival(self, t):
+        time = jnp.asarray(t)
+        infinite = jnp.isposinf(time)
+        safe_time = jnp.where(infinite, jax.lax.stop_gradient(jnp.ones_like(time)), time)
+        remaining = jnp.exp(-self.rate * safe_time)
+        remaining = jnp.where(infinite & ~jnp.isnan(remaining), 0.0, remaining)
+        return jnp.log(self.fraction + (1.0 - self.fraction) * remaining)
+
+
+assert jax.grad(lambda r: ConstantHazard(rate=r).survival(jnp.inf))(0.1) == 0.0
+assert jax.grad(lambda r: ConstantHazard(rate=r).log_cdf(jnp.inf))(0.1) == 0.0
+assert jax.grad(lambda p: CureHazard(rate=0.1, fraction=p).survival(jnp.inf))(0.25) == 1.0
+assert jnp.isclose(
+    jax.grad(lambda p: CureHazard(rate=0.1, fraction=p).log_cdf(jnp.inf))(0.25),
+    -1.0 / 0.75,
+)
+assert jnp.isnan(CureHazard(rate=jnp.nan, fraction=0.25).survival(jnp.inf))
+```
+
+This guard is specific to the generic methods and a zero survival limit at
+positive infinity. Family overrides remain responsible for their own boundary
+operands; finite times, even in an underflowing tail, are evaluated as given.
+
 Parameter values are not checked. A negative rate is stored as given and
 produces whatever the formula gives; validating parameters is up to the
 caller.
@@ -453,8 +494,8 @@ override.
   your family). Negative and NaN times never reach your code.
 - Make $\log S$ differentiable in $t$: the hazard and density come from its
   derivative. At a kink, the derivative JAX returns is the hazard you get.
-- Return a positive, finite `reference_time()` broadcastable to the batch
-  shape, in the smooth interior of the distribution.
+- Return a positive, finite `reference_time()` of exactly `batch_shape`, in
+  the parameter dtype and the smooth interior of the distribution.
 - Write `log_survival` for a single distribution and let broadcasting handle
   batches: parameters have the batch shape (plus any component axes) and `t`
   broadcasts against it.
