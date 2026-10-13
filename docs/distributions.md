@@ -436,7 +436,10 @@ class CureHazard(ConstantHazard):
 
 assert jax.grad(lambda r: ConstantHazard(rate=r).survival(jnp.inf))(0.1) == 0.0
 assert jax.grad(lambda r: ConstantHazard(rate=r).log_cdf(jnp.inf))(0.1) == 0.0
-assert jax.grad(lambda p: CureHazard(rate=0.1, fraction=p).survival(jnp.inf))(0.25) == 1.0
+assert jnp.isclose(
+    jax.grad(lambda p: CureHazard(rate=0.1, fraction=p).survival(jnp.inf))(0.25),
+    1.0,
+)
 assert jnp.isclose(
     jax.grad(lambda p: CureHazard(rate=0.1, fraction=p).log_cdf(jnp.inf))(0.25),
     -1.0 / 0.75,

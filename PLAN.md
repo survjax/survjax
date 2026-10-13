@@ -1,8 +1,9 @@
 # A5 — Exponential, Weibull and time-first grids
 
 Status: A5.1 (`3f50962`) was approved by the reviewer and merged into main by
-the maintainer. A5.2's approved plan below is implemented, awaiting review
-(2026-10-12); A5.3–A5.5 remain future steps. Planning starts from a
+the maintainer. A5.2 (`a58c57c`) received a merge verdict on 2026-10-12.
+The F-2/F-3 review nits are corrected; A5.2b below is proposed and awaits
+approval. A5.3–A5.5 remain future steps. Planning starts from a
 clean `A5` checkout at `3f50962`, also the current main tip. No branch is created
 or switched by this planning request; implementation uses the maintainer's
 selected step branch after approval. Based on
@@ -193,6 +194,69 @@ necessary. Overwrite REVIEW.md with reading order, safe-input/dispatch invariant
 spec-to-test mapping, mutation evidence, exact results/skips and the unmeasured
 extra-evaluation cost. Leave D-016 open for maintainer closure. Commit the
 approved step on the maintainer-selected branch, then stop before A5.3.
+
+## A5.2b — Isolate finite-entry derivatives from infinity entries (review F-1)
+
+Status: proposed, awaiting maintainer approval. This is a separate numerical
+step before A5.3, on the maintainer-selected branch. It addresses the review's
+shared-parameter mixed-batch leak; it does not promise derivatives of infinite
+or NaN outputs. Covered spec: 4.2, 4.5, 7.2–7.3 and the extension recipe in 10.5.
+No public API, exports, dependencies, built-ins, grids or spec-test changes.
+
+Files and numerical approach:
+
+- `src/survjax/distributions/_survival_methods.py`: retain the single stopped
+  reference and probe the primitive at the original policy-safe times before
+  any infinity substitution. Use probe results only as Boolean conditions.
+  For density, substitute all positive-infinity times before running the raw
+  density, including overrides. Select -inf or NaN using the original probe's
+  NaN status; a substituted reference must not determine that status.
+- For the policy-wrapped log-survival primitive and the generic cumulative
+  hazard, extend the existing zero-limit guard (positive infinite time AND
+  negative infinite raw log survival); substitute before evaluation and select
+  -inf/+inf respectively. Finite cure limits stay active. Cumulative-hazard
+  overrides retain their own dispatch.
+- Guard generic log-hazard with the same zero-limit condition and select its
+  existing NaN boundary value. Guard generic hazard only when its underlying
+  log-hazard is also generic. Analytic log-hazard/hazard overrides, including
+  inherited overrides, must preserve their infinity values and derivatives.
+  This prevents the generic hazard default from reintroducing the same leak.
+- `src/survjax/distributions/base.py`: if needed, pass an explicit private
+  primitive flag from registration to the existing policy wrapper. The
+  log-survival primitive has no generic function identity; do not infer its
+  role from an author's function name or introduce a new marker protocol.
+  Other generic defaults continue to use static raw-function identity.
+- Preserve NaN precedence, negative/NaN and zero-time behavior, finite tails,
+  and reference-call count. Stop only substituted inputs, never active values
+  or parameters. Reuse the probe for density instead of probing at the newly
+  substituted time. Record extra evaluation cost without optimizing it here.
+
+Tests: create `tests/unit/test_family_mixed_infinity.py` to keep the existing
+infinity module below 300 lines. Use small explicit constant/quadratic/cure
+families and hand-derived expectations, with existing test tolerances.
+
+- Shared scalar rate r=2 at times [1,+inf]: finite-entry derivatives are -1
+  for log survival, +1 for cumulative hazard, 1/r-1 for log density, 1/r for
+  log hazard and 1 (constant) or 2 (quadratic) for hazard. Check the finite
+  output component with jacfwd/jacrev, eager/jit and jit/vmap compositions;
+  do not differentiate a sum containing a nonfinite output.
+- Check second derivatives of the finite output component against algebra:
+  log density/log hazard -1/r**2, other listed methods zero. Independent
+  parameter batches must keep finite-entry derivatives separate too.
+- Preserve A5.1 density values for mixed NaN/valid parameters, including
+  finite and NaN overrides. Preserve nonzero fraction derivatives of finite
+  log-survival/cumulative-hazard cure limits and analytic hazard overrides.
+- Pin one reference call and unchanged finite values. Demonstrate pre-fix
+  failures in both dtype modes, then remove only the new input substitutions
+  as a mutation: finite-component reverse derivatives must fail again.
+
+`docs/distributions.md`: explain mixed-entry isolation and its limits, including
+that derivatives of nonfinite outputs and arbitrary unsafe custom overrides
+are not guaranteed. `DEVIATIONS.md`: extend D-016 evidence without resolving it.
+Overwrite `REVIEW.md` with invariants, test/spec mapping and exact check results.
+Run focused tests in both processes, `scripts/check.sh --through A4`, both-mode
+`scripts/build_docs.sh`, and `git diff --check`. Aim for about 300 source/test/doc
+lines, split if needed, commit one numerical step, then stop before A5.3.
 
 ## A5.3 — Exponential
 

@@ -258,7 +258,7 @@ def test_infinite_default_uses_one_reference_call(name, monkeypatch):
     assert len(calls) == 1
 
 
-def test_finite_tail_and_lower_tail_remain_active(x64_enabled):
+def test_finite_underflow_values_and_lower_tail_derivative(x64_enabled):
     """Spec 4.2/7.2: S=exp(-rt); log F has derivative t/expm1(rt)."""
     assert Constant(rate=1.0).survival(1000.0) == 0.0
     assert Constant(rate=1.0).log_cdf(1000.0) == 0.0

@@ -56,6 +56,14 @@
   recipe. The revised A5 plan retains the selected generic improvement but
   does not promise repair of arbitrary custom primitives. Tester Q-029 and
   the new infinity-gradient cases in `test_a5_boundaries.py` cover this reading.
+- Review follow-up (2026-10-12, A5.2 F-1): A5.2 fixes generic survival/log-CDF,
+  but shared-parameter calls on [1,+inf] still give NaN finite-entry reverse
+  derivatives for log density, log survival, cumulative hazard and quadratic
+  generic log hazard. Nonfinite boundary derivatives are outside the guarantee;
+  this finding concerns contamination of the finite interior entry. PLAN.md
+  proposes A5.2b to isolate those entries, preserve cure limits and analytic
+  overrides, and cover the generic hazard path as well. No numerical follow-up
+  implementation has been performed; approval is pending.
 - Status: open (maintainer decision 2026-10-03: defer to A5)
 
 ## D-017 Dtype policy for direct-method times
