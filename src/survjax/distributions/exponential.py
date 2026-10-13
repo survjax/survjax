@@ -93,11 +93,13 @@ class Exponential(SurvivalDistribution):
 
         Negative t gives -inf; NaNs propagate. Uses no tail subtraction.
         """
-        return jnp.broadcast_to(jnp.log(self.rate), jnp.shape(t))
+        output_shape = jnp.broadcast_shapes(jnp.shape(t), self.batch_shape)
+        return jnp.broadcast_to(jnp.log(self.rate), output_shape)
 
     def hazard(self, t: ArrayLike) -> jax.Array:
         """Return rate, broadcast against t, including at zero and +inf.
 
         Negative t gives zero; NaNs propagate. The infinity rate derivative is 1.
         """
-        return jnp.broadcast_to(self.rate, jnp.shape(t))
+        output_shape = jnp.broadcast_shapes(jnp.shape(t), self.batch_shape)
+        return jnp.broadcast_to(self.rate, output_shape)

@@ -19,6 +19,38 @@ METHODS = (
 )
 
 
+@pytest.mark.parametrize("name", ["log_hazard", "hazard"])
+def test_raw_hazard_methods_broadcast_scalar_and_multiaxis_times(name, x64_enabled):
+    """Spec 4.1/5: raw formulas broadcast without the time-policy wrapper."""
+    dist = Exponential(rate=[2.0, 3.0])
+    # Analytically h(t)=r and log h(t)=log(r), at every positive time.
+    expected = np.log([2.0, 3.0]) if name == "log_hazard" else [2.0, 3.0]
+    raw = getattr(Exponential, name)._survjax_raw
+
+    def raw_value(time):
+        return raw(dist, time)
+
+    for time, shape in ((1.0, (2,)), (jnp.ones((2, 1)), (2, 2))):
+        for result in (
+            raw_value(time),
+            jax.jit(raw_value)(time),
+            getattr(dist, name)(time),
+        ):
+            assert result.shape == shape
+            np.testing.assert_allclose(
+                result,
+                np.broadcast_to(expected, shape),
+                atol=ATOL[x64_enabled],
+                rtol=RTOL[x64_enabled],
+            )
+    np.testing.assert_allclose(
+        jax.jit(jax.vmap(raw_value))(jnp.array([1.0, 2.0])),
+        np.broadcast_to(expected, (2, 2)),
+        atol=ATOL[x64_enabled],
+        rtol=RTOL[x64_enabled],
+    )
+
+
 def test_values_broadcast_and_transform(x64_enabled):
     """Spec 4.1/5/12.1: algebra at rate 2; multiaxis values under jit/vmap."""
     expected = (

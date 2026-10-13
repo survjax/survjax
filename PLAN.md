@@ -299,6 +299,23 @@ numerical step, then stop before A5.3.
 
 ## A5.3 — Exponential
 
+### Reviewer broadcasting fix-up
+
+Authorized by the maintainer's request to implement the reviewer suggestion.
+On the existing `a5.3-exponential` branch, update `log_hazard` and `hazard`
+in `src/survjax/distributions/exponential.py` to compute the broadcast shape
+of `t` and `self.batch_shape` explicitly before broadcasting their values.
+No public API or time-policy change; this removes the raw methods' dependency
+on the registration wrapper pre-broadcasting time. Covers spec 4.1/4.5/5.
+
+Add an own regression in `tests/unit/test_exponential.py` for raw and wrapped
+hazard methods with scalar time and singleton-axis time arrays against batched
+rates, eagerly and with jit/vmap. Expected values are rate and log(rate).
+Demonstrate the new regression fails before the source change. Run the focused
+suite in both dtype modes, the through-A4 gate, the existing Exponential-only
+A5 acceptance selection, and `git diff --check`. Overwrite REVIEW.md, commit
+one fix-up and stop. Full docs remain deferred to the end of A5.
+
 Status: approved and implemented on 2026-10-13 from main at `7a2fef6`, on
 `a5.3-exponential`; awaiting review. This is the code step after merged A5.2b,
 before Weibull (A5.4) and grids (A5.5). Approved planning and spec-marker
