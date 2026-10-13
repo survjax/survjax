@@ -299,34 +299,118 @@ numerical step, then stop before A5.3.
 
 ## A5.3 — Exponential
 
-- Create `src/survjax/distributions/exponential.py`, a registered frozen dataclass
-  with typed `rate: jax.Array = param()`. Export it in the distribution and
-  top-level initializers; update `tests/unit/test_import.py`'s exact export set.
-- Implement `from_log(*, log_rate)` using exp then the natural constructor.
-  Normalize/reject log-input dtypes before exponentiation using the existing
-  dtype policy, preserving weak promotion and the float64 conversion warning;
-  booleans must not turn into valid floats through exp. No value checks or
-  retained log state. Test equality of values and log-input gradients with the
-  ordinary exp-parameterized constructor on finite valid cases.
-- Implement log survival -r*t, cumulative hazard r*t, analytical log density
-  log(r)-r*t and log hazard log(r). Inherited derived defaults are used only
-  where value/tail accuracy and boundary gradients are verified. Guard infinity
-  operands before operations, preserving NaN parameters. Analytical h(+inf)=r
-  must retain derivatives 1 for h and 1/r for log h.
-- Return a parameter-dtype reference array of batch_shape: 1/r on ordinary
-  scales. Ensure a positive finite reference even if the reciprocal of a valid
-  positive finite rate overflows; any safe alternative is a reference choice,
-  not a floor on active probabilities or parameters.
-- Add `tests/unit/test_exponential.py`: hand-derived seven-method values,
-  negative/zero/finite/+inf/NaN times, invalid-parameter formula behavior,
-  natural leaves, required keywords, indexing/PyTree/traced construction,
-  scalar/paired/multiaxis batches and dtype cases. Include relative precision
-  at H=2e-30, log-CDF tails, large-H analytic hazard, jit/vmap, interior gradient
-  1/r-t and Hessian -1/r**2, and finite boundary gradients. Compare log
-  probabilities when linear survival/density underflows.
-- Public API docstrings cover units, positive-rate domain, rate=1/mean and
-  the overflow limitation of from_log. Tutorial examples, conversions and
-  navigation updates belong in "A5 docs". Cover 3.3/4.1/4.2/4.5/4.6/7.2/7.3.
+Status: planned on 2026-10-13 from clean main at `7a2fef6`; awaiting maintainer
+approval. This is the next code step after merged A5.2b, before Weibull (A5.4)
+and grids (A5.5). Implementation uses the maintainer-selected step branch;
+this planning request creates no branch, commit or implementation.
+
+Spec: 3.3, 4.1–4.2, 4.5–4.6, 5 (pointwise broadcasting only), 7.2–7.3,
+10.2–10.5 and the applicable 12.1 checks. Revision 23 changes documentation
+scheduling only; the synced revision-22 numerical acceptance tests remain
+applicable. `.spec-seen` still names `9323cb5`. The diff to `a212ddd` was read;
+align that marker on the implementation branch before coding, as separate
+bookkeeping, without changing spec tests or their revision labels.
+
+### Files and public API
+
+- Create `src/survjax/distributions/exponential.py`: registered frozen dataclass
+  subclass of `SurvivalDistribution`, with `rate: jax.Array = param()` as its
+  only leaf. Constructor is keyword-only `Exponential(rate=...)`; no default,
+  dtype keyword, value validation, log-storage flag or new dependency.
+- Add `Exponential` imports/exports in `src/survjax/distributions/__init__.py`
+  and `src/survjax/__init__.py`; update the exact public export assertion in
+  `tests/unit/test_import.py`.
+- Add typed `from_log(*, log_rate)` returning the same class. Reuse
+  `_dtypes.normalize_parameters` before exponentiation so boolean/complex/
+  string/object inputs cannot become valid parameters through `exp`. Keep
+  weak/default dtype promotion and the float64-to-float32 warning policy.
+  Store only `exp(log_rate)`; overflow yields an infinite natural rate.
+- Implement `log_survival=-r*t`, `cumulative_hazard=r*t`,
+  `log_prob=log(r)-r*t`, `log_hazard=log(r)` and `hazard=r` analytically.
+  Inherit `survival` and stable `log_cdf` from the existing base. Preserve
+  pointwise output broadcasting even for time-independent hazard methods.
+  Use the existing policy wrappers; no registration or generic-wrapper changes.
+- `reference_time()` returns exactly `batch_shape` in `rate.dtype`, positive
+  and finite for valid rates. Use `1/r` where representable; substitute safe
+  operands before division and choose a finite positive reference if reciprocal
+  overflow or underflow would make it unusable. Invalid-rate references have
+  no value guarantee. This fallback never changes active rates or probabilities.
+
+### Numerical invariants and docstrings
+
+- Negative/NaN times use the base policy. At zero: log S=H=0, S=1,
+  log F=-inf, log density/log hazard=log(r), hazard=r. At +inf: log S=-inf,
+  H=+inf, S=0, log F=0, log density=-inf, log hazard=log(r), hazard=r.
+- Substitute safe times before inactive infinity arithmetic in analytic
+  overrides where needed. Retain NaN-rate propagation at every time, including
+  negative/zero/infinite times; don't hide it behind boundary constants.
+  Invalid finite rates are accepted and follow the formula; add no domain mask.
+- At finite-valued boundaries, derivatives are the actual limit derivatives:
+  S(0), H(0), S(+inf) and log F(+inf) have zero rate derivative;
+  log density/log hazard at zero and log hazard at infinity have derivative
+  1/r; hazard at infinity has derivative 1. Mixed finite/infinite batches
+  must preserve finite-output derivatives for shared and per-entry rates.
+- Class and method docstrings state purpose, arguments, returns/shapes and
+  dtype/shape misuse errors. Include defining formulas, positive finite rate
+  domain, inverse-time units, rate=1/mean, log-rate/log-mean conversions and a
+  short conversion example. `from_log` states natural leaves and overflow
+  limits. No narrative `docs/` edits or documentation build in this code step;
+  tutorial/navigation work remains in "A5 docs" below.
+
+### Own tests and diff budget
+
+Create `tests/unit/test_exponential.py`, with algebra or independently evaluated
+NumPy formulas as expectations and existing `tests/impl_tolerances.py` values.
+
+- Seven-method values, paired/multiaxis broadcasting, all time-policy rows,
+  NaN isolation, large-H analytic hazard and underflowed survival/log density.
+  At H=2e-30 assert relative precision with zero atol; check the lower-tail
+  log CDF against log(2e-30), without accepting a zero-H result.
+- Only natural rate as a PyTree leaf; keyword requirements, no value checks,
+  no `.shape` alias, batch indexing/tree slicing and construction inside jit/vmap.
+  Test ordinary/from_log integer/scalar/array dtype behavior and rejected kinds,
+  plus reference shape/dtype and finite positive extreme-rate references.
+- Finite log-input values and gradients against exp-parameterized algebra:
+  d log f/d log r = 1-r*t. Test from_log keyword-only misuse and natural-rate
+  overflow without promising a specific invalid-rate method result.
+- Eager/jit/vmap agreement; interior forward/reverse derivative 1/r-t and
+  Hessian -1/r**2, finite boundary derivatives and mixed-batch finite-component
+  Jacobians. Use x64 order-two `check_grads`; use algebra in both modes.
+
+Budget: about 90–110 source/docstring lines, 150–170 own-test lines and under
+15 export/import-test lines; keep code/tests/docstrings at most 300 changed
+lines. Reuse existing generic registration/policy tests and the independent
+suite rather than copying their full matrices. Split before exceeding the
+limit; don't defer correctness tests just to fit the diff.
+
+### Checks, evidence and stop
+
+After implementation, run focused own tests in separate x64/x32 processes,
+then `UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A4`
+and `git diff --check`. Run the following read-only A5 selection in each mode
+with `JAX_ENABLE_X64=1` and `0`, `SPEC_THROUGH=A5`:
+
+```bash
+.venv/bin/python -B -m pytest \
+  tests/spec/test_a5_construction.py tests/spec/test_a5_from_log.py \
+  tests/spec/test_a5_closed_forms.py tests/spec/test_a5_boundaries.py \
+  tests/spec/test_a5_derivatives.py \
+  -k '(exponential and not weibull) or nan_rate or boundary_values_agree_under_vmap_over_time' \
+  -q -p no:cacheprovider
+```
+
+Planning evidence: this selection collected successfully with `--collect-only
+-qq` in both modes (exit 0): construction 10, from_log 4, closed forms 13,
+boundaries 54, derivatives 14 — **95 cases**. No implementation tests or full
+gate ran during planning. The broader `-k exponential` selection also includes
+seven Weibull identity cases, so it is not the A5.3 selection. Mixed-family
+tests, Weibull identities and grid tests wait for their implementing steps;
+report these exclusions and the existing x32 finite-difference skips explicitly.
+
+After code validation, overwrite `REVIEW.md` with reading order, invariants,
+spec/test mapping, exact commands/results and deferred docs. Commit this one
+approved code step on the selected branch and stop before A5.4. Don't merge,
+publish, edit the spec/independent tests or resolve existing deviations.
 
 ## A5.4 — Weibull
 
