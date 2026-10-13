@@ -299,17 +299,17 @@ numerical step, then stop before A5.3.
 
 ## A5.3 — Exponential
 
-Status: planned on 2026-10-13 from clean main at `7a2fef6`; awaiting maintainer
-approval. This is the next code step after merged A5.2b, before Weibull (A5.4)
-and grids (A5.5). Implementation uses the maintainer-selected step branch;
-this planning request creates no branch, commit or implementation.
+Status: approved and implemented on 2026-10-13 from main at `7a2fef6`, on
+`a5.3-exponential`; awaiting review. This is the code step after merged A5.2b,
+before Weibull (A5.4) and grids (A5.5). Approved planning and spec-marker
+alignment were committed separately in `9337969` before implementation.
 
 Spec: 3.3, 4.1–4.2, 4.5–4.6, 5 (pointwise broadcasting only), 7.2–7.3,
 10.2–10.5 and the applicable 12.1 checks. Revision 23 changes documentation
 scheduling only; the synced revision-22 numerical acceptance tests remain
-applicable. `.spec-seen` still names `9323cb5`. The diff to `a212ddd` was read;
-align that marker on the implementation branch before coding, as separate
-bookkeeping, without changing spec tests or their revision labels.
+applicable. `.spec-seen` was aligned from `9323cb5` to `a212ddd` after reading
+the diff, in the separate bookkeeping commit. Spec tests and their revision
+labels remain unchanged.
 
 ### Files and public API
 
@@ -382,6 +382,12 @@ Budget: about 90–110 source/docstring lines, 150–170 own-test lines and unde
 lines. Reuse existing generic registration/policy tests and the independent
 suite rather than copying their full matrices. Split before exceeding the
 limit; don't defer correctness tests just to fit the diff.
+
+Implementation accounting: 103 family lines, 183 own-test lines, 13 changed
+export/import-test lines: **299 changed lines**. Complete boundary matrices,
+registration behavior and x64 order-two finite differences reuse the independent
+suite. Own tests focus on additional extreme-reference, input-dtype and
+mixed-infinity cases. No coverage is deferred beyond the stated step scope.
 
 ### Checks, evidence and stop
 

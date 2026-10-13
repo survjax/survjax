@@ -3,6 +3,7 @@
 from survjax.data import SurvivalData
 from survjax.diagnostics import InvalidDataError
 from survjax.distributions import (
+    Exponential,
     SurvivalDistribution,
     distribution,
     param,
@@ -11,6 +12,7 @@ from survjax.distributions import (
 )
 
 __all__ = [
+    "Exponential",
     "SurvivalData",
     "InvalidDataError",
     "SurvivalDistribution",

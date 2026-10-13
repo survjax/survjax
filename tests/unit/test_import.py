@@ -6,6 +6,7 @@ def test_public_package_imports() -> None:
     import survjax
 
     assert set(survjax.__all__) == {
+        "Exponential",
         "SurvivalData",
         "InvalidDataError",
         "SurvivalDistribution",
