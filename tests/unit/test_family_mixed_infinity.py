@@ -80,6 +80,14 @@ class DensityOverride(Constant):
 
 @survjax.register_family
 @dataclass(frozen=True)
+class CureDensityOverride(Cure):
+    def log_prob(self, t: ArrayLike) -> jax.Array:
+        # Finite cure limit distinguishes all-infinity from zero-limit guarding.
+        return -self.rate * jnp.asarray(t)
+
+
+@survjax.register_family
+@dataclass(frozen=True)
 class NaNLimit(Constant):
     def log_survival(self, t: ArrayLike) -> jax.Array:
         time = jnp.asarray(t)
@@ -201,6 +209,31 @@ def test_density_override_infinity_does_not_poison_finite_derivative():
     assert jnp.isneginf(DensityOverride(rate=2.0).log_prob(jnp.inf))
     assert jax.jacfwd(value)(2.0) == -1.0
     assert jax.jit(jax.jacrev(value))(2.0) == -1.0
+
+
+def test_cure_density_override_infinity_preserves_finite_derivative():
+    """Spec 4.5/7.2: finite log S(inf)=log(p) still needs density substitution."""
+
+    def values(rate):
+        return CureDensityOverride(rate=rate, fraction=0.25).log_prob(
+            jnp.array([1.0, jnp.inf])
+        )
+
+    # Raw finite log f=-rt=-2 at t=1; policy log f(inf)=-inf, even for cures.
+    np.testing.assert_array_equal(values(2.0), [-2.0, -np.inf])
+    np.testing.assert_array_equal(jax.jit(values)(2.0), [-2.0, -np.inf])
+
+    def finite_value(rate):
+        return values(rate)[0]
+
+    # d(-rt)/dr=-t=-1; differentiate only the finite component.
+    for transform in (jax.jacfwd, jax.jacrev):
+        derivative = transform(finite_value)
+        assert derivative(2.0) == -1.0
+        assert jax.jit(derivative)(2.0) == -1.0
+        np.testing.assert_array_equal(
+            jax.jit(jax.vmap(derivative))(jnp.array([2.0, 3.0])), [-1.0, -1.0]
+        )
 
 
 @pytest.mark.parametrize(

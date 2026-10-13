@@ -2,8 +2,8 @@
 
 Status: A5.1 (`3f50962`) was approved by the reviewer and merged into main by
 the maintainer. A5.2 (`a58c57c`) received a merge verdict on 2026-10-12.
-The F-2/F-3 review nits are corrected; A5.2b below is implemented and awaits
-review after approval on 2026-10-13. A5.3–A5.5 remain future steps. Planning starts from a
+The F-2/F-3 review nits are corrected; A5.2b (`71403c3`) received a merge
+verdict. Its review fix-up below addresses the remaining test/readability items. A5.3–A5.5 remain future steps. Planning starts from a
 clean `A5` checkout at `3f50962`, also the current main tip. No branch is created
 or switched by this planning request; implementation uses the maintainer's
 selected step branch after approval. Based on
@@ -196,6 +196,27 @@ extra-evaluation cost. Leave D-016 open for maintainer closure. Commit the
 approved step on the maintainer-selected branch, then stop before A5.3.
 
 ## A5.2b — Isolate finite-entry derivatives from infinity entries (review F-1)
+
+### Review fix-up (2026-10-13)
+
+Authorized by the maintainer's request to implement the A5.2b review comments.
+Same step and branch; no new public API or numerical policy.
+
+- `tests/unit/test_family_mixed_infinity.py`: add a density override to the
+  existing cure family whose formula is -r*t. Pin [1,+inf] values [-2,-inf]
+  at r=2, p=0.25, and the finite-component rate derivative -1 in forward and
+  reverse modes, including jit/vmap. Spec 4.5/7.2; expected numbers are algebra.
+- `_survival_methods.py`: consolidate each generic method's guard flag and
+  boundary value in one static conditional chain; retain the hazard check
+  against its underlying log-hazard and rename that local `log_hazard_method`.
+  No registration-table redesign or new configuration layer is needed.
+- F-3 remains a structural argument: `isposinf(time)` explicitly excludes
+  finite times. Do not assert unsupported NaN-gradient behavior to test it.
+- Demonstrate that reviewer mutant M1 (density substitutes only zero_limit)
+  fails the new test in both dtype modes; restore before the full through-A4
+  gate. Run focused tests, Ruff/mypy through that gate and `git diff --check`.
+  Overwrite REVIEW.md, commit one review fix-up, then stop. Full docs stay
+  deferred to the end of A5; spec and independent tests remain read-only.
 
 Maintainer update (2026-10-13): implement code, tests and standard function
 docstrings first. Full documentation updates and generation are deferred to

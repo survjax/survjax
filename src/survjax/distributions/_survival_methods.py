@@ -147,20 +147,22 @@ def apply_policy(
 ) -> Callable[["SurvivalDistribution", ArrayLike], jax.Array]:
     """Wrap one direct method, preserving its raw implementation on inheritance."""
     raw = getattr(method, "_survjax_raw", method)
-    guard_zero_limit = primitive or raw in (
-        survival,
-        log_cdf,
-        cumulative_hazard,
-        log_hazard,
-    )
     if primitive:
+        guard_zero_limit = True
         zero_limit_value = -jnp.inf
+    elif raw is survival or raw is log_cdf:
+        guard_zero_limit = True
+        zero_limit_value = 0.0
     elif raw is cumulative_hazard:
+        guard_zero_limit = True
         zero_limit_value = jnp.inf
-    elif raw is log_hazard or raw is hazard:
+    elif raw is log_hazard:
+        guard_zero_limit = True
         zero_limit_value = jnp.nan
     else:
-        zero_limit_value = 0.0
+        # Generic hazard's guard depends on the family's log-hazard below.
+        guard_zero_limit = False
+        zero_limit_value = jnp.nan
 
     @wraps(raw)
     def evaluate(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
@@ -189,8 +191,11 @@ def apply_policy(
         safe_time = jnp.where(inactive, reference, time)
         guard_limit = guard_zero_limit
         if raw is hazard:
-            method = type(self).log_hazard
-            guard_limit = getattr(method, "_survjax_raw", method) is log_hazard
+            log_hazard_method = type(self).log_hazard
+            guard_limit = (
+                getattr(log_hazard_method, "_survjax_raw", log_hazard_method)
+                is log_hazard
+            )
         infinite = jnp.isposinf(time)
         if guard_limit or density:
             # spec 4.5/7.2: probe the true limit only for a Boolean condition.
