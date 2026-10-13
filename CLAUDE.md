@@ -63,6 +63,12 @@ The maintainer reviews all code, so optimise for reviewability over speed.
    below). If one fails and you think the test is wrong, add a `DEVIATIONS.md`
    entry. Do not edit, skip or xfail it.
 
+## Docs
+
+- **Code steps:** don't edit `docs/`. Write docstrings for public API with the code (summary, args, returns, raises). Examples longer than a few lines belong in the docs pages, not in docstrings.
+- If a code step makes docs necessary, add a line to `PLAN.md` under the sub-slice's "Docs to-do" instead of writing them.
+- **Docs steps:** edit `docs/` (and docstrings only where they are wrong). One page or topic per step, at most 300 changed lines, `scripts/build_docs.sh` clean.
+
 ## Code style (optimised for a human reader)
 
 - Plain functions and small frozen dataclasses registered as pytrees. No

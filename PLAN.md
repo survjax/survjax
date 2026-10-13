@@ -2,9 +2,10 @@
 
 Status: A5.1 (`3f50962`) was approved by the reviewer and merged into main by
 the maintainer. A5.2 (`a58c57c`) received a merge verdict on 2026-10-12.
-The F-2/F-3 review nits are corrected; A5.2b (`71403c3`) received a merge
-verdict. Its review fix-up below addresses the remaining test/readability items. A5.3–A5.5 remain future steps. Planning starts from a
-clean `A5` checkout at `3f50962`, also the current main tip. No branch is created
+The F-2/F-3 review nits are corrected; A5.2b (`71403c3`) and its review fix-up
+(`63874e8`) are merged into main. A5.3–A5.5 and A5 docs remain future steps.
+The original planning started from a
+clean `A5` checkout at `3f50962`, then the main tip. No branch was created
 or switched by this planning request; implementation uses the maintainer's
 selected step branch after approval. Based on
 specification revision 22, design commit `9323cb5`, and the independent tester
@@ -61,10 +62,17 @@ installation checks and the CPU likelihood baseline remain later Slice A work.
 
 There are five commit-sized steps below, separating the newly specified policy
 correction from the generic gradient work. Aim for roughly 300 changed
-source/test/doc lines per step; split before expanding if necessary. Each step
-requires its own plan approval, tests/docs with the code, one commit and an
+source/test/docstring lines per code step, at most 300; split before expanding
+if necessary. Each step requires its own plan approval, tests and public API
+docstrings with the code, one commit and an
 updated REVIEW.md, then a stop. This proposal does not authorize proceeding
 through all five steps. Use the maintainer-selected branch; never commit on main.
+
+From A5.2b onward, narrative docs follow specification revision 23 (decision
+0038): code steps don't edit `docs/`; record their documentation needs under
+"A5 docs" below. Docs steps start after the last A5 code step merges, and A6
+starts only after the last A5 docs step merges. Earlier A5 docs are drafts;
+the A5.1/A5.2 instructions and verification evidence below retain their history.
 
 The maintainer aligned `.spec-seen` to `9323cb5` in `96fc32d` and synchronized
 the independent suite from `7f1d6df` in `89cb9f4` before implementation. The
@@ -218,13 +226,11 @@ Same step and branch; no new public API or numerical policy.
   Overwrite REVIEW.md, commit one review fix-up, then stop. Full docs stay
   deferred to the end of A5; spec and independent tests remain read-only.
 
-Maintainer update (2026-10-13): implement code, tests and standard function
-docstrings first. Full documentation updates and generation are deferred to
-the end of slice A5. This scheduling instruction also governs documentation
-work mentioned in the remaining A5 steps below; it does not waive the final
-documentation requirements or executable-example checks.
+Maintainer update (2026-10-13): code steps include tests and public API
+docstrings, with no `docs/` edits. Narrative docs and their builds are separate
+A5.d1, A5.d2, … steps after the last A5 code step merges; see "A5 docs" below.
 
-Status: implemented after maintainer approval on 2026-10-13; awaiting review.
+Status: implemented, reviewed and merged with its fix-up on 2026-10-13.
 This is a separate numerical
 step before A5.3, on the maintainer-selected branch. It addresses the review's
 shared-parameter mixed-batch leak; it does not promise derivatives of infinite
@@ -282,8 +288,8 @@ families and hand-derived expectations, with existing test tolerances.
 Update function docstrings with mixed-entry isolation and its limits, including
 that derivatives of nonfinite outputs and arbitrary unsafe custom overrides
 are not guaranteed. Do not update full docs or run `scripts/build_docs.sh`
-during A5.2b. At the end of A5, update `docs/distributions.md` with this behavior
-and execute the full documentation build in both dtype modes.
+during A5.2b. Record this behavior under "A5 docs" for the docs steps to cover
+and verify with the full documentation build in both dtype modes.
 `DEVIATIONS.md`: extend D-016 evidence without resolving it.
 Overwrite `REVIEW.md` with invariants, test/spec mapping and exact check results.
 Run focused tests in both processes, `scripts/check.sh --through A4` and
@@ -318,9 +324,9 @@ numerical step, then stop before A5.3.
   at H=2e-30, log-CDF tails, large-H analytic hazard, jit/vmap, interior gradient
   1/r-t and Hessian -1/r**2, and finite boundary gradients. Compare log
   probabilities when linear survival/density underflows.
-- Docstring/executable tutorial examples cover units, positive-rate domain,
-  rate=1/mean, log-rate/log-mean conversions and the overflow limitation of
-  from_log. Update `docs/index.md`. Cover 3.3/4.1/4.2/4.5/4.6/7.2/7.3.
+- Public API docstrings cover units, positive-rate domain, rate=1/mean and
+  the overflow limitation of from_log. Tutorial examples, conversions and
+  navigation updates belong in "A5 docs". Cover 3.3/4.1/4.2/4.5/4.6/7.2/7.3.
 
 ## A5.4 — Weibull
 
@@ -349,12 +355,12 @@ numerical step, then stop before A5.3.
   at +inf, including transformed/mixed batches. At k=1, log density/log hazard
   at zero and log hazard at infinity have scale derivative -1/b. Do not test
   a shape derivative across these discontinuous boundary limits as a guarantee.
-- Docstring/tutorial: complete 4.6 table and conversion example for R/flexsurv,
-  NumPyro, survreg mu=log(b), sigma=1/k, WeibullPH m=b**(-k), inverse scale
-  and log inputs; common-shape PH gamma=-k*beta. Cover 3.3/4.1/4.2/4.5/4.6/
-  7.2/7.3/12.1. If tests/docs exceed the size target, split before implementation.
+- Public API docstrings state the shape/scale convention and parameter domain.
+  The 4.6 table and conversion examples belong in "A5 docs". Cover
+  3.3/4.1/4.2/4.5/4.6/7.2/7.3/12.1. If code/tests/docstrings exceed 300 changed
+  lines, split before implementation.
 
-## A5.5 — Three time-first grid methods and A5 documentation
+## A5.5 — Three time-first grid methods
 
 - Bind typed `survival_grid(t)`, `cumulative_hazard_grid(t)`, `hazard_grid(t)`
   in `src/survjax/distributions/base.py`. Keep thin implementations in
@@ -373,12 +379,43 @@ numerical step, then stop before A5.3.
   zero-time shape-one survival/hazard/density example, including the three
   synthetic group scales of section 11.1. Hazards at infinity use analytic
   limits; NaN times and parameters stay isolated by entry.
-- Update `docs/distributions.md`, `docs/index.md`, `docs/playground.ipynb`:
-  both built-ins, log constructors, conversions, all direct methods/grids,
-  paired-vector pitfalls and posterior batch `shape=k[:, None]`,
-  `scale=jnp.exp(beta @ X.T)`. Preserve the tutorial and use executable synthetic
-  examples. No R agreement or full-Slice-A completion claim. Cover 4.5/5/8.1/
-  10.5/12.1; inspect rendered pages at this final A5 stop.
+- Public API docstrings state the time-first shape convention and rank/dtype
+  requirements. Record tutorial, navigation and playground needs under
+  "A5 docs". Cover 4.5/5/8.1/10.5/12.1; this ends the planned code steps.
+
+### A5 docs
+
+Docs to-do:
+
+- Audit all `docs/` against merged A5 code: mark stale, missing or fine.
+  A5.1 commit `3f50962` changed `docs/distributions.md` (12 insertions,
+  1 deletion); treat it as a draft. Include the earlier tutorial rewrite
+  `60bee93` and its distributions, SurvivalData, index and config changes.
+- Custom families: guarded-boundary extension recipe, proper-family zero
+  limits and parameter-dependent cure limits; primitive safe operands/NaN
+  propagation; mixed-entry derivative isolation and its limits. Correct
+  PiecewiseHazard's reference to exactly `batch_shape` in `rates.dtype`.
+- Built-in families: Exponential units/domain, rate=1/mean, log-rate/log-mean
+  conversions and from_log overflow limits; Weibull's complete 4.6 table and
+  conversions for R/flexsurv, NumPyro, survreg mu=log(b), sigma=1/k,
+  WeibullPH m=b**(-k), inverse scale and log inputs; common-shape PH gamma=-k*beta.
+- Direct methods and grids: executable synthetic examples, paired-vector
+  pitfalls and posterior batch `shape=k[:, None]`, `scale=jnp.exp(beta @ X.T)`.
+- Update `docs/index.md` navigation/current coverage and `docs/playground.ipynb`
+  for the implemented APIs. Preserve the tutorial; claim no unverified R
+  agreement or full-Slice-A completion. Inspect rendered pages and execute
+  examples/notebooks in both dtype modes.
+- Code steps append any additional documentation needs here.
+
+Docs steps:
+
+- A5.d1: audit `docs/` against merged A5 code (A5.1 drafts included); list
+  stale, missing, fine; split the rest into steps.
+- A5.d2+: one per page or topic, e.g. SurvivalData interface, built-in families,
+  custom families, grids, navigation or playground, as determined by the audit.
+  Each is at most 300 changed lines; `scripts/build_docs.sh` builds clean and
+  examples/notebooks execute. Review against the spec and merged code, covering
+  every Docs to-do. A5 is done after its last docs step merges, before A6 starts.
 
 ## Verification and acceptance mapping
 
@@ -399,15 +436,18 @@ arbitrary custom boundary derivatives or a particular reference-time formula.
   independent finite-difference cases are x64-only, while hand-derived first/
   second derivatives run in both modes. Own x32 finite differences need their
   own scale justification. Do not toggle JAX x64 inside a process.
-- Use `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`. Each step runs
-  `scripts/check.sh --through A4`, `scripts/build_docs.sh`, and
+- Use `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`. Each code step runs
+  `scripts/check.sh --through A4` and
   `git diff --check`, plus read-only independent tests for completed behavior
   in separate x64/x32 processes. At A5.5 run the full
   `scripts/check.sh --through A5` against the synced revision-22 suite.
   Report focused selection and still-unimplemented cases explicitly; never
   present an unsynced local gate as revision-22 acceptance.
+  Docs steps run `scripts/build_docs.sh` in both dtype modes and inspect the
+  rendered pages and outputs against the merged A5 implementation.
 - REVIEW.md records reading order, numerical/storage invariants, spec-to-test
-  mapping, exact outputs/skips, executable docs and open deviations. One commit,
+  mapping, exact outputs/skips and open deviations; docs steps also record
+  executable docs and rendered-page review. One commit,
   then stop. No merge, publishing, remote setup or next-step work without approval.
 
 ## Evidence gathered while updating this plan
@@ -433,6 +473,60 @@ Read-only execution used this checkout's `.venv/bin/python -B`, with
 - A5 tests were collected/read, not executed. The full gate, docs build,
   numerical A5 implementation checks and R work were not run for this plan.
 - `git diff --check` exited 0 with no output after the planning edits.
+
+## Remaining sub-slices: docs planning
+
+These entries reserve the final docs steps; code-step plans fill in the page
+and topic details. A1–A4 and the older plans below are completed history;
+the A5 transition does not reopen them. For each remaining sub-slice, docs
+steps start after its last code step merges, cover one page or topic and at
+most 300 changed lines each, and pass `scripts/build_docs.sh` with examples
+and notebooks executing. The next sub-slice waits for the last docs merge.
+
+### A6 docs
+
+Docs to-do:
+
+- Exact/right-censored likelihoods, result containers, issue propagation and
+  explicit failure for unsupported modes; refine during A6 code steps.
+
+Docs steps:
+
+- A6.d1+: one page or topic per step against merged A6 code; cover all Docs to-do.
+
+### A7 docs
+
+Docs to-do:
+
+- Verified tail/boundary behavior, numerical limits and supported diagnostics;
+  fill in any documentation needs found by A7 code/test steps.
+
+Docs steps:
+
+- A7.d1+: one page or topic per step against merged A7 code; cover all Docs to-do.
+
+### A8 docs
+
+Docs to-do:
+
+- Reference-fixture provenance and verified R comparison claims; fill in from
+  committed fixtures and A8 check results.
+
+Docs steps:
+
+- A8.d1+: one page or topic per step against merged A8 code; cover all Docs to-do.
+
+### A9 docs
+
+Docs to-do:
+
+- Tiny synthetic example, supported Slice A workflows and limitations, and
+  verified installation/transformation behavior; refine during A9 code steps.
+
+Docs steps:
+
+- A9.d1+: one page or topic per step against merged A9 code; cover all Docs to-do
+  and record the final Slice A rendered-documentation review.
 
 # A4.5 reviewer fix-up — F-1 and N-1 through N-4
 
