@@ -2,8 +2,8 @@
 
 Status: A5.1 (`3f50962`) was approved by the reviewer and merged into main by
 the maintainer. A5.2 (`a58c57c`) received a merge verdict on 2026-10-12.
-The F-2/F-3 review nits are corrected; A5.2b below is proposed and awaits
-approval. A5.3–A5.5 remain future steps. Planning starts from a
+The F-2/F-3 review nits are corrected; A5.2b below is implemented and awaits
+review after approval on 2026-10-13. A5.3–A5.5 remain future steps. Planning starts from a
 clean `A5` checkout at `3f50962`, also the current main tip. No branch is created
 or switched by this planning request; implementation uses the maintainer's
 selected step branch after approval. Based on
@@ -197,10 +197,18 @@ approved step on the maintainer-selected branch, then stop before A5.3.
 
 ## A5.2b — Isolate finite-entry derivatives from infinity entries (review F-1)
 
-Status: proposed, awaiting maintainer approval. This is a separate numerical
+Maintainer update (2026-10-13): implement code, tests and standard function
+docstrings first. Full documentation updates and generation are deferred to
+the end of slice A5. This scheduling instruction also governs documentation
+work mentioned in the remaining A5 steps below; it does not waive the final
+documentation requirements or executable-example checks.
+
+Status: implemented after maintainer approval on 2026-10-13; awaiting review.
+This is a separate numerical
 step before A5.3, on the maintainer-selected branch. It addresses the review's
 shared-parameter mixed-batch leak; it does not promise derivatives of infinite
-or NaN outputs. Covered spec: 4.2, 4.5, 7.2–7.3 and the extension recipe in 10.5.
+or NaN outputs. Covered spec: 4.2, 4.5 and 7.2–7.3; the extension recipe in
+10.5 is updated and verified at the end of A5.
 No public API, exports, dependencies, built-ins, grids or spec-test changes.
 
 Files and numerical approach:
@@ -250,13 +258,17 @@ families and hand-derived expectations, with existing test tolerances.
   failures in both dtype modes, then remove only the new input substitutions
   as a mutation: finite-component reverse derivatives must fail again.
 
-`docs/distributions.md`: explain mixed-entry isolation and its limits, including
+Update function docstrings with mixed-entry isolation and its limits, including
 that derivatives of nonfinite outputs and arbitrary unsafe custom overrides
-are not guaranteed. `DEVIATIONS.md`: extend D-016 evidence without resolving it.
+are not guaranteed. Do not update full docs or run `scripts/build_docs.sh`
+during A5.2b. At the end of A5, update `docs/distributions.md` with this behavior
+and execute the full documentation build in both dtype modes.
+`DEVIATIONS.md`: extend D-016 evidence without resolving it.
 Overwrite `REVIEW.md` with invariants, test/spec mapping and exact check results.
-Run focused tests in both processes, `scripts/check.sh --through A4`, both-mode
-`scripts/build_docs.sh`, and `git diff --check`. Aim for about 300 source/test/doc
-lines, split if needed, commit one numerical step, then stop before A5.3.
+Run focused tests in both processes, `scripts/check.sh --through A4` and
+`git diff --check`. Record the deferred documentation work in REVIEW.md.
+Aim for about 300 source/test/docstring lines, split if needed, commit one
+numerical step, then stop before A5.3.
 
 ## A5.3 — Exponential
 

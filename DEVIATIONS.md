@@ -64,6 +64,14 @@
   proposes A5.2b to isolate those entries, preserve cure limits and analytic
   overrides, and cover the generic hazard path as well. No numerical follow-up
   implementation has been performed; approval is pending.
+- A5.2b implementation (2026-10-13): the maintainer approved the follow-up.
+  The policy wrapper now substitutes before density evaluation at all positive
+  infinities, and before primitive/generic evaluation at -inf survival limits.
+  Original probe status determines density NaN precedence; finite cure limits
+  and analytic overrides remain active. New mixed-entry tests cover forward
+  and reverse derivatives and finite-component Hessians. Full documentation
+  is deferred to the end of A5 by maintainer instruction. No guarantee is
+  added for derivatives of infinite/NaN outputs or unsafe custom overrides.
 - Status: open (maintainer decision 2026-10-03: defer to A5)
 
 ## D-017 Dtype policy for direct-method times

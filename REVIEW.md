@@ -1,55 +1,97 @@
-# A5.2 review follow-up — nits and proposed A5.2b
+# A5.2b — Isolate finite-entry derivatives from infinity entries
 
-Starting point: `a58c57c` on the maintainer-selected branch `A5`.
-Reviewer verdict in `../review/slices/A5.2.md`: merge, with F-1 assigned to a
-separately planned follow-up. The maintainer requested review fixes.
+Implemented on `A5`, starting at `8ab4c4d`, after the maintainer approved the
+revised plan on 2026-10-13. Specification revision 22; independent tests
+`7f1d6df`. This addresses A5.2 review F-1. D-016 remains open for maintainer
+closure. Full documentation is deferred until the end of slice A5.
 
-## Reading order and changes
+## Reading order and invariants
 
-1. `docs/distributions.md`: F-3 uses `jnp.isclose` for the cure survival
-   derivative. Its analytical value is 1, but exp(log(p))/p need not round to
-   exactly 1. The adjacent log-CDF derivative already used this comparison.
-2. `tests/unit/test_family_infinity.py`: F-2 renames the last test to
-   `test_finite_underflow_values_and_lower_tail_derivative`. The assertions
-   check exactly that; their numerical content and tolerances are unchanged.
-3. `PLAN.md`: proposed A5.2b addresses F-1 for mixed [1,+inf] batches, preserving
-   finite cure limits and analytic overrides. `DEVIATIONS.md` records the
-   remaining leak under D-016, which stays open for maintainer closure.
+1. `tests/unit/test_family_mixed_infinity.py`: read the analytical finite-entry
+   derivative/Hessian cases, then cure-limit and analytic-override regressions.
+2. `src/survjax/distributions/_survival_methods.py`, `apply_policy`: the
+   original primitive probe supplies Boolean conditions only. Density always
+   substitutes positive infinity before raw evaluation, including overrides;
+   its final -inf/NaN policy uses the original probe's NaN status. The NaNLimit
+   test distinguishes the original infinity from its finite reference.
+3. `src/survjax/distributions/base.py`: registration supplies a private primitive
+   flag for log survival; arbitrary author function names are never inspected.
+   Existing raw markers and generic function identities retain their roles.
+4. Function docstrings, PLAN.md's approved scope and DEVIATIONS.md's D-016 note.
 
-## Invariants and requirement evidence
+For log survival and the generic survival/log-CDF/cumulative-hazard/log-hazard,
+substitution requires positive infinite time AND negative infinite raw log
+survival. Selected boundary constants are -inf, 0, 0, +inf and NaN respectively.
+Generic hazard gets the NaN guard only if its underlying log-hazard is generic;
+analytic log-hazard/hazard and cumulative-hazard overrides remain active.
+Finite cure limits retain parameter dependence. The one reference is reused
+and only the substituted reference is stopped. No active value or real
+parameter is stopped, and no floor, epsilon or clipping is introduced.
 
-No numerical source or public API changed in this fix-up. The renamed test
-checks finite survival/log-CDF underflow values and the analytical lower-tail
-log-CDF/rate derivative (spec 4.2/7.2). It does not prove that the infinity
-substitution cannot activate at a finite time. That property currently rests
-on the explicit `isposinf(time)` condition in the wrapper. No assertion treats
-NaN gradients as guaranteed behavior.
+The new condition never substitutes finite times, even with an underflowing
+tail; this restriction rests on the explicit isposinf condition. NaN primitive
+limits remain NaN. Existing negative/NaN and zero-time behavior is unchanged.
+No public API, exports, dependencies, tolerances, spec, independent tests or
+alignment marker changed. Derivatives of infinite/NaN outputs, discontinuous
+parameter limits and arbitrary unsafe custom overrides are not guaranteed.
 
-The executable cure assertion checks the spec 4.2/7.3 analytical derivative
-of S(inf)=p using a floating-point comparison (spec 10.5 recipe). F-4's extra
-primitive evaluation remains accepted and unmeasured. F-1 is not repaired in
-this fix-up: it requires the separately proposed numerical step. Derivatives
-of infinite or NaN boundary outputs are outside that proposed guarantee;
-finite interior components sharing a batch with them are the target.
+## Tests mapped to requirements
+
+- Spec 7.2/7.3: `test_finite_component_derivatives_beside_infinity` checks the
+  finite component of [1,+inf] for shared scalar parameters and independent
+  parameter batches, constant/quadratic primitives, all five affected methods,
+  forward/reverse derivatives and Hessians, eager/jit/jit-vmap. Expected values
+  and derivatives follow the algebra in the test; no nonfinite sum is used.
+- Spec 4.5: the same cases pin existing infinity values (-inf/+inf/NaN), without
+  treating their derivatives as guaranteed. `test_density_nan_status_comes_from_original_infinite_time`
+  proves that the reference does not decide density's NaN precedence.
+- Spec 4.2/7.3: `test_cure_infinite_log_limit_remains_parameter_dependent` checks
+  log(p)/-log(p) values, first derivatives and Hessians; analytic/inherited
+  override tests preserve hazard, log-hazard and cumulative-hazard derivatives.
+- Spec 4.5/7.2: the density override regression isolates finite derivatives
+  despite its infinity-sensitive formula. `test_mixed_call_reuses_one_reference`
+  checks all five affected methods. Existing A5.1 NaN/finite density overrides,
+  A5.2 survival/log-CDF, finite-tail and seven-method reference tests also pass.
 
 ## Checks actually run
 
-`JAX_ENABLE_X64=1 .venv/bin/pytest -q tests/unit/test_family_infinity.py`:
-**23 passed in 2.72s**. The separate `JAX_ENABLE_X64=0` process:
-**23 passed in 2.35s**.
+Before the source fix, the new module gave **8 failed, 13 passed** in each
+mode (2.32s/2.34s), reproducing the mixed-entry derivative leak. After the fix,
+the focused three-module suite initially gave **68 passed** in each mode
+(8.24s/7.93s). After adding the density override case and boundary assertions,
+`JAX_ENABLE_X64=1` and `0` with `.venv/bin/pytest -q
+ tests/unit/test_family_mixed_infinity.py tests/unit/test_family_infinity.py
+ tests/unit/test_family_density.py` gave **69 passed** (8.23s/9.08s).
 
-`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/build_docs.sh` exited 0:
-**build succeeded** for x32 and x64, executing all three guides afresh,
-including the revised cure assertion. Local kernel startup used the permission
-required outside the sandbox. Existing kernel TCP transport warnings appeared;
-Sphinx reported no errors. `ruff format --check` and `ruff check` on the renamed
-test passed. `git diff --check` passed with no output.
+Mutation: removing only the new safe-time substitution while retaining final
+value masks gave **8 failed, 2 passed, 12 deselected** in both modes
+(2.52s/2.58s). The source was restored before final tests and the full gate.
 
-The full through-A4 gate, mypy, mutations, R fixtures, wheel installation,
-rendered-page visual checks and performance measurements were not rerun for
-these test-name/doc-only fixes. The prior full-gate results remain recorded in
-commit `a58c57c`; they are not new verification of this commit. Independent
-tests, spec, marker, numerical source, dependencies and tolerances are untouched.
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A4`
+exited 0: **guard: ok (A5)**; Ruff **40 files already formatted**, **All checks
+passed!**; mypy **no issues in 9 source files**. Own x64: **336 passed, 6 skipped**
+(17.68s); x32: **341 passed, 1 skipped** (16.14s). Source doctests: **1 passed**
+each (0.57s/0.55s). Independent x64: **679 passed, 25 skipped, 370 deselected**
+(16.60s); x32: **693 passed, 11 skipped, 370 deselected** (14.48s).
+Final output: **check: all gates passed through A4**. Existing skips unchanged.
 
-Commit the review nits and planning record, then stop for A5.2b plan approval
-under AGENTS.md rule 1 before making its numerical changes. No A5.3 work.
+Separate x64/x32 eager checks under `jax.debug_nans(True)` passed for quadratic
+mixed-batch values and finite-component reverse derivatives of log survival,
+cumulative hazard, density, survival and log-CDF. Generic hazard/log-hazard
+were excluded because their intended infinity output is NaN; invalid-parameter
+cases were excluded. `git diff --check` passed with no output.
+
+## Deferred work and stop
+
+Full docs and `scripts/build_docs.sh` were deliberately not changed/run, per
+maintainer instruction. At the end of A5, explain mixed-entry isolation and
+its limits in the distribution guide and execute documentation in both modes.
+Function docstrings are updated now. R fixtures, installation, rendered-page
+checks, the full A5 gate and performance measurement were not run. All 370 A5
+acceptance cases remain deselected until built-ins/grids exist.
+
+The raw primitive is evaluated once more for guarded generic methods and the
+log-survival primitive, including finite calls. Density reuses its existing
+probe before substitution rather than adding another one. Cost is unmeasured.
+Source/test/docstring changes total about 280 lines; planning/review records
+add documentation overhead. Commit this numerical step and stop before A5.3.

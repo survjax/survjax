@@ -58,6 +58,9 @@ def log_prob(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     Negative times return -inf; +inf returns -inf unless the primitive's
     log survival there is NaN. Zero uses the primitive's boundary derivative,
     and NaN times return NaN.
+    Infinity inputs are substituted before density evaluation; the original
+    primitive limit determines their policy value. This isolates finite-entry
+    parameter derivatives in mixed batches, including density overrides.
     """
     log_s, derivative = _log_survival_and_derivative(self, t)
     return _safe_log(-derivative) + log_s
@@ -72,6 +75,9 @@ def log_hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     when exp(log survival) underflows. Negative times return -inf.
     Zero uses the primitive's derivative; NaN times return NaN. Override
     this method to supply analytic limits where survival is zero.
+    At +inf with raw log survival -inf, safe-input substitution isolates
+    finite-entry parameter derivatives. The NaN boundary has no derivative
+    guarantee; arbitrary unsafe custom overrides remain the author's concern.
     """
     log_s, derivative = _log_survival_and_derivative(self, t)
     undefined = jnp.isneginf(log_s) | jnp.isnan(log_s)
@@ -85,6 +91,8 @@ def hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     Output broadcasts t against batch_shape; shared time-first grids are
     separate. Negative times return zero; NaN times return NaN. At zero or
     +inf the log-hazard method supplies its boundary value.
+    The generic zero-survival infinity guard applies only when log_hazard is
+    also generic. Analytic overrides retain their parameter-dependent limits.
     """
     # spec 4.5: hazard's wrapper has already applied the input policy.
     method = type(self).log_hazard
@@ -97,6 +105,9 @@ def cumulative_hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
 
     Negative times return zero; NaN times return NaN. This is pointwise,
     rather than a shared time-first grid operation.
+    A raw -inf limit at +inf is substituted before evaluation, then restored
+    as +inf, isolating finite-entry parameter derivatives. Finite cure limits
+    stay active; derivatives of nonfinite outputs are not guaranteed.
     """
     raw = _raw_log_survival(self)
     return -raw(self, t)
@@ -132,10 +143,24 @@ def apply_policy(
     negative_value: float,
     *,
     density: bool = False,
+    primitive: bool = False,
 ) -> Callable[["SurvivalDistribution", ArrayLike], jax.Array]:
     """Wrap one direct method, preserving its raw implementation on inheritance."""
     raw = getattr(method, "_survjax_raw", method)
-    guard_zero_limit = raw is survival or raw is log_cdf
+    guard_zero_limit = primitive or raw in (
+        survival,
+        log_cdf,
+        cumulative_hazard,
+        log_hazard,
+    )
+    if primitive:
+        zero_limit_value = -jnp.inf
+    elif raw is cumulative_hazard:
+        zero_limit_value = jnp.inf
+    elif raw is log_hazard or raw is hazard:
+        zero_limit_value = jnp.nan
+    else:
+        zero_limit_value = 0.0
 
     @wraps(raw)
     def evaluate(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
@@ -162,26 +187,30 @@ def apply_policy(
         # spec 4.5/7.2: stop only substituted inputs, never real parameters.
         reference = jax.lax.stop_gradient(self.reference_time())
         safe_time = jnp.where(inactive, reference, time)
-        if guard_zero_limit:
+        guard_limit = guard_zero_limit
+        if raw is hazard:
+            method = type(self).log_hazard
+            guard_limit = getattr(method, "_survjax_raw", method) is log_hazard
+        infinite = jnp.isposinf(time)
+        if guard_limit or density:
             # spec 4.5/7.2: probe the true limit only for a Boolean condition.
             # Finite cure limits must retain their parameter dependence.
             log_s = _raw_log_survival(self)(self, safe_time)
-            zero_limit = jnp.isposinf(time) & jnp.isneginf(log_s)
-            safe_time = jnp.where(zero_limit, reference, safe_time)
+            zero_limit = infinite & jnp.isneginf(log_s)
+            substitute = infinite if density else zero_limit
+            safe_time = jnp.where(substitute, reference, safe_time)
         value = raw(self, safe_time)
-        if guard_zero_limit:
+        if guard_limit:
             # Substitute before operating: a final mask alone gives 0 * inf AD.
-            value = jnp.where(zero_limit, 0.0, value)
+            value = jnp.where(zero_limit, zero_limit_value, value)
+        if density:
+            # spec 4.5: the original limit, not the reference, decides NaN status.
+            infinite_value = jnp.where(jnp.isnan(log_s), jnp.nan, -jnp.inf)
+            value = jnp.where(infinite, infinite_value, value)
         policy_value = jnp.where(negative, negative_value, value)
         # spec 4.5: a NaN family value takes precedence over policy constants.
         policy_value = jnp.where(jnp.isnan(value), value, policy_value)
         policy_value = jnp.where(nan_time, jnp.nan, policy_value)
-        if density:
-            # spec 4.5: inf-inf in density is not the primitive's NaN limit.
-            raw_log_s = _raw_log_survival(self)
-            log_s = raw_log_s(self, safe_time)
-            infinite_value = jnp.where(jnp.isnan(log_s), jnp.nan, -jnp.inf)
-            policy_value = jnp.where(jnp.isposinf(time), infinite_value, policy_value)
         return policy_value
 
     # A decorated subclass reuses the raw override, not its parent's wrapper.

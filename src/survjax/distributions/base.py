@@ -163,6 +163,10 @@ class SurvivalDistribution:
         The family implementation must handle zero and positive infinity and
         retain precision near log survival zero. This base implementation
         raises NotImplementedError.
+        The policy wrapper substitutes a reference before evaluating -inf
+        limits at +inf, then restores -inf to isolate finite-entry parameter
+        derivatives in mixed batches. Finite cure limits remain active; the
+        author must make their primitive operands safe for differentiation.
         """
         raise NotImplementedError("families must implement log_survival")
 
@@ -325,7 +329,10 @@ def register_family[Family: SurvivalDistribution](cls: type[Family]) -> type[Fam
             cls,
             name,
             _survival_methods.apply_policy(
-                getattr(cls, name), negative_value, density=name == "log_prob"
+                getattr(cls, name),
+                negative_value,
+                density=name == "log_prob",
+                primitive=name == "log_survival",
             ),
         )
     cls._survjax_registered = True
