@@ -440,6 +440,31 @@ publish, edit the spec/independent tests or resolve existing deviations.
 
 ## A5.4 — Weibull
 
+### Review fix-up — parameter notation and visible formulas
+
+Status: implemented and verified; see REVIEW.md for the focused results.
+
+Authorized by the maintainer's request to clarify the docstring, visually
+separate the mathematics in both built-ins and address the inline WA question.
+Same A5.4 step and branch; no new public API or numerical policy.
+
+- `src/survjax/distributions/weibull.py`: define k=shape and b=scale in the
+  first docstring sentence. Add whitespace and spec-linked comments that guide
+  readers from safe operands to the interior formula, then boundary limits.
+  Replace WA's reference-time question with its explanation: scale is already
+  a positive finite time for valid Weibull parameters, whereas Exponential's
+  inverse rate needs representability guards.
+- `src/survjax/distributions/exponential.py`: visibly separate H=rate*t
+  from input substitution and infinity restoration, naming its intermediate
+  value; identify the log-density and constant-hazard formulas with comments.
+  Clarify that the reciprocal guard concerns inactive reference inputs only.
+- No tests added for comments/docstrings or an equivalent named intermediate.
+  Run existing built-in own tests in both dtype modes, Ruff format/lint, mypy
+  and git diff --check. Check the diff for unchanged operations and masks.
+  Record exact results and the existing D-020 acceptance failure in REVIEW.md;
+  do not rerun unchanged acceptance or edit its tests, spec or docs pages.
+- Commit one review fix-up on A5.4, then stop before grids or docs steps.
+
 Status: approved and implemented on 2026-10-13 from `cd3f213`, on the
 maintainer-selected branch `A5.4`; awaiting review. Planning changed only
 PLAN.md and created no branch or commit. Specification revision

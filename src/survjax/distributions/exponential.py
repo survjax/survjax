@@ -53,6 +53,8 @@ class Exponential(SurvivalDistribution):
         only inactive evaluation inputs, never rates or active probabilities.
         Invalid-rate references have no value guarantee (spec 4.2).
         """
+        # spec 4.2: unlike a stored time scale, 1/rate may not be representable.
+        # This guard changes only the inactive reference, not model parameters.
         limits = jnp.finfo(self.rate.dtype)
         usable = (self.rate >= limits.tiny) & (self.rate <= 1 / limits.tiny)
         safe_rate = jnp.where(usable, self.rate, jnp.ones_like(self.rate))
@@ -61,11 +63,17 @@ class Exponential(SurvivalDistribution):
     def _cumulative_hazard(self, t: ArrayLike) -> jax.Array:
         time = jnp.asarray(t)
         infinite = jnp.isposinf(time)
+
         # spec 7.2: don't multiply an inactive infinity by a live parameter.
         safe_time = jnp.where(infinite, jnp.zeros_like(time), time)
+
+        # spec 4.1: interior H(t)=rate*t, so log S(t)=-H(t).
+        value = self.rate * safe_time
+
+        # spec 4.5: restore the infinity limit separately from the formula.
         limit = jnp.where(self.rate > 0, jnp.inf, jnp.nan)
         limit = jnp.where(self.rate < 0, -jnp.inf, limit)
-        return jnp.where(infinite, limit, self.rate * safe_time)
+        return jnp.where(infinite, limit, value)
 
     def log_survival(self, t: ArrayLike) -> jax.Array:
         """Return -rate*t, broadcasting t with batch_shape (spec 4.1/4.5).
@@ -86,6 +94,7 @@ class Exponential(SurvivalDistribution):
 
         Negative/+inf t gives -inf, except NaN-rate precedence; NaN t gives NaN.
         """
+        # spec 4.1: log f(t)=log(rate)-H(t), since h(t)=rate.
         return jnp.log(self.rate) - self._cumulative_hazard(t)
 
     def log_hazard(self, t: ArrayLike) -> jax.Array:
@@ -93,6 +102,7 @@ class Exponential(SurvivalDistribution):
 
         Negative t gives -inf; NaNs propagate. Uses no tail subtraction.
         """
+        # spec 4.1/5: log h(t)=log(rate) is constant in time but must broadcast.
         output_shape = jnp.broadcast_shapes(jnp.shape(t), self.batch_shape)
         return jnp.broadcast_to(jnp.log(self.rate), output_shape)
 
@@ -101,5 +111,6 @@ class Exponential(SurvivalDistribution):
 
         Negative t gives zero; NaNs propagate. The infinity rate derivative is 1.
         """
+        # spec 4.1/5: h(t)=rate is constant in time but must broadcast.
         output_shape = jnp.broadcast_shapes(jnp.shape(t), self.batch_shape)
         return jnp.broadcast_to(self.rate, output_shape)
