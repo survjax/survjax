@@ -7,6 +7,7 @@ def test_public_package_imports() -> None:
 
     assert set(survjax.__all__) == {
         "Exponential",
+        "Weibull",
         "SurvivalData",
         "InvalidDataError",
         "SurvivalDistribution",

@@ -1,64 +1,117 @@
-# A5.3 review fix-up — explicit Exponential hazard broadcasting
+# A5.4 — Weibull review handoff
 
-Implemented on the maintainer-selected `a5.3-exponential` branch, starting at
-`cc2f85d`, after the maintainer requested this reviewer suggestion. PLAN.md
-records the same-step scope. Spec revision 23; numerical tests remain rev 22.
+Implemented on the maintainer-selected A5.4 branch from cd3f213, after approval
+of PLAN.md. Specification revision 23; independent numerical tests remain
+revision 22. Code/tests/docstrings: 145 family lines, 150 own-test lines and
+5 export/import-test additions, **300 changed lines**. Planning, deviation and
+review records are additional bookkeeping.
 
-## Reading order and invariants
+## Read first, in order
 
-1. `src/survjax/distributions/exponential.py`, `log_hazard` and `hazard`: both
-   compute `broadcast_shapes(shape(t), self.batch_shape)` before broadcasting
-   log(rate) or rate. Their raw formulas no longer require the registration
-   wrapper to pre-broadcast time. No numerical formula or public API changed.
-2. `tests/unit/test_exponential.py`,
-   `test_raw_hazard_methods_broadcast_scalar_and_multiaxis_times`: scalar time
-   and time shape (2,1) against rates of shape (2,) give output shapes (2,)
-   and (2,2). It checks raw and wrapped values, raw eager/jit and jit/vmap.
-3. PLAN.md's reviewer broadcasting fix-up scope.
+1. DEVIATIONS.md, D-020: one independent density expectation appears to omit
+   log(shape). Acceptance is incomplete; the implementation retains the density
+   derived from the specified survival function. The independent author must
+   review/correct the expectation; no test was edited or excluded.
+2. src/survjax/distributions/weibull.py: natural shape/scale leaves, common-dtype
+   from_log, scale reference, log-space formulas, safe zero/infinity operands
+   and analytic hazard limits. The class docstring includes all 4.6 mappings
+   and a short survreg conversion example.
+3. tests/unit/test_weibull.py: mixed-boundary cases also establish the full
+   interior shape/scale Hessian, including cross derivatives, for k<1, k=1
+   and k>1. All expected values come from stated algebra/identities.
+4. Both initializers and tests/unit/test_import.py: exactly one new public
+   export, Weibull. PLAN.md records scope, accounting and deferred docs.
 
-Expected values are analytically h(t)=r and log h(t)=log(r); the test does not
-use the implementation as its oracle. It accesses the existing private raw
-marker because the wrapper already hid the original shape dependency. No new
-marker protocol is introduced. The raw calls use valid positive times; the
-public wrapper still supplies negative/NaN/infinity time policies. Dtype,
-rate gradients, analytic limits and pairing of equal-length vectors remain
-unchanged. Existing parameter and boundary derivative tests are regressions.
+## Invariants
+
+- Registration supplies immutable PyTree construction, keyword requirements,
+  batch indexing and one common floating dtype; no value validation is added.
+  from_log normalizes before exp and stores only natural leaves, even on
+  overflow. Reference time is scale, exactly batch_shape and parameter dtype.
+- Interior H=exp(k*(log(t)-log(b))) avoids premature division underflow or
+  overflow. Log hazard is analytic, without subtracting log density and log
+  survival. No floor, epsilon, clipping, dependency, log storage or AD rule.
+- Zero/infinite times substitute constants before log and multiplication.
+  The scale operand is substituted too, keeping extreme-scale inactive
+  derivatives out of the interior formula. No actual parameter/result has
+  stop_gradient applied. Finite shape-one boundary values retain -log(b).
+- Explicit boundary limits preserve NaN parameters via formula-undefined
+  checks; there is no blanket parameter validity mask. Invalid-parameter
+  derivatives are not guaranteed. Negative/NaN times and density at infinity
+  use the existing base policy; density evaluation at infinity is substituted
+  by that wrapper before the raw density is called.
+- Public overrides share private numerical helpers, avoiding nested policy
+  calls. Inherited survival/log-CDF/hazard honor the primitive and analytic
+  log-hazard. Base/registration modules are unchanged.
+- Mixed zero/finite/infinity cases differentiate only finite components.
+  No guarantee is asserted for nonfinite outputs, discontinuous k=1 density/
+  hazard shape limits, or finite-time precision loss.
+
+## Spec-to-test evidence
+
+- 3.3, 4.1–4.2: own test_log_inputs_normalize_before_exp_and_obey_chain_rule,
+  test_nonreal_inputs_are_rejected_before_exp and
+  test_extreme_ratios_and_reference_scales; independent construction/from_log
+  cover exports, required keywords, two natural leaves, batch broadcasting/
+  indexing and traced construction.
+- 4.1, 4.5, 5, 12.1: independent closed-forms/boundaries cover all seven methods,
+  shape-one Exponential identity, small H=1e-20, lower/upper tails, paired
+  batches, policy rows and transformed boundary values. Own
+  test_nan_parameters_are_isolated_and_raw_methods_broadcast adds NaN scale
+  isolation and raw scalar/multiaxis broadcasting.
+- 4.5, 7.2–7.3: own test_constant_boundary_parameter_derivatives covers
+  constant finite limits in both parameters at extreme scales;
+  test_shape_one_boundary_hazard_scale_derivative pins -1/b**2 at zero/inf.
+  Independent boundaries pin -1/b for shape-one log density/log hazard.
+- 7.2–7.3, 12.1: own test_mixed_boundary_full_parameter_derivatives checks
+  shared/per-entry Jacobians and full Hessians for log survival, H, log density,
+  log hazard and hazard, composed with jit/vmap in both differentiation orders.
+  Independent derivatives supply x64 order-two forward/reverse check_grads.
+- 4.6: inspect the class docstring for every required convention; narrative
+  executable conversions remain an A5 docs task.
 
 ## Checks actually run
 
-Before the fix, the new test selection failed in both dtype modes:
-**2 failed, 13 deselected** (x64 0.83s; x32 0.43s), on the scalar-time call
-with batched rates. After the fix, the complete Exponential own module gave
-**14 passed, 1 skipped** in x64 (2.38s) and **15 passed** in x32 (2.35s).
-The skip is the existing x32-only float64-conversion-warning test.
+Focused own tests used separate processes:
 
-The unchanged Exponential-only A5 acceptance selection was run in separate
-`JAX_ENABLE_X64=1`/`0` processes with `SPEC_THROUGH=A5`:
+    JAX_ENABLE_X64=1 .venv/bin/python -B -m pytest tests/unit/test_weibull.py -q -p no:cacheprovider
 
-```bash
-.venv/bin/python -B -m pytest   tests/spec/test_a5_construction.py tests/spec/test_a5_from_log.py   tests/spec/test_a5_closed_forms.py tests/spec/test_a5_boundaries.py   tests/spec/test_a5_derivatives.py   -k '(exponential and not weibull) or nan_rate or boundary_values_agree_under_vmap_over_time'   -q -p no:cacheprovider
-```
+Repeated with mode 0: **18 passed** each (x64 9.15s; x32 9.47s), no skips.
+An earlier version gave 17 passed each (4.04s/4.15s); the final suite consolidates
+overlapping Hessian cases and expands mixed-boundary checks to three shapes.
 
-Results: x64 **95 passed, 227 deselected** (3.77s); x32 **91 passed, 4 skipped,
-227 deselected** (2.36s). Existing x64-only finite differences account for
-those skips. This is the existing selection for Exponential, not full A5
-acceptance; Weibull, mixed-family construction and grids remain excluded.
+The gate command was:
 
-`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A4`
-exited 0: **guard: ok (a5.3-exponential)**; Ruff **42 files already formatted**,
-**All checks passed!**; mypy **no issues in 10 source files**. Own x64:
-**351 passed, 7 skipped** (17.00s); x32: **357 passed, 1 skipped** (15.87s).
-Source doctests: **1 passed** each (0.51s/0.54s). Independent through-A4 x64:
-**679 passed, 25 skipped, 370 deselected** (15.03s); x32: **693 passed,
-11 skipped, 370 deselected** (12.55s). Final output:
-**check: all gates passed through A4**. Existing skip counts are unchanged.
-`git diff --check` passed with no output.
+    UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A4
 
-## Deferred work and stop
+Exit 0: **guard: ok (A5.4)**; Ruff **44 files already formatted**, **All
+checks passed!**; mypy **no issues in 11 source files**. Own x64:
+**369 passed, 7 skipped** (26.74s); x32: **375 passed, 1 skipped** (25.47s).
+Source doctests: **1 passed** each (0.51s/0.53s). Independent through-A4:
+x64 **679 passed, 25 skipped, 370 deselected** (17.59s); x32 **693 passed,
+11 skipped, 370 deselected** (14.73s). Final output:
+**check: all gates passed through A4**. Existing dtype skips remain unchanged.
 
-Full documentation updates/builds remain deferred until the end of A5.
-No docs files, independent tests, spec, alignment marker, exports, dependencies
-or tolerances changed. No new benchmark, mutation, R fixture, wheel or rendered
-page check was run. No claim is made about measured runtime cost. Existing
-DEVIATIONS.md entries remain open for maintainer closure. Commit this fix-up
-and stop before Weibull/grids or any further step.
+All five non-grid A5 modules were run without a keyword filter in each mode:
+
+    JAX_ENABLE_X64=1 SPEC_THROUGH=A5 .venv/bin/python -B -m pytest tests/spec/test_a5_construction.py tests/spec/test_a5_from_log.py tests/spec/test_a5_closed_forms.py tests/spec/test_a5_boundaries.py tests/spec/test_a5_derivatives.py -q -p no:cacheprovider
+
+Each exited 1 solely on test_weibull_policy_applies_elementwise_in_one_call:
+x64 **1 failed, 321 passed** (9.33s); x32 **1 failed, 311 passed, 10 skipped**
+(5.81s). The x32 skips are one float64-promotion case and nine x64-only
+finite-difference cases. The implementation gives -0.9431471805599453;
+the test expects -1.6362943611198906, a discrepancy of log(2), explained in
+D-020. These runs are not a passing A5 acceptance gate. git diff --check
+passed with no output.
+
+## Uncertainty, deferred work and stop
+
+D-020 awaits maintainer/independent-author review; other deviations stay open
+for maintainer closure. No spec, independent test, alignment marker, tolerance,
+base wrapper, dependency or docs page changed. No docs build, mutation check,
+R fixture, wheel check, likelihood debug-NaN run or benchmark was performed;
+those are not evidence for this step. No runtime-cost claim is made.
+
+The 48 grid cases remain outside this selection and belong to A5.5. Narrative
+docs/builds follow the last A5 code merge as planned. Commit this implementation
+and stop for review; do not begin grids, docs or a later step.

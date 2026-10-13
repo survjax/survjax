@@ -5,6 +5,7 @@ from survjax.diagnostics import InvalidDataError
 from survjax.distributions import (
     Exponential,
     SurvivalDistribution,
+    Weibull,
     distribution,
     param,
     register_family,
@@ -13,6 +14,7 @@ from survjax.distributions import (
 
 __all__ = [
     "Exponential",
+    "Weibull",
     "SurvivalData",
     "InvalidDataError",
     "SurvivalDistribution",

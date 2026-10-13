@@ -1,0 +1,145 @@
+"""Weibull family in natural shape and scale parameters (spec 4.1)."""
+
+from dataclasses import dataclass
+from typing import Self
+
+import jax
+import jax.numpy as jnp
+from jax.typing import ArrayLike
+
+from survjax._dtypes import normalize_parameters
+from survjax.distributions.base import SurvivalDistribution, param, register_family
+
+
+@register_family
+@dataclass(frozen=True)
+class Weibull(SurvivalDistribution):
+    """Weibull survival S(t)=exp(-(t/scale)**shape), with positive finite k, b.
+
+    Args:
+        shape: Required keyword k, dimensionless, stored as a natural leaf.
+        scale: Required keyword b, in time units, stored as a natural leaf.
+
+    Leaves broadcast to batch_shape in a common dtype. Methods broadcast t with
+    that shape, pairing equal-length vectors; shared grids are time-first.
+    Construction checks dtypes, not values. Nonreal inputs, positional arguments
+    and incompatible shapes raise TypeError. Times follow the spec 4.5 policy.
+
+    R/flexsurv use shape=k, scale=b; NumPyro uses concentration=k, scale=b.
+    survival::survreg uses log-time location mu=log(b), reported scale sigma=1/k.
+    flexsurv WeibullPH uses shape=k, scale=m=b**(-k), S(t)=exp(-m*t**k).
+    Inverse scale r gives b=1/r; log inputs give k=exp(log_shape), b=exp(log_scale).
+    For example, survreg mu=log(10), sigma=0.5 gives shape=2, scale=10.
+    With common k, AFT log(b)=X@beta corresponds to PH gamma=-k*beta;
+    varying shape removes this correspondence. flexsurv coef(fit) logs baseline
+    shape/scale, unlike its natural estimates (spec 4.6).
+    Discontinuous density/hazard shape derivatives at k=1 are excluded from the finite-boundary guarantee.
+    """
+
+    shape: jax.Array = param()
+    scale: jax.Array = param()
+
+    @classmethod
+    def from_log(cls, *, log_shape: ArrayLike, log_scale: ArrayLike) -> Self:
+        """Return this family with exponentiated natural shape/scale leaves.
+
+        Args:
+            log_shape: Keyword-only log shape, with arbitrary batch shape.
+            log_scale: Keyword-only log scale, broadcast with log_shape.
+        Returns:
+            Weibull with common-dtype natural leaves; no log state is retained.
+        Raises:
+            TypeError: Inputs are nonreal or their batch shapes incompatible.
+
+        Finite exp gives the ordinary constructor's values/gradients; overflow
+        stores infinite natural parameters with spec 4.5 behavior.
+        """
+        values = normalize_parameters(
+            {"log_shape": log_shape, "log_scale": log_scale}, warning_stacklevel=3
+        )
+        return cls(
+            shape=jnp.exp(values["log_shape"]), scale=jnp.exp(values["log_scale"])
+        )
+
+    def reference_time(self) -> jax.Array:
+        """Return scale, exactly batch_shape in the common parameter dtype.
+
+        Positive and finite for valid parameters; only inactive inputs use it.
+        """
+        return self.scale
+
+    def _cumulative_hazard(self, t: ArrayLike) -> jax.Array:
+        time = jnp.asarray(t)
+        zero = time == 0
+        infinite = jnp.isposinf(time)
+        boundary = zero | infinite
+        # spec 7.2: substitute before logs/products, including the scale operand.
+        safe_time = jnp.where(boundary, jnp.ones_like(time), time)
+        safe_scale = jnp.where(boundary, jnp.ones_like(self.scale), self.scale)
+        log_ratio = jnp.log(safe_time) - jnp.log(safe_scale)
+        value = jnp.exp(self.shape * log_ratio)
+        zero_limit = jnp.where(self.shape > 0, 0.0, jnp.inf)
+        infinity_limit = jnp.where(self.shape > 0, jnp.inf, 0.0)
+        value = jnp.where(zero, zero_limit, jnp.where(infinite, infinity_limit, value))
+        value = jnp.where(boundary & (self.shape == 0), 1.0, value)
+        undefined = jnp.isnan(self.shape) | jnp.isnan(jnp.log(self.scale))
+        return jnp.where(undefined, jnp.nan, value)
+
+    def log_survival(self, t: ArrayLike) -> jax.Array:
+        """Return -(t/b)**k, broadcasting t with batch_shape (spec 4.1/4.5).
+
+        Args: t: Real times, broadcast with the parameter batch.
+        Returns: Log survival; zero at t<=0 and -inf at +inf for valid k, b.
+        Raises: TypeError: Nonreal times or incompatible shapes.
+        """
+        return -self._cumulative_hazard(t)
+
+    def cumulative_hazard(self, t: ArrayLike) -> jax.Array:
+        """Return (t/b)**k, with the broadcast shape (spec 4.1/4.5).
+
+        Args: t: Real times, broadcast with the parameter batch.
+        Returns: H; zero at t<=0 and +inf at +inf for valid parameters.
+        Raises: TypeError: Nonreal times or incompatible shapes.
+        """
+        return self._cumulative_hazard(t)
+
+    def log_hazard(self, t: ArrayLike) -> jax.Array:
+        """Return log(k)-log(b)+(k-1)*log(t/b), with analytic limits.
+
+        Args: t: Real times, broadcast with the parameter batch.
+        Returns: Broadcast log hazard. At zero: +inf, -log(b), -inf for
+            k<1, k=1, k>1; at +inf those infinite limits reverse.
+        Raises: TypeError: Nonreal times or incompatible shapes.
+
+        Negative times give -inf; NaNs propagate. See the class derivative limits.
+        """
+        return self._log_hazard(t)
+
+    def _log_hazard(self, t: ArrayLike) -> jax.Array:
+        time = jnp.asarray(t)
+        zero = time == 0
+        infinite = jnp.isposinf(time)
+        boundary = zero | infinite
+        # spec 4.1/7.2: xlogy-style zero coefficients need safe AD operands too.
+        safe_time = jnp.where(boundary, jnp.ones_like(time), time)
+        safe_scale = jnp.where(boundary, jnp.ones_like(self.scale), self.scale)
+        safe_shape = jnp.where(boundary, jnp.ones_like(self.shape), self.shape)
+        log_ratio = jnp.log(safe_time) - jnp.log(safe_scale)
+        value = jnp.log(safe_shape) - jnp.log(safe_scale) + (safe_shape - 1) * log_ratio
+        log_scale = jnp.log(self.scale)
+        power_limit = jnp.where(self.shape < 1, jnp.inf, -jnp.inf)
+        zero_limit = jnp.where(self.shape == 1, -log_scale, power_limit)
+        infinity_limit = jnp.where(self.shape == 1, -log_scale, -power_limit)
+        value = jnp.where(zero, zero_limit, jnp.where(infinite, infinity_limit, value))
+        undefined = jnp.isnan(jnp.log(self.shape)) | jnp.isnan(log_scale)
+        return jnp.where(undefined, jnp.nan, value)
+
+    def log_prob(self, t: ArrayLike) -> jax.Array:
+        """Return log(k)-log(b)+(k-1)*log(t/b)-(t/b)**k (spec 4.1).
+
+        Args: t: Real times, broadcast with the parameter batch.
+        Returns: Broadcast log density, with the zero-time hazard limits.
+            Negative/+inf times give -inf unless NaN family values take precedence.
+        Raises: TypeError: Nonreal times or incompatible shapes.
+        """
+        return self._log_hazard(t) - self._cumulative_hazard(t)

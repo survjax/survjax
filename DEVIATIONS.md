@@ -1,5 +1,27 @@
 # Deviations and spec questions
 
+## D-020 Mixed-time Weibull density acceptance expectation omits log(shape)
+- Step: A5.4 implementation, 2026-10-13
+- Spec: sections 2, 4.1 and 4.5, revision 23 (numerical rules unchanged
+  since revision 22); independent test cites revision 21.
+- Spec says: S(t)=exp(-(t/b)**k), hence
+  f(t)=(k/b)*(t/b)**(k-1)*exp(-(t/b)**k). At k=b=2 and t=1,
+  log f=log(2)-log(2)+log(1/2)-1/4=-0.9431471805599453.
+- Observed: `tests/spec/test_a5_boundaries.py`'s
+  `test_weibull_policy_applies_elementwise_in_one_call` expects
+  `2*log(0.5)-0.25=-1.6362943611198906`, omitting log(k).
+  The discrepancy is exactly log(2), far beyond either dtype tolerance.
+  The other closed-form acceptance tests include the log(k) term.
+- Did / propose: keep the specified density formula. Do not edit, skip or
+  xfail the independent test. Ask the maintainer to have the independent
+  author correct this expectation and its hand-derivation docstring.
+  Keep this entry open until the maintainer resolves it.
+- Evidence: the complete five-module non-grid A5 selection exits 1 in each
+  dtype mode, with this sole failure. x64: 321 passed, 1 failed; x32:
+  311 passed, 10 skipped, 1 failed. All 18 own Weibull cases pass in each
+  mode, including full density Jacobians/Hessians at k=2, b=2, t=1.
+- Status: open
+
 ## D-019 Natural parameter leaves versus overflow-safe log constructors
 - Step: A5 planning
 - Spec: section 4.1, revision 21; dtype policy in 3.3

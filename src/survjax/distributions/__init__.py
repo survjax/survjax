@@ -8,9 +8,11 @@ from survjax.distributions.base import (
     static,
 )
 from survjax.distributions.exponential import Exponential
+from survjax.distributions.weibull import Weibull
 
 __all__ = [
     "Exponential",
+    "Weibull",
     "SurvivalDistribution",
     "register_family",
     "param",

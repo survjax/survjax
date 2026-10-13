@@ -3,7 +3,10 @@
 Status: A5.1 (`3f50962`) was approved by the reviewer and merged into main by
 the maintainer. A5.2 (`a58c57c`) received a merge verdict on 2026-10-12.
 The F-2/F-3 review nits are corrected; A5.2b (`71403c3`) and its review fix-up
-(`63874e8`) are merged into main. A5.3–A5.5 and A5 docs remain future steps.
+(`63874e8`) are merged into main. A5.3 (`cc2f85d`) and its broadcasting fix-up
+(`cd3f213`) are present on main. A5.4 is implemented on branch `A5.4`;
+A5 acceptance has the independent-test discrepancy recorded as D-020.
+A5.5 and A5 docs remain future steps.
 The original planning started from a
 clean `A5` checkout at `3f50962`, then the main tip. No branch was created
 or switched by this planning request; implementation uses the maintainer's
@@ -437,35 +440,166 @@ publish, edit the spec/independent tests or resolve existing deviations.
 
 ## A5.4 — Weibull
 
-- Create `src/survjax/distributions/weibull.py`, a registered frozen dataclass
-  with typed natural `shape` and `scale` parameters as its only two leaves.
-  Export it in both initializers; update the explicit import expectation.
-- Implement `from_log(*, log_shape, log_scale)` with common input dtype
-  normalization before exponentiation, then ordinary construction/broadcasting.
-  Return the same class and preserve no log leaves; overflow becomes infinite
-  natural parameters with the section 4.5 formula-driven behavior.
-- Reference time is scale b, exactly batch_shape and parameter dtype. Implement
-  log S=-(t/b)**k, H=(t/b)**k, analytic log h=log(k)-log(b)+(k-1)*log(t/b),
-  and log density=log h-H. Work in log space where needed; guard xlogy-style
-  operands before operations. Avoid inactive log(0), 0*inf and inf-inf.
-- At zero S=1 and H=0; log density/log hazard are +inf, -log(b), -inf for
-  k<1, k=1, k>1. At infinity survival=0, log-CDF=0, density=0; hazard
-  limits are 0, 1/b, +inf. Preserve NaN parameters rather than hiding them
-  behind boundary constants. No floors, epsilons or clipping.
-- Add `tests/unit/test_weibull.py`: analytical seven-method values in all
-  shape regimes, shape-one Exponential identity, natural/from_log values and
-  chain-rule derivatives, batching/PyTree/indexing/dtypes, eager/jit/vmap,
-  H=1e-20 relative precision, early decreasing-hazard density and large-H
-  tails. Check gradients/full Hessian against algebra on positive-time
-  interior cases, including mixed shape/scale derivative entries.
-- Pin zero gradients of S(0), log S(0), H(0) in k/b and of survival/log-CDF
-  at +inf, including transformed/mixed batches. At k=1, log density/log hazard
-  at zero and log hazard at infinity have scale derivative -1/b. Do not test
-  a shape derivative across these discontinuous boundary limits as a guarantee.
-- Public API docstrings state the shape/scale convention and parameter domain.
-  The 4.6 table and conversion examples belong in "A5 docs". Cover
-  3.3/4.1/4.2/4.5/4.6/7.2/7.3/12.1. If code/tests/docstrings exceed 300 changed
-  lines, split before implementation.
+Status: approved and implemented on 2026-10-13 from `cd3f213`, on the
+maintainer-selected branch `A5.4`; awaiting review. Planning changed only
+PLAN.md and created no branch or commit. Specification revision
+23 and `.spec-seen` agree with design commit `a212ddd`; the synchronized
+revision-22 numerical tests remain applicable. No spec ambiguity identified.
+
+Outcome: keyword-only `survjax.Weibull(shape=..., scale=...)` and
+`Weibull.from_log(log_shape=..., log_scale=...)`, with seven pointwise direct
+methods, analytic hazard limits and safe finite boundary parameter derivatives.
+Covered spec: 3.3, 4.1–4.2, 4.5–4.6, 5 (pointwise broadcasting), 7.2–7.3,
+10.2–10.3, 10.5 (code docstrings) and applicable 12.1/12.2 family checks.
+Grids remain A5.5. Likelihoods, summaries, sampling, parameter diagnostics,
+R fixtures, benchmarks and installation checks remain later steps.
+
+### Files and public API
+
+- Create `src/survjax/distributions/weibull.py`: a registered frozen dataclass
+  subclass of `SurvivalDistribution`, with `shape: jax.Array = param()` and
+  `scale: jax.Array = param()` as its only dynamic leaves. Reuse registration
+  for keyword requirements, common dtype, parameter broadcasting, indexing
+  and pytree behavior. `.shape` is the natural parameter; `.batch_shape` is
+  the array shape. No defaults, dtype keyword or parameter-value checks.
+- Export `Weibull` from `src/survjax/distributions/__init__.py` and
+  `src/survjax/__init__.py`; update `tests/unit/test_import.py`'s exact export
+  expectation. Existing public names and signatures stay as they are.
+- Type `from_log` with keyword-only `ArrayLike` inputs and `Self` return.
+  Normalize both log inputs together with `_dtypes.normalize_parameters`
+  before exponentiation, preserving input-kind rejection, weak promotion and
+  stored-float64 warning behavior. Construct with natural `exp(log_shape)`
+  and `exp(log_scale)` leaves. Overflow stores infinity; retain no log state.
+- `reference_time()` returns scale directly, exactly `batch_shape` and the
+  common parameter dtype. For valid parameters it is positive and finite;
+  no guarantee for invalid parameters. The base stops substituted references.
+- Override `log_survival`, `cumulative_hazard`, `log_prob` and `log_hazard`
+  analytically; inherit `survival`, stable `log_cdf` and `hazard`. The inherited
+  hazard honors the analytic log-hazard override, including at infinity.
+  Keep existing base/registration/policy modules unchanged. Any need to change
+  them is a scope expansion to explain before implementation.
+
+### Numerical invariants
+
+- At positive finite time let `u=log(t)-log(b)` and `H=exp(k*u)`.
+  Use log S=-H, log h=log(k)-log(b)+(k-1)*u, and log f=log h-H.
+  Computing the log ratio without first dividing avoids losing a representable
+  H when t/b underflows, or overflowing t/b before a small shape is applied.
+  Keep helpers private and local to this family; introduce no numerical layer.
+- For zero/infinite time, substitute a safe positive finite input before logs,
+  products and exponentiation in each helper. Select the actual boundary
+  values afterward, using explicit shape regimes and xlogy-style treatment of
+  the zero coefficient at k=1. A call to xlogy alone does not establish safe
+  gradients: guard operands before operating. Stop only substituted inputs;
+  all active shape/scale expressions, including -log(b), remain differentiable.
+- With valid parameters, zero gives log S=H=0, S=1, log F=-inf.
+  Log density/log hazard give +inf for k<1, -log(b) for k=1, -inf for k>1;
+  hazard gives +inf, 1/b, 0 respectively. Positive infinity gives log S=-inf,
+  H=+inf, S=0, log F=0, log density=-inf; log hazard gives -inf, -log(b),
+  +inf, and hazard gives 0, 1/b, +inf in those same shape regimes.
+- The base supplies negative/NaN-time policy and infinity density precedence.
+  Raw log survival must preserve NaN shape/scale at zero and infinity so a
+  boundary constant cannot conceal it. Analytic log hazard must also preserve
+  NaNs. Accept invalid finite parameters without exceptions or a blanket
+  validity mask; their values remain formula-driven as specified in 4.5.
+- Mixed [zero, finite, +inf] entries must preserve finite-component first and
+  second derivatives for shared and per-entry parameters. Never take a sum
+  containing infinite outputs as a derivative test. Do not treat finite-time
+  underflow/overflow as an exact time boundary or claim its gradients verified.
+  No floors, epsilon, clipping, log-parameter storage or custom AD rules.
+
+### Docstrings and docs to-do
+
+Include summary, arguments, returns/shapes and static misuse errors for public
+APIs. The class docstring gives S(t), positive finite domain, dimensionless k,
+time units of b, broadcasting and all spec 4.6 mappings: R/flexsurv shape/scale,
+NumPyro concentration/scale, survreg mu=log(b) and sigma=1/k, WeibullPH
+m=b**(-k), log inputs and inverse scale b=1/r. Include the common-shape AFT/PH
+relation gamma=-k*beta, natural versus logged flexsurv coefficients, and a
+short conversion example. State from_log overflow behavior and derivative
+limits at discontinuous boundaries. Narrative examples remain in A5 docs;
+this code step edits no `docs/` and runs no documentation build.
+
+### Own tests, independent coverage and budget
+
+Create `tests/unit/test_weibull.py`. Prefer small named tests with stated
+algebra/analytical expectations, using `tests/impl_tolerances.py`; no oracle
+comes from running survjax. Reuse the independent suite's complete seven-method
+value/boundary matrices, construction/indexing/dtype cases, shape-one identity,
+lower/upper tails and x64 order-two forward/reverse `check_grads`.
+Own tests add evidence beyond that suite:
+
+- Full two-parameter log-density gradient and Hessian, including the mixed
+  entry. For u=log(t/b) and H=(t/b)**k: gradient
+  `(1/k+(1-H)*u, k*(H-1)/b)`; Hessian entries
+  `-1/k**2-H*u**2`, `(H-1+k*H*u)/b`, and
+  `k*(1-(k+1)*H)/b**2`. Check both differentiation modes and jit/vmap in
+  both dtype processes. These are smooth positive-time tests, including k=1.
+- from_log chain-rule gradients in both parameters: multiply the above
+  natural gradients by k and b respectively. Check natural leaves, common
+  dtype before exp, rejected input kinds and overflow without prescribing
+  a particular invalid-parameter method value.
+- Mixed-boundary finite-component Jacobians/Hessians with shared parameters
+  and independent parameter batches, including analytic hazard. Pin zero
+  k/b derivatives of S(0), log S(0), H(0), S(+inf), log F(+inf).
+  At k=1 pin scale derivatives -1/b for finite log density/log hazard and
+  -1/b**2 for hazard at zero/infinity; log density at infinity is excluded.
+  Do not require shape derivatives at the discontinuous k=1 hazard limits.
+- NaN shape/scale isolation beside valid entries at zero/finite/infinite time;
+  raw analytic methods broadcast scalar and multiaxis times against batches
+  without depending on wrapper pre-broadcasting (A5.3 review regression).
+- Positive finite references across small/large valid scales and shapes;
+  safe finite evaluations at t=b. Add independent power expectations for
+  representable H despite t/b underflow/overflow (e.g. b=1e30, t=1e-30,
+  k=0.25 gives H=1e-15, with the reciprocal case H=1e15). Compare tiny H
+  with zero atol and existing rtol; compare underflowed probabilities in logs.
+
+Budget: approximately 135–145 source/docstring lines, 140–145 own-test lines
+and under 10 export/import-test lines, at most 300 changed code/test/docstring
+lines. Tests ship with the code. If safe formulas and meaningful own coverage
+cannot fit, propose a split and obtain approval before implementation; do not
+omit correctness tests or compress code to force the budget.
+
+Implementation accounting: 145 family/docstring lines, 150 own-test lines,
+and 5 export/import-test lines: **300 changed code/test/docstring lines**.
+The own mixed-boundary tests also cover the full interior two-parameter
+Jacobian/Hessian in both differentiation orders and jit/vmap at k=0.7, 1, 2;
+this avoids duplicating a standalone density-Hessian test. Scale derivatives
+of the finite log-density/log-hazard limits are demonstrated by the independent
+suite; own tests add hazard's -1/b**2 derivative at zero/infinity. No required
+coverage was deferred. The sole non-grid acceptance failure is D-020, an
+expected value missing log(shape); keep the correct formula and test untouched.
+
+### Validation, commit and stop
+
+After approval and branch selection, run the own Weibull module in separate
+`JAX_ENABLE_X64=1` and `0` processes, then
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A4`.
+Run all five non-grid A5 acceptance modules in each mode, with no `-k` filter:
+
+```bash
+JAX_ENABLE_X64=1 SPEC_THROUGH=A5 .venv/bin/python -B -m pytest \
+  tests/spec/test_a5_construction.py tests/spec/test_a5_from_log.py \
+  tests/spec/test_a5_closed_forms.py tests/spec/test_a5_boundaries.py \
+  tests/spec/test_a5_derivatives.py -q -p no:cacheprovider
+```
+
+Repeat with `JAX_ENABLE_X64=0`. This includes Exponential regressions,
+Weibull/Exponential identities and mixed-family construction. Only the 48 grid
+cases remain outside this A5 selection; full through-A5 acceptance waits for
+A5.5. Report existing dtype skips exactly; never edit/skip/xfail spec tests.
+
+Planning evidence: the above five-module command with `--collect-only -q`
+exited 0 and reported **322 tests collected in 0.21s** in each dtype process.
+Collection verifies selection only; no implementation tests or gate were run
+in this planning turn. Planning `git diff --check` exited 0 with no output;
+only PLAN.md is modified. Repeat the diff check after implementation.
+
+After implementation, overwrite REVIEW.md with reading order, safe-input and
+NaN/dispatch invariants, spec-to-test mapping, exact commands/results/skips
+and deferred docs. Record any newly discovered ambiguity in DEVIATIONS.md and
+ask; leave existing entries open. Commit one approved implementation step on
+the maintainer-selected branch, never main, then stop before A5.5.
 
 ## A5.5 — Three time-first grid methods
 
@@ -506,6 +640,10 @@ Docs to-do:
   conversions and from_log overflow limits; Weibull's complete 4.6 table and
   conversions for R/flexsurv, NumPyro, survreg mu=log(b), sigma=1/k,
   WeibullPH m=b**(-k), inverse scale and log inputs; common-shape PH gamma=-k*beta.
+  A5.4 includes these mappings in its class docstring as required by 4.6;
+  the docs step expands them into executable conversion examples and explains
+  natural estimates versus logged flexsurv coefficients. Cover zero/infinity
+  hazard limits and the exclusion of discontinuous shape derivatives at k=1.
 - Direct methods and grids: executable synthetic examples, paired-vector
   pitfalls and posterior batch `shape=k[:, None]`, `scale=jnp.exp(beta @ X.T)`.
 - Update `docs/index.md` navigation/current coverage and `docs/playground.ipynb`
