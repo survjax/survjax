@@ -369,6 +369,8 @@ on it. Guessed exception types and call shapes are centralised in
   vector is the first positional argument, named `t`, and follows the 4.5
   conversion and dtype rules; a `t` that is not one-dimensional raises
   `TypeError`.
+- **Rev 24:** the same rules now apply to the `_grid` twin of every
+  pointwise direct method (section 5, decision 0039), so no new guess.
 - **Depends:** `test_a5_survival_grids.py`, including
   `test_grid_has_no_component_axes` (custom family) and the rev 22
   grid-argument tests.
