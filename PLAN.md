@@ -496,6 +496,23 @@ CDF-tail formulas. See D-021 for the numerical-policy deviation.
   modes. Then overwrite REVIEW.md with mappings, exact results and this gate
   boundary. Commit this fix-up on A5.4 and stop.
 
+### Review fix-up — assert switch gradients with shared tolerances
+
+Authorized by the maintainer's test review. This A5.4 follow-up changes only
+the two own `log_cdf` switch tests and REVIEW.md; no runtime code or public API.
+
+- In both tests, compare values using `ATOL[x64_enabled]` and
+  `RTOL[x64_enabled]` from `tests/impl_tolerances.py`. Keep `eps` only for
+  constructing points on opposite sides of the algorithm's threshold.
+- Assert analytic gradients, not just finiteness: Weibull's shape derivative
+  is approximately `log(t)` on both sides; Exponential's rate derivative is
+  approximately `1` at rate one. Add a short algebra comment explaining the
+  O(H) difference on the standard branch. The existing RTOL covers that
+  rounding-scale difference, so no tolerance constant is added.
+- Run both targeted unit modules in x64 and x32, Ruff format/lint, mypy and
+  `git diff --check`. Overwrite REVIEW.md with exact results and commit this
+  test-only review fix-up on A5.4, then stop.
+
 Outcome: keyword-only `survjax.Weibull(shape=..., scale=...)` and
 `Weibull.from_log(log_shape=..., log_scale=...)`, with seven pointwise direct
 methods, analytic hazard limits and safe finite boundary parameter derivatives.

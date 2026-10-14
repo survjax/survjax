@@ -162,8 +162,8 @@ def test_log_cdf_retains_tail_when_cumulative_hazard_underflows(x64_enabled):
         assert Weibull(shape=10.0, scale=1.0).cumulative_hazard(time) == 0
 
 
-def test_log_cdf_switch_is_continuous_with_finite_gradients(x64_enabled):
-    """Spec 4.3/7.2: both sides of the eps switch retain finite shape gradients."""
+def test_log_cdf_switch_matches_analytic_shape_gradient(x64_enabled):
+    """Spec 4.3/7.2: log-CDF value and shape derivative agree across the switch."""
     dtype = jnp.float64 if x64_enabled else jnp.float32
     eps = np.finfo(np.float64 if x64_enabled else np.float32).eps
     log_eps = jnp.log(jnp.asarray(eps, dtype=dtype))
@@ -182,5 +182,17 @@ def test_log_cdf_switch_is_continuous_with_finite_gradients(x64_enabled):
         gradients = jax.jit(jax.vmap(jax.grad(log_cdf, argnums=0), in_axes=(None, 0)))(
             1.0, times
         )
-    np.testing.assert_allclose(values, log_h, atol=eps, rtol=0)
-    assert np.isfinite(np.asarray(gradients)).all()
+    # The standard branch multiplies log(t) by H/expm1(H)=1+O(H).
+    log_times = np.asarray(log_h, dtype=np.float64)
+    hazard = np.exp(log_times)
+    expected_gradients = log_times * hazard / np.expm1(hazard)
+    # Shared RTOL allows library transcendental rounding at values near -36/-16.
+    np.testing.assert_allclose(
+        values, log_h, atol=ATOL[x64_enabled], rtol=RTOL[x64_enabled]
+    )
+    np.testing.assert_allclose(
+        gradients,
+        expected_gradients,
+        atol=ATOL[x64_enabled],
+        rtol=RTOL[x64_enabled],
+    )
