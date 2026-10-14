@@ -16,7 +16,10 @@ tests (rev 21). A5 tests were written against revision 21 and are tagged
 `rev 21`, except those whose requirements revision 22 settled (built-ins as
 subclasses, `from_log`, `reference_time()` shape and dtype, NaN at `t=+inf`,
 boundary gradients, the grid argument, the `bc` vector), tagged `rev 22`, as
-are the `log_prob(+inf)` NaN tests in `test_a4_nan_precedence.py`. Tests are static acceptance tests and have never
+are the `log_prob(+inf)` NaN tests in `test_a4_nan_precedence.py`. Grid tests
+that revision 24 extended to every `_grid` twin, and the new grid tests, are
+tagged `rev 24`. Revision 23 (documentation workflow, 10.5) changed no tested
+requirement. Tests are static acceptance tests and have never
 been executed against survjax. Test names below are relative to `tests/spec/`.
 
 ## A1: representation and dtype policy (`test_a1_representation.py`, `test_a1_dtype.py`)
@@ -815,13 +818,15 @@ input is NaN, the result is NaN; otherwise the policy value applies."
   12.1 ordinary tolerances; the expected values are O(1) smooth interior
   quantities, for which autodiff error is far below those scales.
 
-## A5: Exponential and Weibull closed forms, boundary values, survival grids (spec 4.1, 4.5, 5; rev 21–22)
+## A5: Exponential and Weibull closed forms, boundary values, `_grid` twins (spec 4.1, 4.5, 5; rev 21–24)
 
 Hand derivations are in each module docstring. `[*]` marks a test
 parametrized over the seven Slice A direct methods (`log_survival`,
 `survival`, `log_cdf`, `cumulative_hazard`, `log_prob`, `log_hazard`,
 `hazard`) and, in `test_a5_boundaries.py`, over four cases: Exponential
-`r=0.5` and Weibull `b=2` with `k` in `(0.5, 1, 2)`.
+`r=0.5` and Weibull `b=2` with `k` in `(0.5, 1, 2)`. In
+`test_a5_survival_grids.py`, `[*]` marks a test parametrized over the seven
+`_grid` twins of those methods (rev 24).
 
 ### `test_a5_construction.py`: built-in classes, keywords, leaves, batch, `reference_time`
 
@@ -892,24 +897,26 @@ parametrized over the seven Slice A direct methods (`log_survival`,
 | 4.5 | rev 22: gradients at `+inf` equal the derivative of the limit: Exponential `log h`, `h`; Weibull `k=1` `log h` in `b`. | `test_gradient_of_exponential_hazard_at_infinity`, `test_gradient_of_weibull_shape_one_log_hazard_at_infinity` |
 | 4.5/7.3 | rev 22: the `+inf` gradients under `jit` and `vmap`. | `test_gradient_at_infinity_under_jit_and_vmap[*]` |
 
-### `test_a5_survival_grids.py`: grids and shape rules
+### `test_a5_survival_grids.py`: `_grid` twins and shape rules
 
 | Spec section | Requirement covered | Test |
 | --- | --- | --- |
 | 5 | scalar time against `(N,)`; paired `(N,)`; `(K,1,1)` against `(D,N)`. | `test_scalar_time_against_batch_gives_batch_shape`, `test_time_vector_against_equal_batch_pairs_entries`, `test_explicit_time_first_axis_gives_shared_grid_shape` |
 | 4.1/5 | a time that does not broadcast raises `TypeError`. | `test_time_that_does_not_broadcast_against_batch_is_rejected` |
-| 5 | grids are time-first: `(K,)`, `(K,N)`, `(K,D,N)`. | `test_grid_on_scalar_distribution_has_grid_shape[*]`, `test_grid_on_batch_is_time_first[*]`, `test_grid_on_two_dimensional_batch_gives_k_d_n[*]` (each over the three grid methods) |
-| 5 | grids equal the direct method on `grid[:, None, None]`. | `test_grid_equals_direct_method_on_grid_with_new_axes[*]` |
-| 5 | a grid is shared, never paired, even when `K=N`. | `test_grid_with_length_equal_to_batch_is_not_paired` |
-| 5 | "Component axes never appear in outputs"; rev 22: the base provides grids for every registered family (custom family). | `test_grid_has_no_component_axes` |
-| 5/8.1 | grid values for each grid method and family. | `test_weibull_survival_grid_values`, `test_weibull_cumulative_hazard_grid_values`, `test_weibull_hazard_grid_values`, `test_exponential_grids_values` |
-| 4.5/12.1 | "survival grid from `t=0` with Weibull `k=1`", with the section 11.1 `bc` fixed vector (rev 22); hazard and density from `t=0` finite. | `test_survival_grid_from_zero_with_weibull_shape_one`, `test_hazard_grid_from_zero_with_weibull_shape_one_is_finite`, `test_log_prob_on_grid_from_zero_with_weibull_shape_one_is_finite` |
-| 4.5 | grids follow the value policy, including the `S=0` analytic limit. | `test_survival_grid_applies_value_policy`, `test_hazard_grid_at_infinity_uses_analytic_limit` |
+| 4.2/5/8.1 | rev 24: "Every pointwise direct method of `t` ... has a grid twin named with a `_grid` suffix" (all seven exercised by every `[*]` test). | `test_grid_on_scalar_distribution_has_grid_shape[*]` and the other `[*]` tests |
+| 5 | rev 24: returns "`(K, *batch_shape)`": `(K,)`, `(K,N)`, `(K,D,N)`. | `test_grid_on_scalar_distribution_has_grid_shape[*]`, `test_grid_on_batch_is_time_first[*]`, `test_grid_on_two_dimensional_batch_gives_k_d_n[*]` |
+| 5 | rev 24: "for batch `(D,N)` this is `m(t[:, None, None])`, shape `(K,D,N)`". | `test_grid_equals_direct_method_on_grid_with_new_axes[*]` |
+| 5 | rev 24: with `K=N` a grid is shared, never paired (the motivating `log_prob` case included). | `test_grid_with_length_equal_to_batch_equals_direct_method_on_column[*]`, `test_grid_with_length_equal_to_batch_is_not_paired`, `test_log_prob_grid_with_length_equal_to_batch_is_not_paired` |
+| 5 | rev 24: "`t` need not be sorted or distinct; output row `i` belongs to `t[i]`". | `test_grid_accepts_unsorted_repeated_times[*]` |
+| 5 | "Component axes never appear in outputs"; the base provides grids for every registered family (custom family). | `test_grid_has_no_component_axes`, `test_custom_family_with_only_log_survival_has_every_grid[*]` |
+| 5/8.1 | grid values for each grid method and family. | `test_weibull_survival_grid_values`, `test_weibull_cumulative_hazard_grid_values`, `test_weibull_hazard_grid_values`, `test_weibull_log_survival_grid_values`, `test_weibull_log_prob_grid_values`, `test_weibull_log_cdf_grid_values`, `test_weibull_log_hazard_grid_values`, `test_exponential_grids_values`, `test_exponential_log_grids_values` |
+| 4.5/12.1 | "survival grid from `t=0` with Weibull `k=1`", with the section 11.1 `bc` fixed vector (rev 22); hazard and density from `t=0` finite (rev 24: also via `log_prob_grid`). | `test_survival_grid_from_zero_with_weibull_shape_one`, `test_hazard_grid_from_zero_with_weibull_shape_one_is_finite`, `test_log_prob_on_grid_from_zero_with_weibull_shape_one_is_finite`, `test_log_prob_grid_from_zero_with_weibull_shape_one_is_finite` |
+| 4.5/5 | grids follow the value policy, including the `S=0` analytic limit; rev 24: "value rules" for the log-scale twins. | `test_survival_grid_applies_value_policy`, `test_hazard_grid_at_infinity_uses_analytic_limit`, `test_log_survival_grid_applies_value_policy`, `test_log_prob_grid_applies_value_policy`, `test_log_cdf_grid_applies_value_policy`, `test_log_hazard_grid_applies_value_policy` |
 | 4.5 | float64 NumPy grid under 32-bit mode converts without warning (32-bit mode only). | `test_float64_numpy_grid_converts_without_warning_under_32bit_mode` |
 | 12.1/7.3 | grids under `jit`, `vmap` over the distribution, and parameter gradients. | `test_grid_agrees_under_jit[*]`, `test_vmap_over_distribution_of_survival_grid`, `test_gradient_through_survival_grid` |
-| 5 | rev 22: the time vector is "the first positional argument, named `t`". | `test_grid_time_can_be_passed_as_keyword_t[*]` |
-| 5 | rev 22: a scalar or 2-D `t` (including `(K,1)`) raises `TypeError`, also under `jit`. | `test_scalar_grid_is_rejected[*]`, `test_two_dimensional_grid_is_rejected[*]`, `test_column_grid_is_rejected`, `test_two_dimensional_grid_is_rejected_under_jit` |
-| 5/4.5 | rev 22: grid `t` follows the 4.5 dtype rules: boolean raises `TypeError`; integer converts. | `test_boolean_grid_is_rejected[*]`, `test_integer_grid_matches_float_grid` |
+| 5 | the time vector is "the first positional argument, named `t`". | `test_grid_time_can_be_passed_as_keyword_t[*]` |
+| 5 | a scalar or 2-D `t` (including `(K,1)`) raises `TypeError`, also under `jit`. | `test_scalar_grid_is_rejected[*]`, `test_two_dimensional_grid_is_rejected[*]`, `test_column_grid_is_rejected`, `test_two_dimensional_grid_is_rejected_under_jit` |
+| 5/4.5 | grid `t` follows the 4.5 dtype rules: boolean raises `TypeError`; integer converts. | `test_boolean_grid_is_rejected[*]`, `test_integer_grid_matches_float_grid` |
 
 ### `test_a5_derivatives.py`: transformations and parameter derivatives
 
@@ -942,6 +949,16 @@ parametrized over the seven Slice A direct methods (`log_survival`,
   at A4 on custom families; built-ins add nothing family-specific.
 - **Log-normal and log-logistic, `inverse_cumulative_hazard`, summaries,
   `check_family`:** Slice D.
+- **"Families do not implement or override" the `_grid` twins** (4.2/5,
+  rev 24): this is a rule for family authors; the spec gives no observable
+  outcome for a family that defines a `_grid` method, so nothing is asserted.
+  The twins on a custom family that defines only `log_survival` are tested.
+- **Grid twins of summaries, an `outer=True` keyword, a reshape helper**
+  (rev 24): explicitly out of scope.
+- **`vmap` and gradients for every `_grid` twin:** each twin is specified as
+  its direct method on reshaped `t`, whose transformations `test_a5_derivatives.py`
+  covers; grids add `jit` for all seven, and `vmap` and gradients for
+  `survival_grid`.
 - **Float32 `check_grads(order=2)`:** as at A4, float32 runs the
   hand-derived first and second derivatives instead.
 - **Tail scales:** tail tests use the 12.1 tolerances; where the expected
