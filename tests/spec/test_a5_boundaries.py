@@ -215,7 +215,8 @@ def test_weibull_policy_applies_elementwise_in_one_call():
     """spec 4.5, rev 21: total over `[-inf, +inf]`, elementwise, without raising.
 
     ``k=2``, ``b=2`` at ``(-inf, -1, 0, 1, +inf, NaN)``: ``log f`` is
-    ``(-inf, -inf, -inf, log(1/2) + log(1/2) - 1/4, -inf, NaN)``.
+    ``(-inf, -inf, -inf, log f(1), -inf, NaN)``, where
+    ``log f(1) = log(k/b) + (k-1) log(t/b) - (t/b)**k = 0 + log(1/2) - 1/4``.
     """
     out = np.asarray(
         survjax.Weibull(shape=f(2.0), scale=f(2.0)).log_prob(
@@ -223,7 +224,7 @@ def test_weibull_policy_applies_elementwise_in_one_call():
         )
     )
     np.testing.assert_array_equal(out[[0, 1, 2, 4]], [-INF] * 4)
-    assert_close(out[3], 2.0 * np.log(0.5) - 0.25)
+    assert_close(out[3], np.log(0.5) - 0.25)
     assert np.isnan(out[5])
 
 
