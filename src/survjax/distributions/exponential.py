@@ -89,6 +89,42 @@ class Exponential(SurvivalDistribution):
         """
         return self._cumulative_hazard(t)
 
+    def _log_cumulative_hazard(self, t: ArrayLike) -> jax.Array:
+        time = jnp.asarray(t)
+        zero = time == 0
+        infinite = jnp.isposinf(time)
+        boundary = zero | infinite
+
+        # spec 7.2: substitute before log(t), including at both boundaries.
+        safe_time = jnp.where(boundary, jnp.ones_like(time), time)
+
+        # spec 4.1: log H = log(rate) + log(t), without forming rate*t.
+        value = jnp.log(self.rate) + jnp.log(safe_time)
+        zero_limit = jnp.where(jnp.isfinite(self.rate), -jnp.inf, jnp.nan)
+        infinity_limit = jnp.where(self.rate > 0, jnp.inf, jnp.nan)
+        value = jnp.where(zero, zero_limit, jnp.where(infinite, infinity_limit, value))
+        return value
+
+    def log_cdf(self, t: ArrayLike) -> jax.Array:
+        """Return log(1-exp(-H(t))) while preserving tiny exponential tails.
+
+        Args: t: Real times, broadcast with the parameter batch.
+        Returns: Broadcast log CDF; zero at +inf for valid positive rates.
+        Raises: TypeError: Nonreal times or incompatible shapes.
+        """
+        log_h = self._log_cumulative_hazard(t)
+        dtype = log_h.dtype
+        log_eps = jnp.log(jnp.asarray(jnp.finfo(dtype).eps, dtype=dtype))
+        log_max = jnp.log(jnp.asarray(jnp.finfo(dtype).max, dtype=dtype))
+        tiny = log_h < log_eps
+        upper = log_h >= log_max
+
+        # spec 7.2: sanitize both inactive branches before exp/expm1.
+        safe_log_h = jnp.where(tiny | upper, jnp.zeros_like(log_h), log_h)
+        standard = jnp.log(-jnp.expm1(-jnp.exp(safe_log_h)))
+        value = jnp.where(tiny, log_h, standard)
+        return jnp.where(upper, jnp.zeros_like(value), value)
+
     def log_prob(self, t: ArrayLike) -> jax.Array:
         """Return log(rate)-rate*t with the broadcast shape (spec 4.1/4.5).
 

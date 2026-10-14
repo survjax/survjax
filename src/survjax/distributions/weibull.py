@@ -111,6 +111,55 @@ class Weibull(SurvivalDistribution):
         """
         return self._cumulative_hazard(t)
 
+    def _log_cumulative_hazard(self, t: ArrayLike) -> jax.Array:
+        time = jnp.asarray(t)
+        zero = time == 0
+        infinite = jnp.isposinf(time)
+        boundary = zero | infinite
+
+        # spec 7.2: substitute before logs, including the scale operand.
+        safe_time = jnp.where(boundary, jnp.ones_like(time), time)
+        safe_scale = jnp.where(boundary, jnp.ones_like(self.scale), self.scale)
+
+        # spec 4.1: log H = k * log(t / b), without forming H in the lower tail.
+        log_ratio = jnp.log(safe_time) - jnp.log(safe_scale)
+        value = self.shape * log_ratio
+
+        # spec 4.5: restore the limits implied by H=(t/b)**k.
+        zero_limit = jnp.where(
+            self.shape > 0,
+            -jnp.inf,
+            jnp.where(self.shape == 0, 0.0, jnp.inf),
+        )
+        infinity_limit = jnp.where(
+            self.shape > 0,
+            jnp.inf,
+            jnp.where(self.shape == 0, 0.0, -jnp.inf),
+        )
+        value = jnp.where(zero, zero_limit, jnp.where(infinite, infinity_limit, value))
+        undefined = jnp.isnan(self.shape) | jnp.isnan(jnp.log(self.scale))
+        return jnp.where(undefined, jnp.nan, value)
+
+    def log_cdf(self, t: ArrayLike) -> jax.Array:
+        """Return log(1-exp(-H(t))) while preserving tiny Weibull lower tails.
+
+        Args: t: Real times, broadcast with the parameter batch.
+        Returns: Broadcast log CDF; zero at +inf for valid shape and scale.
+        Raises: TypeError: Nonreal times or incompatible shapes.
+        """
+        log_h = self._log_cumulative_hazard(t)
+        dtype = log_h.dtype
+        log_eps = jnp.log(jnp.asarray(jnp.finfo(dtype).eps, dtype=dtype))
+        log_max = jnp.log(jnp.asarray(jnp.finfo(dtype).max, dtype=dtype))
+        tiny = log_h < log_eps
+        upper = log_h >= log_max
+
+        # spec 7.2: sanitize both inactive branches before exp/expm1.
+        safe_log_h = jnp.where(tiny | upper, jnp.zeros_like(log_h), log_h)
+        standard = jnp.log(-jnp.expm1(-jnp.exp(safe_log_h)))
+        value = jnp.where(tiny, log_h, standard)
+        return jnp.where(upper, jnp.zeros_like(value), value)
+
     def log_hazard(self, t: ArrayLike) -> jax.Array:
         """Return log(k)-log(b)+(k-1)*log(t/b), with analytic limits.
 

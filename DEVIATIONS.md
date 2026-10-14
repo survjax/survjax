@@ -1,5 +1,19 @@
 # Deviations and spec questions
 
+## D-021 Built-in log-CDF lower-tail switch
+- Step: A5.4 review fix-up, 2026-10-14
+- Spec: sections 4.2, 4.3, 7.1 and 7.2, revision 24.
+- Spec says: section 4.2 permits the default `log(-expm1(log S))` until
+  `log S` underflows; section 4.3 prescribes switching to `log H` for a
+  `HazardFamily` when H is tiny. Section 7.1 says precision loss must not be
+  relabelled as zero mass.
+- Did / propose: give Exponential and Weibull the same dtype-epsilon switch,
+  computing `log H` directly in the lower tail and substituting a safe operand
+  before evaluating the standard `expm1` branch. This extends the HazardFamily
+  numerical approach to built-ins before that base class exists, so their
+  lower-tail values remain representable even when forming H underflows.
+- Status: open
+
 ## D-020 Mixed-time Weibull density acceptance expectation omits log(shape)
 - Step: A5.4 implementation, 2026-10-13
 - Spec: sections 2, 4.1 and 4.5, revision 23 (numerical rules unchanged
@@ -20,6 +34,10 @@
   dtype mode, with this sole failure. x64: 321 passed, 1 failed; x32:
   311 passed, 10 skipped, 1 failed. All 18 own Weibull cases pass in each
   mode, including full density Jacobians/Hessians at k=2, b=2, t=1.
+- Revision-24 follow-up (2026-10-14): the synchronized boundary test now
+  includes `log(shape)` in its expected Weibull density. The full A5 run no
+  longer reports D-020; the non-grid A5 acceptance modules pass in both dtype
+  modes. The maintainer retains closure; this entry remains open.
 - Status: open
 
 ## D-019 Natural parameter leaves versus overflow-safe log constructors

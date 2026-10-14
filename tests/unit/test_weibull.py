@@ -148,3 +148,39 @@ def test_extreme_ratios_and_reference_scales(x64_enabled):
     assert np.isfinite(ref).all() and (ref > 0).all()
     # At its scale every valid shape has cumulative hazard exactly one.
     np.testing.assert_allclose(dist.cumulative_hazard(ref), 1, atol=ATOL[x64_enabled])
+
+
+def test_log_cdf_retains_tail_when_cumulative_hazard_underflows(x64_enabled):
+    """Spec 4.2/7.1: log F = k*log(t/b) when H is below dtype precision."""
+    time = jnp.asarray(1e-5)
+    actual = Weibull(shape=10.0, scale=1.0).log_cdf(time)
+    expected = 10.0 * np.log(1e-5)
+    np.testing.assert_allclose(
+        actual, expected, atol=ATOL[x64_enabled], rtol=RTOL[x64_enabled]
+    )
+    if not x64_enabled:
+        assert Weibull(shape=10.0, scale=1.0).cumulative_hazard(time) == 0
+
+
+def test_log_cdf_switch_is_continuous_with_finite_gradients(x64_enabled):
+    """Spec 4.3/7.2: both sides of the eps switch retain finite shape gradients."""
+    dtype = jnp.float64 if x64_enabled else jnp.float32
+    eps = np.finfo(np.float64 if x64_enabled else np.float32).eps
+    log_eps = jnp.log(jnp.asarray(eps, dtype=dtype))
+    offset = 4 * np.sqrt(eps)
+    times = jnp.asarray(
+        np.exp(np.asarray([log_eps - offset, log_eps + offset])), dtype=dtype
+    )
+    log_h = jnp.log(times)  # shape=scale=1 gives log H=log(t).
+    assert bool(log_h[0] < log_eps) and bool(log_h[1] > log_eps)
+
+    def log_cdf(shape, time):
+        return Weibull(shape=shape, scale=1.0).log_cdf(time)
+
+    with jax.debug_nans(True):
+        values = jax.jit(lambda t: Weibull(shape=1.0, scale=1.0).log_cdf(t))(times)
+        gradients = jax.jit(jax.vmap(jax.grad(log_cdf, argnums=0), in_axes=(None, 0)))(
+            1.0, times
+        )
+    np.testing.assert_allclose(values, log_h, atol=eps, rtol=0)
+    assert np.isfinite(np.asarray(gradients)).all()

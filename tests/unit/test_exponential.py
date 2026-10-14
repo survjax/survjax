@@ -99,6 +99,42 @@ def test_tails(x64_enabled):
     np.testing.assert_allclose(dist.log_hazard(1e7), np.log(2), rtol=RTOL[x64_enabled])
 
 
+def test_log_cdf_retains_tail_when_cumulative_hazard_underflows(x64_enabled):
+    """Spec 4.2/7.1: log F = log(rate)+log(t) when rate*t underflows."""
+    time = jnp.asarray(1e-30)
+    actual = Exponential(rate=1e-30).log_cdf(time)
+    expected = np.log(1e-30) + np.log(1e-30)
+    np.testing.assert_allclose(
+        actual, expected, atol=ATOL[x64_enabled], rtol=RTOL[x64_enabled]
+    )
+    if not x64_enabled:
+        assert Exponential(rate=1e-30).cumulative_hazard(time) == 0
+
+
+def test_log_cdf_switch_is_continuous_with_finite_gradients(x64_enabled):
+    """Spec 4.3/7.2: both sides of the eps switch retain finite rate gradients."""
+    dtype = jnp.float64 if x64_enabled else jnp.float32
+    eps = np.finfo(np.float64 if x64_enabled else np.float32).eps
+    log_eps = jnp.log(jnp.asarray(eps, dtype=dtype))
+    offset = 4 * np.sqrt(eps)
+    times = jnp.asarray(
+        np.exp(np.asarray([log_eps - offset, log_eps + offset])), dtype=dtype
+    )
+    log_h = jnp.log(times)  # rate=1 gives log H=log(t).
+    assert bool(log_h[0] < log_eps) and bool(log_h[1] > log_eps)
+
+    def log_cdf(rate, time):
+        return Exponential(rate=rate).log_cdf(time)
+
+    with jax.debug_nans(True):
+        values = jax.jit(lambda t: Exponential(rate=1.0).log_cdf(t))(times)
+        gradients = jax.jit(jax.vmap(jax.grad(log_cdf, argnums=0), in_axes=(None, 0)))(
+            1.0, times
+        )
+    np.testing.assert_allclose(values, log_h, atol=eps, rtol=0)
+    assert np.isfinite(np.asarray(gradients)).all()
+
+
 def test_construction_and_reference(x64_enabled):
     """Spec 3.3/4.1/4.2: natural leaves, transforms, dtype and extreme references."""
     dtype = jnp.float64 if x64_enabled else jnp.float32

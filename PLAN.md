@@ -471,6 +471,31 @@ PLAN.md and created no branch or commit. Specification revision
 23 and `.spec-seen` agree with design commit `a212ddd`; the synchronized
 revision-22 numerical tests remain applicable. No spec ambiguity identified.
 
+### Review fix-up — preserve tiny built-in CDF tails
+
+Authorized by the maintainer's request to implement the review's proposed
+tail-stable `log_cdf` branches for both built-ins. This is an A5.4 follow-up
+on the same branch, with no public API or export changes. The current spec is
+revision 24 (`b917ebe`); its update adds grid twins and does not change the
+CDF-tail formulas. See D-021 for the numerical-policy deviation.
+
+- `weibull.py`: add `_log_cumulative_hazard` from `shape * log(t / scale)`;
+  use safe time/scale operands before logs and restore the zero/infinity limits.
+  Override `log_cdf` to switch to `log_H` when `log_H < log(eps)`. Substitute
+  before evaluating the `expm1` branch, including the infinite upper limit and
+  values at which `exp(log_H)` would overflow.
+- `exponential.py`: add the matching `log_H = log(rate) + log(t)` helper and
+  `log_cdf` override, with the same lower-tail switch and safe branch operand.
+- Add own tests for hand-derived lower-tail values (including a float32 case
+  where forming H underflows), continuity around the dtype-specific switch,
+  and finite shape/rate gradients under `jax.debug_nans` on both sides.
+  Do not edit the independent revision-24 spec tests.
+- Cover spec 4.2, 4.3, 4.5, 7.1 and 7.2. Run
+  `scripts/check.sh --through A5`; report its current revision-24 A5.5 grid-test
+  failures separately, and run the non-grid A5 acceptance modules in both dtype
+  modes. Then overwrite REVIEW.md with mappings, exact results and this gate
+  boundary. Commit this fix-up on A5.4 and stop.
+
 Outcome: keyword-only `survjax.Weibull(shape=..., scale=...)` and
 `Weibull.from_log(log_shape=..., log_scale=...)`, with seven pointwise direct
 methods, analytic hazard limits and safe finite boundary parameter derivatives.
