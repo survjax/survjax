@@ -1,54 +1,77 @@
-# A5.4 review fix-up — assert log-CDF switch derivatives
+# A5.5 — Seven time-first grid methods
 
-This test-only follow-up is based on commit `c477d31` on branch `A5.4`. The
-runtime implementation and public API are unchanged.
+Implemented on the maintainer-selected `A5.5` branch from `861ac71`, following
+approval on 2026-10-15. All seven grid twins are inherited by built-in and
+registered custom families. The full through-A5 gate now passes in both modes.
 
 ## Reading order
 
-1. `tests/unit/test_weibull.py`,
-   `test_log_cdf_switch_matches_analytic_shape_gradient`.
-2. `tests/unit/test_exponential.py`,
-   `test_log_cdf_switch_matches_analytic_rate_gradient`.
-3. `tests/impl_tolerances.py`, where the existing dtype-specific `ATOL` and
-   `RTOL` values are defined.
-4. `PLAN.md` records the requested review follow-up. D-021 in `DEVIATIONS.md`
-   remains the numerical-policy note for the implementation.
+1. `src/survjax/distributions/_grid_methods.py`: `_reshape_grid` converts and
+   checks rank, then appends one singleton axis per current batch dimension.
+   The seven typed methods call the corresponding public direct method.
+2. `src/survjax/distributions/base.py`: import and seven bindings only;
+   registration still wraps only the direct methods.
+3. `tests/unit/test_survival_grid.py`: independent Exponential formula table,
+   shapes/empty dimensions, component-family dispatch, argument rules,
+   transformations/trace reuse, analytical derivatives and Weibull boundaries.
+4. `tests/impl_tolerances.py`: scale justification for the existing derivative
+   tolerances; numerical tolerance values are unchanged.
+5. `PLAN.md`: approved scope, outcome, deferred docs and the D-022 follow-up.
 
-## Invariants and test mapping
+## Invariants and spec-to-test mapping
 
-- The threshold points still straddle `log(eps)`, and `jax.debug_nans` remains
-  enabled around the jitted values and gradients.
-- Values are compared with the shared `ATOL[x64_enabled]` and
-  `RTOL[x64_enabled]`. No test-local tolerance or new tolerance scale was
-  added; this avoids requiring bit-identical `log`/`expm1` rounding near -36
-  in float64 and -16 in float32.
-- The Weibull gradient expectation is derived from
-  `d log(F)/dk = log(t) * H/expm1(H)` at shape=scale=1. Since
-  `H/expm1(H) = 1 + O(H)`, it approaches `log(t)` around the switch.
-- The Exponential gradient expectation at rate=1 is
-  `d log(F)/dr = t/expm1(t) = 1 + O(H)`. Both tests assert these expected
-  gradients on each side, so a silently zero tiny-branch gradient fails.
-- The hand-derived underflow-tail tests remain unchanged and continue to cover
-  the log-H branch when forming H gives zero in float32.
+- Spec 5/8.1: `(K,)` becomes `(K,) + (1,) * len(batch_shape)`; outputs have
+  `(K, *batch_shape)`. Shape comes from current leaves under `vmap`, excluding
+  components. K=N still forms every time/batch pair. Own value and shape tests
+  cover ordered/repeated rows, scalar/several batch axes, empty grids/batches
+  and component reduction owned by a custom family.
+- Spec 4.2/4.5: adapters call public registered direct methods. Dtype/value
+  policy, NaN precedence, analytic limits and overrides are inherited without
+  another wrapper or numerical formula. Component-family call evidence checks
+  that an analytic density override is reached. Misuse tests cover rank and
+  nonreal types in eager/jit calls; dtype tests cover integers, explicit float32
+  and silent transient float64 conversion in x32.
+- Spec 7.2/7.3/12.1: every grid has eager/jit/vmap algebra checks and one trace
+  across changed values of fixed shape/dtype. Analytical first derivatives and
+  Hessians run through `jit(vmap(...))`; order-two forward/reverse `check_grads`
+  runs in both dtype modes. All expected derivatives come from the stated
+  Exponential formulas. A separate mixed zero/interior/infinity test asserts
+  the interior derivative in both AD modes for every grid.
+- Spec 4.5/11.1: Weibull k=1 with group scales
+  `10 * exp([0, -0.5, -1])` gives analytical survival, density and hazard from
+  zero through infinity. NaN times/parameters stay in their rows/columns.
+  The shape derivative of S(0) is asserted to be zero.
+- The read-only `tests/spec/test_a5_survival_grids.py` covers the independent
+  revision-24 contract (116 collected cases). Spec files, independent tests,
+  exports, dependencies and docs pages were not changed.
 
 ## Checks actually run
 
-    JAX_ENABLE_X64=1 .venv/bin/pytest tests/unit/test_weibull.py tests/unit/test_exponential.py -q
-    JAX_ENABLE_X64=0 .venv/bin/pytest tests/unit/test_weibull.py tests/unit/test_exponential.py -q
+Initial focused execution of `tests/unit/test_survival_grid.py` reported
+42 passed in each dtype mode. It exposed a pytest iterator-parametrization
+deprecation; the parameter values now use a list, before the final gate run.
 
-x64: **36 passed, 1 skipped**. x32: **37 passed**.
+    UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A5
 
-    .venv/bin/ruff format --check .
-    .venv/bin/ruff check .
-    .venv/bin/mypy src
-    git diff --check
+Exit 0, final line: `check: all gates passed through A5`.
 
-All passed: 44 files formatted, Ruff clean, mypy clean for 11 source files, and
-no whitespace errors. The full A5 gate was not rerun because this follow-up
-changes tests only. Commit `c477d31` records its prior result: the implementation
-and non-grid A5 checks passed, while revision-24 grid tests await A5.5.
+- Protected-path guard: `ok (A5.5)`.
+- Ruff: 46 files already formatted; all lint checks passed.
+- mypy: success, no issues in 12 source files.
+- Own tests: x64 **415 passed, 7 skipped**; x32 **421 passed, 1 skipped**.
+  These include all 42 new grid cases in each mode, with no final-run warnings.
+- Source doctests: **1 passed** in each mode.
+- Independent through-A5 tests: x64 **1116 passed, 26 skipped**;
+  x32 **1121 passed, 21 skipped**. Existing suite skips are retained;
+  no skip or xfail was added by this step.
+- `git diff --check`: exit 0, no output.
 
-## Uncertainty and stop
+## Remaining limitation and stop
 
-No new uncertainty or runtime behavior. Commit this test fix-up on A5.4 and
-stop before the next step.
+D-022 remains open: `log_cdf_grid` inherits the current direct method's known
+upper-tail relative-precision loss. This step adds shapes/dispatch and makes
+no claim to repair that numerical issue. PLAN.md proposes its own numerical
+step after A5.5, before the separate A5 docs steps. No deviation is resolved.
+Docs needs are recorded in PLAN.md; no docs build was run for this code step.
+
+Commit A5.5 and stop for review before starting another step.

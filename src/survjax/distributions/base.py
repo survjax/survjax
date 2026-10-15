@@ -8,7 +8,7 @@ import jax.numpy as jnp
 from jax.typing import ArrayLike
 
 from survjax._dtypes import normalize_parameters
-from survjax.distributions import _survival_methods
+from survjax.distributions import _grid_methods, _survival_methods
 
 
 def param(component_ndim: int = 0) -> Any:
@@ -114,6 +114,13 @@ class SurvivalDistribution:
     log_prob = _survival_methods.log_prob
     log_hazard = _survival_methods.log_hazard
     hazard = _survival_methods.hazard
+    survival_grid = _grid_methods.survival_grid
+    log_survival_grid = _grid_methods.log_survival_grid
+    log_prob_grid = _grid_methods.log_prob_grid
+    log_cdf_grid = _grid_methods.log_cdf_grid
+    cumulative_hazard_grid = _grid_methods.cumulative_hazard_grid
+    log_hazard_grid = _grid_methods.log_hazard_grid
+    hazard_grid = _grid_methods.hazard_grid
 
     @property
     def batch_shape(self) -> tuple[int, ...]:

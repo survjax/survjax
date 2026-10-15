@@ -4,9 +4,14 @@ Status: A5.1 (`3f50962`) was approved by the reviewer and merged into main by
 the maintainer. A5.2 (`a58c57c`) received a merge verdict on 2026-10-12.
 The F-2/F-3 review nits are corrected; A5.2b (`71403c3`) and its review fix-up
 (`63874e8`) are merged into main. A5.3 (`cc2f85d`) and its broadcasting fix-up
-(`cd3f213`) are present on main. A5.4 is implemented on branch `A5.4`;
-A5 acceptance has the independent-test discrepancy recorded as D-020.
-A5.5 and A5 docs remain future steps.
+(`cd3f213`) are present on main. A5.4 and both log-CDF review fix-ups
+(`c477d31`, `4f867cb`) are merged into main. The maintainer selected branch
+`A5.5`; the approved implementation from `861ac71` passes the full through-A5
+gate in both dtype modes on 2026-10-15 and awaits review.
+The spec and `.spec-seen` agree at revision 24 (`b917ebe`). The synchronized
+tests correct D-020's density expectation. The maintainer's D-022 upper-tail
+note is committed in `861ac71`; its numerical fix is a separate proposed step.
+A5 docs follow the remaining code work.
 The original planning started from a
 clean `A5` checkout at `3f50962`, then the main tip. No branch was created
 or switched by this planning request; implementation uses the maintainer's
@@ -40,8 +45,10 @@ Other settled requirements:
   do not require the Weibull shape derivative of log density at zero and k=1.
   The scale derivative there is required. Custom-family guarantees depend on
   the author's primitive; the extension recipe must explain this (D-016/4.5).
-- The base supplies all three methods `survival_grid(t)`,
-  `cumulative_hazard_grid(t)` and `hazard_grid(t)`, for every registered family.
+- Revision 24 expands the base surface to seven methods: `survival_grid(t)`,
+  `log_survival_grid(t)`, `log_prob_grid(t)`, `log_cdf_grid(t)`,
+  `cumulative_hazard_grid(t)`, `log_hazard_grid(t)` and `hazard_grid(t)`.
+  Every registered family inherits them.
   The first positional argument is named `t` and also accepts `t=...`; it must
   be one-dimensional and follows the direct-time dtype rules (5/8.1).
 - The zero-time grid example is self-contained: Weibull shape 1, scale 10.
@@ -56,7 +63,7 @@ leave formal deviation closure to the maintainer.
 
 Public additions: `survjax.Exponential(rate=...)`,
 `survjax.Weibull(shape=..., scale=...)`, keyword-only `from_log` classmethods,
-all seven direct methods on both families, and the three grid base methods.
+all seven direct methods on both families, and their seven grid base methods.
 Covered spec: 3.3, 4.1–4.2, 4.5–4.6, 5, 7.2–7.3, 8.1 (grids only),
 10.2–10.5 and applicable family/boundary requirements of 12.1–12.2.
 No likelihoods, interval/truncation methods, parameter diagnostics (D-013),
@@ -79,10 +86,10 @@ the A5.1/A5.2 instructions and verification evidence below retain their history.
 
 The maintainer aligned `.spec-seen` to `9323cb5` in `96fc32d` and synchronized
 the independent suite from `7f1d6df` in `89cb9f4` before implementation. The
-local through-A4 gate now includes the three revision-22 regressions, and
-through-A5 includes all 370 A5 cases. Both independent suites and the alignment
-marker remain untouched by the implementation agent. Never edit, skip or xfail
-acceptance tests to obtain a pass.
+current through-A4 gate includes the three revision-22 regressions. The
+revision-24 suite now collects 438 A5 cases, including 116 in the grid module.
+Both independent suites and the alignment marker remain untouched by the
+implementation agent. Never edit, skip or xfail acceptance tests to obtain a pass.
 
 ## A5.1 — Correct NaN precedence for density at infinity
 
@@ -668,28 +675,146 @@ and deferred docs. Record any newly discovered ambiguity in DEVIATIONS.md and
 ask; leave existing entries open. Commit one approved implementation step on
 the maintainer-selected branch, never main, then stop before A5.5.
 
-## A5.5 — Three time-first grid methods
+## A5.5 — Seven time-first grid methods
 
-- Bind typed `survival_grid(t)`, `cumulative_hazard_grid(t)`, `hazard_grid(t)`
-  in `src/survjax/distributions/base.py`. Keep thin implementations in
-  `_survival_methods.py`, reshaping a 1-D time vector to
-  `(K,) + (1,)*len(batch_shape)` and calling the corresponding public direct
-  method, honoring overrides and the complete time policy. No grid registration
-  wrapper is needed. Keep modules below roughly 300 lines; if needed, put grid
-  functions in one private `_grid_methods.py` with only this responsibility.
-- Add `tests/unit/test_survival_grid.py` for all three methods: positional and
-  keyword t; scalar/1-D/2-D distribution batches, K=N still shared rather than
-  paired, more batch axes/empty grids, custom component families without
-  component axes in outputs, dtype/rank misuse eagerly and during tracing,
-  integer grids and silent float64-time conversion under x32. Include override
-  dispatch and analytical entries, not just comparisons between library calls.
-- Check eager/jit/vmap agreement, survival-grid parameter gradients and the
-  zero-time shape-one survival/hazard/density example, including the three
-  synthetic group scales of section 11.1. Hazards at infinity use analytic
-  limits; NaN times and parameters stay isolated by entry.
-- Public API docstrings state the time-first shape convention and rank/dtype
-  requirements. Record tutorial, navigation and playground needs under
-  "A5 docs". Cover 4.5/5/8.1/10.5/12.1; this ends the planned code steps.
+Status: implemented and verified on 2026-10-15; awaiting review. Started from
+`861ac71` on the
+maintainer-selected `A5.5` branch. Planning used `4f867cb`, after A5.4 merged;
+the maintainer has since committed D-022 in `861ac71`. The marker
+`.spec-seen` records revision-24 content commit `b917ebe`. Design HEAD is now
+`addc1cc` (archive snapshot); SPECIFICATION.md and GOALS.md have no diff from
+the marker. The local acceptance tests are already synchronized. No branch,
+implementation or spec/test synchronization was part of the planning request.
+
+Outcome: all seven inherited grid methods use a single rank/reshape helper and
+delegate to public registered direct methods. Own grid coverage has 42 cases in
+each dtype mode, including analytical derivatives through `jit(vmap(...))`.
+The full `scripts/check.sh --through A5` passes: own x64 415 passed/7 skipped,
+x32 421 passed/1 skipped; independent x64 1116 passed/26 skipped, x32 1121
+passed/21 skipped; source doctests 1 passed in each mode. Ruff and mypy pass.
+Exact commands, reading order, invariants and the D-022 limitation are in
+REVIEW.md. No spec, independent tests, docs pages or exports were changed.
+
+### Public API and shape contract
+
+Add the seven inherited methods to `SurvivalDistribution`:
+`survival_grid`, `log_survival_grid`, `log_prob_grid`, `log_cdf_grid`,
+`cumulative_hazard_grid`, `log_hazard_grid`, `hazard_grid`.
+Each has signature `(self, t: ArrayLike) -> jax.Array`, accepts positional or
+keyword `t`, and is available on built-ins and registered custom families.
+No new top-level exports or family-specific grid implementations are needed.
+
+- Convert a one-dimensional grid with JAX, then reshape it to
+  `(K,) + (1,) * len(self.batch_shape)`. Evaluate the corresponding public
+  direct method, returning `(K, *batch_shape)`. K=N still evaluates every time
+  against every batch entry. Batch rank comes from current leaves, including
+  inside `vmap`; component axes are excluded.
+- Reject non-1-D grids with `TypeError`, including during tracing. Normalize
+  array-conversion misuse to `TypeError`; let the registered direct method
+  apply its existing dtype, promotion and value policy. This preserves integer
+  inputs, silent float64-time conversion in x32, overrides and NaN precedence.
+- Preserve input order and duplicates; support empty grids and empty batches
+  through the same reshape/broadcast operations. Shapes are inspected statically;
+  grid values never drive Python branching, sorting or host conversion.
+- Grid wrappers delegate to the public direct methods, so their safe-input
+  calculations and boundary derivatives remain active. No second registration
+  wrapper, raw-method bypass, numerical formula or derivative rule is added.
+
+### Files to create or change
+
+- Create `src/survjax/distributions/_grid_methods.py`: seven explicit typed
+  thin methods and one private time-conversion/rank/reshape helper. Use a
+  type-checking-only base import to avoid a circular runtime import. Each
+  public method docstring gives its quantity, 1-D `t`, time-first return shape,
+  conversion/value policy and `TypeError` conditions.
+- Change `src/survjax/distributions/base.py`: import the private grid module
+  and bind its seven methods on the base. The existing registration list
+  continues to wrap only direct methods. This file is already 339 lines;
+  keeping the grid functions separate limits its addition to import/bindings
+  and avoids an unrelated registration refactor.
+- Create `tests/unit/test_survival_grid.py`: own analytical and structural
+  checks described below. Prefer a small explicit expectation table over a
+  generated method factory or a testing helper layer.
+- Change `tests/impl_tolerances.py` only to document the rounding/truncation
+  scale for applying the existing derivative tolerances to unit-scale smooth
+  grid functions. Reuse its ATOL/RTOL for analytical values and derivatives;
+  keep the existing finite-difference tolerance values unchanged.
+- Update this plan's outcome and overwrite REVIEW.md after implementation.
+  Spec files, `tests/spec/`, exports, dependencies and `docs/` stay untouched.
+
+### Own tests and independent acceptance
+
+Keep own tests focused; the read-only grid acceptance module already covers
+all seven names, ordinary values, shapes, keyword arguments and policy rows.
+
+- Hand-derived Exponential values for all seven grids with K=N and an unsorted
+  repeated time vector: use `S=exp(-r*t)`, `H=r*t`, `h=r`, `log f=log(r)-r*t`
+  and `log F=log(-expm1(-r*t))`. Assert full matrices and row order.
+- Scalar batches, several batch axes, empty grids and empty batches: assert
+  exact time-first shapes. A small custom family reduces its own parameter
+  components and verifies they never become grid batch axes; a direct override
+  verifies dispatch through the public registered method rather than a default.
+- Rank and dtype misuse in eager/jit calls; integer inputs, explicit float32
+  inputs in x64, and warning-free NumPy float64 grids in x32. Exercise the
+  positional and keyword `t` forms.
+- Eager/jit/vmap agreement for every grid, including `vmap` over distributions
+  whose per-entry batch rank differs from the original. Count tracing for
+  changed parameter/grid values with unchanged shape/dtype/PyTree structure.
+- Assert analytical first and second rate derivatives for all seven
+  Exponential grids on a positive finite grid. Use order-two `check_grads` in
+  both forward/reverse modes on unit-scale interior cases with shared derivative
+  tolerances. Expected derivatives come from the same stated algebra, never
+  another library call. No time or discontinuous boundary derivative is promised.
+- Weibull shape-one grid from zero with the section 11.1 scales
+  `10 * exp([0, -0.5, -1])`: verify analytical survival, density and hazard,
+  plus the zero shape derivative of `S(0)`. Mixed zero/interior/infinity
+  entries retain the existing finite-entry derivative isolation; NaN times
+  and parameters remain confined to the corresponding rows/columns.
+
+Covered spec: 4.2, 4.5, 5, 7.2–7.3, 8.1, 10.2–10.3, 10.5 (docstrings),
+12.1 and the grid part of Slice A in 12.2. The 116-case independent module is
+`tests/spec/test_a5_survival_grids.py`; do not edit, skip or xfail any case.
+The full A5 gate must now pass, including all seven grid twins.
+
+### Validation, review and scope boundary
+
+After approval, target roughly 300 changed source/test/docstring lines in one
+code commit. Keep the private module and own test file below about 300 lines
+each. If the tests exceed that step budget, propose a split before expanding.
+Run focused grid tests in separate x64/x32 processes, then
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A5`
+and `git diff --check`. The full gate includes own suites, Ruff, mypy, source
+doctests and independent tests in both dtype modes. Report exact skips/results.
+Write REVIEW.md with reading order, shape/dispatch invariants, spec-to-test
+mapping, actual commands/results and remaining limitations. Commit on A5.5
+and stop for review.
+
+D-022 is the maintainer's existing upper-tail issue, committed in `861ac71`. This plan
+preserves that file and keeps grid semantics equal to the current direct
+methods, including their known log-CDF upper-tail limitation. Propose a
+separate numerical step after A5.5 for the shared `log1mexp` fix, with its own
+plan approval, mpmath and derivative checks. The grid gate alone does not
+establish upper-tail accuracy or complete Slice A. Likelihoods, summaries,
+sampling, fixtures, benchmarks and installation checks keep their later scope.
+
+Docs to-do:
+
+- Extend the later grids topic to all seven methods, paired-vector versus
+  shared-grid examples (including K=N), posterior batches, order/duplicates,
+  component axes and zero-time Weibull examples. Update API navigation and
+  playground examples in the separate A5 docs steps.
+
+Planning evidence (collection only; no tests or full gate executed):
+
+- In each dtype process, `SPEC_THROUGH=A5 .venv/bin/python -B -m pytest
+  tests/spec/test_a5_survival_grids.py --collect-only -q -p no:cacheprovider`
+  reports **116 tests collected**.
+- In each dtype process, the same collection against `tests/spec` with
+  `-k test_a5` reports **438/1142 tests collected (704 deselected)**.
+- Only PLAN.md is changed by this planning turn. The pre-existing
+  DEVIATIONS.md change is preserved; REVIEW.md remains the last code review.
+- Planning `git diff --check` passes with no output. No implementation,
+  numerical test execution, docs build or commit was performed.
 
 ### A5 docs
 
@@ -734,7 +859,7 @@ Docs steps:
 Independent A5 modules: construction/reference arrays -> A5.3/A5.4;
 from_log -> A5.3/A5.4; closed forms/tails -> A5.3/A5.4;
 boundaries -> A5.1/A5.2/A5.3/A5.4; derivatives -> A5.3/A5.4;
-survival grids (all three methods) -> A5.5. The three revision-22 A4 additions
+time-first grids (all seven methods) -> A5.5. The three revision-22 A4 additions
 are A5.1 regressions. Tests purposely do not define finite-invalid-parameter
 values, overflowing-from_log method values, discontinuous shape gradients,
 arbitrary custom boundary derivatives or a particular reference-time formula.
@@ -752,9 +877,9 @@ arbitrary custom boundary derivatives or a particular reference-time formula.
   `scripts/check.sh --through A4` and
   `git diff --check`, plus read-only independent tests for completed behavior
   in separate x64/x32 processes. At A5.5 run the full
-  `scripts/check.sh --through A5` against the synced revision-22 suite.
+  `scripts/check.sh --through A5` against the synced revision-24 suite.
   Report focused selection and still-unimplemented cases explicitly; never
-  present an unsynced local gate as revision-22 acceptance.
+  present an unsynced local gate as revision-24 acceptance.
   Docs steps run `scripts/build_docs.sh` in both dtype modes and inspect the
   rendered pages and outputs against the merged A5 implementation.
 - REVIEW.md records reading order, numerical/storage invariants, spec-to-test
