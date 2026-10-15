@@ -5,6 +5,30 @@ maintainer decided on 2026-10-15: no 300-line limit, plots allowed, document
 the implemented behaviour (spec revision 25). No numerical code changed; the
 `src/` diff is docstrings only.
 
+## Review fix-up (maintainer comments, 2026-10-15)
+
+1. `builtin-families.md`: "Unconstrained parameters: `from_log`" now comes
+   before "What happens at time zero and at infinity" and "Precision in both
+   tails". Sections moved unchanged.
+2. `distributions.md`, new section "When the formula breaks down at zero or
+   infinity": a log-logistic custom family written naively (NaN hazard at
+   0/inf, NaN gradient of S(0)); selecting the known limits with the
+   double-`where` pattern; the trap that a selected constant makes the
+   autodiff hazard at zero 0 for every shape (wrong for k <= 1); overriding
+   `log_hazard` and `log_prob` with derived limits; rules of thumb (values
+   first, leading-term limits, leave NaN if unknown, check boundaries;
+   `check_family` named as planned only).
+3. WA inline comment answered in the checklist: where log S is not
+   differentiable or a boundary limit is selected, override `log_hazard` and
+   `log_prob` (`hazard` follows `log_hazard`, `log_prob` does not, per the
+   generic default's own derivative); `log_cdf` needs no override because it
+   uses only the value of log S. Comment removed.
+
+Checks: `scripts/build_docs.sh` exit 0, "build succeeded" in both modes; new
+section outputs read in both x32 and x64 HTML and match the prose (hazard at
+zero inf/0.1/0, at infinity 0; interior log density equal for override and
+default at t=5). No `src/` change, so `check.sh` was not rerun.
+
 ## Reading order
 
 1. `docs/builtin-families.md` (new): exponential and Weibull as a narrative

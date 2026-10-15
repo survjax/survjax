@@ -493,6 +493,173 @@ Parameter values are not checked. A negative rate is stored as given and
 produces whatever the formula gives; validating parameters is up to the
 caller.
 
+## When the formula breaks down at zero or infinity
+
+The families so far evaluate cleanly at $t = 0$ and $t = \infty$. Many
+formulas do not: they contain $\log t$, $t^{k}$ or a ratio that becomes
+$0 \cdot \infty$ or $\infty - \infty$ exactly at a boundary. Take the
+[log-logistic](https://en.wikipedia.org/wiki/Log-logistic_distribution)
+distribution, with shape $k$ and scale $b$ (survjax will ship one later;
+writing it here shows the technique):
+
+$$
+S(t) = \frac{1}{1 + (t/b)^{k}},
+\qquad
+\log S(t) = -\operatorname{softplus}\bigl(k(\log t - \log b)\bigr).
+$$
+
+Written directly, it gives the right *values* at the boundaries, because
+$\log 0 = -\infty$ and softplus handles infinite arguments. But the hazard
+at zero and infinity, and the gradient of $S(0)$, are NaN:
+
+```{code-cell} ipython3
+@survjax.register_family
+@dataclass(frozen=True)
+class NaiveLogLogistic(survjax.SurvivalDistribution):
+    shape: jax.Array = survjax.param()
+    scale: jax.Array = survjax.param()
+
+    def log_survival(self, t):
+        return -jax.nn.softplus(self.shape * (jnp.log(t) - jnp.log(self.scale)))
+
+    def reference_time(self):
+        return self.scale  # the median
+
+
+boundaries = jnp.array([0.0, jnp.inf])
+naive = NaiveLogLogistic(shape=2.0, scale=10.0)
+naive.survival(boundaries), naive.hazard(boundaries)
+```
+
+```{code-cell} ipython3
+jax.grad(lambda k: NaiveLogLogistic(shape=k, scale=10.0).survival(0.0))(2.0)
+```
+
+With $z = k(\log t - \log b)$, the derivatives of $\log S$ are
+$-\sigma(z)\,k/t$ in $t$ and $-\sigma(z)(\log t - \log b)$ in $k$, where
+$\sigma$ is the logistic function. At $t = 0$ both are $0 \cdot \infty$,
+which JAX evaluates literally as NaN.
+
+### Use the limits you already know
+
+You rarely need the formula at the boundaries, because the limits are known
+in advance:
+
+- $S(0) = 1$, so $\log S(0) = 0$, for every distribution of a positive time;
+- $S(\infty) = 0$, so $\log S(\infty) = -\infty$, unless some individuals
+  never have the event (a cure fraction $p$ gives $\log p$, as above).
+
+Neither depends on the parameters except through such a cure fraction. So
+select the limit, and make sure the formula never sees the boundary time:
+detect the boundary, substitute a harmless time *before* the operation that
+fails, compute, then choose. This is the same double-`where` pattern as in
+the cure model.
+
+```{code-cell} ipython3
+@survjax.register_family
+@dataclass(frozen=True)
+class LogLogistic(survjax.SurvivalDistribution):
+    shape: jax.Array = survjax.param()
+    scale: jax.Array = survjax.param()
+
+    def log_survival(self, t):
+        time = jnp.asarray(t)
+        boundary = (time == 0) | jnp.isposinf(time)
+        safe_time = jnp.where(boundary, jnp.ones_like(time), time)
+        interior = -jax.nn.softplus(self.shape * (jnp.log(safe_time) - jnp.log(self.scale)))
+        limit = jnp.where(time == 0, 0.0, -jnp.inf)
+        return jnp.where(boundary, limit, interior)
+
+    def reference_time(self):
+        return self.scale
+
+
+jax.grad(lambda k: LogLogistic(shape=k, scale=10.0).survival(0.0))(2.0)
+```
+
+The gradient of $S(0)$ is now 0, as it should be. Survival, cumulative hazard
+and `log_cdf` need only the *value* of $\log S$, so they are now right at both
+boundaries.
+
+### The hazard and density need more
+
+The hazard and density are different: survjax derives them from the
+*derivative* of $\log S$ in $t$. Selecting a constant at $t = 0$ makes that
+derivative 0 there, so the default hazard at zero becomes 0 for every
+shape. That is right for $k > 1$ but silently wrong for $k \le 1$, whose
+hazard at zero is $\infty$ ($k < 1$) or $1/b$ ($k = 1$), just as for the
+Weibull:
+
+```{code-cell} ipython3
+three_shapes = LogLogistic(shape=jnp.array([0.5, 1.0, 2.0]), scale=10.0)
+three_shapes.hazard(0.0)
+```
+
+At infinity, where $S = 0$, the default hazard is undefined and returns NaN.
+So when you substitute at a boundary, also give the hazard and density their
+limits by overriding `log_hazard` and `log_prob`. Here the hazard is
+
+$$
+h(t) = \frac{k}{t}\,\frac{(t/b)^{k}}{1 + (t/b)^{k}},
+\qquad
+\log h(t) = \log k - \log t + \log\sigma\bigl(k(\log t - \log b)\bigr),
+$$
+
+with $\sigma$ the logistic function again. Near zero it behaves like the Weibull
+hazard $(k/b)(t/b)^{k-1}$; near infinity like $k/t$, which goes to 0.
+`hazard` follows a `log_hazard` override automatically, but `log_prob` does
+not: by default it takes its own derivative of $\log S$, so override it too.
+
+```{code-cell} ipython3
+@survjax.register_family
+@dataclass(frozen=True)
+class LogLogisticWithLimits(LogLogistic):
+    def log_hazard(self, t):
+        time = jnp.asarray(t)
+        boundary = (time == 0) | jnp.isposinf(time)
+        safe_time = jnp.where(boundary, jnp.ones_like(time), time)
+        z = self.shape * (jnp.log(safe_time) - jnp.log(self.scale))
+        interior = jnp.log(self.shape) - jnp.log(safe_time) + jax.nn.log_sigmoid(z)
+        # Near zero h behaves like the Weibull hazard; near infinity like k / t.
+        at_zero = jnp.where(self.shape < 1, jnp.inf, -jnp.inf)
+        at_zero = jnp.where(self.shape == 1, -jnp.log(self.scale), at_zero)
+        value = jnp.where(time == 0, at_zero, interior)
+        return jnp.where(jnp.isposinf(time), -jnp.inf, value)
+
+    def log_prob(self, t):
+        return self.log_hazard(t) + self.log_survival(t)
+
+
+fixed = LogLogisticWithLimits(shape=jnp.array([0.5, 1.0, 2.0])[:, None], scale=10.0)
+fixed.hazard(boundaries), fixed.log_prob(boundaries)
+```
+
+One row per shape, one column per boundary: the hazard at zero is $\infty$,
+$1/b = 0.1$ and 0, and at infinity it is 0 for every shape. At $t = 5$, in
+the interior, the override and the autodiff default agree, so the override
+changes only the boundaries:
+
+```{code-cell} ipython3
+fixed.log_prob(5.0)[:, 0], three_shapes.log_prob(5.0)
+```
+
+A few rules of thumb:
+
+- **Values first.** If only survival, cumulative hazard and `log_cdf` matter
+  to you, selecting $\log S(0) = 0$ and $\log S(\infty) = -\infty$ is enough.
+- **Derivatives in $t$ at a boundary need an override.** Once you substitute
+  in `log_survival` at a time, override `log_hazard` and `log_prob` to supply
+  their limits there; otherwise the autodiff default sees a constant.
+- **Find limits from the leading term.** Near zero and near infinity, keep
+  only the dominant term of $h(t)$; a family often looks like a Weibull or an
+  exponential there.
+- **If you cannot work out a limit, leave NaN.** NaN says "undefined";
+  survjax keeps it visible rather than replacing it with a plausible number.
+- **Check the boundaries.** Evaluate every method at `jnp.array([0.0,
+  jnp.inf])`, with parameters below, at and above any critical value (here
+  $k = 1$), and take `jax.grad` of $S(0)$ and $\log F(\infty)$. A family
+  checker that automates this is planned.
+
 ## Why work on the log scale
 
 Four related quantities appear on this page and are easy to mix up:
@@ -567,15 +734,22 @@ progression.hazard(jnp.inf), survjax.Exponential(rate=0.1).hazard(jnp.inf)
 - If your limit at infinity is finite and depends on parameters, as in a cure
   model, substitute a safe time before any operation that would meet
   infinity, so that the limit's derivatives stay finite.
-- Make $\log S$ differentiable in $t$: the hazard and density come from its
-  derivative. At a kink, the derivative JAX returns is the hazard you get.
+- Make $\log S$ differentiable in $t$: the default hazard and density come
+  from its derivative. At a kink, the derivative JAX returns is the hazard you
+  get. Where it is not differentiable, or where you select a boundary limit
+  (see [when the formula breaks
+  down](#when-the-formula-breaks-down-at-zero-or-infinity)), override both
+  `log_hazard` and `log_prob`: `hazard` follows a `log_hazard` override, but
+  `log_prob` does not. `log_cdf` needs no override for this, because it uses
+  only the value of $\log S$.
 - Return a positive, finite `reference_time()` of exactly `batch_shape`, in
   the parameter dtype and the smooth interior of the distribution.
 - Write `log_survival` for a single distribution and let broadcasting handle
   batches: parameters have the batch shape (plus any component axes) and `t`
   broadcasts against it.
 - Override `log_cdf` if your family has a more accurate lower tail, and
-  `log_hazard` if you know its value where survival is exactly zero.
+  `log_hazard` and `log_prob` where you know limits that the autodiff
+  default cannot see, such as the hazard where survival is exactly zero.
 
 ## Details
 

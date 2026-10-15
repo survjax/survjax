@@ -129,6 +129,35 @@ fig.tight_layout()
 
 All three survival curves cross at the scale, $t = b = 10$ (dotted line).
 
+## Unconstrained parameters: `from_log`
+
+Rates, shapes and scales must be positive. When parameters come from an
+optimiser or a neural network, it is convenient to work with their logarithms,
+which can take any real value. `from_log` exponentiates them and stores the
+ordinary (natural) parameters, so the result is an ordinary distribution:
+
+```{code-cell} ipython3
+from_logs = survjax.Weibull.from_log(log_shape=jnp.log(2.0), log_scale=jnp.log(10.0))
+from_logs.shape, from_logs.scale
+```
+
+Gradients flow through the exponential as you would expect. For the
+exponential family there is one log parameter, the log rate $a$ with
+$\lambda = e^{a}$. A model written in terms of the log mean $m$ uses
+$\lambda = e^{-m}$, so `from_log(log_rate=-m)`:
+
+```{code-cell} ipython3
+log_mean = jnp.log(20.0)
+survjax.Exponential.from_log(log_rate=-log_mean).rate
+```
+
+`from_log` keeps no log-scale copy. If a log parameter is so large that its
+exponential overflows (above about 88 in float32, 709 in float64), the stored
+parameter is infinite, and results are whatever the formulas give for an
+infinite parameter, as for any invalid parameter. Constructors never check
+parameter values: a negative rate or a NaN shape is stored as given and shows
+up as NaN or meaningless results, not as an error.
+
 ## What happens at time zero and at infinity
 
 survjax methods accept any time, including $t = 0$ and $t = \infty$, and
@@ -208,35 +237,6 @@ to the wrong value in float64); `log_cdf` keeps it:
 late = 60.0
 jnp.log(1.0 - wearout.survival(late)), wearout.log_cdf(late), -wearout.survival(late)
 ```
-
-## Unconstrained parameters: `from_log`
-
-Rates, shapes and scales must be positive. When parameters come from an
-optimiser or a neural network, it is convenient to work with their logarithms,
-which can take any real value. `from_log` exponentiates them and stores the
-ordinary (natural) parameters, so the result is an ordinary distribution:
-
-```{code-cell} ipython3
-from_logs = survjax.Weibull.from_log(log_shape=jnp.log(2.0), log_scale=jnp.log(10.0))
-from_logs.shape, from_logs.scale
-```
-
-Gradients flow through the exponential as you would expect. For the
-exponential family there is one log parameter, the log rate $a$ with
-$\lambda = e^{a}$. A model written in terms of the log mean $m$ uses
-$\lambda = e^{-m}$, so `from_log(log_rate=-m)`:
-
-```{code-cell} ipython3
-log_mean = jnp.log(20.0)
-survjax.Exponential.from_log(log_rate=-log_mean).rate
-```
-
-`from_log` keeps no log-scale copy. If a log parameter is so large that its
-exponential overflows (above about 88 in float32, 709 in float64), the stored
-parameter is infinite, and results are whatever the formulas give for an
-infinite parameter, as for any invalid parameter. Constructors never check
-parameter values: a negative rate or a NaN shape is stored as given and shows
-up as NaN or meaningless results, not as an error.
 
 ## Coming from R and NumPyro
 
