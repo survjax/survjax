@@ -87,10 +87,12 @@ def test_upper_tail_values_match_mpmath(family, x64_enabled):
 
 
 @pytest.mark.parametrize(
-    "hazard", [np.log(2) * 0.9999, np.log(2), np.log(2) * 1.0001, 33.1]
+    "hazard", [np.log(2) * 0.9999, np.log(2), np.log(2) * 1.0001, 33.1, 54.6, "deep"]
 )
 def test_switch_and_upper_tail_parameter_derivatives(family, hazard, x64_enabled):
     """Spec 7.3: both AD modes/Hessians match 100-digit mpmath derivatives."""
+    if hazard == "deep":
+        hazard = 600.0 if x64_enabled else 70.0
     parameters = _parameters(family)
     time = float(
         jnp.asarray(2 * hazard ** (1 / 1.5) if family is survjax.Weibull else hazard)
@@ -128,6 +130,46 @@ def test_interior_second_order_finite_differences(family, x64_enabled):
         atol=DERIVATIVE_ATOL[x64_enabled],
         rtol=DERIVATIVE_RTOL[x64_enabled],
     )
+
+
+def test_negligible_cdf_term_preserves_mixed_objective_hessian(family, x64_enabled):
+    """Spec 7.2–7.3: a saturated CDF must not poison useful finite curvature."""
+    time = 1000.0 if x64_enabled else 100.0
+    eta = jnp.log(jnp.asarray(2.0))
+
+    def loss(log_rate):
+        rate = jnp.exp(log_rate)
+        if family is survjax.Weibull:
+            dist = family(shape=1.0, scale=jnp.exp(-log_rate))
+        else:
+            dist = family(rate=rate)
+        return rate - log_rate - dist.log_cdf(time)
+
+    # One exact event at 1 and one left-censored observation T<=time:
+    # L(eta)=exp(eta)-eta-log(1-exp(-time*exp(eta))). No optimizer is needed.
+    with mp.workdps(100):
+        point = mp.mpf(float(eta))
+        rate = mp.exp(point)
+        hazard = time * rate
+        q = mp.exp(-hazard)
+        slope = hazard * q / (1 - q)
+        expected = (
+            float(rate - point - mp.log1p(-q)),
+            float(rate - 1 - slope),
+            float(rate - slope + hazard**2 * q / (1 - q) ** 2),
+        )
+    with jax.debug_nans(True):
+        for function, reference in zip(
+            (loss, jax.grad(loss), jax.hessian(loss)), expected, strict=True
+        ):
+            for actual in (function(eta), jax.jit(function)(eta)):
+                assert np.isfinite(actual)
+                np.testing.assert_allclose(
+                    actual,
+                    reference,
+                    atol=TAIL_ATOL[x64_enabled],
+                    rtol=TAIL_RTOL[x64_enabled],
+                )
 
 
 def test_mixed_boundaries_do_not_contaminate_derivatives(family, x64_enabled):

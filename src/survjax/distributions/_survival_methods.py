@@ -8,7 +8,7 @@ import jax
 import jax.numpy as jnp
 from jax.typing import ArrayLike
 
-from survjax.distributions._log_probability import log1mexp
+from survjax.distributions._log_math import safe_log, safe_log1mexp
 
 if TYPE_CHECKING:
     from survjax.distributions.base import SurvivalDistribution
@@ -44,14 +44,6 @@ def _log_survival_and_derivative(
     return jax.jvp(lambda time: raw(self, time), (time,), (jnp.ones_like(time),))
 
 
-def _safe_log(x: jax.Array) -> jax.Array:
-    """Log a nonnegative value; zero gives -inf without a NaN gradient."""
-    zero = x == 0
-    # spec 7.2: inactive log(0) must not contaminate active parameter derivatives.
-    safe_x = jnp.where(zero, jax.lax.stop_gradient(jnp.ones_like(x)), x)
-    return jnp.where(zero, -jnp.inf, jnp.log(safe_x))
-
-
 def log_prob(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     """Return log density, broadcasting t against batch_shape (not a grid).
 
@@ -65,7 +57,7 @@ def log_prob(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     parameter derivatives in mixed batches, including density overrides.
     """
     log_s, derivative = _log_survival_and_derivative(self, t)
-    return _safe_log(-derivative) + log_s
+    return safe_log(-derivative) + log_s
 
 
 def log_hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
@@ -84,7 +76,7 @@ def log_hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     log_s, derivative = _log_survival_and_derivative(self, t)
     undefined = jnp.isneginf(log_s) | jnp.isnan(log_s)
     safe_hazard = jnp.where(undefined, 1.0, -derivative)
-    return jnp.where(undefined, jnp.nan, _safe_log(safe_hazard))
+    return jnp.where(undefined, jnp.nan, safe_log(safe_hazard))
 
 
 def hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
@@ -130,7 +122,7 @@ def log_cdf(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     """
     # spec 4.5: the outer wrapper already substituted safe times.
     raw = _raw_log_survival(self)
-    return log1mexp(raw(self, t))
+    return safe_log1mexp(raw(self, t))
 
 
 def apply_policy(

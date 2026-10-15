@@ -960,6 +960,68 @@ Planning checks: only PLAN.md changes in this turn. `git diff --check` passes
 with no output. No implementation, numerical tests, full gate, docs build or commit at this
 planning stop. REVIEW.md remains the last completed grid review.
 
+## A5.5 review follow-up — consolidate guarded log arithmetic
+
+Status: approved on 2026-10-15 at `0369331`, branch `A5.5`. The maintainer
+selected `_log_math.py`: log and log1mexp also apply outside probability
+calculations and approved implementing this refactor in conversation.
+Implemented and verified on 2026-10-15: 36 tail cases pass per dtype mode,
+and the full through-A5 gate passes. REVIEW.md records exact commands/results.
+
+### Files, responsibilities and API
+
+- Rename `src/survjax/distributions/_log_probability.py` to `_log_math.py`.
+  Name its existing guarded kernel `safe_log1mexp(x)`, explicitly documenting
+  the convention log(1-exp(x)) for x<=0, dtype/shape preservation, boundaries
+  and NaN behavior. Keep the currently verified guarded formulas in this
+  organizational step. Reusing jax.nn with a corrected custom JVP changes the
+  derivative implementation and should have its own numerical plan.
+- Move `_safe_log` from `_survival_methods.py` here as `safe_log`, preserving
+  its zero substitution and existing behavior. "Safe" means protecting
+  inactive/boundary operands; it does not mean clipping or validating values.
+- Add `log_cdf_from_log_hazard(log_h)` in `_log_math.py`, moving the identical
+  dtype-epsilon switch, overflow guard and safe exponentiation out of the two
+  built-in log-CDF overrides. Its standard branch calls `safe_log1mexp`.
+- In `_survival_methods.py`, import `safe_log` and `safe_log1mexp`; keep the
+  distribution-aware primitive/derivative helpers and policy wrappers here.
+- In `exponential.py` and `weibull.py`, reduce each log-CDF body to a call to
+  `log_cdf_from_log_hazard(self._log_cumulative_hazard(t))`. Each family keeps
+  its distinct analytic log-H calculation. Future log-H families can reuse the
+  shared function without adding a family base class in this step.
+- Public API and exports are unchanged. No dependency or docs-page changes.
+  Covered spec: 4.1–4.2, 4.5, 7.2–7.3, 10.2 and 12.1. The current spec is
+  revision 25; `.spec-seen` still records revision 24. Preserve both during
+  this planning/refactor step; spec alignment remains maintainer bookkeeping.
+
+### Tests, checks and review stop
+
+- Extend `tests/unit/test_log_cdf_tails.py`'s derivative checks to H=54.6
+  and the existing deep-tail values (H=70 in x32, H=600 in x64), against
+  independent mpmath references with the existing relative-only tolerances.
+- Add the analytical mixed objective discussed in review as a regression:
+  L(eta)=exp(eta)-eta-log F(c), at eta=log(2), with c=100 in x32 and c=1000
+  in x64. Check finite value, gradient and Hessian eagerly, under jit and
+  debug_nans. Its expected derivatives follow from H=c*exp(eta); evaluate
+  the tiny correction with mpmath, rather than asserting an approximate zero.
+  This is a synthetic mathematical composition, not a Slice B likelihood API
+  or an optimizer implementation. The unmodified JAX rule gives a NaN Hessian
+  in the local review probes; retain the useful finite curvature of this sum.
+- Rerun existing generic density/hazard, D-021 lower-tail switch, boundary,
+  cure-limit and grid coverage. No private helper is exported for testing.
+- Run focused log-CDF/family tests in separate x64/x32 processes, then
+  `UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A5`
+  and `git diff --check`. Report exact results; do not modify spec tests.
+- Aim for about 300 changed lines. Update REVIEW.md with reading order,
+  numerical invariants, spec mappings and actual checks; commit the approved
+  refactor on A5.5 and stop for review. Keep deviations open for the maintainer.
+
+Docs to-do: explain the guarded arithmetic and its limits in the later A5
+numerical/custom-family topic. The helper names remain private implementation
+details, not a user-facing API.
+
+Planning changed only PLAN.md. Implementation changes the files above and
+REVIEW.md; the spec, marker, docs pages and independent tests remain untouched.
+
 ### A5 docs
 
 Docs to-do:
