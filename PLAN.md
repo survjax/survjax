@@ -1022,6 +1022,45 @@ details, not a user-facing API.
 Planning changed only PLAN.md. Implementation changes the files above and
 REVIEW.md; the spec, marker, docs pages and independent tests remain untouched.
 
+## A5.5 review follow-up — WA log-math notes and cumulative-hazard naming
+
+Status: approved in conversation on 2026-10-15 at `7208c81`, branch `A5.5`.
+Implemented and verified on 2026-10-15: the three WA notes in `_log_math.py`
+are replaced as approved. Targeted x64: 72 passed/1 skipped; x32: 73 passed;
+static and whitespace checks pass. REVIEW.md records exact commands/results.
+
+- In `src/survjax/distributions/_log_math.py`, replace the math-note request
+  with F=H-H**2/2+O(H**3), hence log F=log H-H/2+O(H**2). This explains
+  the existing tiny-H branch without changing its threshold or formula.
+- Answer the gradient note beside the substitution: `zeros_like(log_h)` is
+  a constant with zero tangent, so an explicit stop_gradient is redundant.
+  Keep the real log-H branch differentiable and retain the existing guards.
+- Rename `standard` to `log_cdf_from_h` and `value` to `log_cdf` in that
+  function, resolving the request for more informative intermediate names.
+- Rename the private function to `log_cdf_from_log_cumulative_hazard`, because
+  it takes log H, not the instantaneous log hazard. Update imports/calls in
+  `exponential.py` and `weibull.py`; keep their log-CDF overrides. The generic
+  default already calls safe_log1mexp(log S). Computing log H from log S
+  would lose the built-ins' lower-tail guarantee after H underflows to zero.
+- Public API and numerical behavior are unchanged; cover spec 4.1–4.2, 7.2
+  and 12.1. No docs pages, new abstractions, new tests or tolerance changes.
+  Existing independent-reference lower-tail, switch and transformation tests
+  cover these naming/docstring edits; retain them without modification.
+- Run the log-CDF tail, Exponential and Weibull unit modules in both dtype
+  processes, Ruff format/lint, mypy and git diff --check. Record exact results
+  and the existing full-gate evidence in REVIEW.md; do not rerun or claim a new
+  full gate for this naming/docstring-only fix-up unless a failure warrants it.
+- Keep the diff below about 300 lines. Update REVIEW.md, commit the approved
+  review fix-up on A5.5 and stop. Spec, marker, independent tests and deviation
+  statuses stay unchanged. Docs to-do: use H for cumulative hazard and h for
+  instantaneous hazard consistently in the later numerical-methods topic.
+
+Planning evidence: float32 probes of the unchanged public built-ins give
+Exponential(rate=1e-30), t=1e-30: log S=-0, generic log CDF=-inf, built-in
+log CDF=-138.1551055908203; Weibull(shape=10, scale=1), t=1e-5: log S=-0,
+generic log CDF=-inf, built-in log CDF=-115.1292495727539. Only PLAN.md is
+changed by the planning turn; the maintainer's WA notes remained intact then.
+
 ### A5 docs
 
 Docs to-do:

@@ -8,7 +8,7 @@ import jax.numpy as jnp
 from jax.typing import ArrayLike
 
 from survjax._dtypes import normalize_parameters
-from survjax.distributions._log_math import log_cdf_from_log_hazard
+from survjax.distributions._log_math import log_cdf_from_log_cumulative_hazard
 from survjax.distributions.base import SurvivalDistribution, param, register_family
 
 
@@ -113,7 +113,7 @@ class Exponential(SurvivalDistribution):
         Returns: Broadcast log CDF; zero at +inf for valid positive rates.
         Raises: TypeError: Nonreal times or incompatible shapes.
         """
-        return log_cdf_from_log_hazard(self._log_cumulative_hazard(t))
+        return log_cdf_from_log_cumulative_hazard(self._log_cumulative_hazard(t))
 
     def log_prob(self, t: ArrayLike) -> jax.Array:
         """Return log(rate)-rate*t with the broadcast shape (spec 4.1/4.5).

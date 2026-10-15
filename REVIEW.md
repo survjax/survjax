@@ -1,40 +1,37 @@
-# A5.5 review follow-up — shared guarded log arithmetic
+# A5.5 WA review fix-up — cumulative-hazard naming and explanation
 
-Implements the approved refactor after `0369331` on A5.5.
+Implements the approved plan after `7208c81` on A5.5.
 
 ## Reading order
 
-1. `src/survjax/distributions/_log_math.py`: `safe_log`, `safe_log1mexp` and `log_cdf_from_log_hazard`. The old `_log_probability.py` is removed.
-2. `_survival_methods.py`: the three numerical call sites; distribution-aware helpers and policy wrappers stay here.
-3. `exponential.py`, `weibull.py`: each log-CDF override now delegates in one line, retaining its family's analytic log H.
-4. `tests/unit/test_log_cdf_tails.py`: deeper tail derivatives and the mixed-objective regression.
+1. `src/survjax/distributions/_log_math.py`: renamed `log_cdf_from_log_cumulative_hazard`, its small-H expansion, zero-tangent comment and descriptive log-CDF intermediates. All three WA notes are addressed.
+2. `exponential.py`, `weibull.py`: updated helper imports/calls. Both overrides retain their analytic log H and lower-tail precision.
+3. `PLAN.md`: approved fix-up scope and verification status.
 
 ## Invariants and spec-to-test mapping
 
-- Spec 4.1–4.2/7.2: existing guarded formulas are moved unchanged. Both built-ins share the lower-tail switch, overflow handling and safe exponentiation. No clipping, new threshold, custom derivative or public export.
-- Spec 7.2: `safe_log` retains its zero substitution; `safe_log1mexp` retains safe operands in both branches. Stops apply only to substituted constants. Existing generic density/hazard tests cover the moved safe-log calls.
-- Spec 7.3/12.1: `test_switch_and_upper_tail_parameter_derivatives` now checks H=54.6 and H=70 (x32) / H=600 (x64), including both Weibull parameters, against 100-digit mpmath. Eager and jit(vmap) values, Jacobians in both modes and Hessians use unchanged relative-only tolerances.
-- Spec 7.2–7.3: `test_negligible_cdf_term_preserves_mixed_objective_hessian` checks L(eta)=exp(eta)-eta-log F(c) for all three family paths. Independent analytical derivatives retain the tiny CDF correction using mpmath. Value, gradient and Hessian are finite eagerly and under jit with debug_nans; useful curvature remains about 2. This is a synthetic composition, not a new likelihood API or optimizer test.
-- Existing D-021 lower-tail, zero/infinity, NaN precedence, parameter-dependent cure limits, second-order finite differences and time-first grid regressions remain applicable.
+- Spec 4.1–4.2: H is cumulative hazard, so log S=-H; the helper takes log H. The generic default already uses safe_log1mexp(log S), but cannot recover log H once H underflows. Family overrides remain necessary for that case.
+- Spec 7.2: F=H-H**2/2+O(H**3) implies log F=log H-H/2+O(H**2). The note explains the existing approximation; thresholds and formulas are unchanged. zeros_like has zero tangent, so no additional stop_gradient is needed. Real inputs retain their gradients.
+- Spec 4.1/7.2/12.1: existing Exponential and Weibull `test_log_cdf_retains_tail_when_cumulative_hazard_underflows` verify the reason for retaining the overrides. Their switch-gradient tests cover the tiny-H branch.
+- Spec 7.2–7.3/12.1: `test_log_cdf_tails.py` retains independent mpmath tail values/Jacobians/Hessians, both AD modes and jit/vmap, mixed-boundary debug_nans, finite mixed-objective Hessians and grid integration.
+- No numerical behavior, public API, exports, tests or tolerances changed. No new uncertainty or deviation was identified.
 
 ## Checks actually run
 
-    JAX_ENABLE_X64=1 .venv/bin/pytest tests/unit/test_log_cdf_tails.py -q
-    JAX_ENABLE_X64=0 .venv/bin/pytest tests/unit/test_log_cdf_tails.py -q
+    JAX_ENABLE_X64=1 .venv/bin/pytest tests/unit/test_log_cdf_tails.py tests/unit/test_exponential.py tests/unit/test_weibull.py -q
+    JAX_ENABLE_X64=0 .venv/bin/pytest tests/unit/test_log_cdf_tails.py tests/unit/test_exponential.py tests/unit/test_weibull.py -q
 
-Both exited 0: **36 passed** per mode, with no skips.
+Both exited 0: x64 **72 passed, 1 skipped** (x32-only warning check); x32 **73 passed**.
 
-    JAX_ENABLE_X64=1 .venv/bin/pytest tests/unit/test_log_cdf_tails.py tests/unit/test_exponential.py tests/unit/test_weibull.py tests/unit/test_family_direct.py tests/unit/test_family_density.py tests/unit/test_family_infinity.py tests/unit/test_survival_grid.py -q
-    JAX_ENABLE_X64=0 .venv/bin/pytest tests/unit/test_log_cdf_tails.py tests/unit/test_exponential.py tests/unit/test_weibull.py tests/unit/test_family_direct.py tests/unit/test_family_density.py tests/unit/test_family_infinity.py tests/unit/test_survival_grid.py -q
+    .venv/bin/ruff format --check .
+    .venv/bin/ruff check .
+    .venv/bin/mypy src
+    git diff --check
 
-Both exited 0: x64 **249 passed, 1 skipped** (x32-only warning check); x32 **250 passed**.
+All exited 0: **48 files already formatted**, **All checks passed!**, **Success: no issues found in 13 source files**, and no whitespace errors.
 
-    UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A5
+## Historical gate evidence and stop
 
-Exited 0: **check: all gates passed through A5**. Own x64: **451 passed, 7 skipped**; own x32: **457 passed, 1 skipped**. Independent x64: **1116 passed, 26 skipped**; x32: **1121 passed, 21 skipped**. Source doctests: **1 passed** per mode. Guard passed; Ruff and mypy passed with the outputs below. Log: `/private/tmp/survjax-log-math-check.log`.
+The full A5 gate was not rerun for this naming/docstring-only fix-up, as planned. Parent `7208c81` passed it: own x64 **451 passed, 7 skipped**, x32 **457 passed, 1 skipped**; independent x64 **1116 passed, 26 skipped**, x32 **1121 passed, 21 skipped**; source doctests **1 passed** per mode; guard, Ruff and mypy passed. That is historical evidence, not a new gate run.
 
-Standalone Ruff format/lint, mypy and `git diff --check` passed: **48 files already formatted / All checks passed! / Success: no issues found in 13 source files**. No docs build or R checks were run; neither is part of this refactor.
-
-## Remaining limitation and stop
-
-No new uncertainty was found. This step keeps the guarded implementation; adopting JAX values with a corrected custom JVP requires a separate numerical plan. The generic default still cannot recover a lower tail once its primitive rounds log S to zero; subnormal-tail accuracy is not claimed. Current spec revision 25 and the revision-24 `.spec-seen` marker remain untouched, as planned. Deviations remain open for the maintainer; docs to-do stays in PLAN.md. Stop after this commit for review.
+No docs build or R checks were run. Spec, marker, docs pages, independent tests and deviation statuses remain untouched. Docs to-do is recorded in PLAN.md. Stop after this review fix-up commit.

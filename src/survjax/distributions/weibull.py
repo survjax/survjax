@@ -8,7 +8,7 @@ import jax.numpy as jnp
 from jax.typing import ArrayLike
 
 from survjax._dtypes import normalize_parameters
-from survjax.distributions._log_math import log_cdf_from_log_hazard
+from survjax.distributions._log_math import log_cdf_from_log_cumulative_hazard
 from survjax.distributions.base import SurvivalDistribution, param, register_family
 
 
@@ -148,7 +148,7 @@ class Weibull(SurvivalDistribution):
         Returns: Broadcast log CDF; zero at +inf for valid shape and scale.
         Raises: TypeError: Nonreal times or incompatible shapes.
         """
-        return log_cdf_from_log_hazard(self._log_cumulative_hazard(t))
+        return log_cdf_from_log_cumulative_hazard(self._log_cumulative_hazard(t))
 
     def log_hazard(self, t: ArrayLike) -> jax.Array:
         """Return log(k)-log(b)+(k-1)*log(t/b), with analytic limits.

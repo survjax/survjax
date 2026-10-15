@@ -34,11 +34,13 @@ def safe_log1mexp(x: jax.Array) -> jax.Array:
     return jnp.where(zero, -jnp.inf, value)
 
 
-def log_cdf_from_log_hazard(log_h: jax.Array) -> jax.Array:
-    """Return log(1-exp(-H)) from log H, preserving floating dtype and shape.
+def log_cdf_from_log_cumulative_hazard(log_h: jax.Array) -> jax.Array:
+    """Return log(1-exp(-H)) from log H, where H is cumulative hazard.
 
+    For small H, F=H-H**2/2+O(H**3), so log F=log H-H/2+O(H**2).
     Below dtype epsilon, log F=log H to rounding precision. Zero/infinite H
     give -inf/zero; the guarded standard branch retains upper-tail precision.
+    Floating dtype and shape are preserved.
     """
     dtype = log_h.dtype
     log_eps = jnp.log(jnp.asarray(jnp.finfo(dtype).eps, dtype=dtype))
@@ -47,7 +49,8 @@ def log_cdf_from_log_hazard(log_h: jax.Array) -> jax.Array:
     upper = log_h >= log_max
 
     # spec 4.1/7.2: preserve tiny log H; substitute before exp can overflow.
+    # zeros_like is constant with zero tangent; stop_gradient is redundant here.
     safe_log_h = jnp.where(tiny | upper, jnp.zeros_like(log_h), log_h)
-    standard = safe_log1mexp(-jnp.exp(safe_log_h))
-    value = jnp.where(tiny, log_h, standard)
-    return jnp.where(upper, jnp.zeros_like(value), value)
+    log_cdf_from_h = safe_log1mexp(-jnp.exp(safe_log_h))
+    log_cdf = jnp.where(tiny, log_h, log_cdf_from_h)
+    return jnp.where(upper, jnp.zeros_like(log_cdf), log_cdf)
