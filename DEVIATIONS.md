@@ -1,5 +1,37 @@
 # Deviations and spec questions
 
+## D-022 Log-CDF upper tail rounds to zero before S underflows
+- Step: A5.4 review, 2026-10-14 (found after D-021; not yet addressed)
+- Spec: sections 4.2, 4.3, 7.1 and 12.1 ("stable tails"), revision 24.
+- Spec says: section 4.2 defines the default `log_cdf` as
+  `log(-expm1(log S))`, "accurate until |log S| underflows". Section 7.1
+  says precision loss is never relabelled as mathematical zero. Section 4.3's
+  HazardFamily recipe addresses only the lower tail.
+- Observed: `log(-expm1(-H))` loses relative precision when H is moderately
+  large. Once `exp(-H)` is below eps, `-expm1(-H)` rounds to exactly 1, so
+  `log_cdf` returns 0 (F=1) although the true value `log F ~ -exp(-H)` is
+  representable. Measured against mpmath (60 digits) with
+  `Weibull(shape=1, scale=1)`, i.e. H=t:
+  float32: H~20.1 gives 0 (true -1.89e-9), H~33.1 gives 0 (true -4.15e-15);
+  float64: H~20.1 gives relative error 2.8e-8, H~33.1 gives 1.0e-2
+  (-4.108e-15 vs -4.151e-15), H~54.6 gives 0 (true -1.94e-24).
+  The absolute error stays below eps, so the Slice A exact and right-censored
+  likelihoods (which do not use `log_cdf`) are unaffected. Later
+  `log_interval_prob` with `lower=0` (section 4.2) and any code that takes
+  `log1mexp` of `log_cdf` would inherit the loss.
+- Affected: the D-021 overrides in `exponential.py` and `weibull.py` (their
+  standard branch), and the generic default in `_survival_methods.py`
+  (`log_cdf`), which every registered family without an override uses.
+- Propose: one private `log1mexp`-style helper in an underscore module
+  (Maechler 2012): for `x = log S <= 0`, use `log(-expm1(x))` when
+  `x > -log 2` and `log1p(-exp(x))` otherwise, with safe operands substituted
+  in both branches before evaluation (spec 7.2). Use it in both built-in
+  overrides (which then reduce to the D-021 lower-tail switch plus this
+  helper) and in the generic default. This changes the base, so do it as its
+  own small step with mpmath tail tests in both dtype modes, before A5.5 or
+  as the first step after it; not as an A5.4 fix-up.
+- Status: open
+
 ## D-021 Built-in log-CDF lower-tail switch
 - Step: A5.4 review fix-up, 2026-10-14
 - Spec: sections 4.2, 4.3, 7.1 and 7.2, revision 24.
