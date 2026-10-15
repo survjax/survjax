@@ -15,26 +15,57 @@ from survjax.distributions.base import SurvivalDistribution, param, register_fam
 @register_family
 @dataclass(frozen=True)
 class Weibull(SurvivalDistribution):
-    """Weibull survival S(t)=exp(-(t/b)**k), with positive finite k=shape, b=scale.
+    """Weibull distribution: a hazard that rises, stays flat or falls.
+
+    With shape k and scale b,
+
+        H(t) = (t / b)**k,    S(t) = exp(-(t / b)**k),
+        h(t) = (k / b) * (t / b)**(k - 1).
+
+    The hazard falls over time for k < 1, is constant (the exponential with
+    rate 1 / b) for k = 1, and rises for k > 1. At t = b, S(b) = exp(-1)
+    for every shape. Methods are evaluated in closed form and accept any
+    time: negative times count as before the time origin, and zero and +inf
+    give the exact limits (for example the hazard at zero is +inf, 1 / b or
+    0 for k < 1, k = 1 or k > 1).
 
     Args:
-        shape: Required keyword k, dimensionless, stored as a natural leaf.
-        scale: Required keyword b, in time units, stored as a natural leaf.
+        shape: Shape k, dimensionless, positive and finite, keyword only.
+        scale: Scale b, in time units, positive and finite, keyword only.
+            The two broadcast to a common ``batch_shape``; each entry is one
+            distribution. Values are stored as given and not checked.
 
-    Leaves broadcast to batch_shape in a common dtype. Methods broadcast t with
-    that shape, pairing equal-length vectors; shared grids are time-first.
-    Construction checks dtypes, not values. Nonreal inputs, positional arguments
-    and incompatible shapes raise TypeError. Times follow the spec 4.5 policy.
+    Raises:
+        TypeError: For positional arguments, nonreal parameters or batch
+            shapes that do not broadcast. Methods also raise it for nonreal
+            times or times that do not broadcast against ``batch_shape``.
 
-    R/flexsurv use shape=k, scale=b; NumPyro uses concentration=k, scale=b.
-    survival::survreg uses log-time location mu=log(b), reported scale sigma=1/k.
-    flexsurv WeibullPH uses shape=k, scale=m=b**(-k), S(t)=exp(-m*t**k).
-    Inverse scale r gives b=1/r; log inputs give k=exp(log_shape), b=exp(log_scale).
-    For example, survreg mu=log(10), sigma=0.5 gives shape=2, scale=10.
-    With common k, AFT log(b)=X@beta corresponds to PH gamma=-k*beta;
-    varying shape removes this correspondence. flexsurv coef(fit) logs baseline
-    shape/scale, unlike its natural estimates (spec 4.6).
-    Discontinuous density/hazard shape derivatives at k=1 are excluded from the finite-boundary guarantee.
+    Other conventions, and how to convert them:
+
+    - base R ``dweibull``/``pweibull`` and flexsurv ``"weibull"``:
+      ``shape=k``, ``scale=b``, as here. flexsurv's natural estimates
+      (``fit$res``) are k and b, but ``coef(fit)`` reports log k and log b.
+    - NumPyro ``Weibull``: ``concentration=k``, ``scale=b``.
+    - ``survival::survreg``: log-time location ``mu = log(b)`` (the
+      intercept) and reported ``Scale`` ``sigma = 1/k``. For example
+      ``mu = log(10)``, ``sigma = 0.5`` is ``Weibull(shape=2, scale=10)``.
+    - flexsurv ``"weibullPH"``: ``shape=k``, ``scale=m`` with
+      S(t) = exp(-m * t**k), so ``m = b**(-k)`` and ``b = m**(-1/k)``.
+    - inverse time scale r, S(t) = exp(-(r * t)**k): ``b = 1/r``.
+    - log parameters: ``k = exp(log_shape)``, ``b = exp(log_scale)``; see
+      ``from_log``.
+
+    With a common shape, an accelerated failure time model log(b) = X @ beta
+    is also a proportional hazards model, with log hazard ratios
+    ``gamma = -k * beta``. If the shape varies, there is no such conversion.
+
+    At k = 1 the log density at t = 0 jumps from +inf to -inf as k crosses 1,
+    so its derivative in k there is not defined; its derivative in b is.
+
+    >>> import survjax
+    >>> progression = survjax.Weibull(shape=2.0, scale=10.0)
+    >>> round(float(progression.survival(10.0)), 4)  # exp(-1)
+    0.3679
     """
 
     shape: jax.Array = param()
@@ -42,18 +73,29 @@ class Weibull(SurvivalDistribution):
 
     @classmethod
     def from_log(cls, *, log_shape: ArrayLike, log_scale: ArrayLike) -> Self:
-        """Return this family with exponentiated natural shape/scale leaves.
+        """Build a Weibull from log parameters, k = exp(log_shape), b = exp(log_scale).
+
+        Useful when parameters come from an unconstrained optimiser or a
+        network output, or from flexsurv's ``coef(fit)``. The result is an
+        ordinary ``Weibull`` storing k and b themselves, with the same values
+        and gradients as ``Weibull(shape=jnp.exp(log_shape),
+        scale=jnp.exp(log_scale))``. From ``survreg``, pass
+        ``log_shape=-log(sigma)`` and ``log_scale=mu``.
 
         Args:
-            log_shape: Keyword-only log shape, with arbitrary batch shape.
-            log_scale: Keyword-only log scale, broadcast with log_shape.
-        Returns:
-            Weibull with common-dtype natural leaves; no log state is retained.
-        Raises:
-            TypeError: Inputs are nonreal or their batch shapes incompatible.
+            log_shape: Log of the shape, any real value, keyword only.
+            log_scale: Log of the scale, any real value, keyword only. The
+                two broadcast to a common ``batch_shape``.
 
-        Finite exp gives the ordinary constructor's values/gradients; overflow
-        stores infinite natural parameters with spec 4.5 behavior.
+        Returns:
+            A ``Weibull`` with ``shape = exp(log_shape)`` and
+            ``scale = exp(log_scale)``. If an exponential overflows (above
+            about 88 in float32), that parameter is infinite and results
+            follow the formulas for an invalid parameter.
+
+        Raises:
+            TypeError: For nonreal inputs or batch shapes that do not
+                broadcast.
         """
         values = normalize_parameters(
             {"log_shape": log_shape, "log_scale": log_scale}, warning_stacklevel=3
@@ -63,9 +105,14 @@ class Weibull(SurvivalDistribution):
         )
 
     def reference_time(self) -> jax.Array:
-        """Return scale, exactly batch_shape in the common parameter dtype.
+        """Return a typical time for each distribution: the scale b.
 
-        Positive and finite for valid parameters; only inactive inputs use it.
+        Used internally as a safe evaluation time (see
+        ``SurvivalDistribution.reference_time``); it never changes a returned
+        value.
+
+        Returns:
+            The scale, of shape ``batch_shape`` in the parameter dtype.
         """
         # spec 4.2: valid scale is already a positive finite time; Exponential's
         # 1/rate needs a reciprocal representability guard.
@@ -95,20 +142,29 @@ class Weibull(SurvivalDistribution):
         return jnp.where(undefined, jnp.nan, value)
 
     def log_survival(self, t: ArrayLike) -> jax.Array:
-        """Return -(t/b)**k, broadcasting t with batch_shape (spec 4.1/4.5).
+        """Return the log survival probability, log S(t) = -(t / b)**k.
 
-        Args: t: Real times, broadcast with the parameter batch.
-        Returns: Log survival; zero at t<=0 and -inf at +inf for valid k, b.
-        Raises: TypeError: Nonreal times or incompatible shapes.
+        Args:
+            t: Times, broadcast against ``batch_shape``.
+
+        Returns:
+            Log survival: 0 for t <= 0 and -inf at t = +inf. NaN times or
+            parameters give NaN.
         """
         return -self._cumulative_hazard(t)
 
     def cumulative_hazard(self, t: ArrayLike) -> jax.Array:
-        """Return (t/b)**k, with the broadcast shape (spec 4.1/4.5).
+        """Return the cumulative hazard, H(t) = (t / b)**k.
 
-        Args: t: Real times, broadcast with the parameter batch.
-        Returns: H; zero at t<=0 and +inf at +inf for valid parameters.
-        Raises: TypeError: Nonreal times or incompatible shapes.
+        Computed as exp(k * (log t - log b)), so t / b is never formed and
+        cannot underflow or overflow before the power is taken.
+
+        Args:
+            t: Times, broadcast against ``batch_shape``.
+
+        Returns:
+            Cumulative hazard: 0 for t <= 0 and +inf at t = +inf. NaN times
+            or parameters give NaN.
         """
         return self._cumulative_hazard(t)
 
@@ -142,23 +198,37 @@ class Weibull(SurvivalDistribution):
         return jnp.where(undefined, jnp.nan, value)
 
     def log_cdf(self, t: ArrayLike) -> jax.Array:
-        """Return log(1-exp(-H(t))) while preserving both Weibull tails.
+        """Return the log probability of an event by time t, log F(t).
 
-        Args: t: Real times, broadcast with the parameter batch.
-        Returns: Broadcast log CDF; zero at +inf for valid shape and scale.
-        Raises: TypeError: Nonreal times or incompatible shapes.
+        F(t) = 1 - exp(-(t / b)**k). It is computed from
+        log H = k * (log t - log b), so it keeps full relative precision both
+        for very early times, where F is tiny (log F is close to log H, even
+        when H itself underflows), and for very late times, where log F is
+        close to -S(t).
+
+        Args:
+            t: Times, broadcast against ``batch_shape``.
+
+        Returns:
+            Log CDF: -inf for t <= 0 and 0 at t = +inf. NaN times or
+            parameters give NaN.
         """
         return log_cdf_from_log_cumulative_hazard(self._log_cumulative_hazard(t))
 
     def log_hazard(self, t: ArrayLike) -> jax.Array:
-        """Return log(k)-log(b)+(k-1)*log(t/b), with analytic limits.
+        """Return the log hazard, log h(t) = log k - log b + (k - 1) * log(t / b).
 
-        Args: t: Real times, broadcast with the parameter batch.
-        Returns: Broadcast log hazard. At zero: +inf, -log(b), -inf for
-            k<1, k=1, k>1; at +inf those infinite limits reverse.
-        Raises: TypeError: Nonreal times or incompatible shapes.
+        Computed directly rather than from the density and survival, so it
+        stays accurate far in the tail where survival underflows.
 
-        Negative times give -inf; NaNs propagate. See the class derivative limits.
+        Args:
+            t: Times, broadcast against ``batch_shape``.
+
+        Returns:
+            Log hazard, with the exact limits at the boundaries: at t = 0 it
+            is +inf, -log b or -inf for k < 1, k = 1 or k > 1, and at t = +inf
+            -inf, -log b or +inf. Negative times give -inf; NaN times or
+            parameters give NaN.
         """
         return self._log_hazard(t)
 
@@ -188,12 +258,15 @@ class Weibull(SurvivalDistribution):
         return jnp.where(undefined, jnp.nan, value)
 
     def log_prob(self, t: ArrayLike) -> jax.Array:
-        """Return log(k)-log(b)+(k-1)*log(t/b)-(t/b)**k (spec 4.1).
+        """Return the log density, log f(t) = log h(t) - (t / b)**k.
 
-        Args: t: Real times, broadcast with the parameter batch.
-        Returns: Broadcast log density, with the zero-time hazard limits.
-            Negative/+inf times give -inf unless NaN family values take precedence.
-        Raises: TypeError: Nonreal times or incompatible shapes.
+        Args:
+            t: Times, broadcast against ``batch_shape``.
+
+        Returns:
+            Log density. At t = 0 it equals the log hazard there: +inf,
+            -log b or -inf for k < 1, k = 1 or k > 1. Negative times and
+            t = +inf give -inf; NaN times or parameters give NaN.
         """
         # spec 4.1: log f(t)=log h(t)-H(t); the base guards density at infinity.
         return self._log_hazard(t) - self._cumulative_hazard(t)

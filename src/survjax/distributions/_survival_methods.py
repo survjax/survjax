@@ -22,14 +22,21 @@ def _raw_log_survival(
 
 
 def survival(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
-    """Return P(T > t), with the broadcast shape of t and batch_shape.
+    """Return the survival probability, S(t) = P(T > t) = exp(log_survival(t)).
 
-    The default is exp(log_survival(t)). Equal-length vectors pair entries;
-    use singleton axes for all pairs. Shared time-first grids are separate.
-    Negative times return one; NaN times return NaN.
-    At +inf, a raw log-survival limit of -inf gives zero with zero parameter
-    gradient. Finite, parameter-dependent limits remain active; the primitive
-    author must make their operands safe for differentiation.
+    Args:
+        t: Times, broadcast against ``batch_shape``. Times and batch pair
+            element by element (trailing-axis broadcasting); use
+            ``survival_grid`` to evaluate every time for every entry.
+
+    Returns:
+        Survival with the broadcast shape: 1 for t < 0 and NaN for NaN t.
+        At t = +inf a proper family gives exactly 0 with zero parameter
+        derivatives; a finite limit, as in a cure model, keeps its
+        derivatives if the family's ``log_survival`` computes it safely.
+
+    Raises:
+        TypeError: For nonreal times or times that do not broadcast.
     """
     raw = _raw_log_survival(self)
     return jnp.exp(raw(self, t))
@@ -45,33 +52,54 @@ def _log_survival_and_derivative(
 
 
 def log_prob(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
-    """Return log density, broadcasting t against batch_shape (not a grid).
+    """Return the log density, log f(t) = log h(t) + log S(t).
 
-    Forward-mode autodiff gives log(-d log S/dt) + log S independently of
-    log_hazard overrides. The hazard must be representable in linear space.
-    Negative times return -inf; +inf returns -inf unless the primitive's
-    log survival there is NaN. Zero uses the primitive's boundary derivative,
-    and NaN times return NaN.
-    Infinity inputs are substituted before density evaluation; the original
-    primitive limit determines their policy value. This isolates finite-entry
-    parameter derivatives in mixed batches, including density overrides.
+    By default the hazard h(t) = -d log S / dt comes from forward-mode
+    automatic differentiation of ``log_survival``. This is accurate wherever
+    the hazard itself is an ordinary floating-point number, even when S
+    underflows.
+
+    Args:
+        t: Times, broadcast against ``batch_shape`` (pointwise; see
+            ``log_prob_grid`` for a shared grid).
+
+    Returns:
+        Log density with the broadcast shape: -inf for t < 0 and at
+        t = +inf (NaN at +inf if ``log_survival`` is NaN there, for example
+        for NaN parameters), the family's limit at t = 0, and NaN for NaN t.
+        Infinite entries do not disturb parameter derivatives of the finite
+        entries in the same batch.
+
+    Raises:
+        TypeError: For nonreal times or times that do not broadcast.
     """
     log_s, derivative = _log_survival_and_derivative(self, t)
     return safe_log(-derivative) + log_s
 
 
 def log_hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
-    """Return log hazard, broadcasting t against batch_shape (not a grid).
+    """Return the log hazard, log h(t) = log(-d log S / dt).
 
-    Uses log(-d log S/dt) directly to avoid large-H cancellation. The hazard
-    must be representable in linear space. Exactly -inf log survival gives
-    NaN, even at finite support ends; finite log survival remains eligible
-    when exp(log survival) underflows. Negative times return -inf.
-    Zero uses the primitive's derivative; NaN times return NaN. Override
-    this method to supply analytic limits where survival is zero.
-    At +inf with raw log survival -inf, safe-input substitution isolates
-    finite-entry parameter derivatives. The NaN boundary has no derivative
-    guarantee; arbitrary unsafe custom overrides remain the author's concern.
+    By default the derivative comes from forward-mode automatic
+    differentiation of ``log_survival``, rather than from f / S, which would
+    be 0 / 0 once S underflows. The hazard itself must be an ordinary
+    floating-point number.
+
+    Where survival is exactly zero (log S = -inf, as at t = +inf for a
+    proper family), the hazard is undefined and the default returns NaN.
+    Families that know the limit there override this method, as the
+    built-ins do.
+
+    Args:
+        t: Times, broadcast against ``batch_shape`` (pointwise; see
+            ``log_hazard_grid`` for a shared grid).
+
+    Returns:
+        Log hazard with the broadcast shape: -inf for t < 0, the family's
+        limit at t = 0, and NaN for NaN t.
+
+    Raises:
+        TypeError: For nonreal times or times that do not broadcast.
     """
     log_s, derivative = _log_survival_and_derivative(self, t)
     undefined = jnp.isneginf(log_s) | jnp.isnan(log_s)
@@ -80,13 +108,21 @@ def log_hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
 
 
 def hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
-    """Return exp(log_hazard(t)), honoring the family's log-hazard override.
+    """Return the hazard, h(t) = exp(log_hazard(t)).
 
-    Output broadcasts t against batch_shape; shared time-first grids are
-    separate. Negative times return zero; NaN times return NaN. At zero or
-    +inf the log-hazard method supplies its boundary value.
-    The generic zero-survival infinity guard applies only when log_hazard is
-    also generic. Analytic overrides retain their parameter-dependent limits.
+    Uses the family's ``log_hazard``, including an override, so a family
+    that defines its log hazard gets a matching hazard for free.
+
+    Args:
+        t: Times, broadcast against ``batch_shape`` (pointwise; see
+            ``hazard_grid`` for a shared grid).
+
+    Returns:
+        Hazard with the broadcast shape: 0 for t < 0, NaN for NaN t, and at
+        t = 0 and t = +inf whatever ``log_hazard`` gives there.
+
+    Raises:
+        TypeError: For nonreal times or times that do not broadcast.
     """
     # spec 4.5: hazard's wrapper has already applied the input policy.
     method = type(self).log_hazard
@@ -95,13 +131,20 @@ def hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
 
 
 def cumulative_hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
-    """Return -log P(T > t), broadcasting t against batch_shape.
+    """Return the cumulative hazard, H(t) = -log S(t).
 
-    Negative times return zero; NaN times return NaN. This is pointwise,
-    rather than a shared time-first grid operation.
-    A raw -inf limit at +inf is substituted before evaluation, then restored
-    as +inf, isolating finite-entry parameter derivatives. Finite cure limits
-    stay active; derivatives of nonfinite outputs are not guaranteed.
+    Args:
+        t: Times, broadcast against ``batch_shape`` (pointwise; see
+            ``cumulative_hazard_grid`` for a shared grid).
+
+    Returns:
+        Cumulative hazard with the broadcast shape: 0 for t < 0, NaN for
+        NaN t, and +inf at t = +inf for a proper family. Infinite entries do
+        not disturb parameter derivatives of the finite entries in the same
+        batch; the infinite values themselves have no derivative.
+
+    Raises:
+        TypeError: For nonreal times or times that do not broadcast.
     """
     raw = _raw_log_survival(self)
     return -raw(self, t)
@@ -134,17 +177,27 @@ def log_cdf_from_log_cumulative_hazard(
 
 
 def log_cdf(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
-    """Return log P(T <= t), broadcasting t against batch_shape.
+    """Return the log probability of an event by time t, log F(t) = log(1 - S(t)).
 
-    Uses log(-expm1(log S)) near log S=0, and log1p(-exp(log S)) otherwise,
-    retaining precision in both tails while representable. The lower tail
-    is limited when the family's log survival rounds to zero.
-    Override for CDF-natural families or smaller lower tails. Negative times
-    and true zero CDF return -inf; NaN times return NaN. Evaluation is pointwise,
-    not a shared time-first grid operation.
-    At +inf, a raw log-survival limit of -inf gives zero with zero parameter
-    gradient. Finite cure limits retain their parameter dependence, provided
-    the primitive's operands are safe for differentiation.
+    The default never forms 1 - S. It uses log(-expm1(log S)) when S is
+    close to 1 (early times) and log1p(-exp(log S)) otherwise, so it keeps
+    relative precision in both tails: early, as long as log S itself is not
+    rounded to zero, and late, where log F is close to -S. Families with a
+    more accurate early tail override it, as the built-ins do.
+
+    Args:
+        t: Times, broadcast against ``batch_shape`` (pointwise; see
+            ``log_cdf_grid`` for a shared grid).
+
+    Returns:
+        Log CDF with the broadcast shape: -inf for t < 0 and wherever F is
+        exactly 0, NaN for NaN t. At t = +inf a proper family gives exactly
+        0 with zero parameter derivatives; a finite limit log(1 - S(inf)),
+        as in a cure model, keeps its derivatives if the family's
+        ``log_survival`` computes it safely.
+
+    Raises:
+        TypeError: For nonreal times or times that do not broadcast.
     """
     # spec 4.5: the outer wrapper already substituted safe times.
     raw = _raw_log_survival(self)

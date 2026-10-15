@@ -94,17 +94,32 @@ def distribution() -> Any:
 
 
 class SurvivalDistribution:
-    """Base class for custom survival distributions.
+    """Base class for survival distributions, built-in and custom.
 
-    Define a frozen dataclass subclass, mark its fields with ``param()`` or
-    ``static()`` or ``distribution()``, then apply ``register_family`` above
-    the dataclass decorator.
-    Implement ``log_survival(t)`` and ``reference_time()`` in the subclass.
+    A family describes the distribution of an event time T > 0 through its
+    log survival function, log S(t) = log P(T > t). From it the base derives
+    every other quantity: ``survival``, ``cumulative_hazard`` (H = -log S),
+    ``hazard`` and ``log_hazard`` (h = dH/dt, by automatic differentiation),
+    ``log_prob`` (the log density, log h + log S) and ``log_cdf``
+    (log(1 - S)). Each of these pointwise methods has a ``_grid`` twin that
+    evaluates one shared vector of times against the whole batch. Built-in
+    families such as ``Weibull`` override the derived methods with closed
+    forms.
+
+    To write a family, define a frozen dataclass subclass, mark its fields
+    with ``param()``, ``static()`` or ``distribution()``, apply
+    ``register_family`` above the dataclass decorator, and implement
+    ``log_survival(t)`` and ``reference_time()``.
 
     Parameters describe one distribution per batch entry. Their leading axes
     broadcast at construction; any component axes declared with ``param``
     remain trailing. Use ``batch_shape`` for the batch dimensions: ``shape``
     is available as a parameter name and has no special meaning in the base.
+
+    Every method accepts any real time and never raises for a value. Times
+    before the origin (t < 0) give S = 1 and the matching constants; NaN
+    times give NaN; t = 0 and t = +inf give the family's limits, with
+    finite parameter derivatives where the limit is finite and smooth.
     """
 
     _survjax_registered: ClassVar[bool] = False
@@ -160,31 +175,52 @@ class SurvivalDistribution:
         )
 
     def log_survival(self, t: ArrayLike) -> jax.Array:
-        """Return log P(T > t); custom families must implement this method.
+        """Return the log survival probability, log S(t) = log P(T > t).
 
-        ``t`` is a scalar or array of times. The result has the broadcast shape
-        of ``t`` and ``batch_shape``, with no component axes. Equal-length time
-        and parameter vectors pair entries; use singleton axes for all pairs.
-        This is pointwise evaluation, not a time-first shared-grid operation.
+        Every family must implement this method; all other methods derive
+        from it. Your implementation is only called with times in
+        [0, +inf]: survjax answers negative and NaN times itself. It must
+        return the right limits at t = 0 (usually 0) and t = +inf (usually
+        -inf), and keep relative precision when log S is close to 0, for
+        example by computing -H(t) directly rather than log(S(t)).
 
-        The family implementation must handle zero and positive infinity and
-        retain precision near log survival zero. This base implementation
-        raises NotImplementedError.
-        The policy wrapper substitutes a reference before evaluating -inf
-        limits at +inf, then restores -inf to isolate finite-entry parameter
-        derivatives in mixed batches. Finite cure limits remain active; the
-        author must make their primitive operands safe for differentiation.
+        If the limit at +inf is finite and depends on parameters, as in a
+        cure model, substitute a safe time before any operation that would
+        meet infinity, so that the limit's parameter derivatives stay
+        finite. survjax handles the usual -inf limit itself.
+
+        Args:
+            t: Times, broadcast against ``batch_shape``. Times and batch
+                pair element by element (trailing-axis broadcasting); use
+                ``log_survival_grid`` to evaluate every time for every entry.
+
+        Returns:
+            Log survival with the broadcast shape of ``t`` and
+            ``batch_shape``, without component axes.
+
+        Raises:
+            NotImplementedError: In the base class.
+            TypeError: For nonreal times or times that do not broadcast.
         """
         raise NotImplementedError("families must implement log_survival")
 
     def reference_time(self) -> jax.Array:
-        """Return a positive finite evaluation time for each batch entry.
+        """Return a typical, well-behaved time for each distribution.
 
-        Custom families must implement this hook, usually using a natural time
-        scale of the distribution. Return a scalar or array broadcastable to
-        ``batch_shape``. Choose a time in the distribution's smooth interior
-        when its parameters are valid, so numerical routines have a safe point
-        to evaluate the family. This base implementation raises NotImplementedError.
+        Every family must implement this method. survjax evaluates the family
+        at this time instead of at times it cannot use directly (negative,
+        NaN or, in derived methods, infinite times), so that those entries
+        give clean values and gradients; the value at the reference time is
+        then discarded. A natural time scale such as the mean, the median or
+        a scale parameter is a good choice.
+
+        Returns:
+            An array of exactly ``batch_shape`` in the parameter dtype, with
+            positive finite times in the smooth interior of the distribution
+            when the parameters are valid (anything for invalid ones).
+
+        Raises:
+            NotImplementedError: In the base class.
         """
         raise NotImplementedError("families must implement reference_time")
 

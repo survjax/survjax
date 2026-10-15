@@ -1151,6 +1151,107 @@ Docs steps:
   examples/notebooks execute. Review against the spec and merged code, covering
   every Docs to-do. A5 is done after its last docs step merges, before A6 starts.
 
+### A5.d1 — audit result and docs-step split (2026-10-15)
+
+Audited on branch `docs-A5` at `055e8b8` (equal to main) against the merged
+A5 code, spec revision 25 and the docs to-do above. The maintainer asked for
+narrative, tutorial-style pages with links to the mathematics and, where it
+helps, to R's `survival`/`flexsurv`, rather than assertion-style examples,
+and for a review of the public docstrings in the same style.
+
+Audit of `docs/`:
+
+| Page / part | Verdict | Finding |
+| --- | --- | --- |
+| `index.md` | stale | Says built-in distributions are planned; nav lacks built-ins and grids. |
+| `distributions.md` top note, "Many distributions" last paragraph | stale | Calls `Exponential`, `Weibull` and time-first grids planned. |
+| `distributions.md` constant hazard, Gompertz, batches, piecewise, JAX values | fine | Executes; tutorial voice the maintainer wants. `PiecewiseHazard.reference_time` already has exactly `batch_shape` in `rates.dtype` (to-do item satisfied). |
+| `distributions.md` `ProportionalHazards.reference_time` | fine | Corrected on checking: the nested baseline is broadcast at construction, so it already returns `(3,)`. |
+| `distributions.md` "edges of the time axis" (A5.1 draft) | stale/missing | Correct values, but assertion blocks instead of narrative; no mixed-batch derivative isolation (A5.2b), no cumulative-hazard/log-hazard guards. |
+| `distributions.md` "why the log scale" | missing | No H / log H / h / log h distinction; no upper-tail `log_cdf` behaviour (rev 25, D-022). |
+| `distributions.md` checklist/details | fine | Checklist already says "exactly `batch_shape`". |
+| built-in families page | missing | Exponential and Weibull: formulas, domains, units, `from_log`, boundaries, k=1 derivative exclusion, 4.6 conversions. |
+| grids page | missing | Seven `_grid` twins, paired-vector pitfall, posterior batch example, zero-time k=1 grid. |
+| `survival-data.md` | fine | A1–A3 only; no A5 content needed. |
+| `playground.ipynb` | stale | SurvivalData only; to-do asks for the implemented distribution APIs. |
+| `simulation-guide.md` | fine | Excluded from the build; describes later slices. |
+
+Audit of public docstrings (rendered only through `help()`; no autodoc):
+
+- Wrong: `SurvivalDistribution.reference_time` says "broadcastable to
+  `batch_shape`"; spec 4.2 (rev 22) requires exactly `batch_shape` in the
+  parameter dtype.
+- Terse and test-like: `Exponential`, `Weibull` and their methods compress
+  formulas, limits and spec citations into fragments ("pairing equal-length
+  vectors", "The infinity rate derivative is 1", "Uses no tail subtraction").
+  Several use one-line `Args: t: ...` forms that do not read as sections.
+- Implementation detail in user docs: base `log_survival`, `survival`,
+  `log_cdf`, `cumulative_hazard`, `log_prob`, `log_hazard` describe the policy
+  wrapper's substitution mechanics. Users need the observable rule (values at
+  0/+inf/negative/NaN; which derivatives are guaranteed), not the mechanism.
+- Grid docstrings are correct but identical boilerplate; they lack the
+  `(K, *batch_shape)` worked shape example and the reason to prefer them.
+- Fine: `param`, `static`, `distribution` (doctest), `batch_shape`,
+  `__getitem__`, `register_family`.
+
+Proposed steps (one commit, REVIEW.md and stop after each; each at most 300
+changed lines; `scripts/build_docs.sh` clean in both dtype modes):
+
+- **A5.d2 — built-in families page** (`docs/builtin-families.md`, toctree
+  entry). Story: time to progression in a synthetic cohort. Exponential:
+  constant hazard, `rate=1/mean`, memorylessness, `from_log(log_rate=...)`
+  and log-mean conversion, overflow giving an infinite rate. Weibull: role of
+  k (falling, constant, rising hazard), b as the time where S=e^{-1}, k=1
+  equals the exponential, values at t=0 and +inf for k<1, =1, >1, and why the
+  shape derivative of log f(0) is excluded at k=1. Math links: Wikipedia
+  exponential and Weibull distributions, survival/hazard function articles.
+  Executed examples print values; expected numbers are derived in the prose.
+- **A5.d3 — coming from R and NumPyro** (section of the same page, or
+  `docs/parameterizations.md` if d2 is near budget). Spec 4.6 table as a
+  narrative: `dweibull`/`pweibull`, `flexsurvreg(dist="weibull")` natural
+  estimates vs `coef(fit)` logs, `WeibullPH` m=b^-k, `survreg` mu=log b,
+  sigma=1/k with a worked conversion, common-shape AFT→PH gamma=-k*beta,
+  NumPyro `concentration`. R code appears as non-executed `r` blocks labelled
+  as input conventions; no numerical agreement claimed (10.5; fixtures are A8).
+  Links to the CRAN reference pages of `survival::survreg` and `flexsurv`.
+- **A5.d4 — survival curves and time-first grids** (`docs/grids.md`).
+  Pointwise pairing vs `_grid` twins; the pitfall when K equals N; posterior
+  draws `Weibull(shape=k[:, None], scale=jnp.exp(beta @ X.T))` with synthetic
+  draws giving `(K, D, N)`; the section 11.1 fixed vector (k=1, scales
+  `10*exp([0,-0.5,-1])`) on a grid starting at t=0 with finite gradients;
+  grids under `jit`/`vmap`.
+- **A5.d5 — custom-family page refresh** (`docs/distributions.md`). Remove
+  stale "planned" text and link to the built-ins; fix
+  `ProportionalHazards.reference_time` to broadcast to `batch_shape`; rewrite
+  the time-edges section as narrative with printed outputs instead of asserts,
+  covering mixed-batch derivative isolation and finite cure limits; add H,
+  log H, h, log h and both `log_cdf` tails to the log-scale section.
+- **A5.d6 — built-in docstrings** (`exponential.py`, `weibull.py`). Narrative
+  summary with formula, domains and units, Google-style Args/Returns/Raises,
+  4.6 mapping kept in the Weibull class docstring, a short doctest each
+  (run by `check.sh`), limits stated as observable behaviour. No code change.
+- **A5.d7 — base and grid docstrings** (`base.py`, `_survival_methods.py`,
+  `_grid_methods.py`). Fix `reference_time`; replace mechanism with the
+  observable value/derivative rules; give grid twins a worked shape example.
+  No code change; split if over budget.
+- **A5.d8 — navigation, playground, slice evaluation.** `index.md` coverage
+  and toctree; add a distributions section to `playground.ipynb`
+  (Exponential/Weibull, a grid, `from_log`, things to try); the 10.5
+  end-of-sub-slice rendered-page evaluation in REVIEW.md.
+
+Maintainer decision (2026-10-15): do d2–d8 as one docs step, without the
+300-line limit; plots and `matplotlib` (docs group only) are allowed;
+document what is implemented (spec rev 25), `.spec-seen` follows separately.
+Status: implemented on `docs-A5` as one commit; see REVIEW.md.
+
+Open questions (resolved by the decision above):
+
+- Plots would help the hazard-shape story but need `matplotlib` in the docs
+  group (a new dependency). Default: no plots; small printed tables instead.
+- The spec is at revision 25 (`1e9011c`) while `.spec-seen` is `b917ebe`
+  (rev 24). Docs will describe rev 25 behaviour (upper-tail `log_cdf`), which
+  the merged code implements; marking `.spec-seen` is a separate action.
+
 ## Verification and acceptance mapping
 
 Independent A5 modules: construction/reference arrays -> A5.3/A5.4;

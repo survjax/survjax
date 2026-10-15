@@ -15,44 +15,76 @@ from survjax.distributions.base import SurvivalDistribution, param, register_fam
 @register_family
 @dataclass(frozen=True)
 class Exponential(SurvivalDistribution):
-    """Exponential survival S(t)=exp(-rate*t), with positive finite rate.
+    """Exponential distribution: a constant hazard.
+
+    The hazard is the same at every time, h(t) = rate, so
+
+        H(t) = rate * t,    S(t) = exp(-rate * t),    f(t) = rate * exp(-rate * t).
+
+    The mean time to event is 1 / rate and the median log(2) / rate. This is
+    R's ``pexp(t, rate, lower.tail = FALSE)``. Methods are evaluated in
+    closed form and accept any time: negative times count as before the time
+    origin, and zero and +inf give the exact limits.
 
     Args:
-        rate: Required keyword, in inverse time units; rate=1/mean.
-            Its array shape is batch_shape, and it is the only PyTree leaf.
+        rate: Hazard per unit time, positive and finite, keyword only. Its
+            array shape is the ``batch_shape``; each entry is one
+            distribution. Values are stored as given and not checked.
 
-    Log-rate a gives rate=exp(a); log-mean m gives rate=exp(-m).
-    For example, Exponential(rate=1/5) has mean five time units.
-    Methods broadcast t against batch_shape, pairing equal-length vectors.
-    Construction checks dtypes, not parameter values; nonreal inputs and
-    positional arguments raise TypeError. Direct methods raise TypeError for
-    nonreal t or incompatible shapes, and apply the spec 4.5 time policy.
+    Raises:
+        TypeError: For positional arguments or nonreal ``rate``. Methods also
+            raise it for nonreal times or times that do not broadcast against
+            ``batch_shape``.
+
+    Converting from other parameterisations: a log rate ``a`` gives
+    ``rate=exp(a)``, a mean ``m`` gives ``rate=1/m`` and a log mean gives
+    ``rate=exp(-log_mean)``; ``from_log`` takes the log rate directly. R's
+    ``survreg(..., dist = "exponential")`` intercept is the log mean.
+
+    >>> import survjax
+    >>> progression = survjax.Exponential(rate=1 / 20)  # mean 20 months
+    >>> round(float(progression.survival(12.0)), 4)  # exp(-0.6)
+    0.5488
     """
 
     rate: jax.Array = param()
 
     @classmethod
     def from_log(cls, *, log_rate: ArrayLike) -> Self:
-        """Return this family with natural rate=exp(log_rate) as its leaf.
+        """Build an exponential from its log rate, ``rate = exp(log_rate)``.
+
+        Useful when the rate comes from an unconstrained optimiser or a
+        network output. The result is an ordinary ``Exponential`` storing the
+        rate itself, with the same values and gradients as
+        ``Exponential(rate=jnp.exp(log_rate))``. For a log mean, pass
+        ``log_rate=-log_mean``.
 
         Args:
-            log_rate: Keyword-only log rate, with arbitrary batch shape.
-        Returns:
-            Exponential with the same values/gradients as an exp-rate model.
-        Raises:
-            TypeError: Input is nonreal. Dtype promotion follows construction.
+            log_rate: Log of the rate, any real value, keyword only. Its array
+                shape becomes the ``batch_shape``.
 
-        Overflow stores an infinite rate; no log-space representation is kept.
+        Returns:
+            An ``Exponential`` with ``rate = exp(log_rate)``. If the
+            exponential overflows (above about 88 in float32), the rate is
+            infinite and results follow the formulas for an invalid rate.
+
+        Raises:
+            TypeError: For nonreal ``log_rate``.
         """
         values = normalize_parameters({"log_rate": log_rate}, warning_stacklevel=3)
         return cls(rate=jnp.exp(values["log_rate"]))
 
     def reference_time(self) -> jax.Array:
-        """Return a positive finite reference of batch_shape in rate.dtype.
+        """Return a typical time for each distribution: the mean, 1 / rate.
 
-        Uses 1/rate when representable, otherwise one time unit. This changes
-        only inactive evaluation inputs, never rates or active probabilities.
-        Invalid-rate references have no value guarantee (spec 4.2).
+        Used internally as a safe evaluation time (see
+        ``SurvivalDistribution.reference_time``). When 1 / rate cannot be
+        represented, one time unit is used instead; this never changes a
+        returned value.
+
+        Returns:
+            Positive finite times of shape ``batch_shape`` in the rate's
+            dtype, for valid rates.
         """
         # spec 4.2: unlike a stored time scale, 1/rate may not be representable.
         # This guard changes only the inactive reference, not model parameters.
@@ -77,16 +109,26 @@ class Exponential(SurvivalDistribution):
         return jnp.where(infinite, limit, value)
 
     def log_survival(self, t: ArrayLike) -> jax.Array:
-        """Return -rate*t, broadcasting t with batch_shape (spec 4.1/4.5).
+        """Return the log survival probability, log S(t) = -rate * t.
 
-        Negative t gives zero; +inf gives -inf for valid rates; NaNs propagate.
+        Args:
+            t: Times, broadcast against ``batch_shape``.
+
+        Returns:
+            Log survival: 0 for t <= 0 and -inf at t = +inf. NaN times or
+            rates give NaN.
         """
         return -self._cumulative_hazard(t)
 
     def cumulative_hazard(self, t: ArrayLike) -> jax.Array:
-        """Return rate*t with the broadcast shape; negative t gives zero.
+        """Return the cumulative hazard, H(t) = rate * t.
 
-        The infinity limit is +inf for valid rates; NaNs propagate (spec 4.5).
+        Args:
+            t: Times, broadcast against ``batch_shape``.
+
+        Returns:
+            Cumulative hazard: 0 for t <= 0 and +inf at t = +inf. NaN times
+            or rates give NaN.
         """
         return self._cumulative_hazard(t)
 
@@ -107,35 +149,59 @@ class Exponential(SurvivalDistribution):
         return value
 
     def log_cdf(self, t: ArrayLike) -> jax.Array:
-        """Return log(1-exp(-H(t))) while preserving tiny exponential tails.
+        """Return the log probability of an event by time t, log F(t).
 
-        Args: t: Real times, broadcast with the parameter batch.
-        Returns: Broadcast log CDF; zero at +inf for valid positive rates.
-        Raises: TypeError: Nonreal times or incompatible shapes.
+        F(t) = 1 - exp(-rate * t). It is computed from log H = log(rate) +
+        log(t), so it keeps full relative precision both for very early
+        times, where F is tiny (log F is close to log H), and for very late
+        times, where log F is close to -S(t).
+
+        Args:
+            t: Times, broadcast against ``batch_shape``.
+
+        Returns:
+            Log CDF: -inf for t <= 0 and 0 at t = +inf. NaN times or rates
+            give NaN.
         """
         return log_cdf_from_log_cumulative_hazard(self._log_cumulative_hazard(t))
 
     def log_prob(self, t: ArrayLike) -> jax.Array:
-        """Return log(rate)-rate*t with the broadcast shape (spec 4.1/4.5).
+        """Return the log density, log f(t) = log(rate) - rate * t.
 
-        Negative/+inf t gives -inf, except NaN-rate precedence; NaN t gives NaN.
+        Args:
+            t: Times, broadcast against ``batch_shape``.
+
+        Returns:
+            Log density: log(rate) at t = 0, and -inf for t < 0 and at
+            t = +inf. NaN times or rates give NaN.
         """
         # spec 4.1: log f(t)=log(rate)-H(t), since h(t)=rate.
         return jnp.log(self.rate) - self._cumulative_hazard(t)
 
     def log_hazard(self, t: ArrayLike) -> jax.Array:
-        """Return log(rate), broadcast against t, including at zero and +inf.
+        """Return the log hazard, log h(t) = log(rate), at every t >= 0.
 
-        Negative t gives -inf; NaNs propagate. Uses no tail subtraction.
+        Args:
+            t: Times, broadcast against ``batch_shape``.
+
+        Returns:
+            log(rate) for t >= 0, including t = +inf, where survival is zero
+            but the constant hazard is still defined; -inf for t < 0. NaN
+            times or rates give NaN.
         """
         # spec 4.1/5: log h(t)=log(rate) is constant in time but must broadcast.
         output_shape = jnp.broadcast_shapes(jnp.shape(t), self.batch_shape)
         return jnp.broadcast_to(jnp.log(self.rate), output_shape)
 
     def hazard(self, t: ArrayLike) -> jax.Array:
-        """Return rate, broadcast against t, including at zero and +inf.
+        """Return the hazard, h(t) = rate, at every t >= 0.
 
-        Negative t gives zero; NaNs propagate. The infinity rate derivative is 1.
+        Args:
+            t: Times, broadcast against ``batch_shape``.
+
+        Returns:
+            The rate for t >= 0, including t = +inf (with derivative 1 in the
+            rate there too); 0 for t < 0. NaN times or rates give NaN.
         """
         # spec 4.1/5: h(t)=rate is constant in time but must broadcast.
         output_shape = jnp.broadcast_shapes(jnp.shape(t), self.batch_shape)

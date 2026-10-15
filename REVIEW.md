@@ -1,37 +1,89 @@
-# A5.5 review fix-up — explicit cumulative-hazard names and helper placement
+# A5 docs — built-in families, grids, custom-family refresh, docstrings
 
-Implements the approved plan after `9a8bb2a` on A5.5.
+One docs step on `docs-A5` covering the whole A5.d1 split (d2–d8), as the
+maintainer decided on 2026-10-15: no 300-line limit, plots allowed, document
+the implemented behaviour (spec revision 25). No numerical code changed; the
+`src/` diff is docstrings only.
 
 ## Reading order
 
-1. `_survival_methods.py`: `log_cdf_from_log_cumulative_hazard` moved here beside generic `log_cdf`, with explicit `log_cumulative_hazard`, `safe_log_cumulative_hazard` and `log_cdf_from_cumulative_hazard` identifiers.
-2. `_log_math.py`: retains only general guarded log arithmetic. Exponential and Weibull import the conversion from `_survival_methods.py` and keep their analytic log-H overrides.
-3. `tests/unit/test_log_cdf_tails.py`, `test_exponential.py`, `test_weibull.py`: cumulative-hazard quantities and derivative arrays have explicit names; instantaneous log-hazard derivatives remain distinct.
+1. `docs/builtin-families.md` (new): exponential and Weibull as a narrative
+   (constant vs rising/falling hazard, hazard/survival plot), values at time
+   zero and infinity, the k=1 log-density derivative exclusion, precision in
+   both `log_cdf` tails, `from_log`, and "Coming from R and NumPyro" (spec 4.6
+   table, `survreg` mu/sigma, AFT→PH gamma=-k*beta, flexsurv `fit$res` vs
+   `coef(fit)`, `weibullPH` m=b^-k, NumPyro `concentration`). R appears only
+   as non-executed code blocks; the page says agreement is checked later.
+2. `docs/grids.md` (new): pointwise pairing vs `_grid` twins, the
+   equal-length pitfall, curves for three prognostic groups (the 11.1 fixed
+   vector `(1.5, 12, -0.6, -1.2)`), a k=1 grid starting at t=0 with a finite
+   gradient (11.1 vector `(1, 10, -0.5, -1)`), posterior draws with the
+   `k[:, None]` pitfall from spec 5 giving `(K, D, N)` and a 90% band plot,
+   and grids under `jit`/`vmap`.
+3. `docs/distributions.md`: stale "planned" notes replaced with links; grid
+   example added; "edges of the time axis" rewritten as narrative with printed
+   outputs instead of asserts, now covering NaN precedence, zero-limit
+   gradients at +inf, mixed-batch derivative isolation (A5.2b) and cure
+   limits with safe operands; log-scale section adds the H / log H / h / log h
+   table, the upper `log_cdf` tail (rev 25) and the built-ins' analytic hazard
+   at infinity; checklist item for finite cure limits.
+4. `docs/index.md`, `docs/playground.ipynb`: coverage text and toctree; a
+   Weibull/grid/`from_log` section and new "things to try" in the playground.
+5. Docstrings: `exponential.py`, `weibull.py` (formula, behaviour, Google
+   Args/Returns/Raises, the 4.6 conversions kept in the Weibull class
+   docstring, one doctest each); `base.py` (class overview, `log_survival`,
+   `reference_time`); `_survival_methods.py` (six generic methods);
+   `_grid_methods.py` (seven grid twins, shape example, one doctest).
+6. `docs/conf.py` (`myst_heading_anchors = 3` for cross-page section links),
+   `pyproject.toml`/`uv.lock` (`matplotlib` 3.11.2 in the `docs` group only).
 
-## Invariants and spec-to-test mapping
+## Invariants and claims
 
-- Spec 4.1–4.2/7.2: helper formulas, thresholds, safe substitutions and derivative paths are unchanged. H denotes cumulative hazard and h instantaneous hazard in mathematical comments. The generic default still uses safe_log1mexp(log S); built-ins retain log H when H underflows.
-- Spec 4.1/7.2/12.1: existing lower-tail underflow and switch-gradient tests exercise the relocated conversion through both public built-ins. No expected values, tolerances, cases or assertions changed.
-- Spec 7.2–7.3/12.1: the tail module retains mpmath values/Jacobians/Hessians, both AD modes and jit/vmap, boundary debug_nans and finite mixed-objective Hessians. The renamed Weibull hand-derived gradient/Hessian arrays preserve their original algebra.
-- Spec 4.2/4.5/5: generic direct/density/infinity tests and grid tests verify the import relocation and callers, including family dispatch, cure limits and time-first grids.
-- The audit of src and own tests found no remaining abbreviated cumulative-hazard identifiers. Actual instantaneous-hazard APIs/bindings and mathematical H/h notation remain. Public exports and numerical behavior are unchanged; no new uncertainty or deviation was identified.
+- Every number stated in prose was compared with the rendered output in both
+  dtype modes (x32 and x64 HTML outputs extracted and read). Where modes
+  differ the prose says so (naive `log(1 - S)` is 0 in float32 and inexact in
+  float64). Random draws (`grids.md`) are not quoted numerically.
+- Docstrings now describe observable values and derivative guarantees rather
+  than the policy wrapper's mechanism. Corrected a wrong statement:
+  `reference_time` must return exactly `batch_shape` (spec 4.2), not
+  "broadcastable".
+- The audit line claiming `ProportionalHazards.reference_time` had the wrong
+  shape was itself wrong (the nested baseline is broadcast at construction;
+  it returns `(3,)`); PLAN.md corrected.
+- Core imports are unaffected: `matplotlib` is only in the `docs` group.
+
+## Rendered-page evaluation (spec 10.5)
+
+- Pages present: index, playground, SurvivalData guide, Exponential and
+  Weibull, Survival curves and time grids, Writing a survival distribution.
+- All examples executed in both modes; three figures inspected visually
+  (Weibull hazards/survival crossing at t=b; group curves and hazards;
+  posterior bands).
+- Supported: built-in and custom families, pointwise and grid evaluation,
+  `from_log`, boundary behaviour, jit/vmap/grad. Unsupported and labelled
+  planned: likelihoods, log-normal/log-logistic, wrappers, summaries.
+- Comparison evidence: none with R; R content explains input conventions
+  only. Numerical agreement awaits the A8 fixtures.
 
 ## Checks actually run
 
-    JAX_ENABLE_X64=1 .venv/bin/pytest tests/unit/test_log_cdf_tails.py tests/unit/test_exponential.py tests/unit/test_weibull.py tests/unit/test_family_direct.py tests/unit/test_family_density.py tests/unit/test_family_infinity.py tests/unit/test_survival_grid.py -q
-    JAX_ENABLE_X64=0 .venv/bin/pytest tests/unit/test_log_cdf_tails.py tests/unit/test_exponential.py tests/unit/test_weibull.py tests/unit/test_family_direct.py tests/unit/test_family_density.py tests/unit/test_family_infinity.py tests/unit/test_survival_grid.py -q
+    UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A5
 
-Both exited 0: x64 **249 passed, 1 skipped** (x32-only warning check); x32 **250 passed**.
+Exit 0, "check: all gates passed through A5": ruff and mypy clean; own tests
+x64 451 passed, 7 skipped and x32 457 passed, 1 skipped; source doctests 4
+passed in each mode; spec tests through A5 x64 1116 passed, 26 skipped and
+x32 1121 passed, 21 skipped.
 
-    .venv/bin/ruff format --check .
-    .venv/bin/ruff check .
-    .venv/bin/mypy src
-    git diff --check
+    UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/build_docs.sh
 
-All exited 0: **48 files already formatted**, **All checks passed!**, **Success: no issues found in 13 source files**, and no whitespace errors.
+Exit 0, "build succeeded" for both html-x32 and html-x64 (`-n -W`). The log
+shows `[IPKernelApp] WARNING | Kernel is running over TCP without
+encryption` from the Jupyter kernel's stderr; this is not a Sphinx warning.
 
-## Historical gate evidence and stop
+## Unsure / for the maintainer
 
-No full-gate rerun for this relocation/naming-only fix-up, as planned. `7208c81` passed the full A5 gate: own x64 **451 passed, 7 skipped**, x32 **457 passed, 1 skipped**; independent x64 **1116 passed, 26 skipped**, x32 **1121 passed, 21 skipped**; source doctests **1 passed** per mode; guard, Ruff and mypy passed. These are historical results.
-
-No docs build or R checks were run. Spec, marker, docs pages, independent tests, dependencies, tolerances and deviation statuses remain untouched. Docs to-do is recorded in PLAN.md. Stop after this fix-up commit for review.
+- `.spec-seen` is still rev 24 (`b917ebe`); the docs describe rev 25.
+- The flexsurv `coef(fit)` and `weibullPH` covariate descriptions come from
+  the spec and package documentation, not from running R here.
+- A few code lines in the Markdown pages exceed 88 characters (ruff does not
+  check `.md` cells); the notebook is ruff-formatted.

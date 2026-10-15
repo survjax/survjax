@@ -1,24 +1,33 @@
 # survjax documentation
 
 survjax is a JAX library for survival analysis. The current implementation
-can describe survival observations (`SurvivalData`) and lets you write your
-own survival distributions, from which survjax derives survival, cumulative
-hazard, hazard, density and CDF. Likelihoods, built-in distributions and
-evaluation are planned; the Slice A completion gate has not yet been met.
+can describe survival observations (`SurvivalData`), provides the exponential
+and Weibull distributions, and lets you write your own survival
+distributions, from which survjax derives survival, cumulative hazard,
+hazard, density and CDF. Every distribution can be evaluated pointwise or on
+a shared time grid. Likelihoods, other built-in families, summaries and
+evaluation metrics are planned; the Slice A completion gate has not yet been
+met.
 
 The [SurvivalData guide](survival-data.md) walks a synthetic cohort through
-both constructors, diagnostics and R input conventions. The
+both constructors, diagnostics and R input conventions.
+[Exponential and Weibull](builtin-families.md) introduces the built-in
+families, their behaviour at time zero and infinity, and how their parameters
+map to R's `survival` and `flexsurv` and to NumPyro.
+[Survival curves and time grids](grids.md) evaluates batches of
+distributions, including posterior draws, at many times at once. The
 [distributions guide](distributions.md) builds constant-hazard, Gompertz,
 piecewise-constant and proportional-hazards models from their survival
-functions. The [playground](playground.ipynb) uses
-only synthetic observations and the current public API. Runnable examples
-execute afresh when the site is built.
+functions. The [playground](playground.ipynb) uses only synthetic data and the
+current public API. Runnable examples execute afresh when the site is built.
 
 ```{toctree}
 :maxdepth: 1
 
 playground
 survival-data
+builtin-families
+grids
 distributions
 ```
 

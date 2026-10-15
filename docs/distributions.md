@@ -11,10 +11,10 @@ kernelspec:
 
 ```{note}
 This page shows the extension interface: how to describe your own
-distribution and evaluate it. Built-in families (`Exponential`, `Weibull`),
-shared time grids and likelihoods for `SurvivalData` are planned for later
-steps of Slice A. Until then, every distribution on this page is one we write
-ourselves.
+distribution and evaluate it. survjax also ships the
+[exponential and Weibull families](builtin-families.md), which work the same
+way but use closed forms. Likelihoods for `SurvivalData` are planned for a
+later step of Slice A.
 ```
 
 ## One function describes the whole distribution
@@ -198,9 +198,13 @@ arms[:, None].survival(months)
 ```
 
 Parameters broadcast against each other at construction, so a scalar
-parameter is shared across the batch. Shared time-first grids, which put the
-time axis first and need no manual axis, are planned with the built-in
-families.
+parameter is shared across the batch. Every family also has *grid* methods,
+such as `survival_grid`, which put the time axis first and need no manual
+axis; see [Survival curves and time grids](grids.md).
+
+```{code-cell} ipython3
+arms.survival_grid(months)
+```
 
 ## Fixed settings and vector parameters: a piecewise-constant hazard
 
@@ -378,78 +382,112 @@ jax.jit(log_likelihood)(ConstantHazard(rate=0.0625))
 
 ## The edges of the time axis
 
-Times are measured from a time origin such as diagnosis, so $T > 0$. survjax
-answers for any real time without raising, and your `log_survival` only needs
-to handle $t \ge 0$, including $t = \infty$:
+Times are measured from a time origin such as diagnosis, so $T > 0$. Still,
+a survival curve is often drawn from $t = 0$, administrative censoring is
+sometimes coded as $t = \infty$, and a bad row can carry a negative or
+missing time. survjax answers for any real time without raising. Your
+`log_survival` only needs to handle $t \ge 0$, including $t = \infty$; survjax
+takes care of the rest:
 
 | Time | Meaning | What survjax returns |
 | --- | --- | --- |
 | $t < 0$ | before the time origin | $S = 1$, $H = 0$, $h = 0$, log density and log CDF $-\infty$ |
 | $t = 0$ | the origin | your family's values, $S(0) = 1$ |
-| $t = \infty$ | never | your family's values, usually $S = 0$; log density is $-\infty$, or NaN if log survival is NaN |
+| $t = \infty$ | never | your family's values, usually $S = 0$; log density $-\infty$ |
 | NaN | missing | NaN |
-
-survjax does not pass negative or NaN times to your code. It substitutes the
-reference time, evaluates, and then replaces the result.
 
 ```{code-cell} ipython3
 edge_times = jnp.array([-1.0, 0.0, jnp.inf, jnp.nan])
 progression.survival(edge_times), progression.log_prob(edge_times)
 ```
 
-At infinity, survjax checks your `log_survival` even if you override
-`log_prob`. A NaN survival limit gives NaN log density; a defined survival
-limit gives minus infinity, including when the density formula itself has
-an undefined infinity-minus-infinity expression.
+survjax never passes a negative or NaN time to your code. It evaluates your
+family at the reference time instead, discards that value and returns the
+answer from the table. If your family gives NaN even at the reference time,
+typically because a parameter is NaN, that NaN is returned instead, so invalid
+parameters do not hide behind the table's constants:
 
 ```{code-cell} ipython3
-invalid_progression = ConstantHazard(rate=jnp.nan)
-assert jnp.isnan(invalid_progression.log_prob(jnp.inf))
-assert progression.log_prob(jnp.inf) == -jnp.inf
+broken = ConstantHazard(rate=jnp.nan)
+broken.survival(-1.0), broken.log_prob(jnp.inf)
 ```
 
-For the generic `survival` and `log_cdf`, a raw log-survival limit of
-minus infinity gives zero with zero parameter gradient. survjax evaluates
-the default at the reference time before selecting that boundary value.
-A finite limit stays active: for a cure fraction $p$, $S(\infty)=p$ and
-$\log F(\infty)=\log(1-p)$ retain their derivatives in $p$.
+### Gradients at the boundaries
 
-Your primitive must still use safe operands wherever differentiation is
-needed. For example, this cure family substitutes before multiplying by
-infinity, then selects the remaining susceptible fraction. It preserves NaN
-from the parameter calculation rather than hiding it behind the limit.
+Fitting a model means differentiating with respect to the parameters, and
+boundary times are where naive code produces NaN gradients. Two examples show
+what survjax guarantees.
+
+First, a proper distribution has $S(\infty) = 0$ and $\log F(\infty) = 0$
+whatever its parameters, so their derivatives are zero. Computing $e^{-\lambda
+\cdot \infty}$ naively and differentiating would multiply zero by infinity;
+survjax returns the correct 0 (JAX prints a signed zero, `-0.`):
+
+```{code-cell} ipython3
+def survival_at_infinity(rate):
+    return ConstantHazard(rate=rate).survival(jnp.inf)
+
+
+jax.grad(survival_at_infinity)(0.1)
+```
+
+Second, in a batch where some entries are infinite, the infinite entries must
+not spoil the derivatives of the finite ones. Here the cumulative hazard at
+$t = 2$ is $2\lambda$, so its derivative is 2, and the entry at infinity is
+masked out of the sum. This gives 2, not NaN:
+
+```{code-cell} ipython3
+def finite_cumulative_hazard(rate):
+    H = ConstantHazard(rate=rate).cumulative_hazard(jnp.array([2.0, jnp.inf]))
+    return jnp.where(jnp.isfinite(H), H, 0.0).sum()
+
+
+jax.grad(finite_cumulative_hazard)(0.1)
+```
+
+survjax does this by evaluating the default methods at a harmless time
+wherever the limit is known to be $S = 0$, and only then filling in the
+limit. Derivatives of the infinite values themselves are not defined, and
+survjax promises nothing about them.
+
+Not every distribution has $S(\infty) = 0$. In a *cure model*, a fraction
+$p$ of patients never progresses, so $S(\infty) = p$ and
+$\log F(\infty) = \log(1 - p)$. These limits depend on $p$, and their
+derivatives, 1 and $-1/(1 - p)$, must survive. survjax leaves such finite
+limits to your `log_survival`, which therefore has to compute them with safe
+operands itself: replace the time before multiplying it by a parameter, then
+select the limit.
 
 ```{code-cell} ipython3
 @survjax.register_family
 @dataclass(frozen=True)
 class CureHazard(ConstantHazard):
-    fraction: jax.Array = survjax.param()
+    fraction: jax.Array = survjax.param()  # p, never progresses
 
     def log_survival(self, t):
         time = jnp.asarray(t)
         infinite = jnp.isposinf(time)
+        # Substitute before multiplying: rate * inf would poison the gradient.
         safe_time = jnp.where(infinite, jax.lax.stop_gradient(jnp.ones_like(time)), time)
         remaining = jnp.exp(-self.rate * safe_time)
+        # At infinity no susceptible patient remains; keep NaN from bad rates.
         remaining = jnp.where(infinite & ~jnp.isnan(remaining), 0.0, remaining)
         return jnp.log(self.fraction + (1.0 - self.fraction) * remaining)
 
 
-assert jax.grad(lambda r: ConstantHazard(rate=r).survival(jnp.inf))(0.1) == 0.0
-assert jax.grad(lambda r: ConstantHazard(rate=r).log_cdf(jnp.inf))(0.1) == 0.0
-assert jnp.isclose(
-    jax.grad(lambda p: CureHazard(rate=0.1, fraction=p).survival(jnp.inf))(0.25),
-    1.0,
-)
-assert jnp.isclose(
-    jax.grad(lambda p: CureHazard(rate=0.1, fraction=p).log_cdf(jnp.inf))(0.25),
-    -1.0 / 0.75,
-)
-assert jnp.isnan(CureHazard(rate=jnp.nan, fraction=0.25).survival(jnp.inf))
+def cure_limits(p):
+    cured = CureHazard(rate=0.1, fraction=p)
+    return cured.survival(jnp.inf), cured.log_cdf(jnp.inf)
+
+
+cure_limits(0.25), jax.jacobian(cure_limits)(0.25)
 ```
 
-This guard is specific to the generic methods and a zero survival limit at
-positive infinity. Family overrides remain responsible for their own boundary
-operands; finite times, even in an underflowing tail, are evaluated as given.
+With $p = 0.25$ the limits are $0.25$ and $\log 0.75 \approx -0.288$, with
+derivatives $1$ and $-1/0.75 \approx -1.33$. The `jnp.where` before the
+multiplication is the important line: without it, the derivative of
+$-\lambda t$ at $t = \infty$ is infinite, and the masked-out branch turns the
+gradient into NaN even though the selected value is fine.
 
 Parameter values are not checked. A negative rate is stored as given and
 produces whatever the formula gives; validating parameters is up to the
@@ -457,8 +495,18 @@ caller.
 
 ## Why work on the log scale
 
-The derived methods avoid computing $S$, and then subtracting or dividing,
-where that would lose precision. Two cases come up in practice.
+Four related quantities appear on this page and are easy to mix up:
+
+| Symbol | Name | survjax method | Typical range |
+| --- | --- | --- | --- |
+| $H(t)$ | cumulative hazard | `cumulative_hazard(t)` | $0$ to $\infty$ |
+| $\log H(t)$ | log cumulative hazard | used inside the built-ins | $-\infty$ to $\infty$ |
+| $h(t)$ | hazard, the instantaneous rate | `hazard(t)` | $0$ to $\infty$ |
+| $\log h(t)$ | log hazard | `log_hazard(t)` | $-\infty$ to $\infty$ |
+
+$H$ is the integral of $h$, and $\log S = -H$. The derived methods avoid
+computing $S$ and then subtracting or dividing where that would lose
+precision. Three cases come up in practice.
 
 **Very early events.** Just after diagnosis, $F(t) = 1 - S(t)$ is tiny. With
 $\lambda t = 10^{-17}$, $S(t)$ rounds to exactly 1 in floating point, so the
@@ -470,6 +518,22 @@ $\log(10^{-17}) \approx -39.1$:
 t_early = 1e-16
 naive = jnp.log(1.0 - progression.survival(t_early))
 naive, progression.log_cdf(t_early)
+```
+
+The generic `log_cdf` is accurate as long as $\log S$ itself is not rounded
+to zero. The built-in families go further by working from $\log H$, which
+stays accurate even when $H$ is too small to store; see [precision in both
+tails](builtin-families.md#precision-in-both-tails).
+
+**Late events.** Late in follow-up, $S$ is tiny and $\log F = \log(1 - S)
+\approx -S$ is a tiny negative number. `log_cdf` returns it with full
+relative precision (here $S = e^{-30}$, so about $-9.4 \times 10^{-14}$),
+where the naive $\log(1 - S)$ rounds it away: to zero in float32, and to a
+value with only a few correct digits in float64.
+
+```{code-cell} ipython3
+t_late = 300.0
+jnp.log(1.0 - progression.survival(t_late)), progression.log_cdf(t_late)
 ```
 
 **The far tail.** At 150 years past age 30, Gompertz survival is about
@@ -486,7 +550,12 @@ the survival probability that may underflow. If survival is *exactly* zero
 (log survival is $-\infty$), the hazard is undefined and `hazard` and
 `log_hazard` return NaN. A family that knows the limit, for example at the
 end of a bounded support, can override `log_hazard`; `hazard` then uses the
-override.
+override. The built-in families do this: the exponential's hazard at
+infinity is its rate.
+
+```{code-cell} ipython3
+progression.hazard(jnp.inf), survjax.Exponential(rate=0.1).hazard(jnp.inf)
+```
 
 ## Checklist for a new family
 
@@ -495,6 +564,9 @@ override.
   equal numbers.
 - Give $\log S(0) = 0$ and $\log S(\infty) = -\infty$ (or the right limit for
   your family). Negative and NaN times never reach your code.
+- If your limit at infinity is finite and depends on parameters, as in a cure
+  model, substitute a safe time before any operation that would meet
+  infinity, so that the limit's derivatives stay finite.
 - Make $\log S$ differentiable in $t$: the hazard and density come from its
   derivative. At a kink, the derivative JAX returns is the hazard you get.
 - Return a positive, finite `reference_time()` of exactly `batch_shape`, in
