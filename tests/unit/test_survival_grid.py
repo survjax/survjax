@@ -2,6 +2,7 @@
 
 import warnings
 from dataclasses import dataclass
+from functools import partial
 
 import jax
 import jax.numpy as jnp
@@ -103,7 +104,7 @@ def test_components_and_density_override_dispatch(x64_enabled):
 
 @pytest.mark.parametrize(
     "bad",
-    [1.0, [[1.0, 2.0]], [True, False], [1j], ["1"], np.array([1], dtype=object), None],
+    [1.0, [[1.0, 2.0]], [True, False], [1j], None],
 )
 def test_grid_misuse_raises_eagerly_and_during_tracing(bad):
     """Spec 4.5/5: grids reject nonreal inputs and non-vector ranks statically."""
@@ -112,6 +113,17 @@ def test_grid_misuse_raises_eagerly_and_during_tracing(bad):
         for evaluate in (method, jax.jit(method)):
             with pytest.raises(TypeError):
                 evaluate(bad)
+
+
+@pytest.mark.parametrize("bad", [["1"], np.array([1], dtype=object)])
+def test_nonjax_grid_constants_reach_conversion_during_tracing(bad):
+    """Spec 4.5: capture non-JAX inputs so the grid conversion itself is traced."""
+    for name in NAMES:
+        method = getattr(survjax.Exponential(rate=1.0), name + "_grid")
+        with pytest.raises(TypeError, match="grid time must contain real numeric"):
+            method(bad)
+        with pytest.raises(TypeError, match="grid time must contain real numeric"):
+            jax.jit(partial(method, bad))()
 
 
 @pytest.mark.parametrize("name", NAMES)
@@ -173,20 +185,35 @@ def test_grid_analytic_rate_gradient_hessian_and_order_two(name, x64_enabled):
 
 @pytest.mark.parametrize(
     "name,expected",
-    list(zip(NAMES, [-np.exp(-1), -1, 0, 1 / np.expm1(1), 1, 1, 1], strict=True)),
+    [
+        ("survival", [0, -np.exp(-1), 0]),
+        ("log_survival", [0, -1, None]),
+        ("log_prob", [1, 0, None]),
+        ("log_cdf", [None, 1 / np.expm1(1), 0]),
+        ("cumulative_hazard", [0, 1, None]),
+        ("log_hazard", [1, 1, 1]),
+        ("hazard", [1, 1, 1]),
+    ],
 )
-def test_mixed_infinity_preserves_interior_derivatives(name, expected, x64_enabled):
-    """Spec 7.2: nonfinite boundary rows cannot contaminate an interior derivative."""
+def test_mixed_boundary_grid_jacobian(name, expected, x64_enabled):
+    """Spec 4.5/7.2: full Jacobians retain finite-boundary and interior derivatives."""
     atol, rtol = ATOL[x64_enabled], RTOL[x64_enabled]
+    # At r=1: S'=-t*S, log f'=1-t, log F'=t/expm1(t), H'=t, log h'=h'=1.
+    # None marks nonfinite outputs, whose boundary derivatives are not guaranteed.
+    expected = np.asarray(expected, dtype=float)
+    required = np.isfinite(expected)
 
     def value(rate):
         return getattr(survjax.Exponential(rate=rate), name + "_grid")(
             jnp.array([0.0, 1.0, jnp.inf])
-        )[1]
+        )
 
     for derivative in (jax.jacfwd(value), jax.jacrev(value)):
+        jacobian = np.asarray(jax.jit(derivative)(1.0))
+        assert jacobian.shape == (3,)
+        assert np.isfinite(jacobian[required]).all()
         np.testing.assert_allclose(
-            jax.jit(derivative)(1.0), expected, atol=atol, rtol=rtol
+            jacobian[required], expected[required], atol=atol, rtol=rtol
         )
 
 

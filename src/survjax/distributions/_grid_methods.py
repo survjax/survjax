@@ -24,9 +24,10 @@ def _reshape_grid(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
 def survival_grid(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     """Return survival on a shared time-first grid (spec 5).
 
-    Args: t: 1-D real times, following direct-method conversion/value policy.
-    Returns: Survival of shape (len(t), *batch_shape), excluding components.
-    Raises: TypeError: Nonreal times or t is not one-dimensional.
+    A one-dimensional real t of length K returns shape (K, *batch_shape),
+    excluding component axes. Rows retain input order, including repeats.
+    Conversion and values follow survival. Nonreal or non-1-D t raises
+    TypeError, including during tracing.
     """
     return self.survival(_reshape_grid(self, t))
 
@@ -34,9 +35,10 @@ def survival_grid(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
 def log_survival_grid(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     """Return log survival on a shared time-first grid (spec 5).
 
-    Args: t: 1-D real times, following direct-method conversion/value policy.
-    Returns: Log survival of shape (len(t), *batch_shape), excluding components.
-    Raises: TypeError: Nonreal times or t is not one-dimensional.
+    A one-dimensional real t of length K returns shape (K, *batch_shape),
+    excluding component axes. Rows retain input order, including repeats.
+    Conversion and values follow log_survival. Nonreal or non-1-D t raises
+    TypeError, including during tracing.
     """
     return self.log_survival(_reshape_grid(self, t))
 
@@ -44,9 +46,10 @@ def log_survival_grid(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
 def log_prob_grid(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     """Return log density on a shared time-first grid (spec 5).
 
-    Args: t: 1-D real times, following direct-method conversion/value policy.
-    Returns: Log density of shape (len(t), *batch_shape), excluding components.
-    Raises: TypeError: Nonreal times or t is not one-dimensional.
+    A one-dimensional real t of length K returns shape (K, *batch_shape),
+    excluding component axes. Rows retain input order, including repeats.
+    Conversion and values follow log_prob. Nonreal or non-1-D t raises
+    TypeError, including during tracing.
     """
     return self.log_prob(_reshape_grid(self, t))
 
@@ -54,9 +57,10 @@ def log_prob_grid(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
 def log_cdf_grid(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     """Return log CDF on a shared time-first grid (spec 5).
 
-    Args: t: 1-D real times, following direct-method conversion/value policy.
-    Returns: Log CDF of shape (len(t), *batch_shape), excluding components.
-    Raises: TypeError: Nonreal times or t is not one-dimensional.
+    A one-dimensional real t of length K returns shape (K, *batch_shape),
+    excluding component axes. Rows retain input order, including repeats.
+    Conversion and values follow log_cdf. Nonreal or non-1-D t raises
+    TypeError, including during tracing.
     """
     return self.log_cdf(_reshape_grid(self, t))
 
@@ -64,9 +68,10 @@ def log_cdf_grid(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
 def cumulative_hazard_grid(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     """Return cumulative hazard on a shared time-first grid (spec 5).
 
-    Args: t: 1-D real times, following direct-method conversion/value policy.
-    Returns: Hazard integral of shape (len(t), *batch_shape), excluding components.
-    Raises: TypeError: Nonreal times or t is not one-dimensional.
+    A one-dimensional real t of length K returns shape (K, *batch_shape),
+    excluding component axes. Rows retain input order, including repeats.
+    Conversion and values follow cumulative_hazard. Nonreal or non-1-D t
+    raises TypeError, including during tracing.
     """
     return self.cumulative_hazard(_reshape_grid(self, t))
 
@@ -74,9 +79,10 @@ def cumulative_hazard_grid(self: "SurvivalDistribution", t: ArrayLike) -> jax.Ar
 def log_hazard_grid(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     """Return log hazard on a shared time-first grid (spec 5).
 
-    Args: t: 1-D real times, following direct-method conversion/value policy.
-    Returns: Log hazard of shape (len(t), *batch_shape), excluding components.
-    Raises: TypeError: Nonreal times or t is not one-dimensional.
+    A one-dimensional real t of length K returns shape (K, *batch_shape),
+    excluding component axes. Rows retain input order, including repeats.
+    Conversion and values follow log_hazard. Nonreal or non-1-D t raises
+    TypeError, including during tracing.
     """
     return self.log_hazard(_reshape_grid(self, t))
 
@@ -84,8 +90,9 @@ def log_hazard_grid(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
 def hazard_grid(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     """Return hazard on a shared time-first grid (spec 5).
 
-    Args: t: 1-D real times, following direct-method conversion/value policy.
-    Returns: Hazard of shape (len(t), *batch_shape), excluding components.
-    Raises: TypeError: Nonreal times or t is not one-dimensional.
+    A one-dimensional real t of length K returns shape (K, *batch_shape),
+    excluding component axes. Rows retain input order, including repeats.
+    Conversion and values follow hazard. Nonreal or non-1-D t raises
+    TypeError, including during tracing.
     """
     return self.hazard(_reshape_grid(self, t))

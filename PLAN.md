@@ -677,6 +677,29 @@ the maintainer-selected branch, never main, then stop before A5.5.
 
 ## A5.5 — Seven time-first grid methods
 
+### Review fix-up — boundary Jacobians, tracing claims and docstrings
+
+Authorized by the maintainer's review of `2d0c22d`; same A5.5 branch and API.
+Implemented and verified: 42 own grid cases pass in each dtype mode; Ruff,
+mypy and whitespace checks pass. REVIEW.md records the current fix-up evidence.
+
+- `tests/unit/test_survival_grid.py`: differentiate the full mixed-boundary
+  vector in both forward/reverse modes and assert analytical derivatives at
+  the interior and every finite-valued boundary. Mark the nonfinite-valued
+  rows outside spec 4.5's derivative guarantee explicitly in the expectation
+  table. This makes the forward-mode part check actual boundary behavior.
+- Keep dynamic tracing checks for JAX-compatible rank/bool/complex misuse.
+  Capture string/object inputs as constants inside a zero-argument jitted call
+  and match the grid conversion error, so JAX's argument rejection cannot
+  satisfy the test before the grid method is traced.
+- `_grid_methods.py`: replace the compressed Args/Returns/Raises lines with
+  concise prose, retaining input/rank rules, output shapes and direct-method
+  conversion/value policy. No executable implementation changes.
+- Run the own grid module in both dtype processes, Ruff format/lint, mypy and
+  `git diff --check`. No full gate rerun is needed for this test/docstring-only
+  fix-up; retain the parent commit's gate evidence as historical. Overwrite
+  REVIEW.md with actual results, commit this fix-up and stop for review.
+
 Status: implemented and verified on 2026-10-15; awaiting review. Started from
 `861ac71` on the
 maintainer-selected `A5.5` branch. Planning used `4f867cb`, after A5.4 merged;
