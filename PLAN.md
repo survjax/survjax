@@ -10,7 +10,8 @@ The F-2/F-3 review nits are corrected; A5.2b (`71403c3`) and its review fix-up
 gate in both dtype modes on 2026-10-15 and awaits review.
 The spec and `.spec-seen` agree at revision 24 (`b917ebe`). The synchronized
 tests correct D-020's density expectation. The maintainer's D-022 upper-tail
-note is committed in `861ac71`; its numerical fix is a separate proposed step.
+note is committed in `861ac71`; its numerical fix is planned below as a
+separate step on the same `A5.5` branch, pending plan approval.
 A5 docs follow the remaining code work.
 The original planning started from a
 clean `A5` checkout at `3f50962`, then the main tip. No branch was created
@@ -838,6 +839,124 @@ Planning evidence (collection only; no tests or full gate executed):
   DEVIATIONS.md change is preserved; REVIEW.md remains the last code review.
 - Planning `git diff --check` passes with no output. No implementation,
   numerical test execution, docs build or commit was performed.
+
+## A5.5 follow-up — D-022: preserve log-CDF upper tails
+
+Status: approved on 2026-10-15, from clean branch `A5.5` at `ace2f4e`.
+The maintainer confirmed D-022 as the target and authorized using this branch.
+This is one numerical step after the grid work, with its own implementation
+commit and review stop. The maintainer approved implementation in conversation.
+Specification revision 24 remains read-only. D-022 records the proposed change
+to the section 4.2 default formula; leave its status open for the maintainer.
+
+Outcome: generic, Exponential and Weibull `log_cdf` retain small negative
+upper-tail values while representable, instead of rounding to zero when the
+intermediate CDF rounds to one. `log_cdf_grid` inherits the correction through
+its existing delegation. Public names, signatures, shapes and exports do not
+change. Covered spec: 4.1–4.3 (numerical recipe only), 4.5, 5, 7.1–7.3 and
+12.1. Do not implement HazardFamily, interval methods or later-slice features.
+
+### Files and numerical invariants
+
+- Create `src/survjax/distributions/_log_probability.py` with one typed private
+  `log1mexp(x)` helper, taking floating log probabilities and preserving dtype
+  and shape. For x <= 0 compute log(1-exp(x)): `log(-expm1(x))` for
+  x > -log(2), otherwise `log1p(-exp(x))`. Form the split constant in the
+  input dtype. At x=0 return -inf; at x=-inf return zero; NaN and positive
+  inputs give NaN. Substitute safe operands in both inactive branches before
+  exp/expm1/log/log1p, including the zero-mass case. Stop gradients only on
+  substituted values. No floors, probability clipping or new epsilon.
+- In `src/survjax/distributions/_survival_methods.py`, delegate the default
+  `log_cdf` calculation to this helper, replacing its local zero-mass guard.
+  Keep `_raw_log_survival`, the policy wrappers and infinity/cure guards
+  unchanged. Update the public docstring to describe both tail branches and
+  the remaining lower-tail limitation when the primitive rounds log S to zero.
+- In `src/survjax/distributions/exponential.py` and `weibull.py`, replace only
+  the standard log-CDF branch with the shared helper applied to -H. Retain
+  D-021's direct log-H lower-tail switch and safe log-H substitution before
+  exponentiation, including the overflow/upper-limit guard. This preserves
+  the existing tiny-tail behavior and boundary parameter derivatives.
+- Add `tests/unit/test_log_cdf_tails.py` for the focused public-API regressions
+  below. Define one minimal registered exponential custom family locally to
+  exercise the generic default independently of the built-in overrides.
+- In `tests/impl_tolerances.py`, add named tail tolerances with zero absolute
+  tolerance and relative targets 1e-8 (x64), 1e-4 (x32). Explain why absolute
+  tolerance would accept an erroneous zero for these tiny values and why
+  these targets cover rounding in log-H reconstruction and transcendental
+  operations on the chosen normal-range cases. Use the same relative targets
+  for tiny analytic derivatives; retain existing finite-difference derivative
+  tolerances for `check_grads`. Report failures without loosening tolerances.
+- Overwrite `REVIEW.md` after implementation with reading order, invariants,
+  spec-to-test mapping, exact commands/results, skips and remaining limits.
+  Update this plan's status and D-022's evidence without resolving the entry.
+
+### Tests accompanying the code
+
+Keep the new test module below about 250 lines. Each behavior states its spec
+section and expected-value origin. Use the process-selected dtype throughout;
+mpmath references use at least 100 decimal digits and the actual rounded input
+values converted on the host, never values computed by library methods.
+
+- **Upper-tail values (4.2/7.1/12.1):** compare the generic family and both
+  built-ins with mpmath `log1p(-exp(-H))`. Include H=20.1, 33.1 and 54.6
+  from D-022, an ordinary H, and deeper normal-range cases (e.g. H=70 in x32,
+  H=600 in x64). For Weibull include a nonunit shape/scale case using
+  H=(t/b)**k. Require negative, nonzero results and relative accuracy; compare
+  eager, jit and vmap. These tests must fail against the original formula.
+- **Branch switch (7.2–7.3):** use times on both sides of H=log(2), plus
+  the split itself, against independent values and first/second parameter
+  derivatives. Test smooth interior points with
+  `check_grads(order=2, modes=("fwd", "rev"))`; compare analytical or mpmath
+  derivatives at the split rather than finite differences through a branch.
+- **Upper-tail derivatives (7.3):** compare forward/reverse parameter Jacobians
+  and Hessians with analytical or mpmath derivatives at an upper-tail point,
+  including both Weibull parameters. At H=rate*t the rate derivatives are
+  t/expm1(H) and -t**2*exp(H)/expm1(H)**2. Use relative-only assertions so
+  a zero derivative cannot pass. Compose derivative calls with jit and vmap.
+- **Boundary and inactive operands (4.5/7.2):** exercise public log-CDF on a
+  mixed vector with zero, ordinary interior, upper tail and +inf. Check full
+  forward/reverse Jacobians at finite-valued rows and finite-component
+  Hessians, including zero derivatives at +inf. Log CDF at zero is -inf;
+  do not assert its derivative as a spec guarantee. Run valid mixed calls
+  and derivative checks eagerly under `jax.debug_nans(True)` to detect
+  unselected unsafe operations. Check NaN times/parameters separately outside
+  that context. Preserve parameter-dependent finite cure limits through the
+  existing infinity tests; the generic wrapper must still dispatch unchanged.
+- **Grid integration (5/12.1):** one batched, time-first `log_cdf_grid` tail
+  comparison against independent references for all three family paths;
+  include K=N to distinguish grid shape from paired broadcasting. Existing
+  grid tests retain responsibility for the other six adapters.
+- Rerun the existing D-021 lower-tail/threshold regressions and generic
+  zero-mass, boundary, cure-limit and NaN-policy tests. No edits to
+  `tests/spec/`, no new dependency, and no R fixture generation.
+
+### Validation, budget and stop
+
+After plan approval, first run the new value regression against the old code
+and record the expected failure. After the fix, run in separate processes:
+
+```bash
+JAX_ENABLE_X64=1 .venv/bin/pytest tests/unit/test_log_cdf_tails.py tests/unit/test_exponential.py tests/unit/test_weibull.py tests/unit/test_family_direct.py tests/unit/test_family_infinity.py tests/unit/test_survival_grid.py -q
+JAX_ENABLE_X64=0 .venv/bin/pytest tests/unit/test_log_cdf_tails.py tests/unit/test_exponential.py tests/unit/test_weibull.py tests/unit/test_family_direct.py tests/unit/test_family_infinity.py tests/unit/test_survival_grid.py -q
+UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A5
+git diff --check
+```
+
+The full gate covers Ruff format/lint, mypy, own tests, source doctests and
+independent acceptance in both dtype modes. Report actual counts and outputs,
+including any failures; the previous grid gate is not evidence for this fix.
+Aim for about 300 changed lines including tests and review; keep source changes
+small and split the step for approval if the diff exceeds that budget. Commit
+the approved implementation on `A5.5` with an imperative subject and a body
+explaining the lost upper-tail precision, then stop for review before A5 docs.
+
+Docs to-do: explain both-tail log-CDF evaluation and D-021's retained lower-tail
+switch in the later direct-method/custom-family docs topic. State the generic
+primitive's representability limitation. Do not edit `docs/` in this code step.
+
+Planning checks: only PLAN.md changes in this turn. `git diff --check` passes
+with no output. No implementation, numerical tests, full gate, docs build or commit at this
+planning stop. REVIEW.md remains the last completed grid review.
 
 ### A5 docs
 
