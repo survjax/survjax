@@ -45,10 +45,10 @@ def _mp_log_cdf(family, time, *parameters):
     # Independent defining identities: H=r*t or (t/b)**k; F=1-exp(-H).
     time = mp.mpf(float(time))
     if family is survjax.Weibull:
-        hazard = (time / parameters[1]) ** parameters[0]
+        cumulative_hazard = (time / parameters[1]) ** parameters[0]
     else:
-        hazard = parameters[0] * time
-    return mp.log1p(-mp.exp(-hazard))
+        cumulative_hazard = parameters[0] * time
+    return mp.log1p(-mp.exp(-cumulative_hazard))
 
 
 def _mp_derivatives(family, time, parameters):
@@ -70,9 +70,13 @@ def _mp_derivatives(family, time, parameters):
 def test_upper_tail_values_match_mpmath(family, x64_enabled):
     """Spec 4.2/7.1/12.1: small negative log F must not round to zero."""
     parameters = _parameters(family)
-    hazards = np.array([1.0, 20.1, 33.1, 54.6, 600.0 if x64_enabled else 70.0])
+    cumulative_hazards = np.array(
+        [1.0, 20.1, 33.1, 54.6, 600.0 if x64_enabled else 70.0]
+    )
     times = jnp.asarray(
-        2 * hazards ** (1 / 1.5) if family is survjax.Weibull else hazards
+        2 * cumulative_hazards ** (1 / 1.5)
+        if family is survjax.Weibull
+        else cumulative_hazards
     )
     with mp.workdps(100):
         p = [mp.mpf(float(v)) for v in parameters]
@@ -87,15 +91,22 @@ def test_upper_tail_values_match_mpmath(family, x64_enabled):
 
 
 @pytest.mark.parametrize(
-    "hazard", [np.log(2) * 0.9999, np.log(2), np.log(2) * 1.0001, 33.1, 54.6, "deep"]
+    "cumulative_hazard",
+    [np.log(2) * 0.9999, np.log(2), np.log(2) * 1.0001, 33.1, 54.6, "deep"],
 )
-def test_switch_and_upper_tail_parameter_derivatives(family, hazard, x64_enabled):
+def test_switch_and_upper_tail_parameter_derivatives(
+    family, cumulative_hazard, x64_enabled
+):
     """Spec 7.3: both AD modes/Hessians match 100-digit mpmath derivatives."""
-    if hazard == "deep":
-        hazard = 600.0 if x64_enabled else 70.0
+    if cumulative_hazard == "deep":
+        cumulative_hazard = 600.0 if x64_enabled else 70.0
     parameters = _parameters(family)
     time = float(
-        jnp.asarray(2 * hazard ** (1 / 1.5) if family is survjax.Weibull else hazard)
+        jnp.asarray(
+            2 * cumulative_hazard ** (1 / 1.5)
+            if family is survjax.Weibull
+            else cumulative_hazard
+        )
     )
 
     def value(p):
@@ -150,13 +161,13 @@ def test_negligible_cdf_term_preserves_mixed_objective_hessian(family, x64_enabl
     with mp.workdps(100):
         point = mp.mpf(float(eta))
         rate = mp.exp(point)
-        hazard = time * rate
-        q = mp.exp(-hazard)
-        slope = hazard * q / (1 - q)
+        cumulative_hazard = time * rate
+        q = mp.exp(-cumulative_hazard)
+        slope = cumulative_hazard * q / (1 - q)
         expected = (
             float(rate - point - mp.log1p(-q)),
             float(rate - 1 - slope),
-            float(rate - slope + hazard**2 * q / (1 - q) ** 2),
+            float(rate - slope + cumulative_hazard**2 * q / (1 - q) ** 2),
         )
     with jax.debug_nans(True):
         for function, reference in zip(

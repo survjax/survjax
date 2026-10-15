@@ -1061,6 +1061,58 @@ log CDF=-138.1551055908203; Weibull(shape=10, scale=1), t=1e-5: log S=-0,
 generic log CDF=-inf, built-in log CDF=-115.1292495727539. Only PLAN.md is
 changed by the planning turn; the maintainer's WA notes remained intact then.
 
+## A5.5 review follow-up — explicit cumulative-hazard names and helper placement
+
+Status: approved in conversation after `9a8bb2a` on branch `A5.5`.
+Implemented and verified: focused x64 249 passed/1 skipped; x32 250 passed.
+Ruff, mypy and whitespace checks pass; REVIEW.md records the exact results.
+The naming audit found cumulative quantities abbreviated in the shared
+conversion and three own test modules. Instantaneous hazard API names are
+correct. Starting working tree was clean; this planning turn changes PLAN.md.
+
+### Files and changes
+
+- Move `log_cdf_from_log_cumulative_hazard` from `_log_math.py` into
+  `_survival_methods.py`, alongside the generic log-CDF method. Leave only
+  general guarded log operations in `_log_math.py`. Update its two imports in
+  `exponential.py` and `weibull.py`; retain their analytic log-H overrides.
+- In the moved helper, rename `log_h` to `log_cumulative_hazard`,
+  `safe_log_h` to `safe_log_cumulative_hazard`, and `log_cdf_from_h` to
+  `log_cdf_from_cumulative_hazard`. Keep the formulas, thresholds, guards,
+  mathematical H notation and gradient behavior unchanged.
+- In `tests/unit/test_log_cdf_tails.py`, use `cumulative_hazard` and
+  `cumulative_hazards` for H quantities, including the parametrized derivative
+  test argument and its mpmath references.
+- In `tests/unit/test_exponential.py` and `test_weibull.py`, rename lower-tail
+  switch locals to `log_cumulative_hazard`; rename the Weibull switch's
+  `hazard` local to `cumulative_hazard`. In its mixed-boundary derivative
+  derivation, replace `h`, `gh` and `hh` (which actually describe H) with
+  `cumulative_hazard`, `cumulative_hazard_gradient` and
+  `cumulative_hazard_hessian`. Use `log_hazard_gradient` and
+  `log_hazard_hessian` for the instantaneous log-hazard derivative arrays so
+  the two quantities remain distinguishable throughout the same formula.
+- Public API/exports are unchanged. No changes to spec, independent tests,
+  marker, docs pages, dependencies, deviations, numerical assertions or
+  tolerances. Covered spec: 4.1–4.2, 4.5, 7.2–7.3, 10.2 and 12.1.
+
+### Validation and stop
+
+- Audit `src/` and own tests for remaining ambiguous cumulative-hazard names;
+  inspect the meanings rather than renaming actual instantaneous hazards.
+- Reuse the existing tests; add no tests for a pure relocation/rename. Run
+  the three changed test modules in separate x64/x32 processes, plus generic
+  direct/density/infinity and grid modules to check the relocated helper's
+  imports and callers. Run Ruff format/lint, mypy and git diff --check.
+- Keep the step below about 300 changed lines. Overwrite REVIEW.md with reading
+  order, unchanged numerical invariants, spec/test mapping, exact results and
+  historical full-gate evidence. No full-gate rerun is planned for this
+  relocation/naming-only fix-up unless a failure warrants it. Commit on A5.5
+  and stop for review; do not start docs work.
+
+Docs to-do: distinguish cumulative hazard H, log cumulative hazard log H,
+instantaneous hazard h and log hazard log h in the later numerical-methods
+topic. Internal helper identifiers are not public documentation API.
+
 ### A5 docs
 
 Docs to-do:

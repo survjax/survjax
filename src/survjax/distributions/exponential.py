@@ -8,7 +8,7 @@ import jax.numpy as jnp
 from jax.typing import ArrayLike
 
 from survjax._dtypes import normalize_parameters
-from survjax.distributions._log_math import log_cdf_from_log_cumulative_hazard
+from survjax.distributions._survival_methods import log_cdf_from_log_cumulative_hazard
 from survjax.distributions.base import SurvivalDistribution, param, register_family
 
 

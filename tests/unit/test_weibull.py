@@ -76,18 +76,35 @@ def test_mixed_boundary_full_parameter_derivatives(batched, k, x64_enabled):
     """Spec 7.2/7.3: shared/per-entry parameters retain interior Jacobians/Hessians."""
     atol, rtol = ATOL[x64_enabled], RTOL[x64_enabled]
     # At b=2, t=1: H=2**(-k), u=-log(2). Derivatives of H and log h:
-    u, h = -np.log(2), 0.5**k
-    gh = np.array([h * u, -k * h / 2])
-    cross = -h * (1 + k * u) / 2
-    hh = np.array([[h * u**2, cross], [cross, k * (k + 1) * h / 4]])
-    gl = np.array([1 / k + u, -k / 2])
-    hl = np.array([[-1 / k**2, -0.5], [-0.5, k / 4]])
+    u, cumulative_hazard = -np.log(2), 0.5**k
+    cumulative_hazard_gradient = np.array(
+        [cumulative_hazard * u, -k * cumulative_hazard / 2]
+    )
+    cross = -cumulative_hazard * (1 + k * u) / 2
+    cumulative_hazard_hessian = np.array(
+        [
+            [cumulative_hazard * u**2, cross],
+            [cross, k * (k + 1) * cumulative_hazard / 4],
+        ]
+    )
+    log_hazard_gradient = np.array([1 / k + u, -k / 2])
+    log_hazard_hessian = np.array([[-1 / k**2, -0.5], [-0.5, k / 4]])
     for name, g, second in (
-        ("log_survival", -gh, -hh),
-        ("cumulative_hazard", gh, hh),
-        ("log_prob", gl - gh, hl - hh),
-        ("log_hazard", gl, hl),
-        ("hazard", k * h * gl, k * h * (hl + np.outer(gl, gl))),
+        ("log_survival", -cumulative_hazard_gradient, -cumulative_hazard_hessian),
+        ("cumulative_hazard", cumulative_hazard_gradient, cumulative_hazard_hessian),
+        (
+            "log_prob",
+            log_hazard_gradient - cumulative_hazard_gradient,
+            log_hazard_hessian - cumulative_hazard_hessian,
+        ),
+        ("log_hazard", log_hazard_gradient, log_hazard_hessian),
+        (
+            "hazard",
+            k * cumulative_hazard * log_hazard_gradient,
+            k
+            * cumulative_hazard
+            * (log_hazard_hessian + np.outer(log_hazard_gradient, log_hazard_gradient)),
+        ),
     ):
 
         def fn(p, name=name):
@@ -171,8 +188,10 @@ def test_log_cdf_switch_matches_analytic_shape_gradient(x64_enabled):
     times = jnp.asarray(
         np.exp(np.asarray([log_eps - offset, log_eps + offset])), dtype=dtype
     )
-    log_h = jnp.log(times)  # shape=scale=1 gives log H=log(t).
-    assert bool(log_h[0] < log_eps) and bool(log_h[1] > log_eps)
+    log_cumulative_hazard = jnp.log(times)  # shape=scale=1 gives log H=log(t).
+    assert bool(log_cumulative_hazard[0] < log_eps) and bool(
+        log_cumulative_hazard[1] > log_eps
+    )
 
     def log_cdf(shape, time):
         return Weibull(shape=shape, scale=1.0).log_cdf(time)
@@ -183,12 +202,12 @@ def test_log_cdf_switch_matches_analytic_shape_gradient(x64_enabled):
             1.0, times
         )
     # The standard branch multiplies log(t) by H/expm1(H)=1+O(H).
-    log_times = np.asarray(log_h, dtype=np.float64)
-    hazard = np.exp(log_times)
-    expected_gradients = log_times * hazard / np.expm1(hazard)
+    log_times = np.asarray(log_cumulative_hazard, dtype=np.float64)
+    cumulative_hazard = np.exp(log_times)
+    expected_gradients = log_times * cumulative_hazard / np.expm1(cumulative_hazard)
     # Shared RTOL allows library transcendental rounding at values near -36/-16.
     np.testing.assert_allclose(
-        values, log_h, atol=ATOL[x64_enabled], rtol=RTOL[x64_enabled]
+        values, log_cumulative_hazard, atol=ATOL[x64_enabled], rtol=RTOL[x64_enabled]
     )
     np.testing.assert_allclose(
         gradients,

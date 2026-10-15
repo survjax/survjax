@@ -120,8 +120,10 @@ def test_log_cdf_switch_matches_analytic_rate_gradient(x64_enabled):
     times = jnp.asarray(
         np.exp(np.asarray([log_eps - offset, log_eps + offset])), dtype=dtype
     )
-    log_h = jnp.log(times)  # rate=1 gives log H=log(t).
-    assert bool(log_h[0] < log_eps) and bool(log_h[1] > log_eps)
+    log_cumulative_hazard = jnp.log(times)  # rate=1 gives log H=log(t).
+    assert bool(log_cumulative_hazard[0] < log_eps) and bool(
+        log_cumulative_hazard[1] > log_eps
+    )
 
     def log_cdf(rate, time):
         return Exponential(rate=rate).log_cdf(time)
@@ -136,7 +138,7 @@ def test_log_cdf_switch_matches_analytic_rate_gradient(x64_enabled):
     expected_gradients = time_values / np.expm1(time_values)
     # Shared RTOL allows library transcendental rounding at values near -36/-16.
     np.testing.assert_allclose(
-        values, log_h, atol=ATOL[x64_enabled], rtol=RTOL[x64_enabled]
+        values, log_cumulative_hazard, atol=ATOL[x64_enabled], rtol=RTOL[x64_enabled]
     )
     np.testing.assert_allclose(
         gradients,

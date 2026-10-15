@@ -107,6 +107,32 @@ def cumulative_hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     return -raw(self, t)
 
 
+def log_cdf_from_log_cumulative_hazard(
+    log_cumulative_hazard: jax.Array,
+) -> jax.Array:
+    """Return log(1-exp(-H)) from log H, where H is cumulative hazard.
+
+    For small H, F=H-H**2/2+O(H**3), so log F=log H-H/2+O(H**2).
+    Below dtype epsilon, log F=log H to rounding precision. Zero/infinite H
+    give -inf/zero; the guarded standard branch retains upper-tail precision.
+    Floating dtype and shape are preserved.
+    """
+    dtype = log_cumulative_hazard.dtype
+    log_eps = jnp.log(jnp.asarray(jnp.finfo(dtype).eps, dtype=dtype))
+    log_max = jnp.log(jnp.asarray(jnp.finfo(dtype).max, dtype=dtype))
+    tiny = log_cumulative_hazard < log_eps
+    upper = log_cumulative_hazard >= log_max
+
+    # spec 4.1/7.2: preserve tiny log H; substitute before exp can overflow.
+    # zeros_like is constant with zero tangent; stop_gradient is redundant here.
+    safe_log_cumulative_hazard = jnp.where(
+        tiny | upper, jnp.zeros_like(log_cumulative_hazard), log_cumulative_hazard
+    )
+    log_cdf_from_cumulative_hazard = safe_log1mexp(-jnp.exp(safe_log_cumulative_hazard))
+    log_cdf = jnp.where(tiny, log_cumulative_hazard, log_cdf_from_cumulative_hazard)
+    return jnp.where(upper, jnp.zeros_like(log_cdf), log_cdf)
+
+
 def log_cdf(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     """Return log P(T <= t), broadcasting t against batch_shape.
 

@@ -1,27 +1,27 @@
-# A5.5 WA review fix-up — cumulative-hazard naming and explanation
+# A5.5 review fix-up — explicit cumulative-hazard names and helper placement
 
-Implements the approved plan after `7208c81` on A5.5.
+Implements the approved plan after `9a8bb2a` on A5.5.
 
 ## Reading order
 
-1. `src/survjax/distributions/_log_math.py`: renamed `log_cdf_from_log_cumulative_hazard`, its small-H expansion, zero-tangent comment and descriptive log-CDF intermediates. All three WA notes are addressed.
-2. `exponential.py`, `weibull.py`: updated helper imports/calls. Both overrides retain their analytic log H and lower-tail precision.
-3. `PLAN.md`: approved fix-up scope and verification status.
+1. `_survival_methods.py`: `log_cdf_from_log_cumulative_hazard` moved here beside generic `log_cdf`, with explicit `log_cumulative_hazard`, `safe_log_cumulative_hazard` and `log_cdf_from_cumulative_hazard` identifiers.
+2. `_log_math.py`: retains only general guarded log arithmetic. Exponential and Weibull import the conversion from `_survival_methods.py` and keep their analytic log-H overrides.
+3. `tests/unit/test_log_cdf_tails.py`, `test_exponential.py`, `test_weibull.py`: cumulative-hazard quantities and derivative arrays have explicit names; instantaneous log-hazard derivatives remain distinct.
 
 ## Invariants and spec-to-test mapping
 
-- Spec 4.1–4.2: H is cumulative hazard, so log S=-H; the helper takes log H. The generic default already uses safe_log1mexp(log S), but cannot recover log H once H underflows. Family overrides remain necessary for that case.
-- Spec 7.2: F=H-H**2/2+O(H**3) implies log F=log H-H/2+O(H**2). The note explains the existing approximation; thresholds and formulas are unchanged. zeros_like has zero tangent, so no additional stop_gradient is needed. Real inputs retain their gradients.
-- Spec 4.1/7.2/12.1: existing Exponential and Weibull `test_log_cdf_retains_tail_when_cumulative_hazard_underflows` verify the reason for retaining the overrides. Their switch-gradient tests cover the tiny-H branch.
-- Spec 7.2–7.3/12.1: `test_log_cdf_tails.py` retains independent mpmath tail values/Jacobians/Hessians, both AD modes and jit/vmap, mixed-boundary debug_nans, finite mixed-objective Hessians and grid integration.
-- No numerical behavior, public API, exports, tests or tolerances changed. No new uncertainty or deviation was identified.
+- Spec 4.1–4.2/7.2: helper formulas, thresholds, safe substitutions and derivative paths are unchanged. H denotes cumulative hazard and h instantaneous hazard in mathematical comments. The generic default still uses safe_log1mexp(log S); built-ins retain log H when H underflows.
+- Spec 4.1/7.2/12.1: existing lower-tail underflow and switch-gradient tests exercise the relocated conversion through both public built-ins. No expected values, tolerances, cases or assertions changed.
+- Spec 7.2–7.3/12.1: the tail module retains mpmath values/Jacobians/Hessians, both AD modes and jit/vmap, boundary debug_nans and finite mixed-objective Hessians. The renamed Weibull hand-derived gradient/Hessian arrays preserve their original algebra.
+- Spec 4.2/4.5/5: generic direct/density/infinity tests and grid tests verify the import relocation and callers, including family dispatch, cure limits and time-first grids.
+- The audit of src and own tests found no remaining abbreviated cumulative-hazard identifiers. Actual instantaneous-hazard APIs/bindings and mathematical H/h notation remain. Public exports and numerical behavior are unchanged; no new uncertainty or deviation was identified.
 
 ## Checks actually run
 
-    JAX_ENABLE_X64=1 .venv/bin/pytest tests/unit/test_log_cdf_tails.py tests/unit/test_exponential.py tests/unit/test_weibull.py -q
-    JAX_ENABLE_X64=0 .venv/bin/pytest tests/unit/test_log_cdf_tails.py tests/unit/test_exponential.py tests/unit/test_weibull.py -q
+    JAX_ENABLE_X64=1 .venv/bin/pytest tests/unit/test_log_cdf_tails.py tests/unit/test_exponential.py tests/unit/test_weibull.py tests/unit/test_family_direct.py tests/unit/test_family_density.py tests/unit/test_family_infinity.py tests/unit/test_survival_grid.py -q
+    JAX_ENABLE_X64=0 .venv/bin/pytest tests/unit/test_log_cdf_tails.py tests/unit/test_exponential.py tests/unit/test_weibull.py tests/unit/test_family_direct.py tests/unit/test_family_density.py tests/unit/test_family_infinity.py tests/unit/test_survival_grid.py -q
 
-Both exited 0: x64 **72 passed, 1 skipped** (x32-only warning check); x32 **73 passed**.
+Both exited 0: x64 **249 passed, 1 skipped** (x32-only warning check); x32 **250 passed**.
 
     .venv/bin/ruff format --check .
     .venv/bin/ruff check .
@@ -32,6 +32,6 @@ All exited 0: **48 files already formatted**, **All checks passed!**, **Success:
 
 ## Historical gate evidence and stop
 
-The full A5 gate was not rerun for this naming/docstring-only fix-up, as planned. Parent `7208c81` passed it: own x64 **451 passed, 7 skipped**, x32 **457 passed, 1 skipped**; independent x64 **1116 passed, 26 skipped**, x32 **1121 passed, 21 skipped**; source doctests **1 passed** per mode; guard, Ruff and mypy passed. That is historical evidence, not a new gate run.
+No full-gate rerun for this relocation/naming-only fix-up, as planned. `7208c81` passed the full A5 gate: own x64 **451 passed, 7 skipped**, x32 **457 passed, 1 skipped**; independent x64 **1116 passed, 26 skipped**, x32 **1121 passed, 21 skipped**; source doctests **1 passed** per mode; guard, Ruff and mypy passed. These are historical results.
 
-No docs build or R checks were run. Spec, marker, docs pages, independent tests and deviation statuses remain untouched. Docs to-do is recorded in PLAN.md. Stop after this review fix-up commit.
+No docs build or R checks were run. Spec, marker, docs pages, independent tests, dependencies, tolerances and deviation statuses remain untouched. Docs to-do is recorded in PLAN.md. Stop after this fix-up commit for review.
