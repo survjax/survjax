@@ -499,14 +499,22 @@ The families so far evaluate cleanly at $t = 0$ and $t = \infty$. Many
 formulas do not: they contain $\log t$, $t^{k}$ or a ratio that becomes
 $0 \cdot \infty$ or $\infty - \infty$ exactly at a boundary. Take the
 [log-logistic](https://en.wikipedia.org/wiki/Log-logistic_distribution)
-distribution, with shape $k$ and scale $b$ (survjax will ship one later;
-writing it here shows the technique):
+distribution, with shape $k > 0$ and scale $b > 0$ (survjax will ship one
+later; writing it here shows the technique):
 
 $$
 S(t) = \frac{1}{1 + (t/b)^{k}},
 \qquad
-\log S(t) = -\operatorname{softplus}\bigl(k(\log t - \log b)\bigr).
+\log S(t) = -\log\bigl(1 + (t/b)^{k}\bigr).
 $$
+
+Because $k > 0$, $(t/b)^k$ grows from 0 to $\infty$, so $S(0) = 1$ and
+$S(\infty) = 0$, as a survival function requires. In code we write
+$(t/b)^k = e^{z}$ with $z = k(\log t - \log b)$, so that
+$\log S = -\operatorname{softplus}(z)$, where
+$\operatorname{softplus}(z) = \log(1 + e^{z})$ is JAX's numerically stable
+`jax.nn.softplus`: it stays accurate for large $z$, where computing $e^{z}$
+first would overflow.
 
 Written directly, it gives the right *values* at the boundaries, because
 $\log 0 = -\infty$ and softplus handles infinite arguments. But the hazard
@@ -535,7 +543,7 @@ naive.survival(boundaries), naive.hazard(boundaries)
 jax.grad(lambda k: NaiveLogLogistic(shape=k, scale=10.0).survival(0.0))(2.0)
 ```
 
-With $z = k(\log t - \log b)$, the derivatives of $\log S$ are
+With $z$ as above, the derivatives of $\log S$ are
 $-\sigma(z)\,k/t$ in $t$ and $-\sigma(z)(\log t - \log b)$ in $k$, where
 $\sigma$ is the logistic function. At $t = 0$ both are $0 \cdot \infty$,
 which JAX evaluates literally as NaN.
