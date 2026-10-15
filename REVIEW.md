@@ -1,56 +1,36 @@
-# A5.5 review fix-up — full boundary Jacobians and tracing coverage
+# A5.5 follow-up — D-022 log-CDF upper tails
 
-Follow-up to `2d0c22d` on the same `A5.5` branch, authorized by the maintainer's
-review. Changes are tests and grid docstrings; executable library code is unchanged.
+Implemented the approved plan on A5.5, following planning commit `dbf58e4`.
 
 ## Reading order
 
-1. `tests/unit/test_survival_grid.py`, `test_mixed_boundary_grid_jacobian`:
-   both AD modes differentiate all three rows at t=[0, 1, +inf].
-2. The misuse tests: JAX-compatible arguments are passed dynamically;
-   string/object values are bound inside zero-argument jitted calls.
-3. `src/survjax/distributions/_grid_methods.py`: seven docstrings now use
-   prose matching the direct-method style. Calls and signatures are unchanged.
-4. `PLAN.md` records the requested review fix-up and validation scope.
+1. `_log_probability.py`: dtype-preserving log1mexp switches at -log(2).
+2. `_survival_methods.py`, `exponential.py`, `weibull.py`: the three call sites.
+3. `tests/unit/test_log_cdf_tails.py` and `tests/impl_tolerances.py`: independent references and relative-only tail assertions.
 
 ## Invariants and spec-to-test mapping
 
-- Spec 4.5/7.2: the full forward and reverse Jacobians have shape (3,), and
-  every required entry must be finite and equal its analytical derivative.
-  Forward mode now checks the boundary derivatives, while reverse mode also
-  checks contamination of the interior entry. At rate=1, the boundary rows
-  include zero derivatives for constant survival/CDF limits and unit
-  derivatives for density at zero and constant log hazard/hazard.
-- None in the expectation table marks nonfinite output values: log survival,
-  log density and cumulative hazard at infinity, and log CDF at zero. Their
-  boundary derivatives are outside spec 4.5's guarantee; the test deliberately
-  asserts only the finite-valued boundary rows and the interior row.
-- Spec 4.5/5: scalar/rank, boolean, complex and None misuse still reach grid
-  code through dynamic JAX-compatible arguments. String/object tests use
-  `jax.jit(partial(method, bad))()` so JAX cannot reject them as arguments
-  before tracing. Matching the grid conversion error proves the adapter ran.
-- The docstrings state the input vector, time-first output shape, component
-  exclusion, input order/repeats, direct-method policy and TypeError conditions
-  in prose. No implementation, tolerance, spec or independent-test change.
+- Spec 7.2: both inactive branches receive safe operands before operations; only substituted constants have stopped gradients. No floors or clipping.
+- Spec 4.2/7.1/12.1: `test_upper_tail_values_match_mpmath` checks all three paths against 100-digit mpmath, including H=20.1, 33.1, 54.6 and deeper normal-range tails. Zero cannot pass.
+- Spec 7.3: `test_switch_and_upper_tail_parameter_derivatives` checks values, both AD modes and Hessians at/beside the switch and in the upper tail, eagerly and through jit(vmap). `test_interior_second_order_finite_differences` uses order-2 check_grads in both modes.
+- Spec 4.5/7.2: `test_mixed_boundaries_do_not_contaminate_derivatives` compares finite-row Jacobians and Hessians with independent mpmath under eager debug_nans. Infinite log F(0) has no derivative assertion. NaN/undefined inputs are checked separately.
+- Spec 5: `test_equal_length_grid_retains_upper_tails` checks K=N against per-cell mpmath references. Existing D-021, cure-limit, policy and grid regressions pass; wrappers, exports and grid adapters are unchanged.
 
 ## Checks actually run
 
-    JAX_ENABLE_X64=1 .venv/bin/pytest tests/unit/test_survival_grid.py -q
-    JAX_ENABLE_X64=0 .venv/bin/pytest tests/unit/test_survival_grid.py -q
+Before the fix, `JAX_ENABLE_X64=1 .venv/bin/pytest tests/unit/test_log_cdf_tails.py -q` and its `JAX_ENABLE_X64=0` counterpart each exited 1: **3 failed**, all returning premature zero tails. After implementation the initial expanded module passed **27 cases** per mode; the final module is included in both runs below.
 
-Both exited 0: **42 passed** per dtype mode, with no skips or warnings.
+    JAX_ENABLE_X64=1 .venv/bin/pytest tests/unit/test_log_cdf_tails.py tests/unit/test_exponential.py tests/unit/test_weibull.py tests/unit/test_family_direct.py tests/unit/test_family_infinity.py tests/unit/test_survival_grid.py -q
+    JAX_ENABLE_X64=0 .venv/bin/pytest tests/unit/test_log_cdf_tails.py tests/unit/test_exponential.py tests/unit/test_weibull.py tests/unit/test_family_direct.py tests/unit/test_family_infinity.py tests/unit/test_survival_grid.py -q
 
-    .venv/bin/ruff format --check .
-    .venv/bin/ruff check .
-    .venv/bin/mypy src
-    git diff --check
+Both exited 0: x64 **216 passed, 1 skipped** (x32-only warning check); x32 **217 passed**.
 
-All passed: 46 files formatted, Ruff clean, mypy clean for 12 source files,
-and no whitespace errors. The full A5 gate was not rerun for this test/docstring
-follow-up. Its parent commit `2d0c22d` records the passing through-A5 gate in
-both dtype modes.
+    UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A5
+
+Exited 0: **check: all gates passed through A5**. Own x64: **442 passed, 7 skipped**; own x32: **448 passed, 1 skipped**. Independent x64: **1116 passed, 26 skipped**; x32: **1121 passed, 21 skipped**. Source doctests: **1 passed** per mode. Guard passed, Ruff reported **48 files already formatted / All checks passed!**, mypy **Success: no issues found in 13 source files**. Log: `/private/tmp/survjax-d022-check.log`.
+
+Standalone `.venv/bin/ruff format --check .`, `.venv/bin/ruff check .`, `.venv/bin/mypy src` and `git diff --check` also passed. No docs build or R checks were run; neither is part of this step.
 
 ## Remaining limitation and stop
 
-D-022 remains the separate numerical follow-up. No deviation is resolved.
-Commit this review fix-up on A5.5 and stop before the next step.
+The generic method cannot recover a lower tail once its primitive rounds log S to zero. No subnormal-tail accuracy claim is added. No new uncertainty was found; D-022 remains open for maintainer closure. Docs to-do is recorded in PLAN.md; spec, independent tests and docs pages remain untouched. Stop after the implementation commit for review.

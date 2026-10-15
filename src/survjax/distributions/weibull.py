@@ -8,6 +8,7 @@ import jax.numpy as jnp
 from jax.typing import ArrayLike
 
 from survjax._dtypes import normalize_parameters
+from survjax.distributions._log_probability import log1mexp
 from survjax.distributions.base import SurvivalDistribution, param, register_family
 
 
@@ -141,7 +142,7 @@ class Weibull(SurvivalDistribution):
         return jnp.where(undefined, jnp.nan, value)
 
     def log_cdf(self, t: ArrayLike) -> jax.Array:
-        """Return log(1-exp(-H(t))) while preserving tiny Weibull lower tails.
+        """Return log(1-exp(-H(t))) while preserving both Weibull tails.
 
         Args: t: Real times, broadcast with the parameter batch.
         Returns: Broadcast log CDF; zero at +inf for valid shape and scale.
@@ -156,7 +157,7 @@ class Weibull(SurvivalDistribution):
 
         # spec 7.2: sanitize both inactive branches before exp/expm1.
         safe_log_h = jnp.where(tiny | upper, jnp.zeros_like(log_h), log_h)
-        standard = jnp.log(-jnp.expm1(-jnp.exp(safe_log_h)))
+        standard = log1mexp(-jnp.exp(safe_log_h))
         value = jnp.where(tiny, log_h, standard)
         return jnp.where(upper, jnp.zeros_like(value), value)
 

@@ -1,7 +1,7 @@
 # Deviations and spec questions
 
 ## D-022 Log-CDF upper tail rounds to zero before S underflows
-- Step: A5.4 review, 2026-10-14 (found after D-021; not yet addressed)
+- Step: A5.4 review, 2026-10-14 (found after D-021)
 - Spec: sections 4.2, 4.3, 7.1 and 12.1 ("stable tails"), revision 24.
 - Spec says: section 4.2 defines the default `log_cdf` as
   `log(-expm1(log S))`, "accurate until |log S| underflows". Section 7.1
@@ -30,6 +30,11 @@
   helper) and in the generic default. This changes the base, so do it as its
   own small step with mpmath tail tests in both dtype modes, before A5.5 or
   as the first step after it; not as an A5.4 fix-up.
+- Implementation evidence (2026-10-15, A5.5 follow-up): the approved shared
+  helper now serves the generic default and both built-ins, retaining D-021.
+  The new upper-tail regression failed on all three paths in both dtypes
+  before the fix; all 27 new cases and the full through-A5 gate now pass in
+  both modes. See REVIEW.md for exact checks. Closure remains with the maintainer.
 - Status: open
 
 ## D-021 Built-in log-CDF lower-tail switch

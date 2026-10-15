@@ -12,3 +12,9 @@ DERIVATIVE_RTOL = {True: 1e-7, False: 1e-3}
 
 ATOL = {True: 1e-10, False: 1e-5}
 RTOL = {True: 1e-8, False: 1e-4}
+
+# D-022: absolute tolerances would accept zero for representable tiny tails.
+# For H<=600 (x64), H<=80 (x32), log-H reconstruction contributes roughly
+# H*log(H)*eps relative error, below these targets, including AD derivatives.
+TAIL_ATOL = {True: 0.0, False: 0.0}
+TAIL_RTOL = {True: 1e-8, False: 1e-4}

@@ -10,8 +10,8 @@ The F-2/F-3 review nits are corrected; A5.2b (`71403c3`) and its review fix-up
 gate in both dtype modes on 2026-10-15 and awaits review.
 The spec and `.spec-seen` agree at revision 24 (`b917ebe`). The synchronized
 tests correct D-020's density expectation. The maintainer's D-022 upper-tail
-note is committed in `861ac71`; its numerical fix is planned below as a
-separate step on the same `A5.5` branch, pending plan approval.
+note is committed in `861ac71`; its numerical fix is implemented below as a
+separate step on the same `A5.5` branch and awaits review.
 A5 docs follow the remaining code work.
 The original planning started from a
 clean `A5` checkout at `3f50962`, then the main tip. No branch was created
@@ -843,6 +843,8 @@ Planning evidence (collection only; no tests or full gate executed):
 ## A5.5 follow-up — D-022: preserve log-CDF upper tails
 
 Status: approved on 2026-10-15, from clean branch `A5.5` at `ace2f4e`.
+Implemented and verified on 2026-10-15; full through-A5 gate passes in both
+dtype modes. REVIEW.md records the regression failure and final results.
 The maintainer confirmed D-022 as the target and authorized using this branch.
 This is one numerical step after the grid work, with its own implementation
 commit and review stop. The maintainer approved implementation in conversation.

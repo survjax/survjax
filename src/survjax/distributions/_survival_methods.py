@@ -8,6 +8,8 @@ import jax
 import jax.numpy as jnp
 from jax.typing import ArrayLike
 
+from survjax.distributions._log_probability import log1mexp
+
 if TYPE_CHECKING:
     from survjax.distributions.base import SurvivalDistribution
 
@@ -116,9 +118,9 @@ def cumulative_hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
 def log_cdf(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     """Return log P(T <= t), broadcasting t against batch_shape.
 
-    Uses log(-expm1(log_survival(t))) without subtracting nearly equal
-    probabilities. Precision is retained until the family's log survival
-    underflows to zero (roughly CDF 1e-38 in float32 or 1e-308 in float64).
+    Uses log(-expm1(log S)) near log S=0, and log1p(-exp(log S)) otherwise,
+    retaining precision in both tails while representable. The lower tail
+    is limited when the family's log survival rounds to zero.
     Override for CDF-natural families or smaller lower tails. Negative times
     and true zero CDF return -inf; NaN times return NaN. Evaluation is pointwise,
     not a shared time-first grid operation.
@@ -128,14 +130,7 @@ def log_cdf(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     """
     # spec 4.5: the outer wrapper already substituted safe times.
     raw = _raw_log_survival(self)
-    log_s = raw(self, t)
-    zero_mass = log_s == 0
-    # spec 7.2: substitute before log; an unselected log(0) poisons gradients.
-    safe_log_s = jnp.where(
-        zero_mass, jax.lax.stop_gradient(-jnp.ones_like(log_s)), log_s
-    )
-    value = jnp.log(-jnp.expm1(safe_log_s))
-    return jnp.where(zero_mass, -jnp.inf, value)
+    return log1mexp(raw(self, t))
 
 
 def apply_policy(
