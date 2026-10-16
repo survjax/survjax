@@ -9,7 +9,11 @@ myst_enable_extensions = ["dollarmath"]
 myst_heading_anchors = 3
 # The existing simulation guide describes unimplemented likelihood workflows.
 exclude_patterns = ["_build", ".ipynb_checkpoints", "simulation-guide.md"]
-html_theme = "alabaster"
+# Furo: page navigation on the left, the current page's sections and API
+# objects on the right.
+html_theme = "furo"
+# Objects are nested under their class in that list; drop the repeated prefix.
+toc_object_entries_show_parents = "hide"
 
 # API reference: ArrayLike expands to a long union in signatures, and the
 # docstrings' Args sections already describe types, so hide hints there.

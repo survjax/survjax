@@ -5,6 +5,15 @@ maintainer decided on 2026-10-15: no 300-line limit, plots allowed, document
 the implemented behaviour (spec revision 25). No numerical code changed; the
 `src/` diff is docstrings only.
 
+## Docs theme (2026-10-16)
+
+- Maintainer chose Furo (`furo` 2025.12.19, docs group only) for the API
+  reference's navigation: pages on the left, the current page's sections
+  and API objects on the right (`toc_object_entries_show_parents = "hide"`
+  drops the repeated class prefix). `scripts/build_docs.sh` "build
+  succeeded" in both modes, no warnings; API and grids pages inspected in
+  headless Chrome screenshots.
+
 ## API reference (2026-10-16)
 
 - `00abf26`: `register_family` wraps the dataclass `__init__` and gives it a
