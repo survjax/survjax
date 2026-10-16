@@ -75,8 +75,8 @@ class Weibull(SurvivalDistribution):
     def from_log(cls, *, log_shape: ArrayLike, log_scale: ArrayLike) -> Self:
         """Build a Weibull from log parameters, k = exp(log_shape), b = exp(log_scale).
 
-        Useful when parameters come from an unconstrained optimiser or a
-        network output, or from flexsurv's ``coef(fit)``. The result is an
+        Useful when parameters come from an unconstrained optimiser, a
+        neural network output or flexsurv's ``coef(fit)``. The result is an
         ordinary ``Weibull`` storing k and b themselves, with the same values
         and gradients as ``Weibull(shape=jnp.exp(log_shape),
         scale=jnp.exp(log_scale))``. From ``survreg``, pass

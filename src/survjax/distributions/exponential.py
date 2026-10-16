@@ -54,8 +54,8 @@ class Exponential(SurvivalDistribution):
         """Build an exponential from its log rate, ``rate = exp(log_rate)``.
 
         Useful when the rate comes from an unconstrained optimiser or a
-        network output. The result is an ordinary ``Exponential`` storing the
-        rate itself, with the same values and gradients as
+        neural network output. The result is an ordinary ``Exponential``
+        storing the rate itself, with the same values and gradients as
         ``Exponential(rate=jnp.exp(log_rate))``. For a log mean, pass
         ``log_rate=-log_mean``.
 
