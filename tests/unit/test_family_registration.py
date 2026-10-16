@@ -36,6 +36,21 @@ def test_keyword_only_required_parameters_and_frozen_fields():
         Recipe(rate=1.0, weights=[1.0], method=[])
 
 
+def test_signature_shows_keyword_only_fields():
+    """Spec 4.2: introspection matches the keyword-only constructor contract."""
+    weibull = inspect.signature(survjax.Weibull)
+    assert list(weibull.parameters) == ["shape", "scale"]
+    assert str(inspect.signature(survjax.Exponential)) == "(*, rate: jax.Array) -> None"
+    recipe = inspect.signature(Recipe).parameters
+    assert list(recipe) == ["method", "rate", "weights"]
+    assert recipe["method"].default == "sum"
+    assert recipe["rate"].default is inspect.Parameter.empty
+    for parameters in (weibull.parameters, recipe):
+        kinds = {parameter.kind for parameter in parameters.values()}
+        assert kinds == {inspect.Parameter.KEYWORD_ONLY}
+    assert Recipe.__init__.__qualname__ == "Recipe.__init__"
+
+
 def test_broadcasting_preserves_components_and_values():
     """Spec 4.1/5: (2,1) and (3,) batch axes broadcast to (2,3)."""
     recipe = Recipe(

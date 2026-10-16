@@ -1,5 +1,7 @@
 """Frozen-family registration and construction (spec 4.1–4.2)."""
 
+import functools
+import inspect
 from dataclasses import MISSING, field, fields, is_dataclass
 from typing import Any, ClassVar, Self
 
@@ -289,6 +291,7 @@ def register_family[Family: SurvivalDistribution](cls: type[Family]) -> type[Fam
     )
     original_init = cls.__init__
 
+    @functools.wraps(original_init)
     def initialize(self: Family, *args: Any, **kwargs: Any) -> None:
         if args:
             raise TypeError("registered families require keyword arguments")
@@ -357,6 +360,17 @@ def register_family[Family: SurvivalDistribution](cls: type[Family]) -> type[Fam
             object.__setattr__(result, declared.name, value)
         return result
 
+    # spec 4.2: show the real keywords to help(), IDEs and the API docs, marked
+    # keyword-only because positional arguments are rejected above.
+    signature = inspect.signature(original_init)
+    initialize.__signature__ = signature.replace(  # type: ignore[attr-defined]
+        parameters=[
+            declared
+            if declared.name == "self"
+            else declared.replace(kind=inspect.Parameter.KEYWORD_ONLY)
+            for declared in signature.parameters.values()
+        ]
+    )
     cls.__init__ = initialize  # type: ignore[method-assign]
     jax.tree_util.register_pytree_node(cls, flatten, unflatten)
     for name, negative_value in (
