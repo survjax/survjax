@@ -5,6 +5,34 @@ maintainer decided on 2026-10-15: no 300-line limit, plots allowed, document
 the implemented behaviour (spec revision 25). No numerical code changed; the
 `src/` diff is docstrings only.
 
+## API reference (2026-10-16)
+
+- `00abf26`: `register_family` wraps the dataclass `__init__` and gives it a
+  keyword-only `__signature__`, so `inspect.signature`, `help()` and autodoc
+  show `Weibull(*, shape, scale)` instead of `(*args, **kwargs)`. Test
+  `test_signature_shows_keyword_only_fields` (built-ins, custom `Recipe`
+  with a static default); it failed before the fix
+  (`['args', 'kwargs'] == ['shape', 'scale']`).
+- `docs/api.md`: autodoc (`{eval-rst}` blocks) plus napoleon, both part of
+  Sphinx. Exports grouped as observation data, built-ins, writing a family;
+  base-class methods grouped (implement, shape/indexing, direct, grid).
+  `DataIssues` documented from `survjax.diagnostics` as `.issues`' type.
+- `conf.py`: `autodoc_typehints = "none"` (ArrayLike expands to a long
+  union), `autoclass_content = "both"`, `autodoc_preserve_defaults = True`
+  (shows `default=MISSING`), `nitpick_ignore` for `jax.Array` (offline).
+- Docstrings: formulas as inline literals or `::` blocks (`*`/`**` were
+  parsed as emphasis); Returns first lines without a leading colon
+  (napoleon read it as a type); `DataIssues` gains an Attributes section
+  from spec 6.2 and `_data_validation.py`.
+- `tests/unit/test_api_reference.py`: every `survjax.__all__` name has an
+  autodoc entry; it failed when one entry was removed.
+- Checks: `scripts/check.sh --through A5` exit 0 (own x64 453 passed,
+  7 skipped; x32 459 passed, 1 skipped; doctests 4+4; spec 1116/26 and
+  1121/21); `scripts/build_docs.sh` "build succeeded" in both modes with no
+  Sphinx warnings; rendered signatures and entries read from the HTML.
+- Not changed: SurvivalData/DataIssues/InvalidDataError docstrings from
+  A1–A3 still cite spec sections in user-facing text.
+
 ## Review fix-up (maintainer comments, 2026-10-15)
 
 1. `builtin-families.md`: "Unconstrained parameters: `from_log`" now comes

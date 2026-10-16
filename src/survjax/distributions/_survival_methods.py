@@ -30,7 +30,7 @@ def survival(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
             ``survival_grid`` to evaluate every time for every entry.
 
     Returns:
-        Survival with the broadcast shape: 1 for t < 0 and NaN for NaN t.
+        Survival with the broadcast shape; 1 for t < 0 and NaN for NaN t.
         At t = +inf a proper family gives exactly 0 with zero parameter
         derivatives; a finite limit, as in a cure model, keeps its
         derivatives if the family's ``log_survival`` computes it safely.
@@ -64,7 +64,7 @@ def log_prob(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
             ``log_prob_grid`` for a shared grid).
 
     Returns:
-        Log density with the broadcast shape: -inf for t < 0 and at
+        Log density with the broadcast shape; -inf for t < 0 and at
         t = +inf (NaN at +inf if ``log_survival`` is NaN there, for example
         for NaN parameters), the family's limit at t = 0, and NaN for NaN t.
         Infinite entries do not disturb parameter derivatives of the finite
@@ -95,7 +95,7 @@ def log_hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
             ``log_hazard_grid`` for a shared grid).
 
     Returns:
-        Log hazard with the broadcast shape: -inf for t < 0, the family's
+        Log hazard with the broadcast shape; -inf for t < 0, the family's
         limit at t = 0, and NaN for NaN t.
 
     Raises:
@@ -118,7 +118,7 @@ def hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
             ``hazard_grid`` for a shared grid).
 
     Returns:
-        Hazard with the broadcast shape: 0 for t < 0, NaN for NaN t, and at
+        Hazard with the broadcast shape; 0 for t < 0, NaN for NaN t, and at
         t = 0 and t = +inf whatever ``log_hazard`` gives there.
 
     Raises:
@@ -138,7 +138,7 @@ def cumulative_hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
             ``cumulative_hazard_grid`` for a shared grid).
 
     Returns:
-        Cumulative hazard with the broadcast shape: 0 for t < 0, NaN for
+        Cumulative hazard with the broadcast shape; 0 for t < 0, NaN for
         NaN t, and +inf at t = +inf for a proper family. Infinite entries do
         not disturb parameter derivatives of the finite entries in the same
         batch; the infinite values themselves have no derivative.
@@ -190,7 +190,7 @@ def log_cdf(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
             ``log_cdf_grid`` for a shared grid).
 
     Returns:
-        Log CDF with the broadcast shape: -inf for t < 0 and wherever F is
+        Log CDF with the broadcast shape; -inf for t < 0 and wherever F is
         exactly 0, NaN for NaN t. At t = +inf a proper family gives exactly
         0 with zero parameter derivatives; a finite limit log(1 - S(inf)),
         as in a cure model, keeps its derivatives if the family's

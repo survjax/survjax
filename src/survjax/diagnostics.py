@@ -34,7 +34,34 @@ def _rule_counts(
 
 @dataclass(frozen=True, eq=False, repr=False)
 class DataIssues:
-    """Per-rule data masks with observation shape and scalar validity (spec 6.2)."""
+    """Which observations break which rule, returned by ``SurvivalData.issues``.
+
+    Every rule is a boolean mask with the shape of the observations; ``True``
+    marks a row that breaks it. Construction never raises for invalid
+    values, so inspect these masks, use ``ok`` in compiled code, or call
+    ``raise_if_invalid()`` on the host to stop on bad data.
+
+    Attributes:
+        invalid_indicator: An event status or censoring flag is not 0/1.
+        conflicting_indicators: More than one censoring flag is set.
+        missing_time2: An interval row has no (or a NaN) upper endpoint.
+        invalid_time: The time or lower bound is out of its domain; exact
+            times must be finite and positive.
+        invalid_time2: The upper endpoint is negative, or an exact
+            ``from_bounds`` row's upper differs from its lower.
+        invalid_interval: An interval has ``lower >= upper``.
+        invalid_truncation: The window ``(left_trunc, right_trunc]`` is not a
+            valid interval with a finite nonnegative start.
+        exact_outside_truncation: An exact time lies outside the window.
+        censored_before_entry: A right-censored row is censored before entry,
+            ``lower < left_trunc``.
+        empty_observation: A censored row's set does not overlap the window.
+        uninformative: A censored row's set contains the whole window; valid,
+            but it carries no information, and it is not part of
+            ``invalid_rows``.
+        invalid_rows: Rows breaking any rule above except ``uninformative``.
+        ok: Scalar boolean array, ``True`` when no row is invalid.
+    """
 
     invalid_indicator: jax.Array
     conflicting_indicators: jax.Array

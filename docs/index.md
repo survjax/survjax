@@ -19,7 +19,9 @@ distributions, including posterior draws, at many times at once. The
 [distributions guide](distributions.md) builds constant-hazard, Gompertz,
 piecewise-constant and proportional-hazards models from their survival
 functions. The [playground](playground.ipynb) uses only synthetic data and the
-current public API. Runnable examples execute afresh when the site is built.
+current public API. The [API reference](api.md) lists every public class and
+function with its docstring. Runnable examples execute afresh when the site
+is built.
 
 ```{toctree}
 :maxdepth: 1
@@ -29,6 +31,7 @@ survival-data
 builtin-families
 grids
 distributions
+api
 ```
 
 ## Local commands

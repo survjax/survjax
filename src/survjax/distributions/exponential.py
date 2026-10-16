@@ -17,7 +17,7 @@ from survjax.distributions.base import SurvivalDistribution, param, register_fam
 class Exponential(SurvivalDistribution):
     """Exponential distribution: a constant hazard.
 
-    The hazard is the same at every time, h(t) = rate, so
+    The hazard is the same at every time, h(t) = rate, so::
 
         H(t) = rate * t,    S(t) = exp(-rate * t),    f(t) = rate * exp(-rate * t).
 
@@ -109,25 +109,25 @@ class Exponential(SurvivalDistribution):
         return jnp.where(infinite, limit, value)
 
     def log_survival(self, t: ArrayLike) -> jax.Array:
-        """Return the log survival probability, log S(t) = -rate * t.
+        """Return the log survival probability, ``log S(t) = -rate * t``.
 
         Args:
             t: Times, broadcast against ``batch_shape``.
 
         Returns:
-            Log survival: 0 for t <= 0 and -inf at t = +inf. NaN times or
+            Log survival; 0 for t <= 0 and -inf at t = +inf. NaN times or
             rates give NaN.
         """
         return -self._cumulative_hazard(t)
 
     def cumulative_hazard(self, t: ArrayLike) -> jax.Array:
-        """Return the cumulative hazard, H(t) = rate * t.
+        """Return the cumulative hazard, ``H(t) = rate * t``.
 
         Args:
             t: Times, broadcast against ``batch_shape``.
 
         Returns:
-            Cumulative hazard: 0 for t <= 0 and +inf at t = +inf. NaN times
+            Cumulative hazard; 0 for t <= 0 and +inf at t = +inf. NaN times
             or rates give NaN.
         """
         return self._cumulative_hazard(t)
@@ -151,8 +151,8 @@ class Exponential(SurvivalDistribution):
     def log_cdf(self, t: ArrayLike) -> jax.Array:
         """Return the log probability of an event by time t, log F(t).
 
-        F(t) = 1 - exp(-rate * t). It is computed from log H = log(rate) +
-        log(t), so it keeps full relative precision both for very early
+        ``F(t) = 1 - exp(-rate * t)``. It is computed from
+        ``log H = log(rate) + log(t)``, so it keeps full relative precision both for very early
         times, where F is tiny (log F is close to log H), and for very late
         times, where log F is close to -S(t).
 
@@ -160,19 +160,19 @@ class Exponential(SurvivalDistribution):
             t: Times, broadcast against ``batch_shape``.
 
         Returns:
-            Log CDF: -inf for t <= 0 and 0 at t = +inf. NaN times or rates
+            Log CDF; -inf for t <= 0 and 0 at t = +inf. NaN times or rates
             give NaN.
         """
         return log_cdf_from_log_cumulative_hazard(self._log_cumulative_hazard(t))
 
     def log_prob(self, t: ArrayLike) -> jax.Array:
-        """Return the log density, log f(t) = log(rate) - rate * t.
+        """Return the log density, ``log f(t) = log(rate) - rate * t``.
 
         Args:
             t: Times, broadcast against ``batch_shape``.
 
         Returns:
-            Log density: log(rate) at t = 0, and -inf for t < 0 and at
+            Log density; log(rate) at t = 0, and -inf for t < 0 and at
             t = +inf. NaN times or rates give NaN.
         """
         # spec 4.1: log f(t)=log(rate)-H(t), since h(t)=rate.

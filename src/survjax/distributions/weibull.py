@@ -17,7 +17,7 @@ from survjax.distributions.base import SurvivalDistribution, param, register_fam
 class Weibull(SurvivalDistribution):
     """Weibull distribution: a hazard that rises, stays flat or falls.
 
-    With shape k and scale b,
+    With shape k and scale b::
 
         H(t) = (t / b)**k,    S(t) = exp(-(t / b)**k),
         h(t) = (k / b) * (t / b)**(k - 1).
@@ -50,8 +50,8 @@ class Weibull(SurvivalDistribution):
       intercept) and reported ``Scale`` ``sigma = 1/k``. For example
       ``mu = log(10)``, ``sigma = 0.5`` is ``Weibull(shape=2, scale=10)``.
     - flexsurv ``"weibullPH"``: ``shape=k``, ``scale=m`` with
-      S(t) = exp(-m * t**k), so ``m = b**(-k)`` and ``b = m**(-1/k)``.
-    - inverse time scale r, S(t) = exp(-(r * t)**k): ``b = 1/r``.
+      ``S(t) = exp(-m * t**k)``, so ``m = b**(-k)`` and ``b = m**(-1/k)``.
+    - inverse time scale r, ``S(t) = exp(-(r * t)**k)``, gives ``b = 1/r``.
     - log parameters: ``k = exp(log_shape)``, ``b = exp(log_scale)``; see
       ``from_log``.
 
@@ -142,28 +142,28 @@ class Weibull(SurvivalDistribution):
         return jnp.where(undefined, jnp.nan, value)
 
     def log_survival(self, t: ArrayLike) -> jax.Array:
-        """Return the log survival probability, log S(t) = -(t / b)**k.
+        """Return the log survival probability, ``log S(t) = -(t / b)**k``.
 
         Args:
             t: Times, broadcast against ``batch_shape``.
 
         Returns:
-            Log survival: 0 for t <= 0 and -inf at t = +inf. NaN times or
+            Log survival; 0 for t <= 0 and -inf at t = +inf. NaN times or
             parameters give NaN.
         """
         return -self._cumulative_hazard(t)
 
     def cumulative_hazard(self, t: ArrayLike) -> jax.Array:
-        """Return the cumulative hazard, H(t) = (t / b)**k.
+        """Return the cumulative hazard, ``H(t) = (t / b)**k``.
 
-        Computed as exp(k * (log t - log b)), so t / b is never formed and
+        Computed as ``exp(k * (log t - log b))``, so t / b is never formed and
         cannot underflow or overflow before the power is taken.
 
         Args:
             t: Times, broadcast against ``batch_shape``.
 
         Returns:
-            Cumulative hazard: 0 for t <= 0 and +inf at t = +inf. NaN times
+            Cumulative hazard; 0 for t <= 0 and +inf at t = +inf. NaN times
             or parameters give NaN.
         """
         return self._cumulative_hazard(t)
@@ -200,8 +200,8 @@ class Weibull(SurvivalDistribution):
     def log_cdf(self, t: ArrayLike) -> jax.Array:
         """Return the log probability of an event by time t, log F(t).
 
-        F(t) = 1 - exp(-(t / b)**k). It is computed from
-        log H = k * (log t - log b), so it keeps full relative precision both
+        ``F(t) = 1 - exp(-(t / b)**k)``. It is computed from
+        ``log H = k * (log t - log b)``, so it keeps full relative precision both
         for very early times, where F is tiny (log F is close to log H, even
         when H itself underflows), and for very late times, where log F is
         close to -S(t).
@@ -210,13 +210,13 @@ class Weibull(SurvivalDistribution):
             t: Times, broadcast against ``batch_shape``.
 
         Returns:
-            Log CDF: -inf for t <= 0 and 0 at t = +inf. NaN times or
+            Log CDF; -inf for t <= 0 and 0 at t = +inf. NaN times or
             parameters give NaN.
         """
         return log_cdf_from_log_cumulative_hazard(self._log_cumulative_hazard(t))
 
     def log_hazard(self, t: ArrayLike) -> jax.Array:
-        """Return the log hazard, log h(t) = log k - log b + (k - 1) * log(t / b).
+        """Return the log hazard, ``log h(t) = log k - log b + (k - 1) * log(t / b)``.
 
         Computed directly rather than from the density and survival, so it
         stays accurate far in the tail where survival underflows.
@@ -225,7 +225,7 @@ class Weibull(SurvivalDistribution):
             t: Times, broadcast against ``batch_shape``.
 
         Returns:
-            Log hazard, with the exact limits at the boundaries: at t = 0 it
+            Log hazard, with the exact limits at the boundaries. At t = 0 it
             is +inf, -log b or -inf for k < 1, k = 1 or k > 1, and at t = +inf
             -inf, -log b or +inf. Negative times give -inf; NaN times or
             parameters give NaN.
@@ -258,13 +258,13 @@ class Weibull(SurvivalDistribution):
         return jnp.where(undefined, jnp.nan, value)
 
     def log_prob(self, t: ArrayLike) -> jax.Array:
-        """Return the log density, log f(t) = log h(t) - (t / b)**k.
+        """Return the log density, ``log f(t) = log h(t) - (t / b)**k``.
 
         Args:
             t: Times, broadcast against ``batch_shape``.
 
         Returns:
-            Log density. At t = 0 it equals the log hazard there: +inf,
+            Log density. At t = 0 it equals the log hazard there, so +inf,
             -log b or -inf for k < 1, k = 1 or k > 1. Negative times and
             t = +inf give -inf; NaN times or parameters give NaN.
         """

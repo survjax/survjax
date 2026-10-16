@@ -35,7 +35,7 @@ def survival_grid(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
             distinct; output row i belongs to ``t[i]``.
 
     Returns:
-        An array of shape (K, *batch_shape), without component axes.
+        An array of shape ``(K, *batch_shape)``, without component axes.
 
     Raises:
         TypeError: If ``t`` is not one-dimensional or not real, also inside
@@ -64,7 +64,7 @@ def log_survival_grid(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
             distinct; output row i belongs to ``t[i]``.
 
     Returns:
-        An array of shape (K, *batch_shape), without component axes.
+        An array of shape ``(K, *batch_shape)``, without component axes.
 
     Raises:
         TypeError: If ``t`` is not one-dimensional or not real, also inside
@@ -87,7 +87,7 @@ def log_prob_grid(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
             distinct; output row i belongs to ``t[i]``.
 
     Returns:
-        An array of shape (K, *batch_shape), without component axes.
+        An array of shape ``(K, *batch_shape)``, without component axes.
 
     Raises:
         TypeError: If ``t`` is not one-dimensional or not real, also inside
@@ -110,7 +110,7 @@ def log_cdf_grid(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
             distinct; output row i belongs to ``t[i]``.
 
     Returns:
-        An array of shape (K, *batch_shape), without component axes.
+        An array of shape ``(K, *batch_shape)``, without component axes.
 
     Raises:
         TypeError: If ``t`` is not one-dimensional or not real, also inside
@@ -133,7 +133,7 @@ def cumulative_hazard_grid(self: "SurvivalDistribution", t: ArrayLike) -> jax.Ar
             distinct; output row i belongs to ``t[i]``.
 
     Returns:
-        An array of shape (K, *batch_shape), without component axes.
+        An array of shape ``(K, *batch_shape)``, without component axes.
 
     Raises:
         TypeError: If ``t`` is not one-dimensional or not real, also inside
@@ -156,7 +156,7 @@ def log_hazard_grid(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
             distinct; output row i belongs to ``t[i]``.
 
     Returns:
-        An array of shape (K, *batch_shape), without component axes.
+        An array of shape ``(K, *batch_shape)``, without component axes.
 
     Raises:
         TypeError: If ``t`` is not one-dimensional or not real, also inside
@@ -179,7 +179,7 @@ def hazard_grid(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
             distinct; output row i belongs to ``t[i]``.
 
     Returns:
-        An array of shape (K, *batch_shape), without component axes.
+        An array of shape ``(K, *batch_shape)``, without component axes.
 
     Raises:
         TypeError: If ``t`` is not one-dimensional or not real, also inside
