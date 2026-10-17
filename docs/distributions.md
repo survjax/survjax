@@ -445,7 +445,7 @@ def finite_cumulative_hazard(rate):
 jax.grad(finite_cumulative_hazard)(0.1)
 ```
 
-survjax does this by evaluating the default methods at a harmless time
+survjax does this by evaluating the default methods at the reference time
 wherever the limit is known to be $S = 0$, and only then filling in the
 limit. Derivatives of the infinite values themselves are not defined, and
 survjax promises nothing about them.
@@ -456,7 +456,10 @@ $\log F(\infty) = \log(1 - p)$. These limits depend on $p$, and their
 derivatives, 1 and $-1/(1 - p)$, must survive. survjax leaves such finite
 limits to your `log_survival`, which therefore has to compute them with safe
 operands itself: replace the time before multiplying it by a parameter, then
-select the limit.
+select the limit. The replacement is the family's own `reference_time()`, the
+same safe time survjax uses for negative and NaN times, wrapped in
+`jax.lax.stop_gradient` because it only stands in for a time and should carry
+no derivative.
 
 ```{code-cell} ipython3
 @survjax.register_family
@@ -468,7 +471,8 @@ class CureHazard(ConstantHazard):
         time = jnp.asarray(t)
         infinite = jnp.isposinf(time)
         # Substitute before multiplying: rate * inf would poison the gradient.
-        safe_time = jnp.where(infinite, jax.lax.stop_gradient(jnp.ones_like(time)), time)
+        reference = jax.lax.stop_gradient(self.reference_time())
+        safe_time = jnp.where(infinite, reference, time)
         remaining = jnp.exp(-self.rate * safe_time)
         # At infinity no susceptible patient remains; keep NaN from bad rates.
         remaining = jnp.where(infinite & ~jnp.isnan(remaining), 0.0, remaining)
@@ -559,9 +563,9 @@ in advance:
 
 Neither depends on the parameters except through such a cure fraction. So
 select the limit, and make sure the formula never sees the boundary time:
-detect the boundary, substitute a harmless time *before* the operation that
-fails, compute, then choose. This is the same double-`where` pattern as in
-the cure model.
+detect the boundary, substitute the reference time *before* the operation
+that fails, compute, then choose. This is the same double-`where` pattern as
+in the cure model.
 
 ```{code-cell} ipython3
 @survjax.register_family
@@ -573,7 +577,8 @@ class LogLogistic(survjax.SurvivalDistribution):
     def log_survival(self, t):
         time = jnp.asarray(t)
         boundary = (time == 0) | jnp.isposinf(time)
-        safe_time = jnp.where(boundary, jnp.ones_like(time), time)
+        reference = jax.lax.stop_gradient(self.reference_time())
+        safe_time = jnp.where(boundary, reference, time)
         interior = -jax.nn.softplus(self.shape * (jnp.log(safe_time) - jnp.log(self.scale)))
         limit = jnp.where(time == 0, 0.0, -jnp.inf)
         # A NaN parameter makes the safe interior value NaN: keep it.
@@ -595,9 +600,9 @@ The second `where` on `limit` matters too. The limits are constants, so
 without it a NaN shape or scale would still give $S(0) = 1$ and
 $S(\infty) = 0$: an undefined distribution would report valid-looking
 boundary values, and survjax cannot recover the NaN once your
-`log_survival` has dropped it. The interior formula, evaluated at the safe
-time 1, is NaN exactly when a parameter is NaN, so passing that NaN on is
-enough. survjax does not check parameter ranges for you; the formula is the
+`log_survival` has dropped it. The interior formula, evaluated at the
+reference time, is NaN exactly when a parameter is NaN, so passing that NaN
+on is enough; it is the same rule survjax applies to negative and NaN times. survjax does not check parameter ranges for you; the formula is the
 judge of what is undefined.
 
 ### The hazard and density need more
@@ -636,7 +641,8 @@ class LogLogisticWithLimits(LogLogistic):
     def log_hazard(self, t):
         time = jnp.asarray(t)
         boundary = (time == 0) | jnp.isposinf(time)
-        safe_time = jnp.where(boundary, jnp.ones_like(time), time)
+        reference = jax.lax.stop_gradient(self.reference_time())
+        safe_time = jnp.where(boundary, reference, time)
         z = self.shape * (jnp.log(safe_time) - jnp.log(self.scale))
         interior = jnp.log(self.shape) - jnp.log(safe_time) + jax.nn.log_sigmoid(z)
         # Near zero h behaves like the Weibull hazard; near infinity like k / t.
@@ -765,8 +771,8 @@ progression.hazard(jnp.inf), survjax.Exponential(rate=0.1).hazard(jnp.inf)
 - Give $\log S(0) = 0$ and $\log S(\infty) = -\infty$ (or the right limit for
   your family). Negative and NaN times never reach your code.
 - If your limit at infinity is finite and depends on parameters, as in a cure
-  model, substitute a safe time before any operation that would meet
-  infinity, so that the limit's derivatives stay finite.
+  model, substitute `jax.lax.stop_gradient(self.reference_time())` for the
+  time before any operation that would meet infinity, so that the limit's derivatives stay finite.
 - Make $\log S$ differentiable in $t$: the default hazard and density come
   from its derivative. At a kink, the derivative JAX returns is the hazard you
   get. Where it is not differentiable, or where you select a boundary limit

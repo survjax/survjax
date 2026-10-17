@@ -35,6 +35,16 @@ Responds to `../review/slices/docs-A5.md` (reviewed `02f7763`).
   -0.1. `scripts/build_docs.sh` exit 0 with "build succeeded" in both modes.
   `scripts/check.sh --through A5` exit 0: own tests 453/7 and 459/1,
   doctests 4 and 4, spec tests 1116/26 and 1121/21.
+- Maintainer follow-up: the cure and log-logistic recipes no longer
+  substitute a hard-coded time of 1. They substitute
+  `jax.lax.stop_gradient(self.reference_time())`, the family's declared safe
+  time and the same substitute the base uses (`_survival_methods.py:256`).
+  The checklist and prose say so. Rendered outputs are unchanged except that
+  the S(0) gradient prints as `-0.`. NaN shape or scale still gives NaN at
+  0, 1 and inf, eagerly and under `jit`. Under `debug_nans` the boundary
+  gradients in shape and scale are 0, and log f(0) in b at k = 1 is -0.1.
+  Docs build: "build succeeded" twice. `check.sh` was not rerun (no `src/`
+  change).
 - Reviewer note on the opening paragraph: "the `src/` diff is docstrings
   only" was superseded by `00abf26`, which changed `base.py` constructor
   introspection (see "API reference" below).
