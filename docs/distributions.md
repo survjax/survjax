@@ -52,6 +52,13 @@ $$
 \log S(t) = -\lambda t.
 $$
 
+This is the *exponential distribution* with rate $\lambda$, the simplest
+survival model. survjax already ships it as
+[`survjax.Exponential`](builtin-families.md#the-exponential-a-constant-hazard).
+We write it by hand here anyway, because its formula is short enough to show
+the mechanics of a family without distraction. We call our version
+`ConstantHazard` to keep it apart from the built-in.
+
 In survjax a family is a frozen dataclass with one field per parameter.
 
 ```{code-cell} ipython3
@@ -115,6 +122,20 @@ progression.hazard(months), progression.cumulative_hazard(months)
 
 ```{code-cell} ipython3
 progression.log_prob(months), jnp.log(0.1) - 0.1 * months
+```
+
+The built-in `Exponential` gives the same answers. The difference is
+internal: it computes every method from a closed form instead of deriving
+the hazard and density by autodiff. That keeps `log_cdf` precise even at
+extremely early times and gives a hazard at $t = \infty$, where the
+autodiff default returns NaN. The hazard is compared [near the end of this
+page](#why-work-on-the-log-scale), the early times in [precision in both
+tails](builtin-families.md#precision-in-both-tails). In practice, use the
+built-in; the rest of this page keeps using `ConstantHazard` to show what a
+custom family gets for free.
+
+```{code-cell} ipython3
+survjax.Exponential(rate=0.1).log_prob(months)
 ```
 
 ## The hazard comes from autodiff: Gompertz mortality
@@ -756,8 +777,8 @@ the survival probability that may underflow. If survival is *exactly* zero
 (log survival is $-\infty$), the hazard is undefined and `hazard` and
 `log_hazard` return NaN. A family that knows the limit, for example at the
 end of a bounded support, can override `log_hazard`; `hazard` then uses the
-override. The built-in families do this: the exponential's hazard at
-infinity is its rate.
+override. The built-in families do this: the hazard of `Exponential`, the
+closed-form version of `ConstantHazard`, is its rate at infinity too.
 
 ```{code-cell} ipython3
 progression.hazard(jnp.inf), survjax.Exponential(rate=0.1).hazard(jnp.inf)

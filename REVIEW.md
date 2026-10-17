@@ -45,6 +45,15 @@ Responds to `../review/slices/docs-A5.md` (reviewed `02f7763`).
   gradients in shape and scale are 0, and log f(0) in b at k = 1 is -0.1.
   Docs build: "build succeeded" twice. `check.sh` was not rerun (no `src/`
   change).
+- Maintainer follow-up: `distributions.md` now says that `ConstantHazard`
+  is the exponential distribution, already built in as
+  `survjax.Exponential`, written by hand only to show the mechanics. After
+  the density example, a cell shows that the built-in gives the same
+  `log_prob` (matches in x32 and x64). The text says how the built-in
+  differs (closed forms, precise early `log_cdf`, hazard at infinity) and
+  links to where each is shown. The later hazard-at-infinity sentence names
+  `Exponential` as the closed-form version. Docs build: "build succeeded"
+  twice.
 - Reviewer note on the opening paragraph: "the `src/` diff is docstrings
   only" was superseded by `00abf26`, which changed `base.py` constructor
   introspection (see "API reference" below).
