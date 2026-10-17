@@ -214,8 +214,14 @@ evaluation on grids that start at zero.
 
 The probability of progression by time $t$, $F(t) = 1 - S(t)$, is needed
 for left- and interval-censored data, and it is easy to lose. survjax
-computes $\log F$ from $\log H$, which keeps full relative precision at
-both ends of the time axis.
+computes $\log F$ from $\log H$, which keeps relative precision at both
+ends of the time axis, within the limits of floating point: in the lower tail
+wherever $\log H$ itself is representable, even when $H$ and $F$ underflow,
+and in the upper tail wherever $S = e^{-H}$ is a normal floating-point number
+(down to about $10^{-38}$ in float32 and $10^{-308}$ in float64). Beyond
+that, $S$ underflows and $\log F \approx -S$ rounds to 0; for example,
+`Exponential(rate=1.0).log_cdf(1000.0)` is $-0.0$ in both modes, although
+the exact value $-e^{-1000} \approx -10^{-434}$ is negative.
 
 **Very early.** With $k = 2$ and $b = 10$, at $t = 10^{-30}$ months
 $H = 10^{-62}$, which is too small even to store in float32. The naive

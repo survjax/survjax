@@ -201,10 +201,12 @@ class Weibull(SurvivalDistribution):
         """Return the log probability of an event by time t, log F(t).
 
         ``F(t) = 1 - exp(-(t / b)**k)``. It is computed from
-        ``log H = k * (log t - log b)``, so it keeps full relative precision both
+        ``log H = k * (log t - log b)``, so it keeps relative precision both
         for very early times, where F is tiny (log F is close to log H, even
-        when H itself underflows), and for very late times, where log F is
-        close to -S(t).
+        when H itself underflows), as long as log H is representable, and for
+        very late times, where log F is close to -S(t), as long as S(t) is a
+        normal floating-point number. Beyond that S underflows and log F
+        rounds to 0.
 
         Args:
             t: Times, broadcast against ``batch_shape``.

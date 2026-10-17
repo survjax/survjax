@@ -5,6 +5,40 @@ maintainer decided on 2026-10-15: no 300-line limit, plots allowed, document
 the implemented behaviour (spec revision 25). No numerical code changed; the
 `src/` diff is docstrings only.
 
+## Independent review round 1 fix-up (2026-10-17)
+
+Responds to `../review/slices/docs-A5.md` (reviewed `02f7763`).
+
+- **F-1 (should-fix):** `docs/distributions.md`. `LogLogistic.log_survival`
+  and `LogLogisticWithLimits.log_hazard` now pass on the NaN of the safe
+  interior value instead of the boundary constant
+  (`limit = jnp.where(jnp.isnan(interior), interior, limit)`). That interior
+  value is evaluated at t = 1, so it is NaN when a parameter is NaN. New
+  prose explains why a selected constant hides a NaN parameter. A new
+  executed cell shows a batch with shapes `[2, nan]`: limits in the valid
+  row and NaN for survival, `log_cdf`, hazard and `log_prob` in the NaN row.
+  There is also a new rule of thumb, "Keep NaN parameters NaN". No eager
+  validation and no inferred domain.
+- **N-1 (nit):** the "full relative precision" claims are qualified to the
+  spec 4.1 limits. The lower tail holds wherever log H is representable. The
+  upper tail holds wherever S is a normal float; past that, S underflows and
+  log F rounds to 0. The guide shows the example from the review,
+  `Exponential(rate=1.0).log_cdf(1000.0)`, which gives -0.0. I checked that
+  it is -0.0 in **both** modes, not only float32, since e^-1000 is about
+  1e-434. Same change in the `Exponential.log_cdf` and `Weibull.log_cdf`
+  docstrings and in the generic late-tail sentence in `distributions.md`.
+- Checks: the rendered x32 and x64 outputs of the new cell match the prose.
+  A scratch run of the guide's classes gave NaN at t = 0, 1 and inf, eagerly
+  and under `jit`, for NaN shape and for NaN scale. Under
+  `jax.debug_nans(True)` the valid-parameter gradients were finite: S(0) in
+  k gives 0, log F(inf) in k gives 0, and log f(0) in b with k = 1 gives
+  -0.1. `scripts/build_docs.sh` exit 0 with "build succeeded" in both modes.
+  `scripts/check.sh --through A5` exit 0: own tests 453/7 and 459/1,
+  doctests 4 and 4, spec tests 1116/26 and 1121/21.
+- Reviewer note on the opening paragraph: "the `src/` diff is docstrings
+  only" was superseded by `00abf26`, which changed `base.py` constructor
+  introspection (see "API reference" below).
+
 ## Docs theme (2026-10-16)
 
 - Maintainer chose Furo (`furo` 2025.12.19, docs group only) for the API

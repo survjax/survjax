@@ -576,6 +576,8 @@ class LogLogistic(survjax.SurvivalDistribution):
         safe_time = jnp.where(boundary, jnp.ones_like(time), time)
         interior = -jax.nn.softplus(self.shape * (jnp.log(safe_time) - jnp.log(self.scale)))
         limit = jnp.where(time == 0, 0.0, -jnp.inf)
+        # A NaN parameter makes the safe interior value NaN: keep it.
+        limit = jnp.where(jnp.isnan(interior), interior, limit)
         return jnp.where(boundary, limit, interior)
 
     def reference_time(self):
@@ -588,6 +590,15 @@ jax.grad(lambda k: LogLogistic(shape=k, scale=10.0).survival(0.0))(2.0)
 The gradient of $S(0)$ is now 0, as it should be. Survival, cumulative hazard
 and `log_cdf` need only the *value* of $\log S$, so they are now right at both
 boundaries.
+
+The second `where` on `limit` matters too. The limits are constants, so
+without it a NaN shape or scale would still give $S(0) = 1$ and
+$S(\infty) = 0$: an undefined distribution would report valid-looking
+boundary values, and survjax cannot recover the NaN once your
+`log_survival` has dropped it. The interior formula, evaluated at the safe
+time 1, is NaN exactly when a parameter is NaN, so passing that NaN on is
+enough. survjax does not check parameter ranges for you; the formula is the
+judge of what is undefined.
 
 ### The hazard and density need more
 
@@ -631,8 +642,10 @@ class LogLogisticWithLimits(LogLogistic):
         # Near zero h behaves like the Weibull hazard; near infinity like k / t.
         at_zero = jnp.where(self.shape < 1, jnp.inf, -jnp.inf)
         at_zero = jnp.where(self.shape == 1, -jnp.log(self.scale), at_zero)
-        value = jnp.where(time == 0, at_zero, interior)
-        return jnp.where(jnp.isposinf(time), -jnp.inf, value)
+        limit = jnp.where(time == 0, at_zero, -jnp.inf)
+        # As in log_survival: a NaN parameter stays NaN at the boundaries.
+        limit = jnp.where(jnp.isnan(interior), interior, limit)
+        return jnp.where(boundary, limit, interior)
 
     def log_prob(self, t):
         return self.log_hazard(t) + self.log_survival(t)
@@ -651,6 +664,15 @@ changes only the boundaries:
 fixed.log_prob(5.0)[:, 0], three_shapes.log_prob(5.0)
 ```
 
+Both overrides keep NaN parameters visible at the boundaries. A batch with
+one valid and one NaN shape gives the limits in the first row and NaN in the
+second, for every method:
+
+```{code-cell} ipython3
+mixed = LogLogisticWithLimits(shape=jnp.array([2.0, jnp.nan])[:, None], scale=10.0)
+mixed.survival(boundaries), mixed.log_cdf(boundaries), mixed.hazard(boundaries), mixed.log_prob(boundaries)
+```
+
 A few rules of thumb:
 
 - **Values first.** If only survival, cumulative hazard and `log_cdf` matter
@@ -658,6 +680,8 @@ A few rules of thumb:
 - **Derivatives in $t$ at a boundary need an override.** Once you substitute
   in `log_survival` at a time, override `log_hazard` and `log_prob` to supply
   their limits there; otherwise the autodiff default sees a constant.
+- **Keep NaN parameters NaN.** A selected constant hides a NaN parameter.
+  Pass on the NaN of the safe interior value, as above.
 - **Find limits from the leading term.** Near zero and near infinity, keep
   only the dominant term of $h(t)$; a family often looks like a Weibull or an
   exponential there.
@@ -701,8 +725,9 @@ stays accurate even when $H$ is too small to store; see [precision in both
 tails](builtin-families.md#precision-in-both-tails).
 
 **Late events.** Late in follow-up, $S$ is tiny and $\log F = \log(1 - S)
-\approx -S$ is a tiny negative number. `log_cdf` returns it with full
-relative precision (here $S = e^{-30}$, so about $-9.4 \times 10^{-14}$),
+\approx -S$ is a tiny negative number. `log_cdf` returns it with relative
+precision as long as $S$ is a normal floating-point number (here
+$S = e^{-30}$, so about $-9.4 \times 10^{-14}$),
 where the naive $\log(1 - S)$ rounds it away: to zero in float32, and to a
 value with only a few correct digits in float64.
 
