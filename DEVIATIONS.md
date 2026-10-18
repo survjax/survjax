@@ -35,6 +35,10 @@
   The new upper-tail regression failed on all three paths in both dtypes
   before the fix; all 27 new cases and the full through-A5 gate now pass in
   both modes. See REVIEW.md for exact checks. Closure remains with the maintainer.
+- Spec alignment (2026-10-18): revision 25 (`1e9011c`) makes the shared
+  two-branch helper and upper-tail relative-precision checks normative in
+  sections 4.1–4.3, 7.2 and 12.1. No new tests were run during alignment;
+  formal closure remains with the maintainer.
 - Status: open
 
 ## D-021 Built-in log-CDF lower-tail switch
@@ -49,6 +53,10 @@
   before evaluating the standard `expm1` branch. This extends the HazardFamily
   numerical approach to built-ins before that base class exists, so their
   lower-tail values remain representable even when forming H underflows.
+- Spec alignment (2026-10-18): revision 25 (`1e9011c`), section 4.1, now
+  explicitly requires the built-ins' lower-tail calculation from `log H`;
+  the switch point remains an implementation choice preserving relative
+  precision. Formal closure remains with the maintainer.
 - Status: open
 
 ## D-020 Mixed-time Weibull density acceptance expectation omits log(shape)
@@ -149,6 +157,12 @@
   and reverse derivatives and finite-component Hessians. Full documentation
   is deferred to the end of A5 by maintainer instruction. No guarantee is
   added for derivatives of infinite/NaN outputs or unsafe custom overrides.
+- Spec alignment (2026-10-18): revisions 26–27 supersede the primitive-owned
+  survival limits described above. Sections 4.2/4.5 now give the base
+  responsibility for survival/CDF/cumulative-hazard boundaries for every
+  registered family, using finite positive substitutes and the differentiable
+  `log_survival_at_infinity()` hook. Implementation is a separate future
+  step; this note does not claim conformance or resolve the entry.
 - Status: open (maintainer decision 2026-10-03: defer to A5)
 
 ## D-017 Dtype policy for direct-method times

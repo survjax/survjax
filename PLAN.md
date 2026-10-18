@@ -1,3 +1,59 @@
+# Spec alignment — revisions 25–27 (2026-10-18)
+
+The maintainer requested reading `../scripts/spec-since.sh dev`, recording the
+changes, then running it with `--mark`. This bookkeeping step changes only
+`PLAN.md`, `DEVIATIONS.md`, `REVIEW.md` and `.spec-seen`. No public API or
+runtime changes, no new tests. It supersedes the historical revision-24
+alignment statement below; marking records review of the contract, not proof
+that the implementation satisfies revision 27.
+
+Reviewed committed range: `b917ebe` (revision 24) to
+`b92334a1a4b584a7970039e321a6b10fe7c176ff` (revision 27).
+
+- **Revision 25, `1e9011c` — sections 4.1–4.3, 7.2, 12.1:** specify the
+  private two-branch `log1mexp` helper, with safe operands in both branches.
+  Generic `log_cdf` and built-in standard branches use it; Exponential and
+  Weibull retain the lower-tail calculation from `log H`. Both tails must
+  keep relative precision over the specified representable ranges. Acceptance
+  checks include mpmath upper tails, non-unit Weibull parameters, generic and
+  grid paths, first/second derivatives around the branch split and in tails,
+  and mixed boundary/interior calls under `jax_debug_nans`. Tiny log values
+  and derivatives use zero absolute tolerance. The spec records the decisions
+  behind D-021/D-022; formal deviation closure stays with the maintainer.
+- **Revision 26, `0008c82` — sections 2, 4.2–4.5, 7.1, 8.2, 12:** the base
+  supplies log survival, survival, log CDF and cumulative hazard at zero and
+  infinity. Add the optional `log_survival_at_infinity()` extension method:
+  default `-inf`, exactly `batch_shape`, parameter dtype; improper-family
+  overrides retain parameter derivatives. These methods' family formulas and
+  overrides need only handle finite positive times. Density/hazard limits
+  remain family-supplied; generic autodiff at zero has no value/gradient
+  guarantee, and generic log hazard at infinity is NaN. Preserve NaN
+  precedence from substituted evaluations and the infinity hook. Base boundary
+  gradients now cover every registered family, including naive primitives
+  with unsafe boundary derivatives. Tests must cover proper and improper
+  custom families. Section 2 also clarifies that sets closed at infinity
+  include mass at infinity; future evaluator/solver work uses the declared
+  limit. HazardFamily, solver and `check_family` changes stay in later slices.
+- **Revision 27, `b92334a` — sections 4.5, 12.2:** valid-parameter substituted
+  inputs must be finite and positive. Slice A must honor infinity-hook
+  overrides in the base, including improper-family values and gradients;
+  supplying only a hard-coded proper-family default is insufficient.
+
+Implementation follow-up requires a separate approved plan on a
+maintainer-created step branch. `rg -n 'log_survival_at_infinity' src
+tests/unit docs` found no matches (exit 1), so the new hook is not present in
+those files. No conformance gate was run in this bookkeeping step.
+
+Docs to-do: refresh the extension recipe, boundary table, API reference and
+playground for base-supplied limits and the infinity hook in a separate docs
+step after implementation.
+
+The script warns about uncommitted spec changes because design has an
+untracked `spec/SPECIFICATION.pdf`; the tracked specification matches HEAD.
+Do not incorporate or commit that generated file. The dev checkout is on
+`main`; AGENTS.md prohibits commits there and reserves branch creation for
+the maintainer. Leave this bookkeeping ready for the step-branch commit.
+
 # A5 — Exponential, Weibull and time-first grids
 
 Status: A5.1 (`3f50962`) was approved by the reviewer and merged into main by
