@@ -31,9 +31,9 @@ def survival(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
 
     Returns:
         Survival with the broadcast shape; 1 for t < 0 and NaN for NaN t.
-        At t = +inf a proper family gives exactly 0 with zero parameter
-        derivatives; a finite limit, as in a cure model, keeps its
-        derivatives if the family's ``log_survival`` computes it safely.
+        The base gives 1 at t = 0. At t = +inf it uses
+        ``exp(log_survival_at_infinity())``, retaining the hook's parameter
+        derivatives; the proper default gives 0 with zero derivatives.
 
     Raises:
         TypeError: For nonreal times or times that do not broadcast.
@@ -65,8 +65,9 @@ def log_prob(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
 
     Returns:
         Log density with the broadcast shape; -inf for t < 0 and at
-        t = +inf (NaN at +inf if ``log_survival`` is NaN there, for example
-        for NaN parameters), the family's limit at t = 0, and NaN for NaN t.
+        t = +inf, with NaN precedence from the substituted family value and
+        infinity hook. At t = 0 an override supplies the limit; the generic
+        autodiff default has no value or gradient guarantee. NaN t gives NaN.
         Infinite entries do not disturb parameter derivatives of the finite
         entries in the same batch.
 
@@ -85,8 +86,8 @@ def log_hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
     be 0 / 0 once S underflows. The hazard itself must be an ordinary
     floating-point number.
 
-    Where survival is exactly zero (log S = -inf, as at t = +inf for a
-    proper family), the hazard is undefined and the default returns NaN.
+    Where survival is exactly zero (log S = -inf), and always at t = +inf,
+    the default returns NaN.
     Families that know the limit there override this method, as the
     built-ins do.
 
@@ -95,8 +96,9 @@ def log_hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
             ``log_hazard_grid`` for a shared grid).
 
     Returns:
-        Log hazard with the broadcast shape; -inf for t < 0, the family's
-        limit at t = 0, and NaN for NaN t.
+        Log hazard with the broadcast shape; -inf for t < 0 and NaN for
+        NaN t. At t = 0 an override supplies the limit; the generic autodiff
+        default has no value or gradient guarantee.
 
     Raises:
         TypeError: For nonreal times or times that do not broadcast.
@@ -139,7 +141,8 @@ def cumulative_hazard(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
 
     Returns:
         Cumulative hazard with the broadcast shape; 0 for t < 0, NaN for
-        NaN t, and +inf at t = +inf for a proper family. Infinite entries do
+        NaN t, 0 at t = 0 and ``-log_survival_at_infinity()`` at t = +inf.
+        The hook's parameter derivatives remain active. Infinite entries do
         not disturb parameter derivatives of the finite entries in the same
         batch; the infinite values themselves have no derivative.
 
@@ -191,10 +194,9 @@ def log_cdf(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
 
     Returns:
         Log CDF with the broadcast shape; -inf for t < 0 and wherever F is
-        exactly 0, NaN for NaN t. At t = +inf a proper family gives exactly
-        0 with zero parameter derivatives; a finite limit log(1 - S(inf)),
-        as in a cure model, keeps its derivatives if the family's
-        ``log_survival`` computes it safely.
+        exactly 0, including t = 0, and NaN for NaN t. At t = +inf the base
+        derives log F from ``log_survival_at_infinity()``, retaining its
+        parameter derivatives; the proper default gives 0 with zero derivatives.
 
     Raises:
         TypeError: For nonreal times or times that do not broadcast.
@@ -208,27 +210,11 @@ def apply_policy(
     method: Callable[["SurvivalDistribution", ArrayLike], jax.Array],
     negative_value: float,
     *,
-    density: bool = False,
-    primitive: bool = False,
+    name: str,
 ) -> Callable[["SurvivalDistribution", ArrayLike], jax.Array]:
     """Wrap one direct method, preserving its raw implementation on inheritance."""
     raw = getattr(method, "_survjax_raw", method)
-    if primitive:
-        guard_zero_limit = True
-        zero_limit_value = -jnp.inf
-    elif raw is survival or raw is log_cdf:
-        guard_zero_limit = True
-        zero_limit_value = 0.0
-    elif raw is cumulative_hazard:
-        guard_zero_limit = True
-        zero_limit_value = jnp.inf
-    elif raw is log_hazard:
-        guard_zero_limit = True
-        zero_limit_value = jnp.nan
-    else:
-        # Generic hazard's guard depends on the family's log-hazard below.
-        guard_zero_limit = False
-        zero_limit_value = jnp.nan
+    base_boundary = name in ("log_survival", "survival", "log_cdf", "cumulative_hazard")
 
     @wraps(raw)
     def evaluate(self: "SurvivalDistribution", t: ArrayLike) -> jax.Array:
@@ -251,36 +237,42 @@ def apply_policy(
         time = jnp.broadcast_to(time, output_shape)
         negative = time < 0
         nan_time = jnp.isnan(time)
-        inactive = negative | nan_time
-        # spec 4.5/7.2: stop only substituted inputs, never real parameters.
-        reference = jax.lax.stop_gradient(self.reference_time())
-        safe_time = jnp.where(inactive, reference, time)
-        guard_limit = guard_zero_limit
-        if raw is hazard:
-            log_hazard_method = type(self).log_hazard
-            guard_limit = (
-                getattr(log_hazard_method, "_survjax_raw", log_hazard_method)
-                is log_hazard
-            )
+        zero = time == 0
         infinite = jnp.isposinf(time)
-        if guard_limit or density:
-            # spec 4.5/7.2: probe the true limit only for a Boolean condition.
-            # Finite cure limits must retain their parameter dependence.
-            log_s = _raw_log_survival(self)(self, safe_time)
-            zero_limit = infinite & jnp.isneginf(log_s)
-            substitute = infinite if density else zero_limit
-            safe_time = jnp.where(substitute, reference, safe_time)
+        generic_hazard = raw is log_hazard
+        if raw is hazard:
+            method = type(self).log_hazard
+            generic_hazard = getattr(method, "_survjax_raw", method) is log_hazard
+        substitute = negative | nan_time
+        if base_boundary:
+            substitute = substitute | zero | infinite
+        elif name == "log_prob" or generic_hazard:
+            substitute = substitute | infinite
+        # spec 4.5/7.2: never probe a primitive at a base-supplied boundary.
+        reference = jax.lax.stop_gradient(self.reference_time())
+        safe_time = jnp.where(substitute, reference, time)
         value = raw(self, safe_time)
-        if guard_limit:
-            # Substitute before operating: a final mask alone gives 0 * inf AD.
-            value = jnp.where(zero_limit, zero_limit_value, value)
-        if density:
-            # spec 4.5: the original limit, not the reference, decides NaN status.
-            infinite_value = jnp.where(jnp.isnan(log_s), jnp.nan, -jnp.inf)
-            value = jnp.where(infinite, infinite_value, value)
+        log_limit = self.log_survival_at_infinity()
+        family_nan = jnp.isnan(value) | (infinite & jnp.isnan(log_limit))
+        if base_boundary:
+            # spec 7.2: the hook is active only on the infinity rows.
+            safe_limit = jnp.where(infinite, log_limit, -jnp.ones_like(log_limit))
+            if name == "log_survival":
+                zero_value, infinity_value = 0.0, safe_limit
+            elif name == "survival":
+                zero_value, infinity_value = 1.0, jnp.exp(safe_limit)
+            elif name == "log_cdf":
+                zero_value, infinity_value = -jnp.inf, safe_log1mexp(safe_limit)
+            else:
+                zero_value, infinity_value = 0.0, -safe_limit
+            value = jnp.where(zero, zero_value, value)
+            value = jnp.where(infinite, infinity_value, value)
+        elif name == "log_prob" or generic_hazard:
+            infinity_constant = -jnp.inf if name == "log_prob" else jnp.nan
+            value = jnp.where(infinite, infinity_constant, value)
         policy_value = jnp.where(negative, negative_value, value)
-        # spec 4.5: a NaN family value takes precedence over policy constants.
-        policy_value = jnp.where(jnp.isnan(value), value, policy_value)
+        # spec 4.5: substituted family values and the infinity hook expose NaNs.
+        policy_value = jnp.where(family_nan, jnp.nan, policy_value)
         policy_value = jnp.where(nan_time, jnp.nan, policy_value)
         return policy_value
 

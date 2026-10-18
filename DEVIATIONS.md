@@ -163,6 +163,11 @@
   registered family, using finite positive substitutes and the differentiable
   `log_survival_at_infinity()` hook. Implementation is a separate future
   step; this note does not claim conformance or resolve the entry.
+- A5.6 implementation (2026-10-18): the base now supplies zero/infinity
+  survival limits using finite positive substitutes and the differentiable
+  infinity hook. The full through-A5 gate passes in both dtype modes,
+  including the updated independent boundary suite. See REVIEW.md for exact
+  results and derivative coverage; maintainer closure remains pending.
 - Status: open (maintainer decision 2026-10-03: defer to A5)
 
 ## D-017 Dtype policy for direct-method times

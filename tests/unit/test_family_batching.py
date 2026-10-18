@@ -135,6 +135,9 @@ def test_nested_dtype_survives_broadcast_and_index(x64_enabled):
     )
     assert dist[1].base.rate.dtype == dist.base.weights.dtype == np.float32
     assert dist.multiplier.dtype == dtype
+    assert dist.log_survival_at_infinity().dtype == dtype
+    assert NestedOnly(base=dist.base).log_survival_at_infinity().dtype == np.float32
+    np.testing.assert_array_equal(dist.log_survival_at_infinity(), [-np.inf] * 3)
 
 
 def test_nested_construction_transforms_and_compilation_reuse():

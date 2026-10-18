@@ -1,3 +1,187 @@
+# A5.6 — Base boundary policy, then A5.d2 docs refresh
+
+Status: step 1 approved and implemented on the maintainer-created `A5.6`
+branch on 2026-10-18; ready for review. Planning started from clean `main` at
+`9146251`. The through-A5 gate passes in both dtype modes; exact results and
+reading order are in REVIEW.md. The code/test/docstring diff is 299 changed
+lines. Cure coverage reuses existing first derivatives for survival/log CDF
+and first/second derivatives for log survival/cumulative hazard. Scalar/batch/
+component hook contracts also have independent acceptance coverage.
+The maintainer requests two ordered steps: code, tests and needed docstrings
+first; narrative docs second. Step 2 has not started and requires the
+maintainer's instruction after code review. Each step ends with its own commit,
+overwritten REVIEW.md and a stop.
+
+Contract: specification revision 27, `.spec-seen` at `b92334a`. The newly synced
+independent suite records author commit `1d87b726a15072f6e7223a60fe1afefa5bb999be`
+(dev sync `645479e`, merged in `9146251`). The only later design/spec change,
+`9d7483c`, adds PDF conversion helpers; it changes no normative requirement.
+Leave the marker and spec sources unchanged during implementation.
+
+## Step 1 — Code, tests and public API docstrings (A5.6)
+
+Outcome: every registered family receives the section 4.5 base boundary values,
+even when its primitive has NaN values/gradients at zero or infinity. Improper
+families declare their limit through a differentiable hook. Preserve interior
+formulas, existing log-CDF tail precision, dtype/broadcasting rules, inherited
+overrides, time-first grids and finite-entry derivatives in mixed batches.
+
+Public addition: `SurvivalDistribution.log_survival_at_infinity(self) ->
+jax.Array`, inherited by registered families and the built-ins. Its default is
+`-inf`, exactly `batch_shape`, in the parameter dtype; component axes are
+excluded. Custom overrides return log cure fractions with active parameter
+derivatives. No new top-level export, constructor option or stored field.
+Covered spec: 2, 3.3, 4.1–4.2, 4.5–4.6, 5, 7.1–7.3, 12.1–12.2.
+
+Files and approach:
+
+- `src/survjax/distributions/base.py`: add the typed default hook with summary,
+  arguments, return-shape/dtype and error documentation. Derive its output dtype
+  from normalized parameters, including nested-only families; do not use the
+  transient time dtype. Keep it an ordinary overridable method, separate from
+  the seven policy-wrapped pointwise methods. Pass the direct method's explicit
+  name to the existing wrapper so base-owned boundaries also cover overrides.
+- `src/survjax/distributions/_survival_methods.py`: replace the raw-primitive
+  infinity probe/zero-limit mechanism with explicit boundary masks. For log S,
+  S, log F and H, substitute at zero and infinity before calling any raw family
+  formula, including inherited overrides. At zero select 0, 1, -inf, 0. At
+  infinity derive values from the hook using exp, the existing safe log1mexp,
+  or negation. Base constants must retain zero parameter gradients; hook values
+  must retain their genuine derivatives. Substitute safe operands before
+  boundary transformations as needed, never mask only their final results.
+- For log density, substitute before evaluating at infinity and select -inf.
+  For generic log hazard and generic hazard based on it, substitute at infinity
+  and select NaN even for a nonzero cure limit. Analytic log-hazard overrides
+  still receive zero/infinity, with matching hazard behavior; retain existing
+  explicit hazard dispatch. At zero the generic density/log-hazard defaults
+  must differentiate the raw primitive, preserving the specified exception;
+  they acquire no value or parameter-gradient guarantee there.
+- Use one stopped finite positive reference per direct call for valid
+  parameters. Propagate NaNs from the family's substituted-input evaluation
+  and, at infinity, from the hook, as section 4.5 requires. Apply this precedence
+  to every method, including analytic hazard overrides. Eliminate probes of the
+  primitive at actual infinity. Preserve finite-support generic hazard behavior
+  at finite times, negative/NaN-time policy and inherited raw-method unwrapping.
+  No floors, clipping, inferred parameter validity or stopped active values.
+- Update the base class, `log_survival`, `reference_time` and affected generic
+  method docstrings in those same files. Audit `exponential.py`, `weibull.py`
+  and `_grid_methods.py` docstrings; correct only obsolete ownership/gradient
+  claims. Built-in formulas remain unless a demonstrated conformance failure
+  requires a scoped correction. No `docs/` edits in this step.
+
+Own tests, kept alongside the code in the same commit:
+
+- Add `tests/unit/test_family_boundaries.py` with a small naive log-logistic
+  primitive (log S=-softplus(beta*(log t-log alpha))) and an interior-only
+  primitive (log S=-r*t*(t/t)). Pin base values at zero/infinity, gradients at
+  zero, proper survival/log-CDF gradients at infinity, and mixed finite-entry
+  derivatives. Cover eager/jit/vmap, shared parameters and time-first grids;
+  use valid mixed batches under `jax_debug_nans` for methods with defined
+  non-NaN outputs. Do not demand debug-nans success for deliberately undefined
+  generic hazard outputs or invalid inputs.
+- Extend the two existing infinity modules rather than duplicate their cure
+  coverage: give Cure the explicit log-fraction hook. Check log S=log p,
+  S=p, log F=log(1-p), H=-log p and their first/second parameter derivatives;
+  rate derivatives at infinity are zero. Reuse the mixed-batch Hessian tests.
+  Add hook-default scalar/batch/component/nested shape and dtype cases, plus
+  finite overridden formulas whose boundary values must come from the base.
+- Migrate obsolete own assertions in `test_family_infinity.py`,
+  `test_family_mixed_infinity.py` and `test_family_direct.py`: survival/log-CDF/
+  cumulative-hazard overrides no longer supply their own boundary values;
+  raw primitive NaN at infinity no longer determines density NaN status;
+  NaN precedence comes from substituted values/the hook. Move NaNLimit's
+  declared NaN limit into its hook. Preserve positive-time override dispatch
+  and analytical density/hazard boundary checks. Replace the public
+  log-survival time-derivative-at-zero assertion with coverage of the generic
+  density's raw-primitive differentiation; direct-time boundary derivatives
+  are not part of section 7.3's guarantee.
+- Expected values come from the algebra above or analytical identities stated
+  in each test. Reuse `tests/impl_tolerances.py`; zero absolute tolerance for
+  tiny log/derivative comparisons. New justified tolerances belong only there.
+  Keep one behavior per test and do not edit, skip or xfail independent tests.
+
+Independent evidence to require:
+
+| Requirement | Independent coverage |
+| --- | --- |
+| Hook shape/dtype, proper and improper boundaries, NaN precedence, unsafe primitives and boundary gradients | `test_a4_base_boundaries.py` |
+| Negative/NaN rows, raw defaults, finite zero survival, overrides, time dtypes | A4 policy, defaults, hazard, NaN-precedence and time-dtype modules |
+| Built-in limits and gradients, unchanged closed forms | `test_a5_boundaries.py`, `test_a5_closed_forms.py`, `test_a5_derivatives.py` |
+| Generic and built-in two-tail precision and derivatives (revision 25) | `test_a4_log_cdf_upper_tail.py`, `test_a5_log_cdf_tails.py` |
+| Time-first boundary values, shapes and transformations | `test_a5_survival_grids.py` |
+
+Validation: use `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`. Run new/changed
+own tests and the focused boundary acceptance module in separate x64/x32
+processes, then `scripts/check.sh --through A5` once after focused checks pass.
+That gate includes Ruff, mypy, all own tests, source doctests and the complete
+through-A5 independent suite in both modes. Finish with `git diff --check`.
+Do not build narrative docs until step 2; their old boundary recipes are
+intentionally refreshed there. Record exact failures/skips and any scope issue.
+
+Aim for about 300 changed code/test/docstring lines; reuse current coverage and
+remove superseded policy logic. If the cohesive change exceeds the working
+agreement's size cap, stop and propose a code split before expanding it,
+keeping all code steps before narrative docs. No new dependency, helper module,
+registration protocol, custom derivative rule or later-slice feature is planned.
+Overwrite REVIEW.md with reading order, safety/dispatch/gradient invariants,
+spec-to-test mapping and exact checks. Commit on the maintainer's step branch,
+then stop for review. Leave deviation statuses to the maintainer.
+
+Docs to-do for step 2: replace primitive-owned boundary guidance with the new
+base contract and hook; keep custom density/hazard responsibilities explicit.
+
+## Step 2 — Narrative docs after code review (A5.d2)
+
+One topic: explaining and using the revised family boundary contract. Public API
+and runtime behavior stay as approved in step 1. Cover spec 2, 4.2, 4.5, 5,
+7.2–7.3, 10.5 and the boundary evidence in 12.1–12.2.
+
+- `docs/distributions.md`: update the edges table and custom-family checklist;
+  describe finite-positive primitive inputs and base-supplied limits. Simplify
+  the log-logistic example so naive log survival now works for survival/CDF/H
+  boundaries. Retain the separate guarded analytic density/hazard extension
+  example and its NaN handling. Replace the cure primitive's infinity branch
+  with `log_survival_at_infinity() = log(fraction)`. Execute boundary values,
+  parameter-gradient checks and mixed valid/NaN entries; explain the generic
+  density/hazard exception at zero and generic NaN hazard at infinity.
+- `docs/api.md`: list/document the optional hook and distinguish required
+  primitive/reference methods from this override. The generated method help
+  comes from step 1's docstrings.
+- Audit `docs/builtin-families.md`, `docs/grids.md` and
+  `docs/playground.ipynb`; edit only statements/examples that become wrong.
+  Their built-in results and grid shapes should stay the same. Notebook source
+  inspection during planning found no boundary/hook/primitive recipe to
+  migrate, so no notebook edit is planned without a concrete need.
+
+Keep this one topic within 300 changed lines; propose a split before exceeding
+that cap. No unrelated tutorial/theme work or new notebook feature. Source
+edits are limited to docstrings found to be wrong; a numerical defect goes
+back to a separately reviewed code fix.
+
+Run `scripts/build_docs.sh`: it executes and builds all docs afresh, with
+warnings as errors, in separate x32/x64 processes. Inspect rendered guide/API
+sections and their outputs in both modes. Run `git diff --check`; rerun a
+runtime gate only if a source change or discovered failure warrants it.
+Overwrite REVIEW.md with reading order, executed examples/spec mapping, exact
+build results and remaining uncertainty. Commit on the maintainer's docs
+branch, then stop. This step does not claim Slice A's remaining gates complete.
+
+## Planning checks actually run
+
+No source, test, spec or narrative-doc changes were made during planning.
+Ran the following in separate processes with `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`,
+`SPEC_THROUGH=A5` and `JAX_ENABLE_X64=1` / `0`:
+
+`uv run --locked --group test pytest tests/spec/test_a4_base_boundaries.py -q --tb=short`
+
+- x64: exit 1, **32 failed, 52 passed in 2.11s**.
+- x32: exit 1, **29 failed, 55 passed in 2.19s**.
+
+Failures include the absent default hook, raw boundary NaNs, boundary gradients,
+and improper-family generic hazard behavior. These are pre-implementation
+results, not regressions caused by this plan. The full gate, tail modules and
+docs builds were not run during planning. Historical records follow below.
+
 # Spec alignment — revisions 25–27 (2026-10-18)
 
 The maintainer requested reading `../scripts/spec-since.sh dev`, recording the

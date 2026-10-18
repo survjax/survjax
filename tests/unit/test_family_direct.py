@@ -264,12 +264,11 @@ def test_float64_times_follow_promotion_without_warning(name, x64_enabled):
     )
 
 
-def test_zero_time_reaches_family_time_derivative():
-    """Spec 4.5: t=0 is active, needed by A4.5's density autodiff default."""
+def test_generic_density_at_zero_differentiates_raw_primitive():
+    """Spec 4.5: generic density differentiates raw log S at zero."""
 
     # Hand derivation: d(-rate*t)/dt = -rate = -2, also at zero.
-    def value(t):
-        return Constant(rate=2).log_survival(t)
+    def value(rate):
+        return Constant(rate=rate).log_prob(0.0)
 
-    np.testing.assert_array_equal(jax.grad(value)(0.0), -2.0)
-    np.testing.assert_array_equal(jax.jit(jax.grad(value))(0.0), -2.0)
+    np.testing.assert_array_equal(jax.jit(jax.grad(value))(2.0), 0.5)

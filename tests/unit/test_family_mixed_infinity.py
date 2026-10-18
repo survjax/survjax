@@ -36,6 +36,9 @@ class Quadratic(Constant):
 class Cure(Constant):
     fraction: jax.Array = survjax.param()
 
+    def log_survival_at_infinity(self) -> jax.Array:
+        return jnp.log(self.fraction)
+
     def log_survival(self, t: ArrayLike) -> jax.Array:
         time = jnp.asarray(t)
         infinite = jnp.isposinf(time)
@@ -89,6 +92,9 @@ class CureDensityOverride(Cure):
 @survjax.register_family
 @dataclass(frozen=True)
 class NaNLimit(Constant):
+    def log_survival_at_infinity(self) -> jax.Array:
+        return jnp.full_like(self.rate, jnp.nan)
+
     def log_survival(self, t: ArrayLike) -> jax.Array:
         time = jnp.asarray(t)
         infinite = jnp.isposinf(time)
@@ -183,7 +189,10 @@ def test_analytic_infinite_hazard_limits_keep_gradients(family, x64_enabled):
         def value(rate, name=name):
             return getattr(family(rate=rate), name)(jnp.inf)
 
-        expected = 0.5 if name == "log_hazard" else 1.0
+        # H(inf)=+inf comes from the proper default, overriding the raw H=r.
+        expected = (
+            0.0 if name == "cumulative_hazard" else 0.5 if name == "log_hazard" else 1.0
+        )
         for transform in (jax.jacfwd, jax.jacrev):
             np.testing.assert_allclose(
                 jax.jit(transform(value))(2.0),
@@ -193,8 +202,8 @@ def test_analytic_infinite_hazard_limits_keep_gradients(family, x64_enabled):
             )
 
 
-def test_density_nan_status_comes_from_original_infinite_time():
-    """Spec 4.5: finite log S at reference cannot hide NaN log S at infinity."""
+def test_density_nan_status_comes_from_infinity_hook():
+    """Spec 4.5: finite log S at reference cannot hide a NaN infinity hook."""
     dist = NaNLimit(rate=2.0)
     assert jnp.isfinite(dist.log_prob(1.0))
     assert jnp.isnan(jax.jit(lambda d: d.log_prob(jnp.inf))(dist))

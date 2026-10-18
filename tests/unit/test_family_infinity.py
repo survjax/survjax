@@ -1,4 +1,4 @@
-"""Infinity values and finite boundary gradients (spec 4.5/7.2 revision 22)."""
+"""Infinity values and finite boundary gradients (spec 4.5/7.2 revision 27)."""
 
 from dataclasses import dataclass
 
@@ -38,6 +38,9 @@ class FiniteDensity(Constant):
         # Deliberately independent of the primitive to distinguish policy dispatch.
         return jnp.full_like(jnp.asarray(t), 17.0)
 
+    def log_survival_at_infinity(self) -> jax.Array:
+        return jnp.where(jnp.isnan(self.rate), jnp.nan, -jnp.inf)
+
 
 @survjax.register_family
 @dataclass(frozen=True)
@@ -71,8 +74,8 @@ def test_infinite_density_keeps_nan_and_valid_batch_entries_separate(family):
         np.testing.assert_array_equal(result, [np.nan, -np.inf])
 
 
-def test_infinite_density_uses_survival_nan_despite_finite_override():
-    """Spec 4.5: a finite density override cannot hide NaN log S(+inf)."""
+def test_infinite_density_uses_hook_nan_despite_finite_override():
+    """Spec 4.5: a finite density override cannot hide NaN from the hook."""
     dist = FiniteDensity(rate=[jnp.nan, 2.0])
     np.testing.assert_array_equal(dist.log_prob(jnp.inf), [np.nan, -np.inf])
     np.testing.assert_array_equal(
@@ -80,12 +83,12 @@ def test_infinite_density_uses_survival_nan_despite_finite_override():
     )
 
 
-def test_infinite_density_ignores_nan_override_for_defined_survival_limit():
-    """Spec 4.5: even a NaN override gives -inf if log S(+inf) is defined."""
+def test_infinite_density_preserves_nan_at_substituted_input():
+    """Spec 4.5: a NaN substituted family value precedes the -inf policy."""
     dist = NaNDensity(rate=[2.0, jnp.nan])
-    np.testing.assert_array_equal(dist.log_prob(jnp.inf), [-np.inf, np.nan])
+    np.testing.assert_array_equal(dist.log_prob(jnp.inf), [np.nan, np.nan])
     np.testing.assert_array_equal(
-        jax.vmap(lambda d: d.log_prob(jnp.inf))(dist), [-np.inf, np.nan]
+        jax.vmap(lambda d: d.log_prob(jnp.inf))(dist), [np.nan, np.nan]
     )
 
 
@@ -94,7 +97,7 @@ def test_density_override_keeps_other_time_policy_rows():
 
     The raw override is 17 even for a NaN rate. Negative times therefore
     retain the -inf policy; finite nonnegative times retain 17. Only at
-    +inf does the primitive's NaN require a NaN density result.
+    +inf does the hook's NaN require a NaN density result.
     """
     times = jnp.array([-1.0, 0.0, 1.0, jnp.inf, jnp.nan])
     np.testing.assert_array_equal(
@@ -116,6 +119,9 @@ def test_nan_density_override_is_unchanged_at_finite_time():
 @dataclass(frozen=True)
 class Cure(Constant):
     fraction: jax.Array = survjax.param()
+
+    def log_survival_at_infinity(self) -> jax.Array:
+        return jnp.log(self.fraction)
 
     def log_survival(self, t: ArrayLike) -> jax.Array:
         time = jnp.asarray(t)
@@ -236,11 +242,12 @@ def test_infinite_survival_methods_keep_nan_entries(name):
 
 
 @pytest.mark.parametrize("family", [Override, InheritedOverride])
-def test_infinite_survival_overrides_are_honored(family):
-    """Spec 4.2: explicit and inherited overrides retain their own limits."""
+def test_survival_override_boundaries_come_from_base(family):
+    """Spec 4.5: base limits supersede explicit/inherited boundary values."""
     dist = family(rate=2.0)
-    assert dist.survival(jnp.inf) == 0.25
-    assert dist.log_cdf(jnp.inf) == -3.0
+    assert dist.survival(1.0) == 0.25 and dist.log_cdf(1.0) == -3.0
+    np.testing.assert_array_equal(dist.survival(jnp.array([0.0, jnp.inf])), [1, 0])
+    np.testing.assert_array_equal(dist.log_cdf(jnp.array([0.0, jnp.inf])), [-np.inf, 0])
 
 
 @pytest.mark.parametrize("name", ["survival", "log_cdf"])

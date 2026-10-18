@@ -120,8 +120,10 @@ class SurvivalDistribution:
 
     Every method accepts any real time and never raises for a value. Times
     before the origin (t < 0) give S = 1 and the matching constants; NaN
-    times give NaN; t = 0 and t = +inf give the family's limits, with
-    finite parameter derivatives where the limit is finite and smooth.
+    times give NaN. The base supplies survival/CDF/cumulative-hazard limits
+    at zero and infinity, using ``log_survival_at_infinity()`` (default -inf).
+    Density and hazard boundary limits require family overrides; the generic
+    defaults at zero have no value or gradient guarantee.
     """
 
     _survjax_registered: ClassVar[bool] = False
@@ -180,16 +182,12 @@ class SurvivalDistribution:
         """Return the log survival probability, log S(t) = log P(T > t).
 
         Every family must implement this method; all other methods derive
-        from it. Your implementation is only called with times in
-        [0, +inf]: survjax answers negative and NaN times itself. It must
-        return the right limits at t = 0 (usually 0) and t = +inf (usually
-        -inf), and keep relative precision when log S is close to 0, for
-        example by computing -H(t) directly rather than log(S(t)).
-
-        If the limit at +inf is finite and depends on parameters, as in a
-        cure model, substitute a safe time before any operation that would
-        meet infinity, so that the limit's parameter derivatives stay
-        finite. survjax handles the usual -inf limit itself.
+        from it. Your formula need only handle finite t > 0: the base
+        supplies zero/infinity values. The exception is the generic density
+        and log-hazard defaults, which differentiate your raw formula at zero
+        without a value or gradient guarantee. Keep relative precision when
+        log S is close to 0, for example by computing -H(t) directly.
+        Improper families declare their limit with ``log_survival_at_infinity``.
 
         Args:
             t: Times, broadcast against ``batch_shape``. Times and batch
@@ -206,12 +204,31 @@ class SurvivalDistribution:
         """
         raise NotImplementedError("families must implement log_survival")
 
+    def log_survival_at_infinity(self) -> jax.Array:
+        """Return log S(+inf), defaulting to -inf for a proper family.
+
+        Improper families override this no-argument method with their log
+        cure fraction. The base uses it at +inf for every direct method;
+        its parameter derivatives remain active.
+
+        Returns:
+            An array of exactly ``batch_shape`` in the parameter dtype,
+            without component axes. Nested-only families use their leaf dtypes.
+        """
+        for declared in fields(self):  # type: ignore[arg-type]
+            if declared.metadata.get("survjax_kind") == "param":
+                dtype = getattr(self, declared.name).dtype
+                break
+        else:
+            dtype = jnp.result_type(*jax.tree.leaves(self), 0.0)
+        return jnp.full(self.batch_shape, -jnp.inf, dtype=dtype)
+
     def reference_time(self) -> jax.Array:
         """Return a typical, well-behaved time for each distribution.
 
         Every family must implement this method. survjax evaluates the family
         at this time instead of at times it cannot use directly (negative,
-        NaN or, in derived methods, infinite times), so that those entries
+        NaN or base-supplied zero/infinity boundaries), so that those entries
         give clean values and gradients; the value at the reference time is
         then discarded. A natural time scale such as the mean, the median or
         a scale parameter is a good choice.
@@ -388,8 +405,7 @@ def register_family[Family: SurvivalDistribution](cls: type[Family]) -> type[Fam
             _survival_methods.apply_policy(
                 getattr(cls, name),
                 negative_value,
-                density=name == "log_prob",
-                primitive=name == "log_survival",
+                name=name,
             ),
         )
     cls._survjax_registered = True
