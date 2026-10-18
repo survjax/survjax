@@ -180,3 +180,63 @@ def assert_rel_close(actual, expected, err_msg=""):
         atol=0.0,
         err_msg=err_msg,
     )
+
+
+def log1mexp(x):
+    """``log(1 - exp(x))`` for ``x <= 0`` in float64 NumPy, Maechler's split (spec 7.2, rev 25).
+
+    An analytical reference, not survjax behaviour: ``log(-expm1(x))`` for
+    ``x > -log 2`` and ``log1p(-exp(x))`` otherwise, each accurate to a few
+    ulps on its branch; ``log1mexp(0) = -inf``, ``log1mexp(-inf) = 0``.
+    """
+    x = np.asarray(x, dtype=np.float64)
+    near = x > -np.log(2.0)
+    with np.errstate(divide="ignore"):
+        return np.where(
+            near,
+            np.log(-np.expm1(np.where(near, x, -1.0))),
+            np.log1p(-np.exp(np.where(near, -1.0, x))),
+        )
+
+
+def mp_log_cdf(cumulative_hazard):
+    """mpmath reference ``log F = log1p(-exp(-H))`` at 50 digits, as float64 (spec 12.1, rev 25)."""
+    import mpmath
+
+    with mpmath.workdps(50):
+        h = mpmath.mpf(cumulative_hazard)
+        return float(mpmath.log1p(-mpmath.exp(-h)))
+
+
+def mp_weibull_cumulative_hazard(k, b, t):
+    """mpmath ``H = (t/b)**k`` at the dtype-rounded inputs, 50 digits (an ``mpf``)."""
+    import mpmath
+
+    with mpmath.workdps(50):
+        return (mpmath.mpf(float(t)) / mpmath.mpf(float(b))) ** mpmath.mpf(float(k))
+
+
+def tail_rtol(cumulative_hazard):
+    """Relative tolerance for an upper-tail ``log F ~ -S = -exp(-H)`` (spec 12.1, rev 25).
+
+    ``S`` has condition number ``H`` with respect to the relative error of
+    ``H``, so even an exact ``log1mexp`` applied to an ``H`` (or ``log H``)
+    correct to a few ulps loses about ``H * eps`` relative. The scale is the
+    12.1 ``rtol`` or ``16 * H * eps``, whichever is larger (float32, ``H=70``:
+    ``1.3e-4``; float64, ``H=600``: ``2e-12``, so the 12.1 ``1e-8`` applies).
+    """
+    from tolerances import TOLERANCES
+
+    eps = float(np.finfo(FLOAT).eps)
+    return max(TOLERANCES[FLOAT]["rtol"], 16.0 * float(cumulative_hazard) * eps)
+
+
+def assert_tail_close(actual, expected, rtol, err_msg=""):
+    """Zero absolute tolerance, so an erroneous zero cannot pass (spec 12.1, rev 25)."""
+    np.testing.assert_allclose(
+        np.asarray(actual).astype(np.float64),
+        np.asarray(expected, dtype=np.float64),
+        rtol=rtol,
+        atol=0.0,
+        err_msg=err_msg,
+    )

@@ -209,6 +209,12 @@ on it. Guessed exception types and call shapes are centralised in
   `[0, +inf]`; for `t<0` and NaN `t` the base substitutes a safe input under
   `stop_gradient`; at `0` and `+inf` the family supplies the values, except
   that `log_prob(+inf)` is always `-inf`.
+- **Rev 26 (decision 0040):** the base now also supplies `log S`, `S`,
+  `log F` and `H` at `t=0` and `t=+inf` (the latter from
+  `log_survival_at_infinity()`, default `-inf`), and `log_survival`,
+  `log_cdf` and `cumulative_hazard` are called only for finite `t>0`. Only
+  `log_prob` and `log_hazard` overrides are still called at the boundaries.
+  This needed no new guess; see `test_a4_base_boundaries.py`.
 - **Previously (rev 11):** the `log_survival` contract covered only the limits
   at `0` and `+inf`, so it was open whether `t<0` and NaN were the family's or
   the base's duty, and the literal default formulas gave NaN at `+inf`
@@ -388,6 +394,11 @@ on it. Guessed exception types and call shapes are centralised in
 - **Status:** resolved by spec rev 22 (4.5; maintainer decision,
   2026-10-11): `log_prob(+inf)` is `-inf` unless the family's
   `log_survival(+inf)` is NaN, in which case it is NaN.
+- **Rev 26:** reworded without a new guess: `log_prob(+inf)` is base-supplied
+  and is NaN when the family's value at the substituted input is NaN, or when
+  `log_survival_at_infinity()` is NaN (decision 0040). The dependent tests
+  now cite rev 26; `test_a4_base_boundaries.py` adds the
+  `log_survival_at_infinity()` NaN case.
 - **Depends:** `test_nan_rate_gives_nan_for_every_time`,
   `test_nan_weibull_scale_gives_nan_for_every_time` (now including
   `t=+inf`), and the rev 22 tests in `test_a4_nan_precedence.py`.

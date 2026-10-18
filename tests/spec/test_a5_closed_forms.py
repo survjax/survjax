@@ -4,22 +4,26 @@ Hand derivations, from spec 4.1's survival functions and spec 2's definitions
 (``H = -log S``, ``F = 1 - S``, ``f = -dS/dt``, ``h = f/S``):
 
 Exponential, rate ``r``: ``log S = -r t``, ``H = r t``,
-``log F = log(-expm1(-r t))``, ``log f = log r - r t``, ``log h = log r``,
+``log F = log1mexp(-r t)``, ``log f = log r - r t``, ``log h = log r``,
 ``h = r``.
 
 Weibull, shape ``k``, scale ``b``, ``z = t/b``: ``log S = -z**k``,
-``H = z**k``, ``log F = log(-expm1(-z**k))``,
+``H = z**k``, ``log F = log1mexp(-z**k)``,
 ``log f = log k - log b + (k-1) log z - z**k``,
 ``log h = log k - log b + (k-1) log z``, ``h = (k/b) z**(k-1)``.
 
 Expected values are evaluated in float64 NumPy from these formulas, at inputs
 that are exactly representable or whose float32 rounding is far below the 12.1
-float32 tolerances.
+float32 tolerances. ``log1mexp(x) = log(1 - exp(x))`` is the two-branch form of
+spec 7.2 (`helpers.log1mexp`). Rev 25 (12.1): `log_cdf` values are compared
+with zero absolute tolerance (`_check`), since upper-tail `log F` (Weibull
+``k=3``, ``b=2``, ``t=5``: ``H = 15.6``, ``log F = -1.6e-7``) is below the
+float32 ``atol``.
 """
 
 import numpy as np
 import pytest
-from helpers import assert_close, assert_rel_close, f
+from helpers import assert_close, assert_rel_close, f, log1mexp
 
 import survjax
 
@@ -31,7 +35,7 @@ def _exp_expected(r, t):
         "log_survival": -r * t,
         "survival": np.exp(-r * t),
         "cumulative_hazard": r * t,
-        "log_cdf": np.log(-np.expm1(-r * t)),
+        "log_cdf": log1mexp(-r * t),
         "log_prob": np.log(r) - r * t,
         "log_hazard": np.log(r),
         "hazard": r,
@@ -48,7 +52,7 @@ def _weib_expected(k, b, t):
         "log_survival": -zk,
         "survival": np.exp(-zk),
         "cumulative_hazard": zk,
-        "log_cdf": np.log(-np.expm1(-zk)),
+        "log_cdf": log1mexp(-zk),
         "log_prob": log_h - zk,
         "log_hazard": log_h,
         "hazard": np.exp(log_h),
@@ -65,6 +69,15 @@ DIRECT_METHODS = (
     "hazard",
 )
 
+
+def _check(method, actual, expected):
+    """Spec 12.1, rev 25: tiny log probabilities use zero absolute tolerance."""
+    if method == "log_cdf":
+        assert_rel_close(actual, expected)
+    else:
+        assert_close(actual, expected)
+
+
 # --------------------------------------------------------------- interior values
 
 
@@ -74,7 +87,7 @@ def test_exponential_interior_values(method):
     """spec 4.1/8.1, rev 21: Exponential `S(t)=exp(-r*t)` and the derived direct methods, paired batch and times."""
     r, t = [0.5, 1.0, 3.0, 0.2], [2.0, 0.25, 1.5, 7.0]
     out = getattr(survjax.Exponential(rate=f(r)), method)(f(t))
-    assert_close(out, _exp_expected(r, t)[method])
+    _check(method, out, _exp_expected(r, t)[method])
 
 
 @pytest.mark.step("A5")
@@ -83,7 +96,7 @@ def test_weibull_interior_values_decreasing_hazard(method):
     """spec 4.1/8.1, rev 21: Weibull `S(t)=exp(-(t/b)**k)` with `k<1`."""
     t = [0.1, 1.0, 2.0, 5.0]
     out = getattr(survjax.Weibull(shape=f(0.5), scale=f(2.0)), method)(f(t))
-    assert_close(out, _weib_expected(0.5, 2.0, t)[method])
+    _check(method, out, _weib_expected(0.5, 2.0, t)[method])
 
 
 @pytest.mark.step("A5")
@@ -92,7 +105,7 @@ def test_weibull_interior_values_constant_hazard(method):
     """spec 4.1/8.1, rev 21: Weibull with `k=1`: `log S = -t/b`, `log h = -log b`."""
     t = [0.1, 1.0, 2.0, 5.0]
     out = getattr(survjax.Weibull(shape=f(1.0), scale=f(2.0)), method)(f(t))
-    assert_close(out, _weib_expected(1.0, 2.0, t)[method])
+    _check(method, out, _weib_expected(1.0, 2.0, t)[method])
 
 
 @pytest.mark.step("A5")
@@ -101,7 +114,7 @@ def test_weibull_interior_values_increasing_hazard(method):
     """spec 4.1/8.1, rev 21: Weibull with `k>1`."""
     t = [0.1, 1.0, 2.0, 5.0]
     out = getattr(survjax.Weibull(shape=f(3.0), scale=f(2.0)), method)(f(t))
-    assert_close(out, _weib_expected(3.0, 2.0, t)[method])
+    _check(method, out, _weib_expected(3.0, 2.0, t)[method])
 
 
 @pytest.mark.step("A5")
@@ -110,7 +123,7 @@ def test_weibull_paired_batch_values(method):
     """spec 4.1/5, rev 21: batch `(N,)` against times `(N,)` pairs entries."""
     k, b, t = [0.7, 1.0, 1.8, 4.0], [0.5, 3.0, 10.0, 1.0], [0.2, 4.0, 12.0, 0.9]
     out = getattr(survjax.Weibull(shape=f(k), scale=f(b)), method)(f(t))
-    assert_close(out, _weib_expected(k, b, t)[method])
+    _check(method, out, _weib_expected(k, b, t)[method])
 
 
 @pytest.mark.step("A5")
@@ -120,7 +133,7 @@ def test_weibull_with_shape_one_equals_exponential_with_rate_one_over_scale(meth
     t = f([0.0, 0.3, 1.0, 4.0, 25.0])
     weib = getattr(survjax.Weibull(shape=f(1.0), scale=f(4.0)), method)(t)
     expo = getattr(survjax.Exponential(rate=f(0.25)), method)(t)
-    assert_close(weib, expo)
+    _check(method, weib, expo)
 
 
 # --------------------------------------------------------------- lower tail (small t)

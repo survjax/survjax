@@ -496,3 +496,25 @@ def test_integer_grid_matches_float_grid():
     dist = survjax.Exponential(rate=f(0.5))
     out = dist.survival_grid(np.asarray([0, 1, 2], dtype=np.int32))
     assert_close(out, np.exp(-0.5 * np.array([0.0, 1.0, 2.0])))
+
+
+# --------------------------------------------------------------- base-supplied boundaries (rev 26)
+
+
+@pytest.mark.step("A5")
+def test_survival_grid_of_naive_log_logistic_uses_base_boundary_values():
+    """spec 4.5/5, rev 26: a grid through `t=0` and `t=+inf` for the plain softplus log-logistic: `(1, 1/2, 0)`.
+
+    ``alpha=2``, ``beta=3``: ``S(0)=1`` and ``S(+inf)=0`` are base-supplied,
+    ``S(2) = 1/(1+1) = 1/2``. The gradient of the sum in ``beta`` is that of
+    the interior entry alone, ``dS(2)/dbeta = -u log(t/alpha)/(1+u)**2 = 0``
+    (``u = 1``, ``log 1 = 0``), and is finite (not NaN from the boundaries).
+    """
+
+    def total(bb):
+        dist = fam.softplus_log_logistic()(alpha=f(2.0), beta=bb)
+        return dist.survival_grid(f([0.0, 2.0, INF])).sum()
+
+    dist = fam.softplus_log_logistic()(alpha=f(2.0), beta=f(3.0))
+    assert_close(dist.survival_grid(f([0.0, 2.0, INF])), [1.0, 0.5, 0.0])
+    np.testing.assert_array_equal(np.asarray(jax.grad(total)(f(3.0))), 0.0)
