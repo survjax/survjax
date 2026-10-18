@@ -123,26 +123,30 @@ def test_nan_parameter_with_nan_time_gives_nan():
     assert np.isnan(np.asarray(out))
 
 
-# --------------------------------------------------------------- log_prob(+inf) (rev 22)
+# --------------------------------------------------------------- base-supplied values at +inf (rev 22, 26)
+#
+# Rev 26: "For base-supplied values, if the family's value at the substituted
+# input is NaN, or at `t=+inf` `log_survival_at_infinity()` is NaN, the result
+# is NaN". ``-NaN * t`` and ``-(t/NaN)**k`` are NaN at every substituted input.
 
 
 @pytest.mark.step("A4")
 def test_nan_parameter_log_prob_at_infinity_is_nan():
-    """spec 4.5, rev 22: `log_prob(+inf)=-inf` "unless the family's `log_survival(+inf)` is NaN, in which case `log_prob(+inf)` is NaN"."""
+    """spec 4.5, rev 26: the base-supplied `log_prob(+inf)` is NaN when the family's value at the substituted input is NaN."""
     out = fam.const_hazard()(rate=f(NAN)).log_prob(f(INF))
     assert np.isnan(np.asarray(out))
 
 
 @pytest.mark.step("A4")
 def test_nan_parameter_log_prob_at_infinity_is_nan_for_unguarded_family():
-    """spec 4.5, rev 22: the same for an unguarded family (`naive_power`, `scale=NaN`: `log S(+inf) = -(inf/NaN)**k` is NaN)."""
+    """spec 4.5, rev 26: the same for an unguarded family (`naive_power`, `scale=NaN`: `-(t/NaN)**k` is NaN at every `t`)."""
     out = fam.naive_power()(shape=f(2.0), scale=f(NAN)).log_prob(f(INF))
     assert np.isnan(np.asarray(out))
 
 
 @pytest.mark.step("A4")
 def test_nan_batch_entry_log_prob_at_infinity_keeps_valid_entry_minus_infinity():
-    """spec 4.5, rev 22: elementwise: a valid entry with a diverging hazard (`k=2`) keeps `log_prob(+inf)=-inf` next to a NaN entry."""
+    """spec 4.5, rev 26: elementwise: a valid entry with a diverging hazard (`k=2`) keeps `log_prob(+inf)=-inf` next to a NaN entry."""
     out = np.asarray(
         fam.naive_power()(shape=f([2.0, 2.0]), scale=f([NAN, 2.0])).log_prob(f(INF))
     )

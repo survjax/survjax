@@ -6,7 +6,7 @@ generic defaults, in Slice A; the delivery schedule places them at A4 (Q-024,
 resolved).
 
 Hand derivations for ConstHazard (``log S = -r t``): ``S = exp(-r t)``,
-``H = r t``, ``log F = log(-expm1(-r t))``, ``log h = log r``, ``h = r``.
+``H = r t``, ``log F = log1mexp(-r t)``, ``log h = log r``, ``h = r``.
 For PowerHazard (``z = t/b``): ``H = z**k``, ``log h = log(k/b) + (k-1) log z``.
 """
 
@@ -14,7 +14,7 @@ import jax
 import numpy as np
 import pytest
 import spec_families as fam
-from helpers import INF, NAN, assert_close, f
+from helpers import INF, NAN, assert_close, assert_rel_close, f, log1mexp
 
 
 def _exp(rate=0.5):
@@ -38,9 +38,13 @@ def test_default_cumulative_hazard_is_minus_log_survival():
 
 @pytest.mark.step("A4")
 def test_default_log_cdf():
-    """spec 4.2, rev 11: default `log_cdf = log(-expm1(log S))`."""
+    """spec 4.2/7.2, rev 25: default `log_cdf = log1mexp(log S)`; `H = 0.25, 1, 15`.
+
+    At ``H = 15``, ``log F = -3.06e-7``, below the float32 ``atol``, so the
+    comparison has zero absolute tolerance (12.1, rev 25).
+    """
     t = np.array([0.5, 2.0, 30.0])
-    assert_close(_exp().log_cdf(f(t)), np.log(-np.expm1(-0.5 * t)))
+    assert_rel_close(_exp().log_cdf(f(t)), log1mexp(-0.5 * t))
 
 
 @pytest.mark.step("A4")
@@ -132,7 +136,7 @@ def test_negative_time_log_hazard_is_minus_infinity():
 
 @pytest.mark.step("A4")
 def test_zero_time_survival_cumulative_hazard_and_log_cdf():
-    """spec 4.5, rev 11: at `t=0` the family's limits: `S(0)=1`, `H(0)=0`, `log F(0)=-inf`."""
+    """spec 4.5, rev 26: at `t=0` the base supplies `S(0)=1`, `H(0)=0`, `log F(0)=-inf`."""
     dist = _exp()
     np.testing.assert_array_equal(np.asarray(dist.survival(f(0.0))), 1.0)
     np.testing.assert_array_equal(np.asarray(dist.cumulative_hazard(f(0.0))), 0.0)
@@ -141,19 +145,19 @@ def test_zero_time_survival_cumulative_hazard_and_log_cdf():
 
 @pytest.mark.step("A4")
 def test_infinite_time_survival_is_zero():
-    """spec 4.5, rev 11: `t=+inf` gives `log S(+inf)` from the family (`-inf`, so `S=0`, for a proper family)."""
+    """spec 4.5, rev 26: at `t=+inf`, `S` follows from `log_survival_at_infinity()` (default `-inf`, so `S=0`)."""
     np.testing.assert_array_equal(np.asarray(_exp().survival(f(INF))), 0.0)
 
 
 @pytest.mark.step("A4")
 def test_infinite_time_cumulative_hazard_is_infinite():
-    """spec 4.5, rev 11: `t=+inf` gives `H = -log S(+inf) = +inf` for a proper family."""
+    """spec 4.5, rev 26: `t=+inf` gives `H = -log S = +inf` with the proper default."""
     np.testing.assert_array_equal(np.asarray(_exp().cumulative_hazard(f(INF))), INF)
 
 
 @pytest.mark.step("A4")
 def test_infinite_time_log_cdf_is_zero():
-    """spec 4.5, rev 11: `t=+inf` gives `log F = log(-expm1(-inf)) = 0` for a proper family."""
+    """spec 4.5, rev 26: `t=+inf` gives `log F = log1mexp(log S) = log1mexp(-inf) = 0` with the proper default."""
     np.testing.assert_array_equal(np.asarray(_exp().log_cdf(f(INF))), 0.0)
 
 

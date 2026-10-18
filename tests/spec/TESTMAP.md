@@ -1,6 +1,6 @@
 # Test map
 
-Spec: revision 22 (see `.spec-seen`). Unchanged requirements keep their
+Spec: revision 27 (see `.spec-seen`). Unchanged requirements keep their
 earlier revision tags. Tests from the revision 10 decision (sections 6.2, 10.2,
 13) are tagged `rev 10`. Tests from the performance amendment (section 7.2),
 accepted in revision 11, are tagged `rev 11`. A4 tests derive from revision 11 and
@@ -19,7 +19,22 @@ boundary gradients, the grid argument, the `bc` vector), tagged `rev 22`, as
 are the `log_prob(+inf)` NaN tests in `test_a4_nan_precedence.py`. Grid tests
 that revision 24 extended to every `_grid` twin, and the new grid tests, are
 tagged `rev 24`. Revision 23 (documentation workflow, 10.5) changed no tested
-requirement. Tests are static acceptance tests and have never
+requirement. Revision 25 (`log_cdf` relative precision in both tails, 4.1,
+4.2, 7.2, 12.1) adds `test_a4_log_cdf_upper_tail.py` and
+`test_a5_log_cdf_tails.py`, tagged `rev 25` like `test_default_log_cdf`; the
+`test_a5_closed_forms.py` interior tests keep `rev 21` but now compare
+`log_cdf` with zero absolute tolerance (12.1, rev 25). Revision 26 (base
+supplies the survival limits at `t=0` and `t=+inf`; `log_survival_at_infinity()`;
+2, 4.2, 4.5, 12.1) adds `test_a4_base_boundaries.py` and one A5 grid test,
+retags the `t=0`/`t=+inf` tests whose requirement text changed as `rev 26`,
+moves the `t=0` density-limit tests from the generic `log_prob` default (no
+longer guaranteed there) to a `log_prob` override, and drops `t=0` from tests
+that evaluated the generic `log_prob` default there. Revision 27 (4.5: for
+valid parameters the substituted input is a finite `t>0`; 12.2: Slice A
+includes the base's use of `log_survival_at_infinity()`) retags the
+`boundary_nan_hazard` boundary tests in `test_a4_base_boundaries.py` as
+`rev 27` and confirms the improper-family tests belong to A4. The mpmath references
+need `mpmath` in the test environment. Tests are static acceptance tests and have never
 been executed against survjax. Test names below are relative to `tests/spec/`.
 
 ## A1: representation and dtype policy (`test_a1_representation.py`, `test_a1_dtype.py`)
@@ -618,19 +633,19 @@ public extension interface; built-in families start at A5.
 | 4.5 | `t<0` gives `log_prob=-inf`. | `test_negative_time_log_prob_is_minus_infinity` |
 | 4.5 | methods are total over `[-inf, +inf]`; `t=-inf` is `t<0`. | `test_minus_infinity_time_log_prob_is_minus_infinity` |
 | 4.5 | `t<0` gives `-inf` even when the density is infinite at `0` (Weibull-like `k<1`). | `test_negative_time_log_prob_for_infinite_density_at_zero` |
-| 4.5 | at `t=0`, boundary values come from the family; Weibull-like `k<1` gives infinite density. | `test_zero_time_infinite_density_for_shape_below_one` |
-| 4.5 | Weibull-like `k=1` at `t=0` gives `log(1/b)` (no epsilon, no NaN). | `test_zero_time_density_for_shape_one` |
-| 4.5 | Weibull-like `k>1` at `t=0` gives `-inf`. | `test_zero_time_zero_density_for_shape_above_one` |
-| 4.5 | at `t=0` an exponential-like family gives `log r`. | `test_zero_time_constant_hazard_density` |
-| 4.5 | a grid starting at `t=0` with Weibull-like `k=1` is finite throughout: `log(1/b) - t/b`. | `test_grid_from_zero_with_shape_one_is_finite` |
-| 4.5 | `t=+inf` gives `log_prob=-inf`. | `test_infinite_time_log_prob_constant_hazard` |
+| 4.5 | rev 26: at `t=0` a `log_prob` override supplies the density limit; Weibull-like `k<1` gives `+inf`. | `test_zero_time_log_prob_override_infinite_density_for_shape_below_one` |
+| 4.5 | rev 26: Weibull-like `k=1` override at `t=0` gives `log(1/b)` (no epsilon, no NaN). | `test_zero_time_log_prob_override_density_for_shape_one` |
+| 4.5 | rev 26: Weibull-like `k>1` override at `t=0` gives `-inf`. | `test_zero_time_log_prob_override_zero_density_for_shape_above_one` |
+| 4.5 | rev 26: "an override of `log_prob` ... is called at `t=0`" (sentinel override). | `test_zero_time_log_prob_override_is_called` |
+| 4.5 | rev 26: a time vector starting at `t=0` with Weibull-like `k=1` (override) is finite: `log(1/b) - t/b`. | `test_grid_from_zero_with_shape_one_is_finite` |
+| 4.5 | rev 26: `t=+inf` gives `log_prob=-inf` (base-supplied). | `test_infinite_time_log_prob_constant_hazard` |
 | 4.5 | `t=+inf` gives `-inf` for a decreasing hazard (Weibull-like `k<1`). | `test_infinite_time_log_prob_with_vanishing_hazard` |
 | 4.5 | `t=+inf` gives `-inf`, not NaN, when the hazard diverges (Weibull-like `k>1`). | `test_infinite_time_log_prob_with_diverging_hazard` |
 | 4.5 | NaN `t` gives NaN. | `test_nan_time_log_prob_is_nan` |
 | 4.5 | NaN `t` gives NaN (Weibull-like family). | `test_nan_time_log_prob_is_nan_for_power_hazard` |
-| 4.5 | every case is handled per element of one array, without raising. | `test_policy_applies_elementwise_in_one_call` |
-| 4.5/12.1 | boundary values are the same eagerly and under `jit`. | `test_policy_values_agree_under_jit` |
-| 4.5/12.1 | boundary values are the same eagerly and under `vmap` over time. | `test_boundary_values_agree_under_vmap` |
+| 4.5 | every case is handled per element of one array, without raising (rev 26: `t=0` left out). | `test_policy_applies_elementwise_in_one_call` |
+| 4.5/12.1 | policy values are the same eagerly and under `jit` (rev 26: `t=0` left out). | `test_policy_values_agree_under_jit` |
+| 4.5/12.1 | policy values are the same eagerly and under `vmap` over time (rev 26: `t=0` left out). | `test_boundary_values_agree_under_vmap` |
 | 4.5 | invalid parameters give NaN, without raising. | `test_invalid_parameter_gives_nan_log_prob` |
 | 4.5 | invalid (NaN) parameters give NaN at an interior time. | `test_nan_parameter_gives_nan_log_prob` |
 | 4.5 | an invalid batch entry gives NaN only in its own position. | `test_invalid_parameter_does_not_affect_other_batch_entries` |
@@ -641,7 +656,7 @@ public extension interface; built-in families start at A5.
 | --- | --- | --- |
 | 8.1 | `survival(t)` is `P(T>t)`, i.e. `exp(log_survival(t))`. | `test_default_survival_is_exp_log_survival` |
 | 4.2 | default `cumulative_hazard = -log S`. | `test_default_cumulative_hazard_is_minus_log_survival` |
-| 4.2 | default `log_cdf = log(-expm1(log S))`. | `test_default_log_cdf` |
+| 4.2/7.2 | rev 25: default `log_cdf = log1mexp(log S)`, with zero absolute tolerance (`H=15`, `log F=-3e-7`). | `test_default_log_cdf` |
 | 4.2 | the default `log_cdf` is accurate until `\|log S\|` underflows. | `test_default_log_cdf_keeps_precision_for_tiny_cdf` |
 | 4.2 | default `log_hazard = log(-d/dt log S)`; here `log r` at every time. | `test_default_log_hazard_constant_hazard` |
 | 8.1 | `hazard(t) = f(t)/S(t)`; here `r`. | `test_default_hazard_constant_hazard` |
@@ -652,10 +667,10 @@ public extension interface; built-in families start at A5.
 | 4.5 | `t<0` gives `H=0`. | `test_negative_time_cumulative_hazard_is_zero` |
 | 4.5 | `t<0` gives `h=0`. | `test_negative_time_hazard_is_zero` |
 | 4.5 | rev 21: `t<0` gives `log_hazard=-inf`. | `test_negative_time_log_hazard_is_minus_infinity` |
-| 4.5 | at `t=0` the family's limits: `S(0)=1`, `H(0)=0`, `log F(0)=-inf`. | `test_zero_time_survival_cumulative_hazard_and_log_cdf` |
-| 4.5 | `t=+inf` gives `log S(+inf)` from the family (`-inf`, so `S=0`, for a proper family). | `test_infinite_time_survival_is_zero` |
-| 4.5 | `t=+inf` gives `H = -log S(+inf) = +inf` for a proper family. | `test_infinite_time_cumulative_hazard_is_infinite` |
-| 4.5 | `t=+inf` gives `log F = log(-expm1(-inf)) = 0` for a proper family. | `test_infinite_time_log_cdf_is_zero` |
+| 4.5 | rev 26: at `t=0` the base supplies `S(0)=1`, `H(0)=0`, `log F(0)=-inf`. | `test_zero_time_survival_cumulative_hazard_and_log_cdf` |
+| 4.5 | rev 26: at `t=+inf`, `S` follows from `log_survival_at_infinity()` (default `-inf`, so `S=0`). | `test_infinite_time_survival_is_zero` |
+| 4.5 | rev 26: `t=+inf` gives `H = -log S = +inf` with the proper default. | `test_infinite_time_cumulative_hazard_is_infinite` |
+| 4.5 | rev 26: `t=+inf` gives `log F = log1mexp(-inf) = 0` with the proper default. | `test_infinite_time_log_cdf_is_zero` |
 | 4.5 | NaN `t` gives NaN (`survival`). | `test_nan_time_survival_is_nan` |
 | 4.5 | NaN `t` gives NaN (`cumulative_hazard`). | `test_nan_time_cumulative_hazard_is_nan` |
 | 4.5 | NaN `t` gives NaN (`log_cdf`). | `test_nan_time_log_cdf_is_nan` |
@@ -676,15 +691,15 @@ public extension interface; built-in families start at A5.
 | 4.5 | `t<0` gives `h=0`. | `test_unguarded_hazard_is_zero_for_negative_time` |
 | 4.5 | rev 21: `t<0` gives `log_hazard=-inf` for a family whose formula is undefined there. | `test_unguarded_log_hazard_is_minus_infinity_for_negative_time` |
 | 4.5 | NaN `t` gives NaN for `log_survival` and `log_prob`. | `test_unguarded_nan_time_gives_nan` |
-| 4.5 | at `t=0` the family is called: Weibull-like `k<1` `+inf`, `k=1` `log(1/b)`, `k>1` `-inf`. | `test_unguarded_zero_time_values_come_from_the_family` |
-| 4.5 | "the base returns `log_prob(+inf)=-inf` even where a default formula would give `+inf - inf`". | `test_unguarded_infinite_time_log_prob_is_minus_infinity` |
-| 4.5 | at `t=+inf` the family supplies `log S(+inf)` (`-inf` here). | `test_unguarded_infinite_time_log_survival_comes_from_the_family` |
-| 4.2 | on `[0, +inf]` the family's own formula is used. | `test_unguarded_interior_values_are_the_family_formula` |
-| 4.5/5 | the policy applies per element of a broadcast `(K, N)` result. | `test_unguarded_policy_applies_elementwise_with_batches` |
-| 4.5/12.1 | policy values are the same eagerly and under `jit`. | `test_unguarded_policy_agrees_under_jit` |
+| 4.5 | rev 26: at `t=0`, `log S=0`, `S=1`, `log_cdf=-inf`, `H=0` come from the base (`k` in `0.5, 1, 2`). | `test_unguarded_zero_time_survival_values_come_from_the_base` |
+| 4.5 | rev 26: at `t=+inf` the base gives `log_prob=-inf` (also where a default formula would give `+inf - inf`). | `test_unguarded_infinite_time_log_prob_is_minus_infinity` |
+| 4.5 | rev 26: at `t=+inf`, `log_survival` equals `log_survival_at_infinity()` (default `-inf`). | `test_unguarded_infinite_time_log_survival_comes_from_the_base` |
+| 4.2 | rev 26: for finite `t>0` the family's own formula is used. | `test_unguarded_interior_values_are_the_family_formula` |
+| 4.5/5 | rev 26: the policy applies per element of a broadcast `(K, N)` `log_cdf` result (`t<0`, `t=0`, interior). | `test_unguarded_policy_applies_elementwise_with_batches` |
+| 4.5/12.1 | rev 26: policy values are the same eagerly and under `jit` (`t=0` only for `log_survival`). | `test_unguarded_policy_agrees_under_jit` |
 | 4.5 | the base applies the policy to "methods the family overrides" (`t<0`: `-inf`). | `test_unguarded_log_prob_override_is_minus_infinity_for_negative_time` |
 | 4.5 | NaN `t` gives NaN for an overridden method. | `test_unguarded_log_prob_override_nan_time_gives_nan` |
-| 4.2 | the override is used on `[0, +inf]` (same value as the hand-derived density). | `test_unguarded_log_prob_override_supplies_interior_values` |
+| 4.2 | rev 26: the override is used for finite `t>0` (same value as the hand-derived density). | `test_unguarded_log_prob_override_supplies_interior_values` |
 | 4.5 | policy values have no NaN parameter gradients; `log S = 0` is constant, so gradients are 0. | `test_negative_time_log_survival_has_zero_parameter_gradients` |
 | 4.5 | `S=1` for `t<0` has zero parameter gradients. | `test_negative_time_survival_has_zero_parameter_gradients` |
 | 4.5 | rev 20: "With valid parameters the policy values keep zero parameter gradients" (`log_prob=-inf`). | `test_negative_time_log_prob_has_zero_parameter_gradients` |
@@ -720,7 +735,7 @@ for all seven Slice A direct methods (`log_survival`, `survival`, `log_cdf`,
 | 4.5 | float64 `t` is converted to float32; result float32 with the hand value (32-bit mode only). | `test_float64_time_result_is_float32_under_32bit_mode` |
 | 4.5 | `t` follows JAX promotion; "the output precision is set by the parameters" (float32 `t`, float64 parameters; 64-bit mode only). | `test_float32_time_promotes_to_parameter_dtype_under_64bit_mode` |
 | 4.5 | integer `t` gives the equal float time's value (`log_survival`, hand-derived). | `test_integer_array_time_log_survival_matches_float_time` |
-| 4.5 | integer `t` gives the equal float time's value for the autodiff `log_prob` default. | `test_integer_array_time_log_prob_matches_float_time` |
+| 4.5 | integer `t` gives the equal float time's value for the autodiff `log_prob` default (rev 26: `t=1,2,3`, avoiding `t=0`). | `test_integer_array_time_log_prob_matches_float_time` |
 | 4.5 | integer `t` gives the equal float time's value for the `hazard` default. | `test_integer_array_time_hazard_matches_float_time` |
 | 4.5 | Python `int` `t` gives the equal float time's value. | `test_python_int_time_matches_float_time` |
 | 4.5 | integer `t<0` gets the `t<0` policy value. | `test_negative_integer_time_gets_policy_value` |
@@ -739,27 +754,42 @@ input is NaN, the result is NaN; otherwise the policy value applies."
 | 4.5/5 | elementwise over a broadcast `(N, K)` result of times and batch. | `test_nan_precedence_applies_elementwise_over_times` |
 | 4.5/12.1 | the same values eagerly and under `jit`. | `test_nan_precedence_agrees_under_jit` |
 | 4.5 | the rule covers NaN `t`: NaN `t` with a NaN parameter is NaN. | `test_nan_parameter_with_nan_time_gives_nan` |
-| 4.5 | rev 22: `log_prob(+inf)` is NaN when the family's `log_survival(+inf)` is NaN (guarded and unguarded families). | `test_nan_parameter_log_prob_at_infinity_is_nan`, `test_nan_parameter_log_prob_at_infinity_is_nan_for_unguarded_family` |
-| 4.5 | rev 22: elementwise: a valid `k=2` entry keeps `log_prob(+inf)=-inf` next to a NaN entry. | `test_nan_batch_entry_log_prob_at_infinity_keeps_valid_entry_minus_infinity` |
+| 4.5 | rev 26: the base-supplied `log_prob(+inf)` is NaN when the family's value at the substituted input is NaN (guarded and unguarded families). | `test_nan_parameter_log_prob_at_infinity_is_nan`, `test_nan_parameter_log_prob_at_infinity_is_nan_for_unguarded_family` |
+| 4.5 | rev 26: elementwise: a valid `k=2` entry keeps `log_prob(+inf)=-inf` next to a NaN entry. | `test_nan_batch_entry_log_prob_at_infinity_keeps_valid_entry_minus_infinity` |
 | 4.5 | "With valid parameters the policy values keep zero parameter gradients". | the six `test_negative_time_*_has_zero_parameter_gradients` tests above, plus the rev 12 `log_survival` and `survival` ones |
 
-### `test_a4_hazard_at_zero_survival.py`: `log_hazard` and `hazard` where `S(t)=0` (rev 13)
+### `test_a4_hazard_at_zero_survival.py`: `log_hazard` and `hazard` where `S(t)=0` and at `t=+inf` (rev 13, 26)
 
 | Spec section | Requirement covered | Test |
 | --- | --- | --- |
-| 4.2/4.5 | where `S(t)=0` (`t=+inf`), the generic `log_hazard` default gives NaN. | `test_default_log_hazard_is_nan_at_infinity` |
-| 4.5 | `hazard` follows `log_hazard`: NaN from the generic default where `S(t)=0`. | `test_default_hazard_is_nan_at_infinity` |
-| 4.5 | the same for a Weibull-like family (`k=2`, derivative form `+inf`) and `k=0.5` (`-inf`). | `test_default_log_hazard_is_nan_at_infinity_for_unguarded_family` |
-| 4.2 | elementwise: `log r` where `S>0`, NaN at `+inf`, in one call. | `test_default_log_hazard_is_nan_only_where_survival_is_zero` |
+| 4.2/4.5 | rev 26: at `t=+inf` the generic `log_hazard` default gives NaN. | `test_default_log_hazard_is_nan_at_infinity` |
+| 4.5 | rev 26: at `t=+inf`, `hazard` from the generic default is NaN. | `test_default_hazard_is_nan_at_infinity` |
+| 4.5 | rev 26: the same for a Weibull-like family (`k=2`, derivative form `+inf`) and `k=0.5` (`-inf`). | `test_default_log_hazard_is_nan_at_infinity_for_unguarded_family` |
+| 4.2/4.5 | rev 26: elementwise: `log r` at finite `t`, NaN at `+inf`, in one call. | `test_default_log_hazard_is_nan_only_where_survival_is_zero` |
 | 4.2 | `S(t)>0` is the mathematical condition, read from `log S`, not from an underflowed `exp(log S)`. | `test_default_log_hazard_with_tiny_but_positive_survival_is_not_nan` |
-| 4.5 | where `S(t)=0`, a family overriding `log_hazard` gives its analytic value (the limit `log r`). | `test_log_hazard_override_supplies_value_at_infinity` |
-| 4.5 | `hazard` where `S(t)=0` is the analytic value from the `log_hazard` override (`r`). | `test_hazard_uses_log_hazard_override_at_infinity` |
+| 4.5 | rev 26: at `t=+inf` the `log_hazard` override is called and supplies the limit (`log r`). | `test_log_hazard_override_supplies_value_at_infinity` |
+| 4.5 | rev 26: `hazard` at `t=+inf` comes from the `log_hazard` override (`r`). | `test_hazard_uses_log_hazard_override_at_infinity` |
 | 4.5 | the override is wrapped by the base: `t<0` gives `h=0`, NaN `t` gives NaN. | `test_log_hazard_override_still_follows_policy_for_negative_and_nan_time` |
 | 4.5 | rev 21: the `t<0` row applies to a `log_hazard` override: `-inf`, not `log r`. | `test_log_hazard_override_is_minus_infinity_for_negative_time` |
 | 4.2 | inside the support the default is `log(-d/dt log S)`; for uniform on `(0, c]`, `-log(c - t)`. | `test_default_log_hazard_inside_bounded_support` |
 | 4.5 | where `S(t)=0` beyond a finite support end (`t=c`, `t>c`, `t=+inf`), the default gives NaN. | `test_default_log_hazard_is_nan_at_and_beyond_support_end` |
 | 4.5 | `hazard` beyond a finite support end is NaN from the generic default. | `test_default_hazard_is_nan_beyond_support_end` |
 | 4.5/12.1 | the same values eagerly and under `jit`. | `test_zero_survival_rule_agrees_under_jit` |
+
+### `test_a4_log_cdf_upper_tail.py`: generic `log_cdf` default in the upper tail (rev 25)
+
+ConstHazard (`log S = -rate t`), `rate = 0.5`, `t = 2H`. `[h]` marks a
+parametrization over `H`: upper tail `20, 33, 55` and `70` (float32) or `600`
+(float64); derivatives at the split points `0.5, 0.69, 0.70, 1.2` and at
+`20, 33`.
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 4.2/12.1 | "never rounds a representable `log F` to zero": negative, nonzero, against mpmath `log1p(-exp(-H))`, zero absolute tolerance. | `test_default_log_cdf_in_upper_tail_is_negative_and_accurate[h]` |
+| 12.1 | the same under `jit` and `vmap`. | `test_default_log_cdf_upper_tail_under_jit`, `test_default_log_cdf_upper_tail_under_vmap_over_time` |
+| 7.2/12.1 | values on both sides of the `log1mexp` split `H = log 2`. | `test_default_log_cdf_on_both_sides_of_log1mexp_split` |
+| 7.3/12.1 | first and second rate derivatives (`grad`, `jacfwd`, rev-over-rev, fwd-over-rev) at the split and upper-tail points: `t/expm1(H)`. | `test_default_log_cdf_rate_derivatives[h]` |
+| 12.1 | `t = (0, interior, upper tail, +inf)` under `jax_debug_nans`. | `test_default_log_cdf_mixed_times_under_debug_nans` |
 
 ### `test_a4_nested.py`: nested distribution fields (rev 18)
 
@@ -779,6 +809,33 @@ input is NaN, the result is NaN; otherwise the policy value applies."
 | 4.2 | `jax.tree.map` slicing reaches nested leaves. | `test_tree_map_slicing_applies_to_nested_leaves` |
 | 4.2 | `vmap` over a family built from a scalar base works and matches the batched call. | `test_vmap_over_outer_distribution_with_broadcast_base` |
 | 4.2 | values with a `(2, 3)` broadcast of base and outer parameter. | `test_broadcast_nested_values_in_log_prob` |
+
+### `test_a4_base_boundaries.py`: base-supplied survival limits, `log_survival_at_infinity()` (rev 26, 27)
+
+Families: `boundary_nan_hazard` (`log S = -r t (t/t)`, NaN at `0` and `+inf`),
+`softplus_log_logistic` (the spec 4.5 test case), `mixture_cure` (improper,
+`S(+inf) = c`, overriding `log_survival_at_infinity()`). `[m]` runs over
+`log_survival`, `survival`, `log_cdf`, `cumulative_hazard` unless noted.
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 4.2 | default `log_survival_at_infinity()`: "`-inf` per batch entry ...: an array of shape `batch_shape` in the parameter dtype" (scalar, `(3,)`, component family). | `test_default_log_survival_at_infinity_is_minus_infinity_for_scalar_family`, `test_default_log_survival_at_infinity_has_one_entry_per_batch_entry`, `test_default_log_survival_at_infinity_excludes_component_axes` |
+| 4.2/4.5 | `log_survival` is "Called for finite `t>0`; the base supplies the values at `t=0` and `t=+inf`"; rev 27: "For valid parameters the substituted input is a finite `t>0`", so a family NaN at both still gives the policy values (and `log_prob(+inf)=-inf`). | `test_zero_time_value_comes_from_the_base_when_family_is_nan_there[m]`, `test_infinite_time_value_comes_from_the_base_when_family_is_nan_there[m, log_prob]` |
+| 4.2 | the family formula is used for finite `t>0` (`log_survival`, default `log_prob`). | `test_nan_at_boundary_family_interior_values_are_its_formula` |
+| 4.5 | elementwise over `(-1, 0, 2, +inf, NaN)`. | `test_nan_at_boundary_family_values_elementwise_in_one_call` |
+| 4.5/12.1 | the same under `jit` and `vmap`. | `test_nan_at_boundary_family_values_agree_under_jit[m]`, `test_nan_at_boundary_family_values_agree_under_vmap[m]` |
+| 4.5 | base-supplied values have gradient "`0` for `S(0)`, `log F(0)`, `H(0)` and, with the proper default, for `S(+inf)` and `log F(+inf)`" (also `log S(0)`). | `test_nan_at_boundary_family_zero_time_has_zero_rate_gradient[m]`, `test_nan_at_boundary_family_infinite_time_has_zero_rate_gradient[*]` |
+| 4.5/12.1 | test case: the plain softplus log-logistic "gives `S(0)=1` with zero gradient and `S(+inf)=0`"; also `log S(0)`, `log F(0)`, `H(0)` and `log F(+inf)` gradients. | `test_softplus_log_logistic_survival_at_zero_is_one`, `test_softplus_log_logistic_survival_at_zero_has_zero_gradients`, `test_softplus_log_logistic_zero_time_values_have_zero_gradients[m]`, `test_softplus_log_logistic_survival_at_infinity_is_zero`, `test_softplus_log_logistic_infinite_time_values_have_zero_gradients[*]` |
+| 4.2/7.3 | interior log-logistic values and `beta` gradient (hand-derived). | `test_softplus_log_logistic_interior_values`, `test_softplus_log_logistic_interior_gradient_is_finite` |
+| 4.2 | "Improper families return `log S(+inf)`, for example the log cure fraction". | `test_improper_family_log_survival_at_infinity_override_is_used` |
+| 2/4.5 | improper `t=+inf`: `log S = log_survival_at_infinity()`, `S`, `log_cdf = log1mexp(log S)`, `H = -log S`; `log_prob=-inf`; generic `log_hazard`/`hazard` NaN. | `test_improper_family_values_at_infinity[m]`, `test_improper_family_log_prob_at_infinity_is_minus_infinity`, `test_improper_family_generic_log_hazard_at_infinity_is_nan` |
+| 2/4.5 | `S(0)=1` "for every family" (improper too); interior values follow the formula. | `test_improper_family_values_at_zero[m]`, `test_improper_family_interior_values` |
+| 4.2/4.5/12.1 | improper `+inf` values are differentiated "through `log_survival_at_infinity()`" (`d/dc` hand-derived, `d/dr = 0`). | `test_improper_family_gradients_at_infinity[m]` |
+| 4.2/4.5 | per batch entry, and under `jit` and `vmap`. | `test_improper_family_values_at_infinity_per_batch_entry`, `test_improper_family_values_at_infinity_agree_under_jit_and_vmap[m]` |
+| 4.5 | "if ... at `t=+inf` `log_survival_at_infinity()` is NaN, the result is NaN" (`cure = -1`, family NaN everywhere). | `test_nan_log_survival_at_infinity_gives_nan_at_infinity[m, log_prob]` |
+| 4.5 | the same where the family is finite at some substituted inputs (`cure = -0.5`: finite for `t < 2.197`), so only the `log_survival_at_infinity()` clause gives NaN. | `test_nan_log_survival_at_infinity_wins_over_finite_family_value[m, log_prob]` |
+| 4.5 | a `log_hazard` override is called at `t=0` and supplies the hazard limit; `log_prob(+inf)=-inf` from the base also over a `log_prob` override. | `test_log_hazard_override_is_called_at_zero`, `test_log_prob_override_at_infinity_gives_base_value` |
+| 4.5 | base-supplied values at `t=0` and `t=+inf` are NaN when the family is NaN at the substituted input (`rate=NaN`); a valid batch entry keeps the base values. | `test_nan_parameter_gives_nan_at_zero_time[m]`, `test_nan_parameter_gives_nan_at_infinite_time[m]`, `test_nan_batch_entry_keeps_valid_entry_boundary_values[m]` |
 
 ### A4: deliberately not tested
 
@@ -804,10 +861,26 @@ input is NaN, the result is NaN; otherwise the policy value applies."
   `sample`, `check_family`** (4.2 optional members): Slices B and D under
   spec 12.2 (rev 14). `parameter_issues()` may be needed for likelihood
   diagnostics at A6 (7.1); its return type is unspecified, to be raised then.
-- **Gradients with respect to time, and of boundary values for custom
-  families:** 7.3 puts time gradients outside the guarantee; the 4.5 NaN-free
-  boundary-gradient requirement is tested on built-in Weibull at A5, and for
-  custom code it depends on the author's `log_survival`.
+- **Gradients with respect to time, and of family-supplied boundary values
+  for custom families:** 7.3 puts time gradients outside the guarantee; rev 26
+  gives custom density and hazard limits "no such guarantee". Base-supplied
+  values (`log S`, `S`, `log F`, `H` at `0` and `+inf`) are tested for custom
+  families in `test_a4_base_boundaries.py`; family-supplied limits on the
+  built-ins at A5.
+- **The generic `log_prob`, `log_hazard` and `hazard` defaults at `t=0`**
+  (4.5, rev 26): "that result carries no value or gradient guarantee". The
+  earlier `t=0` density tests now use a `log_prob` override; the
+  exponential-like `log r` at `t=0` from the generic default
+  (`test_zero_time_constant_hazard_density`) was removed.
+- **`log_survival` not being called at `t=0`/`t=+inf`, observed directly:**
+  call counting is not observable through the public API; the NaN-at-boundary
+  family shows that its boundary values are not used.
+- **Overrides of `log_interval_prob` and `log_conditional_interval_prob`
+  receiving `0` and `+inf`** (4.2, rev 26), **`H(+inf)` in the solver** (8.2)
+  and **`check_family` limit checks** (4.2): Slices B and D.
+- **Likelihood limits from the base (7.1, rev 26):** A6 and later; no
+  likelihood tests exist yet.
+- **`HazardFamily` keeping the proper default** (4.3): Slice D.
 - **Forward-mode specifically** (4.2: "by forward-mode autodiff"): the method
   of differentiation is not observable from values; tests check the result,
   first and second parameter derivatives in both modes.
@@ -876,24 +949,41 @@ parametrized over the seven Slice A direct methods (`log_survival`,
 | 4.2 | "Built-ins override [`log_hazard`] analytically"; the generic form cancels when `H` is large. | `test_exponential_log_hazard_in_upper_tail_is_analytic`, `test_exponential_hazard_in_upper_tail_is_analytic`, `test_weibull_log_hazard_in_upper_tail_is_analytic`, `test_weibull_hazard_in_upper_tail_is_analytic` |
 | 8.1 | `survival` underflows to `0`, not NaN. | `test_survival_underflows_to_zero_not_nan_in_upper_tail` |
 
+### `test_a5_log_cdf_tails.py`: built-in `log_cdf` in both tails (rev 25)
+
+Exponential `r = 0.5` at `t = 2H`; Weibull `k = 2.5`, `b = 3` at
+`t = 3 H**(1/k)`, with `H` recomputed in mpmath from the rounded `t`. `[h]` as
+for `test_a4_log_cdf_upper_tail.py`; `[name]` over Exponential and Weibull
+(and ConstHazard for the grid). Upper-tail tolerance: `helpers.tail_rtol`,
+zero absolute tolerance, scale justified there (`S` has condition number `H`).
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 4.1/12.1 | upper tail "negative there and never rounds to zero", against mpmath, at `H` about 20, 33, 55 and deeper. | `test_exponential_log_cdf_in_upper_tail_is_negative_and_accurate[h]`, `test_weibull_log_cdf_in_upper_tail_is_negative_and_accurate[h]` |
+| 12.1 | the same "under `jit` and `vmap`, and through `log_cdf_grid`" (grid also for the generic default). | `test_upper_tail_log_cdf_under_jit[name]`, `test_upper_tail_log_cdf_under_vmap_over_time[name]`, `test_upper_tail_log_cdf_grid[name]` |
+| 4.1/12.1 | lower tail "even where `H` or `F` underflows": `log F = log H`. | `test_exponential_log_cdf_where_cumulative_hazard_underflows`, `test_weibull_log_cdf_where_cumulative_hazard_underflows` |
+| 7.2/12.1 | values on both sides of the split `H = log 2`. | `test_log_cdf_on_both_sides_of_log1mexp_split[name]` |
+| 7.3/12.1 | first and second parameter derivatives at the split and upper-tail points (Exponential `t/expm1(H)`; Weibull in `k` and `b`). | `test_exponential_log_cdf_rate_derivatives[h]`, `test_weibull_log_cdf_shape_derivatives[h]`, `test_weibull_log_cdf_scale_derivatives[h]` |
+| 12.1 | mixed `0`, interior, upper-tail, `+inf` times under `jax_debug_nans` (Weibull `k` in `0.5, 1, 2.5`). | `test_exponential_log_cdf_mixed_times_under_debug_nans`, `test_weibull_log_cdf_mixed_times_under_debug_nans[k]` |
+
 ### `test_a5_boundaries.py`: value policy and boundary values on built-ins
 
 | Spec section | Requirement covered | Test |
 | --- | --- | --- |
 | 4.5 | `t<0` row (`-1e-30`, `-1`, `-inf`) for all seven methods. | `test_negative_time_gives_policy_value[*]` |
 | 4.5 | `t<0` policy values keep zero parameter gradients. | `test_negative_time_policy_values_have_zero_weibull_gradients[*]`, `test_negative_time_policy_values_have_zero_exponential_gradient[*]` |
-| 4.5 | `t=0` row: Weibull `k<1` infinite density, `k=1` `log(1/b)`, `k>1` `-inf`; Exponential `log r`. | `test_zero_time_boundary_value[*]` |
+| 4.5 | rev 26: `t=0` row: `log S`, `S`, `log F`, `H` from the base; Weibull `k<1` infinite density, `k=1` `log(1/b)`, `k>1` `-inf`; Exponential `log r` from the overrides. | `test_zero_time_boundary_value[*]` |
 | 4.1 | `xlogy`-style term: `k=1`, `t=0` gives `log(1/b)`, not NaN. | `test_weibull_shape_one_density_at_zero_is_not_nan` |
-| 4.5 | `t=+inf` row; `log_hazard`/`hazard` where `S=0` are the override's limit. | `test_infinite_time_boundary_value[*]` |
+| 4.5 | rev 26: `t=+inf` row (`log_survival_at_infinity()` is `-inf` for built-ins); `log_hazard`/`hazard` are the override's limit. | `test_infinite_time_boundary_value[*]` |
 | 4.5 | NaN `t` gives NaN. | `test_nan_time_gives_nan[*]` |
-| 4.5 | NaN parameters give NaN at every `t`; rev 22: `log_prob(+inf)` is NaN when the family's `log S(+inf)` is NaN. | `test_nan_rate_gives_nan_for_every_time[*]`, `test_nan_weibull_scale_gives_nan_for_every_time[*]` |
+| 4.5 | rev 26: NaN parameters give NaN at every `t`, base-supplied values included (NaN at the substituted input). | `test_nan_rate_gives_nan_for_every_time[*]`, `test_nan_weibull_scale_gives_nan_for_every_time[*]` |
 | 4.5 | an invalid batch entry affects only its own position. | `test_nan_batch_entry_does_not_affect_other_entries` |
 | 4.5 | elementwise over one array, without raising. | `test_weibull_policy_applies_elementwise_in_one_call` |
 | 4.5/12.1 | boundary values agree under `jit` and `vmap`. | `test_boundary_values_agree_under_jit[*]`, `test_boundary_values_agree_under_vmap_over_time[*]` |
 | 4.5 | test case "the gradient of `S(0)` with respect to `k`" (`k` in `0.5, 1, 2`), also in `b`. | `test_gradient_of_weibull_survival_at_zero_in_shape[*]`, `test_gradient_of_weibull_survival_at_zero_in_scale[*]` |
 | 4.5 | "avoid NaN parameter gradients where the value is finite": `log S(0)`, `H(0)`; `k=1` `log f(0)`, `log h(0)` in `b`; Exponential in `r`. | `test_gradient_of_weibull_log_survival_and_cumulative_hazard_at_zero[*]`, `test_gradient_in_scale_of_weibull_shape_one_density_at_zero[*]`, `test_gradient_of_exponential_density_at_zero[*]` |
 | 4.5/7.3 | the `S(0)` gradient under `jit` and `vmap`. | `test_gradient_of_weibull_survival_at_zero_under_jit_and_vmap` |
-| 4.5 | rev 22: at `t=+inf`, `S` and `log F` have zero parameter gradients (Weibull `k` in `0.5, 1, 2`; Exponential). | `test_gradient_of_weibull_finite_values_at_infinity[*]`, `test_gradient_of_exponential_finite_values_at_infinity[*]` |
+| 4.5 | rev 26: at `t=+inf`, the base-supplied `S` and `log F` have zero parameter gradients with the proper default (Weibull `k` in `0.5, 1, 2`; Exponential). | `test_gradient_of_weibull_finite_values_at_infinity[*]`, `test_gradient_of_exponential_finite_values_at_infinity[*]` |
 | 4.5 | rev 22: gradients at `+inf` equal the derivative of the limit: Exponential `log h`, `h`; Weibull `k=1` `log h` in `b`. | `test_gradient_of_exponential_hazard_at_infinity`, `test_gradient_of_weibull_shape_one_log_hazard_at_infinity` |
 | 4.5/7.3 | rev 22: the `+inf` gradients under `jit` and `vmap`. | `test_gradient_at_infinity_under_jit_and_vmap[*]` |
 
@@ -917,6 +1007,7 @@ parametrized over the seven Slice A direct methods (`log_survival`,
 | 5 | the time vector is "the first positional argument, named `t`". | `test_grid_time_can_be_passed_as_keyword_t[*]` |
 | 5 | a scalar or 2-D `t` (including `(K,1)`) raises `TypeError`, also under `jit`. | `test_scalar_grid_is_rejected[*]`, `test_two_dimensional_grid_is_rejected[*]`, `test_column_grid_is_rejected`, `test_two_dimensional_grid_is_rejected_under_jit` |
 | 5/4.5 | grid `t` follows the 4.5 dtype rules: boolean raises `TypeError`; integer converts. | `test_boolean_grid_is_rejected[*]`, `test_integer_grid_matches_float_grid` |
+| 4.5/5 | rev 26: `survival_grid` through `t=0` and `t=+inf` for the plain softplus log-logistic gives base values `1` and `0`, with a finite (zero) `beta` gradient. | `test_survival_grid_of_naive_log_logistic_uses_base_boundary_values` |
 
 ### `test_a5_derivatives.py`: transformations and parameter derivatives
 
@@ -959,6 +1050,16 @@ parametrized over the seven Slice A direct methods (`log_survival`,
   its direct method on reshaped `t`, whose transformations `test_a5_derivatives.py`
   covers; grids add `jit` for all seven, and `vmap` and gradients for
   `survival_grid`.
+- **The `log_cdf` switch point and substituted operands** (4.1/7.2, rev 25):
+  "an implementation choice"; only values and derivatives on both sides of
+  `H = log 2` and NaN-freedom under `jax_debug_nans` are tested.
+- **Generic-default lower tail where `|log S|` underflows** (4.2, rev 25): the
+  default is accurate only "until `|log S|` underflows"; nothing to assert
+  beyond the existing `t=1e-20` case.
+- **`log1mexp` itself:** a private helper (7.2); tested only through
+  `log_cdf`.
+- **Parameter gradients under `jax_debug_nans`:** 12.1 lists values on mixed
+  vectors; gradients are tested on finite interior and upper-tail points.
 - **Float32 `check_grads(order=2)`:** as at A4, float32 runs the
   hand-derived first and second derivatives instead.
 - **Tail scales:** tail tests use the 12.1 tolerances; where the expected

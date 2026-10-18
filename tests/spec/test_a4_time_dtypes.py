@@ -199,16 +199,17 @@ def test_integer_array_time_log_survival_matches_float_time():
 
 @pytest.mark.step("A4")
 def test_integer_array_time_log_prob_matches_float_time():
-    """spec 4.5, rev 20: integer `t` gives the float value for the autodiff `log_prob` default.
+    """spec 4.5, rev 26: integer `t` gives the float value for the autodiff `log_prob` default.
 
-    ``log f(t) = log r - r t`` with ``r = 0.5`` at ``t = (0, 1, 2)``:
-    ``(log 0.5, log 0.5 - 0.5, log 0.5 - 1)``. Differentiating with respect
-    to an integer ``t`` is not possible in JAX, so this checks conversion
-    happens before the derivative.
+    ``log f(t) = log r - r t`` with ``r = 0.5`` at ``t = (1, 2, 3)``:
+    ``(log 0.5 - 0.5, log 0.5 - 1, log 0.5 - 1.5)``. Differentiating with
+    respect to an integer ``t`` is not possible in JAX, so this checks
+    conversion happens before the derivative. ``t=0`` is avoided: rev 26 gives
+    the generic default no guarantee there.
     """
-    out = _exp().log_prob(np.array([0, 1, 2], dtype=np.int32))
+    out = _exp().log_prob(np.array([1, 2, 3], dtype=np.int32))
     assert np.asarray(out).dtype == FLOAT
-    assert_close(out, np.log(0.5) - 0.5 * np.array([0.0, 1.0, 2.0]))
+    assert_close(out, np.log(0.5) - 0.5 * np.array([1.0, 2.0, 3.0]))
 
 
 @pytest.mark.step("A4")

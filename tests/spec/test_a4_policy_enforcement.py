@@ -2,9 +2,11 @@
 
 Uses families whose code is written only for ``t >= 0`` (``naive_power``,
 ``naive_log_prob_override`` in ``spec_families.py``). Rev 12: "family code
-need only be correct on `[0, +inf]`"; for ``t<0`` and NaN ``t`` the base
-substitutes a safe input under ``stop_gradient``, so the policy values have no
-NaN parameter gradients. ``k=0.5`` makes the naive formula NaN for ``t<0``;
+need only be correct on `[0, +inf]`" (rev 26: "for finite `t>0`"); for ``t<0``
+and NaN ``t`` the base substitutes a safe input under ``stop_gradient``, so the
+policy values have no NaN parameter gradients. Rev 26: the base also supplies
+``log S``, ``S``, ``log F`` and ``H`` at ``t=0`` and ``t=+inf``; the generic
+``log_prob`` default at ``t=0`` carries no guarantee, so it is not tested here. ``k=0.5`` makes the naive formula NaN for ``t<0``;
 ``k=2`` makes it finite but wrong (``-(t/b)**2 < 0``).
 
 ``survival``, ``cumulative_hazard``, ``log_cdf`` and ``hazard`` are Slice A
@@ -15,7 +17,7 @@ import jax
 import numpy as np
 import pytest
 import spec_families as fam
-from helpers import INF, NAN, assert_close, f
+from helpers import INF, NAN, assert_close, f, log1mexp
 
 
 def _naive(k=0.5, b=2.0):
@@ -99,28 +101,31 @@ def test_unguarded_nan_time_gives_nan():
 
 
 @pytest.mark.step("A4")
-def test_unguarded_zero_time_values_come_from_the_family():
-    """spec 4.5, rev 12: at `t=0` the family is called: Weibull-like `k<1` `+inf`, `k=1` `log(1/b)`, `k>1` `-inf`."""
-    np.testing.assert_array_equal(np.asarray(_naive(0.5).log_prob(f(0.0))), INF)
-    assert_close(_naive(1.0).log_prob(f(0.0)), np.log(0.5))
-    np.testing.assert_array_equal(np.asarray(_naive(2.0).log_prob(f(0.0))), -INF)
+def test_unguarded_zero_time_survival_values_come_from_the_base():
+    """spec 4.5, rev 26: at `t=0`, `log S=0`, `S=1`, `log_cdf=-inf`, `H=0` "come from the base" (`S(0)=1`, section 2)."""
+    for k in (0.5, 1.0, 2.0):
+        dist = _naive(k)
+        np.testing.assert_array_equal(np.asarray(dist.log_survival(f(0.0))), 0.0)
+        np.testing.assert_array_equal(np.asarray(dist.survival(f(0.0))), 1.0)
+        np.testing.assert_array_equal(np.asarray(dist.log_cdf(f(0.0))), -INF)
+        np.testing.assert_array_equal(np.asarray(dist.cumulative_hazard(f(0.0))), 0.0)
 
 
 @pytest.mark.step("A4")
 def test_unguarded_infinite_time_log_prob_is_minus_infinity():
-    """spec 4.5, rev 12: "the base returns `log_prob(+inf)=-inf` even where a default formula would give `+inf - inf`"."""
+    """spec 4.5, rev 26: at `t=+inf` the base gives `log_prob=-inf` (rev 12: even where a default formula would give `+inf - inf`)."""
     np.testing.assert_array_equal(np.asarray(_naive(2.0).log_prob(f(INF))), -INF)
 
 
 @pytest.mark.step("A4")
-def test_unguarded_infinite_time_log_survival_comes_from_the_family():
-    """spec 4.5, rev 12: at `t=+inf` the family supplies `log S(+inf)` (`-inf` here)."""
+def test_unguarded_infinite_time_log_survival_comes_from_the_base():
+    """spec 4.5, rev 26: at `t=+inf`, `log_survival` equals `log_survival_at_infinity()` (default `-inf`)."""
     np.testing.assert_array_equal(np.asarray(_naive().log_survival(f(INF))), -INF)
 
 
 @pytest.mark.step("A4")
 def test_unguarded_interior_values_are_the_family_formula():
-    """spec 4.2, rev 12: on `[0, +inf]` the family's own formula is used.
+    """spec 4.2, rev 26: for finite `t>0` the family's own formula is used.
 
     ``k=0.5``, ``b=2``, ``t=1``: ``log S = -(0.5)**0.5``;
     ``log f = log(k/b) + (k-1) log(t/b) - (t/b)**k = log 0.25 - 0.5 log 0.5 - 0.5**0.5``.
@@ -132,25 +137,29 @@ def test_unguarded_interior_values_are_the_family_formula():
 
 @pytest.mark.step("A4")
 def test_unguarded_policy_applies_elementwise_with_batches():
-    """spec 4.5/5, rev 12: the policy applies per element of a broadcast `(K, N)` result.
+    """spec 4.5/5, rev 26: the policy applies per element of a broadcast `(K, N)` result.
 
-    Batch ``k = (0.5, 1, 2)``, ``b = 2``; times ``(-1, 0)`` as a column:
-    row ``t=-1`` is ``-inf``; row ``t=0`` is ``(+inf, log 0.5, -inf)``.
+    Batch ``k = (0.5, 1, 2)``, ``b = 2``; times ``(-1, 0, 1)`` as a column;
+    ``log_cdf``: rows ``t=-1`` and ``t=0`` are ``-inf`` (policy and base);
+    row ``t=1`` is ``log1mexp(-(1/2)**k)``.
     """
-    dist = fam.naive_power()(shape=f([0.5, 1.0, 2.0]), scale=f(2.0))
-    out = np.asarray(dist.log_prob(f([[-1.0], [0.0]])))
-    assert out.shape == (2, 3)
-    np.testing.assert_array_equal(out[0], [-INF, -INF, -INF])
-    np.testing.assert_array_equal(out[1, [0, 2]], [INF, -INF])
-    assert_close(out[1, 1], np.log(0.5))
+    k = np.array([0.5, 1.0, 2.0])
+    dist = fam.naive_power()(shape=f(k), scale=f(2.0))
+    out = np.asarray(dist.log_cdf(f([[-1.0], [0.0], [1.0]])))
+    assert out.shape == (3, 3)
+    np.testing.assert_array_equal(out[:2], np.full((2, 3), -INF))
+    assert_close(out[2], log1mexp(-(0.5**k)))
 
 
 @pytest.mark.step("A4")
 def test_unguarded_policy_agrees_under_jit():
-    """spec 4.5/12.1, rev 12: policy values are the same eagerly and under `jit`."""
+    """spec 4.5/12.1, rev 26: policy values are the same eagerly and under `jit` (`t=0` only for base-supplied `log_survival`)."""
     dist = fam.naive_power()(shape=f([0.5, 1.0, 2.0]), scale=f(2.0))
-    t = f([[-INF], [-1.0], [0.0], [1.0], [INF], [NAN]])
-    for name in ("log_survival", "log_prob"):
+    times = {
+        "log_survival": f([[-INF], [-1.0], [0.0], [1.0], [INF], [NAN]]),
+        "log_prob": f([[-INF], [-1.0], [1.0], [INF], [NAN]]),
+    }
+    for name, t in times.items():
         eager = getattr(dist, name)(t)
         compiled = jax.jit(lambda d, s, n=name: getattr(d, n)(s))(dist, t)
         assert_close(compiled, eager, err_msg=name)
@@ -174,7 +183,7 @@ def test_unguarded_log_prob_override_nan_time_gives_nan():
 
 @pytest.mark.step("A4")
 def test_unguarded_log_prob_override_supplies_interior_values():
-    """spec 4.2, rev 12: the override is used on `[0, +inf]` (same value as the hand-derived density)."""
+    """spec 4.2, rev 26: the override is used for finite `t>0` (same value as the hand-derived density)."""
     assert_close(
         _override().log_prob(f(1.0)), np.log(0.25) - 0.5 * np.log(0.5) - np.sqrt(0.5)
     )

@@ -7,13 +7,17 @@ exactly: ``@survjax.register_family`` over a frozen dataclass subclass of
 and ``survjax.distribution`` fields, supplying only ``log_survival`` and
 ``reference_time`` unless the test is about an override.
 
-Each family's ``log_survival`` itself meets the direct-method value policy of
-spec 4.5 (``log S = 0`` for ``t < 0``, NaN for NaN ``t``, correct limits at
-``0`` and ``+inf``), using safe inputs so that unselected branches carry no
-NaN tangents. Since spec rev 12 the base applies that policy itself and calls
-family code only on ``[0, +inf]`` (Q-019, resolved); the guarded families keep
-the earlier tests independent of that, and ``naive_power`` and
-``naive_log_prob_override`` test it directly.
+The guarded families' ``log_survival`` itself meets the direct-method value
+policy of spec 4.5 (``log S = 0`` for ``t < 0``, NaN for NaN ``t``, correct
+limits at ``0`` and ``+inf``), using safe inputs so that unselected branches
+carry no NaN tangents. Since spec rev 12 the base applies that policy itself
+(Q-019, resolved), and since rev 26 it also supplies ``log S``, ``S``,
+``log F`` and ``H`` at ``t=0`` and ``t=+inf`` and calls ``log_survival`` only
+for finite ``t>0`` (except inside the generic ``log_prob`` and
+``log_hazard`` defaults at ``t=0``). The guarded families keep the earlier
+tests independent of that; ``naive_power``, ``naive_log_prob_override``,
+``boundary_nan_hazard``, ``softplus_log_logistic`` and ``mixture_cure`` test it
+directly.
 
 Classes are built lazily and cached: a missing survjax name then fails only
 the A4 tests that use it, not collection of earlier steps, and every call
@@ -283,3 +287,116 @@ def kw_only_static_first():
             return 1.0 / self.rate
 
     return KwOnlyStaticFirst
+
+
+@functools.cache
+def power_log_prob_override():
+    """PowerHazard plus a ``log_prob`` override with correct limits at ``t=0`` (spec 4.5, rev 26).
+
+    ``log f = log(k/b) + xlogy(k-1, t/b) - (t/b)**k``; ``xlogy(0, 0) = 0``, so
+    at ``t=0``: ``+inf`` for ``k<1``, ``log(1/b)`` for ``k=1``, ``-inf`` for
+    ``k>1`` (the density limits the override supplies at ``t=0``).
+    """
+
+    @survjax.register_family
+    @dataclasses.dataclass(frozen=True)
+    class PowerLogProbOverride(survjax.SurvivalDistribution):
+        shape: jax.Array = survjax.param()
+        scale: jax.Array = survjax.param()
+
+        def log_survival(self, t):
+            return -((t / self.scale) ** self.shape)
+
+        def reference_time(self):
+            return self.scale
+
+        def log_prob(self, t):
+            k, z = self.shape, t / self.scale
+            return jnp.log(k / self.scale) + jax.scipy.special.xlogy(k - 1.0, z) - z**k
+
+    return PowerLogProbOverride
+
+
+@functools.cache
+def boundary_nan_hazard():
+    """Exponential-like, but ``log_survival`` is NaN at ``t=0`` and ``t=+inf`` (spec 4.2/4.5, rev 26).
+
+    ``log S = -rate * t * (t/t)``: exact ``-rate * t`` for finite ``t > 0``
+    (``t/t`` is exactly 1), NaN at ``0`` (``0/0``) and ``+inf`` (``inf/inf``).
+    Rev 26: ``log_survival`` "Called for finite `t>0`; the base supplies the
+    values at `t=0` and `t=+inf`", so the formula "need not handle the
+    boundaries".
+    """
+
+    @survjax.register_family
+    @dataclasses.dataclass(frozen=True)
+    class BoundaryNanHazard(survjax.SurvivalDistribution):
+        rate: jax.Array = survjax.param()
+
+        def log_survival(self, t):
+            return -self.rate * t * (t / t)
+
+        def reference_time(self):
+            return 1.0 / self.rate
+
+    return BoundaryNanHazard
+
+
+@functools.cache
+def softplus_log_logistic():
+    """Spec 4.5 (rev 26) test case: log-logistic with the plain ``log S = -softplus(beta*(log t - log alpha))``.
+
+    At ``t=0``: ``log t = -inf``, ``softplus(-inf) = 0``, so the value is
+    ``0`` but ``d/dbeta = -sigmoid(-inf) * (-inf) = 0 * inf = NaN``. At
+    ``t=+inf`` the value is ``-inf`` and ``S = exp(-inf) = 0`` has a NaN
+    gradient by the same product. Interior: ``S(t) = 1/(1 + (t/alpha)**beta)``.
+    """
+
+    @survjax.register_family
+    @dataclasses.dataclass(frozen=True)
+    class SoftplusLogLogistic(survjax.SurvivalDistribution):
+        alpha: jax.Array = survjax.param()
+        beta: jax.Array = survjax.param()
+
+        def log_survival(self, t):
+            return -jax.nn.softplus(self.beta * (jnp.log(t) - jnp.log(self.alpha)))
+
+        def reference_time(self):
+            return jnp.broadcast_to(
+                self.alpha,
+                jnp.broadcast_shapes(jnp.shape(self.alpha), jnp.shape(self.beta)),
+            )
+
+    return SoftplusLogLogistic
+
+
+@functools.cache
+def mixture_cure():
+    """An improper (cure) family: ``S(t) = c + (1-c) exp(-rate * t)``, ``S(+inf) = c`` (spec 2, 4.2, rev 26).
+
+    ``log S = logaddexp(log c, log1p(-c) - rate * t)``; it overrides
+    ``log_survival_at_infinity()`` to return ``log c`` per batch entry. With
+    ``c < 0`` both are NaN (``log`` of a negative).
+    """
+
+    @survjax.register_family
+    @dataclasses.dataclass(frozen=True)
+    class MixtureCure(survjax.SurvivalDistribution):
+        cure: jax.Array = survjax.param()
+        rate: jax.Array = survjax.param()
+
+        def _batch(self):
+            return jnp.broadcast_shapes(jnp.shape(self.cure), jnp.shape(self.rate))
+
+        def log_survival(self, t):
+            return jnp.logaddexp(
+                jnp.log(self.cure), jnp.log1p(-self.cure) - self.rate * t
+            )
+
+        def log_survival_at_infinity(self):
+            return jnp.broadcast_to(jnp.log(self.cure), self._batch())
+
+        def reference_time(self):
+            return jnp.broadcast_to(1.0 / self.rate, self._batch())
+
+    return MixtureCure

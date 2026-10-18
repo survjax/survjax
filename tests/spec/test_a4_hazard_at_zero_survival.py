@@ -1,9 +1,10 @@
-"""A4: `log_hazard` and `hazard` where `S(t)=0` (spec 4.2, 4.5, rev 13).
+"""A4: `log_hazard` and `hazard` where `S(t)=0` and at `t=+inf` (spec 4.2, 4.5, rev 13, 26).
 
 Rev 13: the generic default ``log(-d/dt log S)`` applies where ``S(t)>0`` and
-gives NaN where ``S(t)=0`` (``t=+inf`` for a proper family, or beyond a finite
-support end); a family that overrides ``log_hazard`` gives its analytic value
-(at ``+inf``, the limit). The generic ``log_hazard`` and ``hazard`` defaults
+gives NaN where ``S(t)=0`` beyond a finite support end; a family that
+overrides ``log_hazard`` gives its analytic value. Rev 26: at ``t=+inf``,
+"`log_hazard` and `hazard` come from an override of `log_hazard`, called at
+`+inf`; the generic default gives NaN" (proper or improper family). The generic ``log_hazard`` and ``hazard`` defaults
 are Slice A methods by spec rev 14 (Q-024, resolved).
 """
 
@@ -18,23 +19,23 @@ from helpers import INF, assert_close, f
 
 @pytest.mark.step("A4")
 def test_default_log_hazard_is_nan_at_infinity():
-    """spec 4.2/4.5, rev 13: where `S(t)=0` (`t=+inf`), the generic `log_hazard` default gives NaN.
+    """spec 4.2/4.5, rev 26: at `t=+inf` the generic `log_hazard` default gives NaN.
 
     The derivative form would give ``log r`` for this exponential-like family;
-    rev 13 requires NaN.
+    rev 13 and rev 26 require NaN.
     """
     assert np.isnan(np.asarray(fam.const_hazard()(rate=f(0.5)).log_hazard(f(INF))))
 
 
 @pytest.mark.step("A4")
 def test_default_hazard_is_nan_at_infinity():
-    """spec 4.5, rev 13: `hazard` follows `log_hazard`: NaN from the generic default where `S(t)=0`."""
+    """spec 4.5, rev 26: at `t=+inf`, `hazard` from the generic default is NaN."""
     assert np.isnan(np.asarray(fam.const_hazard()(rate=f(0.5)).hazard(f(INF))))
 
 
 @pytest.mark.step("A4")
 def test_default_log_hazard_is_nan_at_infinity_for_unguarded_family():
-    """spec 4.5, rev 13: the same for a Weibull-like family (`k=2`, derivative form `+inf`) and `k=0.5` (`-inf`)."""
+    """spec 4.5, rev 26: the same for a Weibull-like family (`k=2`, derivative form `+inf`) and `k=0.5` (`-inf`)."""
     for k in (0.5, 2.0):
         dist = fam.naive_power()(shape=f(k), scale=f(2.0))
         assert np.isnan(np.asarray(dist.log_hazard(f(INF)))), f"k={k}"
@@ -42,7 +43,7 @@ def test_default_log_hazard_is_nan_at_infinity_for_unguarded_family():
 
 @pytest.mark.step("A4")
 def test_default_log_hazard_is_nan_only_where_survival_is_zero():
-    """spec 4.2, rev 13: elementwise: `log r` where `S>0`, NaN at `+inf`, in one call."""
+    """spec 4.2/4.5, rev 26: elementwise: `log r` at finite `t`, NaN at `+inf`, in one call."""
     out = np.asarray(fam.const_hazard()(rate=f(0.5)).log_hazard(f([1.0, INF, 30.0])))
     assert_close(out[[0, 2]], [np.log(0.5), np.log(0.5)])
     assert np.isnan(out[1])
@@ -63,13 +64,13 @@ def test_default_log_hazard_with_tiny_but_positive_survival_is_not_nan():
 
 @pytest.mark.step("A4")
 def test_log_hazard_override_supplies_value_at_infinity():
-    """spec 4.5, rev 13: where `S(t)=0`, a family overriding `log_hazard` gives its analytic value (the limit `log r`)."""
+    """spec 4.5, rev 26: at `t=+inf` the `log_hazard` override is called and supplies the limit (`log r`)."""
     assert_close(fam.log_hazard_override()(rate=f(0.5)).log_hazard(f(INF)), np.log(0.5))
 
 
 @pytest.mark.step("A4")
 def test_hazard_uses_log_hazard_override_at_infinity():
-    """spec 4.5, rev 13: `hazard` where `S(t)=0` is the analytic value from the `log_hazard` override (`r`)."""
+    """spec 4.5, rev 26: `hazard` at `t=+inf` comes from the `log_hazard` override (`r`)."""
     assert_close(fam.log_hazard_override()(rate=f(0.5)).hazard(f(INF)), 0.5)
 
 

@@ -1,8 +1,11 @@
 """A5: direct-method value policy and boundary values on the built-in families (spec 4.1, 4.5).
 
 The base's enforcement of spec 4.5 is tested on custom families at A4. Here the
-rows are checked on ``Exponential`` and ``Weibull`` themselves, where the
-boundary values at ``t=0`` and ``t=+inf`` come from the built-in formulas.
+rows are checked on ``Exponential`` and ``Weibull`` themselves. Rev 26: the
+base supplies ``log S``, ``S``, ``log F`` and ``H`` at ``t=0`` and ``t=+inf``
+(the built-ins are proper, so ``log_survival_at_infinity()`` is ``-inf``) and
+``log_prob(+inf)``; the built-in ``log_prob`` and ``log_hazard`` overrides
+supply the density and hazard limits. Built-in values are unchanged.
 
 Hand-derived boundary values (``z = t/b``):
 
@@ -11,10 +14,10 @@ Hand-derived boundary values (``z = t/b``):
   ``+inf`` for ``k<1``, ``log(1/b)`` for ``k=1`` (spec 4.1: "`xlogy`-style
   terms"), ``-inf`` for ``k>1``; ``log f`` equals it, since ``log S(0)=0``.
 - ``t=+inf``: ``log S = -inf``, ``S = 0``, ``H = +inf``, ``log F = 0``,
-  ``log f = -inf`` (spec 4.5). ``S=0`` there, so ``log_hazard`` is the analytic
-  limit of the built-in override (spec 4.2: "Built-ins override analytically";
-  4.5: "at `+inf`, the limit"): Exponential ``log r``; Weibull ``-inf`` for
-  ``k<1``, ``log(1/b)`` for ``k=1``, ``+inf`` for ``k>1``.
+  ``log f = -inf`` (spec 4.5). ``log_hazard`` is the analytic limit of the
+  built-in override (spec 4.2: "Built-ins override analytically"; 4.5, rev 26:
+  "from a `log_hazard` override: the hazard limit"): Exponential ``log r``;
+  Weibull ``-inf`` for ``k<1``, ``log(1/b)`` for ``k=1``, ``+inf`` for ``k>1``.
 """
 
 import jax
@@ -138,7 +141,7 @@ def test_negative_time_policy_values_have_zero_exponential_gradient(method):
 @pytest.mark.parametrize("name", FAMILIES)
 @pytest.mark.parametrize("method", DIRECT_METHODS)
 def test_zero_time_boundary_value(name, method):
-    """spec 4.5, rev 21: `t=0` gives "boundary values from the family" (Weibull `k<1`: infinite density; `k=1`: `log(1/b)`; `k>1`: `-inf`)."""
+    """spec 4.5, rev 26: `t=0`: `log S=0`, `S=1`, `log_cdf=-inf`, `H=0` from the base; density and hazard limits from the family (Weibull `k<1`: infinite density; `k=1`: `log(1/b)`; `k>1`: `-inf`)."""
     out = getattr(_family(name), method)(f(0.0))
     assert_close(out, _at_zero(name)[method])
 
@@ -157,7 +160,7 @@ def test_weibull_shape_one_density_at_zero_is_not_nan():
 @pytest.mark.parametrize("name", FAMILIES)
 @pytest.mark.parametrize("method", DIRECT_METHODS)
 def test_infinite_time_boundary_value(name, method):
-    """spec 4.5, rev 21: `t=+inf` gives `log S(+inf)=-inf` (proper families) and `log_prob=-inf`; `log_hazard` is the override's limit."""
+    """spec 4.5, rev 26: `t=+inf`: `log S = log_survival_at_infinity() = -inf` (proper), `S`, `log F`, `H` from it, `log_prob=-inf`; `log_hazard` is the override's limit."""
     out = getattr(_family(name), method)(f(INF))
     assert_close(out, _at_inf(name)[method])
 
@@ -177,10 +180,13 @@ def test_nan_time_gives_nan(name, method):
 @pytest.mark.step("A5")
 @pytest.mark.parametrize("method", DIRECT_METHODS)
 def test_nan_rate_gives_nan_for_every_time(method):
-    """spec 4.5, rev 22: NaN parameters give NaN at every `t`, including `t<0`, NaN `t` and `t=+inf`.
+    """spec 4.5, rev 26: NaN parameters give NaN at every `t`, including `t<0`, NaN `t`, `t=0` and `t=+inf`.
 
-    At ``t=+inf``, ``log_prob`` is NaN because "the family's
-    `log_survival(+inf)` is NaN" (rev 22); the other methods are the family's.
+    For base-supplied values (``t<0``, NaN ``t``, and ``log S``, ``S``,
+    ``log F``, ``H`` at ``0`` and ``+inf``, ``log_prob`` at ``+inf``) the
+    family's value at the substituted input is NaN, so the result is NaN
+    (rev 26); the density and hazard overrides are NaN at ``t=0`` and the
+    ``log_hazard`` override at ``+inf``.
     """
     out = getattr(survjax.Exponential(rate=f(NAN)), method)(
         f([-1.0, 0.0, 1.0, INF, NAN])
@@ -191,7 +197,7 @@ def test_nan_rate_gives_nan_for_every_time(method):
 @pytest.mark.step("A5")
 @pytest.mark.parametrize("method", DIRECT_METHODS)
 def test_nan_weibull_scale_gives_nan_for_every_time(method):
-    """spec 4.5, rev 22: NaN `scale` gives NaN at every `t`, `t=+inf` included, with no exception."""
+    """spec 4.5, rev 26: NaN `scale` gives NaN at every `t`, `t=0` and `t=+inf` included, with no exception."""
     out = getattr(survjax.Weibull(shape=f(2.0), scale=f(NAN)), method)(
         f([-1.0, 0.0, 1.0, INF, NAN])
     )
@@ -330,7 +336,7 @@ def test_gradient_of_weibull_survival_at_zero_under_jit_and_vmap():
 @pytest.mark.parametrize("method", ["survival", "log_cdf"])
 @pytest.mark.parametrize("k", [0.5, 1.0, 2.0])
 def test_gradient_of_weibull_finite_values_at_infinity(method, k):
-    """spec 4.5, rev 22: "at `t=0` and `t=+inf`, finite values of the built-in families have finite parameter gradients".
+    """spec 4.5, rev 26: base-supplied values have parameter gradients "`0` for ... with the proper default, for `S(+inf)` and `log F(+inf)`".
 
     ``S(+inf) = 0`` and ``log F(+inf) = 0`` for every ``k``, ``b``, so both
     gradients are ``0`` (a naive ``exp(-z**k)`` gives ``0 * inf = NaN``).
@@ -346,7 +352,7 @@ def test_gradient_of_weibull_finite_values_at_infinity(method, k):
 @pytest.mark.step("A5")
 @pytest.mark.parametrize("method", ["survival", "log_cdf"])
 def test_gradient_of_exponential_finite_values_at_infinity(method):
-    """spec 4.5, rev 22: `S(+inf) = 0` and `log F(+inf) = 0` for every `r`: the gradient is `0`, not NaN."""
+    """spec 4.5, rev 26: `S(+inf) = 0` and `log F(+inf) = 0` for every `r` (base-supplied): the gradient is `0`, not NaN."""
     g = jax.grad(lambda r: getattr(survjax.Exponential(rate=r), method)(f(INF)))(f(0.5))
     np.testing.assert_array_equal(np.asarray(g), 0.0)
 
