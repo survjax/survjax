@@ -1,5 +1,23 @@
 # Deviations and spec questions
 
+## D-023 Explicit unsupported likelihood failures under tracing
+- Step: A6 planning, revision 28 (2026-10-19)
+- Spec: sections 3.2, 6.1–6.3, 7.1, 12.2; independent Q-037.
+- Spec says: unsupported observation modes fail explicitly; traced data has
+  all-true may-contain metadata, while raw/traced supported exact/right data
+  must evaluate. The four LikelihoodIssues masks have no unsupported-mode
+  field. Valid left/interval/truncated data is not invalid_data, and absence
+  of an implementation is not numerical_failure or invalid_conditioning.
+- Did / propose: no evaluator implemented. Ask the maintainer to specify the
+  failure and diagnostics policy before A6.4. A possible policy is NaN only on
+  unsupported rows in eager and transformed calls, retaining supported rows,
+  with the existing four masks reserved for their stated meanings; this means
+  NaN without an explanatory issue on unsupported valid data and needs an
+  explicit decision. Independent tests permit eager NotImplementedError or
+  row NaN, require traced row NaN, and deliberately do not settle the masks.
+  Do not reject data solely because traced metadata says it may be unsupported.
+- Status: open
+
 ## D-022 Log-CDF upper tail rounds to zero before S underflows
 - Step: A5.4 review, 2026-10-14 (found after D-021)
 - Spec: sections 4.2, 4.3, 7.1 and 12.1 ("stable tails"), revision 24.
@@ -254,6 +272,10 @@ decision descriptions are retained as history.
   maintainer to settle the return contract and ownership of nested diagnostics.
   The earlier boolean-invalid-mask proposal is an option only, not an accepted
   API. No spec change is made here, and this entry remains open.
+- Revision-28 planning note (2026-10-19): section 4.7 now defines the
+  constraint/condition-based ParameterIssues contract and section 7.1 defines
+  likelihood attribution (decision 0042). A6.1–A6.5 in PLAN.md implement it;
+  this removes the planning blocker. Formal resolution remains the maintainer's.
 - Status: open
 
 ## D-012 Right precedence for the unbounded zero-lower observation

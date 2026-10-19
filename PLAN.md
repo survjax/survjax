@@ -1,3 +1,192 @@
+# A6 — Revision 28 parameter diagnostics and exact/right likelihood
+
+Status: **A6.1 approved and in progress** (2026-10-19). This section supersedes
+older forward plans for A6; the A5 records below remain historical.
+Planning starts on clean `main` at `9623594`. The maintainer approved A6.1
+and created branch `A6.1`. Only that code/test step is authorized; later steps
+still need approval. The maintainer creates/selects each step branch; do not
+commit on main. Every implementation step needs its own
+approval, tests, commit, overwritten REVIEW.md and stop.
+
+## Contract and independent tests reviewed
+
+- Spec revision 28, design commit `0683e358a312a8a1f8264af8f60eb61b0dba7a69`.
+  Read the normative diff from the previous marker `b92334a`, current GOALS,
+  and the relevant current sections 4–7, 10.2 and 12. The intervening
+  `9d7483c` adds PDF helpers, with no runtime contract change.
+- Revision 28 adds declared constraints, base-owned `parameter_issues()`,
+  `parameter_conditions()`, `ParameterIssues`, `InvalidParameterError`,
+  built-in declarations and likelihood invalid-parameter attribution. Direct
+  methods retain their existing value policy; constructors do not check values
+  or transform parameters. Slice A explicitly includes this contract.
+- Reviewed the new independent A6 modules and Q-024/Q-034–Q-038 in
+  `../spectest/tests/spec`, commits `b9bce65` and `e22001c` (tester HEAD).
+  They cover constraints, parameter diagnostics, likelihood parameter issues,
+  entry points, values, shapes, stored data issues and unsupported modes.
+- Dev's `tests/spec/SOURCE_COMMIT` is still `1d87b72` (revision 27).
+  The new tests have **not** been synced here. Alignment of `.spec-seen` is
+  requested now; syncing requires the maintainer-created `spectests-*` branch
+  and `scripts/sync_spec_tests.sh ../spectest`, separately from code work.
+  Do not edit/copy tests into that protected directory while implementing.
+- D-013's return-contract question is answered by revision 28. Leave its formal
+  status to the maintainer. D-023 below records the remaining unsupported-mode
+  contract gap identified by tester Q-037; approval of the early parameter
+  steps need not wait for that likelihood decision.
+
+## Step A6.1 — Constraint vocabulary and declarations
+
+Spec: 4.1, 4.2, 4.7, 10.2, 12.1. Target about 300 changed lines including tests.
+
+- Create `src/survjax/constraints.py`: typed pure callable constraints `real`,
+  `positive`, `nonnegative`, `unit_interval`, `ordered`, `simplex`, and bound
+  factories `greater_than`, `interval`, `closed_interval`. Use plain functions
+  and small frozen callable dataclasses as needed, with `event_dim` metadata.
+  Check finite Python bounds and ordering with TypeError for misuse. Preserve
+  the specified NaN/infinity domains; simplex uses exactly `4*n*eps` of the
+  parameter dtype, permits zeros, and reduces only the final axis.
+- Extend `param(component_ndim=0, constraint=None)` in
+  `src/survjax/distributions/base.py`: store constraints in field metadata;
+  validate callable/event-axis compatibility at registration, without running
+  constraints at construction. Add declaration-ordered read-only
+  `Family.parameter_constraints`, excluding nested fields. Preserve constraint
+  object identity and the existing PyTree leaves and construction behavior.
+- Declare positive rate/shape/scale in `exponential.py` and `weibull.py`.
+  Export the constraints module from `src/survjax/__init__.py`.
+- Update the explicit export set in `tests/unit/test_import.py`.
+- Add `tests/unit/test_constraints.py` and
+  `tests/unit/test_parameter_constraints.py`: boundary/domain masks,
+  malformed bounds/declarations, metadata order/immutability/identity,
+  component compatibility, no added leaves or constructor checks, built-ins,
+  and eager/jit/vmap. Check simplex softmax lengths through 1000 and rejection
+  of a length-10 sum of 1.001. Expected masks follow the section 4.7 domains.
+  Keep focused cases compact; split before exceeding the step budget.
+- Maintainer approved the minimal constraints autodoc entry in docs/api.md
+  during A6.1 so the existing public-export documentation check stays valid.
+- Docs to-do: vocabulary and declaration recipe after code review.
+
+## Step A6.2 — ParameterIssues container and host checkpoint
+
+Spec: 4.7, 6.3, 10.2. Independent of evaluator implementation.
+
+- Add typed frozen registered `ParameterIssues` to `src/survjax/diagnostics.py`:
+  `fields` and `conditions` dictionaries, `invalid_entries` array and scalar
+  `ok`. Preserve dictionary declaration order through tree reconstruction
+  (do not rely on JAX's default sorted-dict flattening for the public order).
+- Add `InvalidParameterError(ValueError)` there and export the exception from
+  `src/survjax/__init__.py`. Keep result types discoverable in diagnostics.
+  Reuse the existing host count/index reporting where suitable; traced
+  diagnostics raise a plain host-only ValueError. No callbacks or host work
+  during normal diagnostic calculation.
+- Add `tests/unit/test_parameter_issue_container.py`: analytical masks,
+  flatten/unflatten order, jit/vmap returns, valid/invalid host checkpoints,
+  scalar/multidimensional counts and first indices, traced rejection.
+- Public API: container in diagnostics, top-level exception. No new convenience
+  aliases or diagnostic constructor framework.
+- Docs to-do: explicit host checkpoint and diagnostics reference.
+
+## Step A6.3 — Base-owned diagnostic composition
+
+Spec: 4.2, 4.5, 4.7, 6.3, 12.1.
+
+- Add base `parameter_conditions()` (empty mapping) and `parameter_issues()`.
+  Put the field/nested aggregation in a private
+  `src/survjax/distributions/_parameter_issues.py` only as needed to keep this
+  separate responsibility out of the already 415-line registration module.
+- Compose own constrained field masks, reduce remaining component axes by any,
+  broadcast nested masks with dotted prefixes, and combine own/nested named
+  conditions. Preserve required fields/conditions order and fixed class keys.
+  Validate condition mapping, nonempty undotted string keys, boolean dtype
+  and exact batch shape using structural checks that also work while tracing.
+  Empty declarations give all-False batch masks and scalar True `ok`.
+- Add `tests/unit/test_parameter_issues.py`: hand-enumerated component/nested
+  masks, own-first order, nested-only and empty families, broadcasting,
+  indexing equality, jit/vmap, malformed hooks, and from_log overflow.
+  Compare constrained/unconstrained twins to pin unchanged direct values.
+  Do not infer undeclared validity domains or alter direct-method wrappers.
+- Independent target after A6.1–A6.3: the complete
+  `test_a6_constraints.py` and `test_a6_parameter_issues.py` in both dtypes.
+- Docs to-do: custom condition hook and nested diagnostics example.
+
+## Step A6.4 — Exact/right likelihood and result masks
+
+Spec: 3.3, 5, 6.1–6.3, 7.1–7.3, 12.2. Requires D-023 decision before coding.
+
+- Create `src/survjax/likelihood.py` with the specified two entry points,
+  re-exported at top level, returning unsummed contributions or exactly
+  `(values, LikelihoodIssues)`. Keep a single calculation path. Add the
+  four-mask frozen registered container in diagnostics.py.
+- Resolve data/raw forms through one internal resolver using SurvivalData's
+  pure checked constructor; reject mixed/missing forms, positional raw arrays,
+  unsupported keywords and incompatible shapes with TypeError. Preserve stored
+  issue bits and normalized-field checks for sliced/rebuilt/transformed data.
+- Only exact and right-censored rows with L=0,U=+inf are supported. Dispatch
+  through family methods, using stopped safe reference times before inactive
+  density evaluation. Right censoring at zero is structurally uninformative
+  with exactly zero contribution and gradient for valid parameters. Preserve
+  genuine zero density/survival as -inf. No interval hooks, truncation
+  arithmetic or metadata pruning from Slice B.
+- Broadcast every mask to the full contribution shape. invalid_parameters
+  comes exactly from parameter_issues().invalid_entries; force its rows to NaN
+  by final selection. Undeclared unexplained NaNs are numerical_failure;
+  invalid_data and invalid_parameters may overlap. No conditioning failure
+  for the valid untruncated subset. Apply the maintainer's D-023 decision
+  explicitly to unsupported rows without mislabelling valid data.
+- Add `tests/unit/test_likelihood.py`: hand-derived exponential and Weibull
+  values, custom method dispatch, zero mass, uninformative rows, raw/data
+  equivalence, entry misuse, shapes/dtype promotion, stored issues and the
+  approved unsupported-mode policy. Aim for 300 lines with implementation;
+  stop and refine the split before exceeding it.
+- Docs to-do: supported subset, raw form, results and unsupported behavior.
+
+## Step A6.5 — Likelihood composition and derivative regressions
+
+Spec: 4.7, 6.3, 7.1–7.3, 12.1. One verification concept; fix discovered
+implementation defects in the same step, splitting before 300 changed lines.
+
+- Add `tests/unit/test_likelihood_transformations.py`: eager/jit/vmap agreement,
+  prepared and traced construction, stored issues, compilation reuse with new
+  same-shaped values/minibatches, and device transfer guard after warmup.
+- Pin valid per-row values and full Jacobian rows beside an invalid zero-rate
+  row in forward/reverse mode and jit. A final NaN selection alone cannot
+  repair NaN derivatives from active invalid formulas; demonstrate isolation
+  and inspect existing built-in safe-operand paths before choosing any fix.
+  Do not invent validity-repair transformations for arbitrary custom families.
+- Include second-order check_grads/Hessians on valid interior mixed likelihoods
+  with analytical exponential derivatives and justified central tolerances in
+  tests/impl_tolerances.py; a valid mixed eager jax_debug_nans run. A7/A9 retain
+  broader tail/transformation verification; this step must verify new code.
+- Run the complete through-A6 gate after all A6 modules are synced and all
+  preceding steps pass. Later A7–A9, fixtures, install and CPU benchmark
+  evidence remain required for Slice A completion.
+- Docs to-do: transformation and diagnostic composition examples.
+
+## Validation and delivery for every approved code step
+
+Use `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`. Run focused own and available
+independent modules in separate JAX_ENABLE_X64=1 and 0 processes, Ruff format
+and lint, mypy src, scripts/run_tests.sh and git diff --check. Run
+`scripts/check.sh --through A5` while A6 is partial; after A6.3 run the focused
+independent constraint/diagnostic modules with SPEC_THROUGH=A6. At completion
+run `scripts/check.sh --through A6` without changing/skipping future tests.
+Record exact counts, skips, failures and commands in REVIEW.md for each step.
+Do not add NumPyro; its optional independent interoperability check may skip
+when it is absent. No new runtime/test dependencies or later-slice features.
+
+Narrative docs follow reviewed code in separate topic-sized docs steps
+(at most 300 changed lines each): parameter declarations/conditions and host
+checks first, likelihood usage/subset second. Edit docs/api.md and the relevant
+existing guide or new focused guide; review need for playground updates.
+Run scripts/build_docs.sh and inspect both dtype renders for each docs step.
+Public API docstrings accompany code rather than waiting for docs.
+
+Planning checks: read-only git/spec/test/source inspection only; no pytest,
+lint, typing, runtime gate or docs build run. The marker records that the spec
+was read, not implementation conformance. Mark using the existing hyphenated
+`../scripts/spec-since.sh dev --mark` (the requested underscore path does not
+exist). Leave this planning change uncommitted on main for maintainer review.
+
+---
+
 # A5.6 — Base boundary policy, then A5.d2 docs refresh
 
 Status: code and review fix-up are merged by the maintainer. Step 2 is
