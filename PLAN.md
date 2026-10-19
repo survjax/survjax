@@ -1,3 +1,197 @@
+# A8 R fixtures and reference tests
+
+Status: A8.1 implemented, 2026-10-19; validation and review recorded in
+REVIEW.md. Stop after the A8.1 commit; A8.2 is not started. The maintainer
+approved starting work and created this isolated checkout at
+`/Users/wamster3/dev/survjax/dev-a8`, branch `a8-1-r-generator`, from main
+at `9623594`. Read this checkout's AGENTS.md/CLAUDE.md and the current spec,
+then implement A8.1 only. Write REVIEW.md, commit the step and stop for review;
+later steps keep their separate approval stops. Paths below are relative to
+this checkout. Historical plans below the A8 section are background only.
+
+A6 is being implemented separately in `../dev` on branch `A6.1`. Stay in this
+checkout; do not change its branch or files. This worktree inherited an older
+`.spec-seen`: when checking spec alignment, the workspace helper's target is
+`dev-a8`, not `dev` (`../scripts/spec-since.sh dev-a8`).
+
+A8 supplies committed, synthetic R references for exponential and Weibull
+exact/right-censored likelihoods without truncation. The required larger
+fixture is a 686-row synthetic `bc`-like dataset, evaluated at the three
+parameter vectors in specification 11.1. Contract: specification revision 28,
+sections 4.6, 6.3, 10.3–10.5, 11.1 and 12.1–12.2.
+
+## Coordination with A6 and A7
+
+- The maintainer has created this separate branch and worktree for A8
+  preparation. Do not switch the A6 checkout, edit its PLAN.md or REVIEW.md,
+  update its spec marker, or change its diagnostic decisions.
+- Generator/schema preparation can proceed alongside A6 using the existing
+  A5 distributions and normative parameter mappings. This is the parallel
+  preparation proposed here; normal integration still follows A6 then A7.
+- Likelihood reference tests require merged A6, including the final public
+  `log_likelihood` and `log_likelihood_with_info` contract. A8 calls that API;
+  numerical defects go back to the responsible implementation step.
+- A7 owns mpmath, delicate tails, boundary derivatives and debug-nans evidence.
+  A8 owns agreement with committed R values. Coordinate any shared edit to
+  `tests/conftest.py` or `tests/impl_tolerances.py` during integration.
+- The maintainer integrates approved preparation into the normal A8 branches
+  after A6/A7. No A8 completion claim before the through-A8 gate passes.
+  No new agent is needed for this planning request.
+
+## Fixture contract
+
+Each fixture directory contains `data.csv`, `expected.json` and a short README;
+its generator lives in `scripts/fixtures/`. Keep the schema small and explicit:
+
+- CSV: stable row ID, time in years, event (1 exact, 0 right), and group where
+  applicable. Synthetic observations only, with no truncation or patient rows.
+- JSON header: schema version, seed and RNG settings, R/package versions,
+  generating script, platform, units, event coding and parameter convention.
+  Record a checksum of the CSV and generator for provenance.
+- JSON values: explicitly named parameter cases, row-aligned log likelihoods,
+  log survival and survival values; a time-first survival grid where relevant.
+  Keep the flexsurv and survreg references separately identifiable, including
+  the package evaluation paths used. They are not fully independent oracles.
+- Export sufficient digits to preserve R doubles. Avoid JSON NaN/Infinity by
+  choosing finite reference cases; numerical extremes remain A7's remit.
+- Regeneration uses explicit seed, row/group order and fixed parameters,
+  without optimizer-dependent expected values. Normal tests only read files.
+  Use base R for the fixed-schema export; no new dependency is proposed.
+
+The bc-like dataset uses 686 simulated observations in Good/Medium/Poor groups
+of 229/229/228, generated from the recorded fitted Weibull model in 11.1.
+Simulate independent censoring with a fixed, documented rule that produces a
+similar censoring pattern; report realized counts rather than claiming exact
+agreement with the real cohort. Never load `flexsurv::bc` to construct it.
+
+Evaluate the recorded fitted vector and the fixed vectors
+`(k, b_Good, beta_Medium, beta_Poor) = (1, 10, -0.5, -1)` and
+`(1.5, 12, -0.6, -1.2)`. Store explicit natural parameters and AFT equivalents:
+`b_i = b_Good * exp(beta_group)`, `mu_i = log(b_i)`, `sigma = 1/k`.
+For the fitted vector use the constants recorded in 11.1, without refitting.
+Its synthetic-data totals must be newly generated, never copied from the
+real-data audit totals. Use the specified 0–7 year grid in steps of 0.05,
+shape `(141, 3)`, and include per-observation survival at observed times.
+
+## A8.1 Small exponential generator
+
+Files: `scripts/fixtures/generate_exponential.R` and
+`tests/fixtures/exponential/README.md`. No library/public API changes.
+
+Create a compact seeded exact/right dataset and several fixed rates. Evaluate
+per-row likelihood and survival using the pinned R reference packages, with
+the survreg log-mean to rate conversion explicit. Establish the fixed-parameter
+package evaluation paths from their installed documentation while coding;
+do not substitute a fitted optimum or label handwritten formulas as package
+outputs. If no suitable path exists, report the gap before finalizing schema.
+
+Generator checks accompany the code: exact versions, positive finite times,
+both event kinds, valid row alignment, expected output shapes, finite interior
+values, and agreement of per-row sums with the package total at fixed
+parameters. Compare the two reference paths before emitting outputs. Record
+commands/results in REVIEW.md and stop. Target at most 300 changed lines.
+
+Implemented with 16 seeded rows and rates 0.1, 0.35 and 1.2. The generator's
+`--check-only` mode exercises both pinned package paths and assertions without
+writing fixtures. Default or explicit-destination CSV/JSON export is handed
+to the maintainer for A8.3, including the two-run comparison. Docs to-do:
+explain the eventual comparison evidence in A8.d1 after fixture tests pass.
+
+## A8.2 Synthetic bc-like generator
+
+Files: `scripts/fixtures/generate_bc_like.R` and
+`tests/fixtures/bc_like/README.md`. No library/public API changes.
+
+Implement the larger fixture contract above, including both R reference paths,
+all three parameter vectors and the survival grid. Reuse the simple file
+format, without creating a general fixture framework. Include generator
+checks for group sizes, event coding, parameter conversion, row alignment,
+grid orientation, reference agreement and per-row/total agreement.
+Target at most 300 changed lines; stop with REVIEW.md before the next step.
+
+## A8.3 Generate and review the committed R outputs
+
+Files: `data.csv` and `expected.json` in both fixture directories; update their
+READMEs with exact regeneration commands and provenance.
+
+The workflow assigns R execution to the maintainer. Hand over the generators
+with `Rscript --vanilla scripts/fixtures/generate_exponential.R` and
+`Rscript --vanilla scripts/fixtures/generate_bc_like.R`. Require successful
+package loading and generator checks in the pinned environment. Generate
+twice into separate temporary destinations and compare committed payloads;
+exclude volatile timestamps from deterministic payloads. Inspect counts,
+checksums, finite values and parameter labels before importing.
+
+This data-only step needs an explicit exception to the approximate 300-line
+review target: the required 686-row CSV alone exceeds it. Keep generated
+outputs out of the code diffs and review them through provenance, regeneration
+and structural checks. If that exception is declined, agree a partitioned
+fixture layout before generation. Do not silently exceed the code-step budget.
+
+Local preflight found R 4.4.2, flexsurv 2.3.2 and survival 3.7.0 (the R version
+notation for package release 3.7-0). Loading flexsurv failed with OpenMP
+shared-memory error 179 in this environment. Package metadata alone is not a
+successful reference run. No fixtures were generated during planning; never
+replace unavailable R results with Python-generated or hand-entered numbers.
+
+## A8.4 Fixture loader and exponential reference tests
+
+Requires A6's completed API and genuine committed outputs.
+Files: extend `tests/conftest.py`; add
+`tests/reference/test_exponential_r.py`. No new public exports.
+
+Add one shared loader exposed through a pytest fixture. It reads CSV/JSON with
+the standard library, checks schema, provenance and row alignment, and returns
+host arrays in their stored precision. Tests convert inputs to the active JAX
+dtype; expected values remain the R doubles. Missing or malformed fixtures
+fail explicitly rather than skip. All reference tests use this loader.
+
+Compare per-row exponential likelihoods against each R source, using both
+public likelihood entry points and requiring clear issue masks for valid
+data. Compare direct survival/log survival and include a summed-likelihood
+sanity check without letting totals replace per-row assertions. Use existing
+central tolerances. Loader checks and reference tests accompany its code;
+keep the step within 300 changed lines and stop with REVIEW.md.
+
+## A8.5 Weibull reference tests
+
+Files: `tests/reference/test_weibull_bc_like_r.py`; shared loader changes only
+if the reviewed schema requires them. No public API or tolerance changes.
+
+For all three cases, construct row-specific scales from group indicators and
+compare every per-row log contribution, observed-time survival and the
+`(141, 3)` grid with both R sources. Check scalar common shape plus batched
+scale broadcasting, natural/from_log parameter equivalence, raw/prepared-data
+likelihood equivalence, and eager/jit/vmap agreement against the same stored
+references. Keep transformation coverage focused on these reference cases;
+the broader derivative suite belongs to A7/A9. Both dtypes use existing
+`tests/impl_tolerances.py` targets; investigate failures without loosening them.
+Keep the step within 300 changed lines and stop with REVIEW.md.
+
+## Validation and documentation
+
+For each code step run appropriate focused checks, Ruff, mypy, own tests in
+separate `JAX_ENABLE_X64=1` and `0` processes, and `git diff --check`.
+Use `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`. Before integration, run the
+gate only through the last completed step on that checkout. After A7 and all
+A8 steps are integrated, run `scripts/check.sh --through A8`. Normal Python
+tests must succeed without R, network access or local real datasets.
+
+A8.d1 follows reviewed code: update `docs/builtin-families.md` with the scope
+of the R comparison evidence and a regeneration pointer. Audit
+`docs/distributions.md` and `docs/api.md` for obsolete verification claims;
+edit only where needed. Build and inspect both dtype renders through
+`scripts/build_docs.sh`, documenting remaining limits. One topic, at most
+300 changed lines, its own REVIEW.md and stop.
+
+Every approved implementation step gets its own commit on a maintainer-created
+branch, REVIEW.md with invariants and spec/test mapping, and a stop. No merges,
+tags, protected test edits, spec edits, new Python dependencies or later-slice
+fixtures. Planning used repository inspection and R metadata checks only;
+pytest, lint, typing, docs builds and runtime gates were not run.
+
+---
+
 # A5.6 — Base boundary policy, then A5.d2 docs refresh
 
 Status: code and review fix-up are merged by the maintainer. Step 2 is
