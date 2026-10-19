@@ -46,6 +46,22 @@ def test_interval_bounds_require_strict_order():
                 make(*bounds)
 
 
+@pytest.mark.parametrize(
+    "make",
+    [
+        c.greater_than,
+        lambda a: c.interval(a, 1),
+        lambda b: c.interval(0, b),
+        lambda a: c.closed_interval(a, 1),
+        lambda b: c.closed_interval(0, b),
+    ],
+)
+def test_overflowing_bound_check_raises_type_error(make):
+    """Spec 4.7: bound checks report TypeError, including finite-check overflow."""
+    with pytest.raises(TypeError, match="finite Python numbers"):
+        make(10**400)
+
+
 def test_zero_boundaries_distinguish_subnormals_from_signed_zero():
     """Spec 4.7: signed zeros are zero; nextafter neighbours have strict signs."""
     dtype = jnp.asarray(0.0).dtype
@@ -82,3 +98,15 @@ def test_simplex_domains_and_softmax_summation_tolerance():
     np.testing.assert_array_equal(c.simplex(x), [True, False, False, False])
     assert not bool(c.simplex(jnp.array([0.101] + [0.1] * 9)))  # sum=1.001
     assert c.simplex.event_dim == 1
+
+
+def test_simplex_tolerance_includes_four_n_eps_and_excludes_next_value(x64_enabled):
+    """Spec 4.7: the inclusive threshold is exactly 4*n*eps of the input dtype."""
+    dtype = np.float64 if x64_enabled else np.float32
+    eps = np.finfo(dtype).eps
+    vectors = np.zeros((4, 10), dtype=dtype)
+    # Each sum is exactly 1+k*eps: k<=4*10 passes, the next representable k fails.
+    vectors[:, 0] = 1 + np.array([30, 40, 41, 50], dtype=dtype) * eps
+    x = jnp.asarray(vectors)
+    for evaluate in (c.simplex, jax.jit(c.simplex), jax.vmap(c.simplex)):
+        np.testing.assert_array_equal(evaluate(x), [True, True, False, False])

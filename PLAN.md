@@ -1,12 +1,68 @@
 # A6 — Revision 28 parameter diagnostics and exact/right likelihood
 
-Status: **A6.1 implemented, ready for review** (2026-10-19). This section supersedes
+Status: **A6.1 review fix-up implemented, ready for review** (2026-10-19). This section supersedes
 older forward plans for A6; the A5 records below remain historical.
 Planning starts on clean `main` at `9623594`. The maintainer approved A6.1
 and created branch `A6.1`. Only that code/test step is authorized; later steps
 still need approval. The maintainer creates/selects each step branch; do not
 commit on main. Every implementation step needs its own
 approval, tests, commit, overwritten REVIEW.md and stop.
+
+## A6.1 review fix-up — S1 and small nits (approved)
+
+Reviewed `../review/slices/A6.1.md` against `98be832` on `A6.1`.
+The maintainer approved this fix-up and chose JAX parameter-dtype/backend
+comparison behavior for Q1. One small fix-up commit on this same branch,
+then overwrite REVIEW.md and stop.
+
+- S1: add one focused simplex tolerance regression to
+  `tests/unit/test_constraints.py`, exercised in both separate dtype processes.
+  With n=10, all entries zero except x[0]=1+k*eps, the sum is exact. Check
+  k=30 and 40 accepted, k=41 and 50 rejected, eagerly/jit/vmap. This covers
+  the review's 3n/5n cases and pins the inclusive 4n endpoint and its next
+  representable neighbour. Expected masks come directly from spec 4.7's
+  abs(sum-1)<=4*n*eps; no assertion tolerance or new tolerance constant.
+  Demonstrate that the review's M2 tenfold-tolerance mutant fails this test
+  in both modes, using an in-memory mutant rather than editing the checkout.
+- N1: in `src/survjax/constraints.py`, translate overflow from the finite-bound
+  check to TypeError with the existing bounds message. Add a small regression
+  for 10**400 through all three public bound factories, including both
+  interval endpoints. No other domain/value-policy change is proposed.
+- N2: overwrite REVIEW.md after implementing the fix-up; state precisely that
+  the callable dataclass instances are frozen, while module functions have
+  mutable Python attributes. Do not change function representations.
+- N3: no registration refactor in this fix-up. A6.3 still puts the new
+  diagnostic composition in a separate private module as planned.
+- Q1: record the maintainer's decision in D-024: follow JAX parameter-dtype
+  and backend comparison behavior. Preserve the current implementation; no
+  new mathematical Python-bound comparison or spec edit. Formal deviation
+  closure stays with the maintainer.
+- Public API touched: no signatures or exports; N1 changes the exception for
+  an overflowing bound check. Files: constraints.py, test_constraints.py,
+  PLAN.md and REVIEW.md; deviation bookkeeping in DEVIATIONS.md. No docs,
+  independent-test, dependency or later-slice changes.
+- Validation: focused own constraints/declarations/import tests plus the
+  independent A6 constraint module directly from ../spectest in both modes;
+  M2 rejection in both modes; scripts/check.sh --through A5; git diff --check.
+  Record exact outputs, including mutation failures, in REVIEW.md. No docs
+  rebuild is needed for this test/exception fix with unchanged docstrings.
+
+Read-only review probes actually run with UV_CACHE_DIR=/private/tmp/survjax-uv-cache
+and JAX_ENABLE_X64=1/0, using uv run --locked python: both modes report current
+simplex masks [True, True, False, False] for k=[30,40,41,50], versus
+[True, True, True, True] for an in-memory M2; 10**400 raises OverflowError.
+No pytest suite or runtime gate was rerun while checking this review.
+The maintainer's previous "ok make the minimal entry" explicitly authorized
+A6.1's docs/api.md exception; the review's scope question needs no new approval.
+
+Revision-29 follow-up: read `../scripts/spec-since.sh dev` and the complete
+0683e35..be8010c normative diff. A6.1's sections 4.2/4.7 are unchanged.
+Do not implement the stale revision-28 A6.2–A6.5 likelihood references below:
+remove LikelihoodIssues/log_likelihood_with_info and add base-owned
+`dist.log_likelihood`, equal to the function in values/derivatives, in a
+separate planning/alignment pass before the next step is approved. D-023 has
+an open revision-29 note. Leave .spec-seen at revision 28 for this review
+check; re-mark it as part of that explicit alignment pass.
 
 ## Contract and independent tests reviewed
 

@@ -82,7 +82,11 @@ class _Simplex:
 
 
 def _bound(value: float) -> float:
-    if type(value) not in (int, float) or not math.isfinite(value):
+    try:
+        valid = type(value) in (int, float) and math.isfinite(value)
+    except OverflowError:
+        valid = False
+    if not valid:
         raise TypeError("constraint bounds must be finite Python numbers")
     return value
 

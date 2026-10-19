@@ -1,5 +1,25 @@
 # Deviations and spec questions
 
+## D-024 Precision and subnormal semantics of constraint bounds
+- Step: A6.1 review check (2026-10-19), reviewer Q1.
+- Spec: section 4.7, unchanged in revisions 28–29.
+- Spec says: bound factories take finite Python numbers and compare x>a,
+  a<x<b or a<=x<=b, without specifying the precision of the Python bound or
+  the required handling of nonzero subnormal bounds on a flushing backend.
+- Did / propose: preserve the A6.1 implementation pending maintainer decision.
+  Zero-bound comparisons use frexp for signed subnormals; nonzero bounds use
+  JAX's parameter-dtype comparisons. The reviewer reports float32 cases
+  greater_than(-1e-40)(0) and greater_than(0.1)(float32(0.1)) returning False,
+  and notes NumPyro agrees. Ask whether the contract adopts parameter-dtype
+  bound conversion and backend comparison behavior, or requires mathematical
+  comparison against the Python bound with subnormal guarantees. Do not
+  silently broaden the zero-bound workaround or change the spec.
+- Maintainer decision (2026-10-19, fix-up approval): follow JAX's parameter-
+  dtype/backend comparison behavior. Preserve the current comparisons and
+  existing zero-bound frexp handling. No spec edit is requested; formal
+  closure of this entry remains with the maintainer.
+- Status: open
+
 ## D-023 Explicit unsupported likelihood failures under tracing
 - Step: A6 planning, revision 28 (2026-10-19)
 - Spec: sections 3.2, 6.1–6.3, 7.1, 12.2; independent Q-037.
@@ -16,6 +36,12 @@
   explicit decision. Independent tests permit eager NotImplementedError or
   row NaN, require traced row NaN, and deliberately do not settle the masks.
   Do not reject data solely because traced metadata says it may be unsupported.
+- Revision-29 review note (2026-10-19): LikelihoodIssues and the _with_info
+  entry point are removed. The four-mask premise above is historical; the
+  remaining question is whether unsupported valid rows raise or give NaN,
+  and how callers distinguish them from bad-data/bad-parameter rows and the
+  unexplained NaN remainder of section 7.1's triage recipe. This still needs
+  a maintainer decision before A6.4; no evaluator has been implemented.
 - Status: open
 
 ## D-022 Log-CDF upper tail rounds to zero before S underflows
