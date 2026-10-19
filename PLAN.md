@@ -196,6 +196,17 @@ Overwrite REVIEW.md with reading order, executed examples/spec mapping, exact
 build results and remaining uncertainty. Commit on the maintainer's docs
 branch, then stop. This step does not claim Slice A's remaining gates complete.
 
+### Tutorial nuance follow-up (2026-10-19)
+
+The maintainer directly requests clarifying that hazard/density endpoint
+limits are optional, preserving their concurrent edit. On `docs-A5.6`, add
+this explanation at "The hazard and density need more" and make nearby
+instructions/checklist entries conditional on actually needing endpoint
+values. Preserve the maintainer's "In many medical settings..." sentence in
+the piecewise-hazard introduction. No executable examples or library code
+change. Run `scripts/build_docs.sh` in both modes, inspect generated text,
+update REVIEW.md, commit this small docs follow-up, then stop.
+
 ## Planning checks actually run
 
 No source, test, spec or narrative-doc changes were made during planning.

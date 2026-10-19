@@ -229,7 +229,7 @@ arms.survival_grid(months)
 
 ## Fixed settings and vector parameters: a piecewise-constant hazard
 
-Progression risk is often highest soon after diagnosis. A
+In many medical settings, progression risk is highest soon after diagnosis. A
 *piecewise-constant hazard* (the model behind piecewise exponential
 regression) splits follow-up at fixed cut points and gives each interval its
 own rate. Over months 0–6, 6–12 and 12 onward:
@@ -593,6 +593,18 @@ parameter ranges for you; the formula is the judge of what is undefined.
 
 ### The hazard and density need more
 
+You usually do not need hazard or density values exactly at zero or infinity.
+Likelihoods need density at finite, positive event times; censoring uses
+survival or CDF values. Mean and RMST integrals use survival. Even an integral
+of the hazard or density starting at zero does not depend on the value at
+that single endpoint, though numerical quadrature must handle any singularity
+there.
+
+The boundary overrides below are an optional extension, useful for displaying
+an initial or limiting hazard, or plotting on a grid that includes zero.
+Starting a hazard plot at a positive time is often enough. The plain family
+above already works for ordinary evaluations at finite, positive times.
+
 The hazard and density are different: survjax derives them from the
 *derivative* of $\log S$ in $t$. At $t = 0$, the generic defaults differentiate
 the raw primitive, the one exception to keeping it away from the boundaries.
@@ -606,8 +618,8 @@ three_shapes.hazard(0.0)
 ```
 
 At infinity the default hazard returns NaN, including for cure families.
-Give the hazard and density their limits by overriding `log_hazard` and
-`log_prob`: these overrides are called at zero, and `log_hazard` also at
+If you need these boundary limits, override `log_hazard` and `log_prob`:
+these overrides are called at zero, and `log_hazard` also at
 infinity. Log density at infinity is always supplied by the base. Here the
 hazard is
 
@@ -620,7 +632,8 @@ $$
 with $\sigma$ the logistic function again. Near zero it behaves like the Weibull
 hazard $(k/b)(t/b)^{k-1}$; near infinity like $k/t$, which goes to 0.
 `hazard` follows a `log_hazard` override automatically, but `log_prob` does
-not: by default it takes its own derivative of $\log S$, so override it too.
+not: by default it takes its own derivative of $\log S$. To supply the density
+limit at zero as well, override it too.
 
 ```{code-cell} ipython3
 @survjax.register_family
@@ -672,9 +685,9 @@ A few rules of thumb:
 - **Values first.** The base supplies survival, log survival, cumulative
   hazard and `log_cdf` at zero and infinity. A proper family needs no boundary
   code for these methods.
-- **Hazard and density need their limits.** Override `log_hazard` and
-  `log_prob` where the raw formula's derivative cannot supply a boundary
-  limit. `hazard` follows `log_hazard`; `log_prob` does not.
+- **Endpoint limits are optional.** Override `log_hazard` and `log_prob` if
+  you need boundary limits that the raw formula's derivative cannot supply.
+  `hazard` follows `log_hazard`; `log_prob` does not.
 - **Keep NaN parameters NaN.** A selected constant hides a NaN parameter.
   Pass on the NaN of the safe interior value, as above.
 - **Find limits from the leading term.** Near zero and near infinity, keep
@@ -765,7 +778,8 @@ progression.hazard(jnp.inf), survjax.Exponential(rate=0.1).hazard(jnp.inf)
   with exactly `batch_shape`. Its parameter derivatives stay active.
 - Make $\log S$ differentiable in $t$: the default hazard and density come
   from its derivative. At a kink, the derivative JAX returns is the hazard you
-  get. Where the formula or its derivative breaks down at a boundary
+  get. If you need hazard or density at a boundary where the formula or its
+  derivative breaks down
   (see [when the formula breaks
   down](#when-the-formula-breaks-down-at-zero-or-infinity)), override both
   `log_hazard` and `log_prob`: `hazard` follows a `log_hazard` override, but
@@ -776,9 +790,9 @@ progression.hazard(jnp.inf), survjax.Exponential(rate=0.1).hazard(jnp.inf)
 - Write `log_survival` for a single distribution and let broadcasting handle
   batches: parameters have the batch shape (plus any component axes) and `t`
   broadcasts against it.
-- Override `log_cdf` if your family has a more accurate lower tail, and
-  `log_hazard` and `log_prob` where you know limits that the autodiff
-  default cannot see, such as the hazard where survival is exactly zero.
+- Override `log_cdf` if your family has a more accurate lower tail. If you
+  need boundary hazard or density limits that the autodiff default cannot
+  supply, override `log_hazard` and `log_prob` there too.
 
 ## Details
 
