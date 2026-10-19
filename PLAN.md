@@ -1,18 +1,14 @@
 # A5.6 — Base boundary policy, then A5.d2 docs refresh
 
-Status: step 1 approved and implemented on the maintainer-created `A5.6`
-branch on 2026-10-18. Review fix-up F-1/F-2 and nits are implemented on
-2026-10-19 and pass the full through-A5 gate in both dtype modes; ready for
-re-review. Planning started from clean `main` at
-`9146251`. The through-A5 gate passes in both dtype modes; exact results and
-reading order are in REVIEW.md. The original code/test/docstring diff was
-299 changed lines; this review fix-up adds 76 changed code/test/docstring lines. Cure coverage reuses existing first derivatives for survival/log CDF
-and first/second derivatives for log survival/cumulative hazard. Scalar/batch/
-component hook contracts also have independent acceptance coverage.
-The maintainer requests two ordered steps: code, tests and needed docstrings
-first; narrative docs second. Step 2 has not started and requires the
-maintainer's instruction after code review. Each step ends with its own commit,
-overwritten REVIEW.md and a stop.
+Status: code and review fix-up are merged by the maintainer. Step 2 is
+implemented on the maintainer-created `docs-A5.6` branch on 2026-10-19,
+based on `282dcca`, and ready for review. The maintainer explicitly requested
+direct execution without a further planning/approval stop and asked to keep
+the existing writing style. Only `docs/distributions.md` and `docs/api.md`
+changed (188 documentation lines); the tutorial structure is retained.
+Both dtype docs builds pass; exact checks and output inspection are in
+REVIEW.md. No source/docstring, test, spec or dependency changes were needed.
+Each step ends with its own commit, REVIEW.md and a stop.
 
 Contract: specification revision 27, `.spec-seen` at `b92334a`. The newly synced
 independent suite records author commit `1d87b726a15072f6e7223a60fe1afefa5bb999be`
@@ -160,6 +156,11 @@ Docs to-do for step 2: replace primitive-owned boundary guidance with the new
 base contract and hook; keep custom density/hazard responsibilities explicit.
 
 ## Step 2 — Narrative docs after code review (A5.d2)
+
+Status: completed on `docs-A5.6` (2026-10-19), following the maintainer's
+direct implementation request. Built-in/grids guides and the playground were
+audited and needed no changes. The following scope describes the completed
+boundary-contract documentation update.
 
 One topic: explaining and using the revised family boundary contract. Public API
 and runtime behavior stay as approved in step 1. Cover spec 2, 4.2, 4.5, 5,

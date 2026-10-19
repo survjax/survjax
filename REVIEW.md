@@ -1,78 +1,73 @@
-# A5.6 review fix-up — F-1/F-2, N-1/N-2 (2026-10-19)
+# A5.d2 — Document the merged family boundary contract
 
-Addresses `../review/slices/A5.6.md`, including the maintainer's F-2 decision,
-on the existing `A5.6` branch after `a4bea80`. Narrative docs remain step 2.
-The spec, independent tests and deviation statuses are unchanged.
+Completed on `docs-A5.6` from `282dcca`, as directly requested by the maintainer
+on 2026-10-19. The existing style, headings, tutorial sequence and analytic
+hazard/density example are retained. The two documentation pages total 188
+changed lines (83 additions, 105 deletions); PLAN.md/REVIEW.md are bookkeeping.
 
 ## Read first, in order
 
-1. `_survival_methods.py:apply_policy`: hook-NaN precedence now applies only to
-   the four base-boundary methods and log density. Every method still preserves
-   its own NaN output. This follows section 4.5 and replaces the old approved
-   plan's broader rule; no spec change is needed.
-2. `test_family_mixed_infinity.py:test_nan_hook_preserves_analytic_hazard_limit`:
-   an analytic override gives log(rate)/rate at infinity despite a NaN hook,
-   in eager/jit/vmap. The same family's log survival/log density stay NaN.
-3. `test_family_infinity.py:test_tiny_cure_fraction_keeps_log_cdf_infinity_relative_precision`:
-   fraction=1e-12 gives log1p(-fraction), not zero, with existing zero-atol tail
-   tolerances. Eager/jit/vmap are covered; M4 evidence is below.
-4. Cure and NaNLimit fixture changes in those two modules: removed their dead
-   infinity branches so primitive formulas rely on the base and limit hooks.
-   `base.py` documents hook ownership and that the default does not raise for
-   parameter values (N-2, prose rather than an invented exception type).
+1. `docs/distributions.md`, "The edges of the time axis" and "Gradients at
+   the boundaries": the base supplies survival/CDF/cumulative-hazard limits.
+   CureHazard declares log(fraction) through log_survival_at_infinity(),
+   replacing its obsolete infinity branch. Its limit derivatives stay active.
+2. "When the formula breaks down at zero or infinity": the plain LogLogistic
+   primitive now gives correct survival boundaries and zero S(0) parameter
+   gradients. Removed the redundant manually guarded primitive. The separate
+   guarded analytic hazard/density subclass remains; raw generic defaults at
+   zero have no value/gradient guarantee, and generic hazards at infinity are
+   NaN, including cure families. The checklist follows the same contract.
+3. `docs/api.md`, "Limit at infinity": adds the generated optional-hook entry,
+   with the proper-family default and cure override described.
 
-## Invariants and test-to-spec mapping
+## Invariants and evidence
 
-- F-1 (4.2/4.5/7.2/12.1): derive log F(inf) from log S(inf) with safe
-  log1mexp. The expected value is the analytical identity log(1-p), evaluated
-  by NumPy log1p; its expansion is -p-p**2/2-... . Zero absolute tolerance
-  rejects an erroneous zero; no tolerance was added or loosened.
-- F-2 (4.5): the hook's NaN governs base-supplied infinity values, including
-  log_prob(inf). Analytic hazard limits remain family-supplied. Generic hazard
-  defaults remain NaN at infinity, with or without a NaN hook. Existing
-  NaN-hook density tests and boundary acceptance cases remain regressions.
-- Safe time substitution, active hook derivatives, batching/dtypes, reference
-  reuse and primitive raw-method unwrapping are unchanged. No floor, clipping,
-  epsilon, parameter validation or new stop_gradient was introduced.
-- N-1's naive cure primitives now run the existing value/first-derivative and
-  mixed-entry Hessian suites without their former infinity guards. The base
-  must provide safe inputs; the primitives no longer hide an unsafe call.
+- Spec 4.2/4.5/7.2: family survival formulas need finite positive times;
+  reference substitutions are stopped, active infinity-hook values are not.
+  The guide separates the base's four survival/CDF/H limits from density and
+  hazard overrides. Hook NaNs govern base-supplied infinity values, including
+  log density; analytic hazard limits remain family-supplied (review F-2).
+- Executed guide outputs in both modes match the stated analytical values:
+  cure fraction 0.25 gives S(inf)=0.25 and log F(inf)=log(0.75), with fraction
+  derivatives 1 and -4/3. Plain log-logistic gives S([0,inf])=[1,0], with zero
+  shape gradient for S(0); its generic hazards are NaN at both boundaries.
+  The analytic extension gives h(0)=[inf,0.1,0] for shapes [0.5,1,2], h(inf)=0,
+  the matching density limits, and NaN only in the invalid parameter row.
+- `docs/builtin-families.md`, `docs/grids.md` and `docs/playground.ipynb` were
+  audited. Their explanations/examples remain accurate; no changes were
+  needed. The source playground has no custom boundary recipe to migrate.
+- No library source/docstrings, tests, specification, exports, dependencies,
+  theme/configuration or deviation statuses changed.
 
 ## Checks actually run
 
-All commands used `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`. Focused pytest:
-`uv run --locked --group test pytest tests/unit/test_family_infinity.py tests/unit/test_family_mixed_infinity.py -q --tb=short`,
-in separate processes with JAX_ENABLE_X64=1 and 0.
+All docs builds used `UV_CACHE_DIR=/private/tmp/survjax-uv-cache` and the
+existing `scripts/build_docs.sh` (fresh execution, nitpicky mode and Sphinx
+warnings as errors in separate JAX dtype processes).
 
-- Before the F-2 implementation fix: both modes exited 1, **2 failed,
-  47 passed** (6.63s x64, 6.77s x32). Exactly the new analytic log-hazard and
-  hazard cases failed: infinity became NaN while finite times were correct.
-- Reviewer mutant M4 temporarily replaced only the boundary safe log1mexp with
-  log(1-exp). The new F-1 test exited 1 in both modes, one failure each:
-  x64 relative error **2.21217201e-5** (atol 0, rtol 1e-8; 0.62s),
-  x32 actual **0** versus approximately **-1e-12** (atol 0, rtol 1e-4; 0.63s).
-  A finally block restored the source before any subsequent checks.
-- After the fix and fixture cleanup: focused modules exited 0 in both modes,
-  **49 passed** (5.85s x64, 6.11s x32).
-- `uv run ruff format` on the four source/test files: exit 0, one file
-  reformatted, three unchanged. `git diff --check`: exit 0, no output.
+- Initial sandboxed build failed: Jupyter could not bind a local kernel socket
+  (PermissionError: Operation not permitted). Reran with execution permission;
+  no build configuration or environment dependency was changed.
+- First permitted build exited 0: "build succeeded" for x32 and x64. After
+  small wording/wrapping corrections, the final build also exited 0 with
+  "build succeeded" in both modes. Logs: `/private/tmp/survjax-a56-docs-build.log`
+  and `/private/tmp/survjax-a56-docs-final.log`. Jupyter emitted its TCP
+  transport warning; the Sphinx warning-as-error builds succeeded.
+- Inspected generated guide HTML and captured outputs for both dtype modes,
+  including cure limits/derivatives, plain log-logistic boundaries and S(0)
+  gradient, generic hazards, analytic density/hazard limits and mixed NaN rows.
+  Confirmed the new infinity-hook API anchor in both generated API pages and
+  final wording in the guide. The updated guide's executed notebook contains
+  38 code cells with no error outputs. Across all five executed notebooks,
+  the only three error outputs are pre-existing survival-data examples tagged
+  raises-exception, demonstrating expected data-validation failures.
+- Browser security policy rejected a local-file preview. Visual browser layout
+  inspection was unavailable; generated HTML content and numerical outputs
+  were checked directly instead. No alternate browser route was attempted.
+- `git diff --check`: exit 0, no output. The diff scope check found no source,
+  test, spec or marker changes. No runtime/lint/type gate was rerun for this
+  documentation-only change; all documented code cells execute in the builds.
 
-- `scripts/check.sh --through A5`: exit 0, `check: all gates passed through A5`.
-  Guard passed on A5.6; Ruff reported 53 files already formatted and all checks
-  passed; mypy reported no issues in 13 source files. Exact dtype results:
-
-  | Suite | x64 | x32 |
-  | --- | --- | --- |
-  | Own tests | 466 passed, 7 skipped (36.79s) | 472 passed, 1 skipped (37.63s) |
-  | Source doctests | 4 passed (0.78s) | 4 passed (0.85s) |
-  | Independent through A5 | 1256 passed, 26 skipped (24.81s) | 1261 passed, 21 skipped (20.65s) |
-
-  Existing dtype-specific skips remain; no test was skipped or xfailed to
-  satisfy this review. No source/test changes followed the full gate.
-
-## Remaining work
-
-No narrative docs build was run: step 2 still needs its guide/API refresh and
-build. No new spec ambiguity was identified; Q-1 was settled by the maintainer
-in the review. Leave deviation closure to the maintainer and stop after this
-fix-up commit.
+No new spec question or implementation uncertainty was identified. Stop for
+maintainer review after this docs commit; this does not claim Slice A's
+remaining likelihood, fixture or completion gates are done.

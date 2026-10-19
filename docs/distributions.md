@@ -407,14 +407,15 @@ Times are measured from a time origin such as diagnosis, so $T > 0$. Still,
 a survival curve is often drawn from $t = 0$, administrative censoring is
 sometimes coded as $t = \infty$, and a bad row can carry a negative or
 missing time. survjax answers for any real time without raising. Your
-`log_survival` only needs to handle $t \ge 0$, including $t = \infty$; survjax
-takes care of the rest:
+`log_survival` only needs to handle finite $t > 0$ for survival, CDF and
+cumulative hazard. survjax supplies their boundary values; density and hazard
+limits need more, as shown below:
 
 | Time | Meaning | What survjax returns |
 | --- | --- | --- |
 | $t < 0$ | before the time origin | $S = 1$, $H = 0$, $h = 0$, log density and log CDF $-\infty$ |
-| $t = 0$ | the origin | your family's values, $S(0) = 1$ |
-| $t = \infty$ | never | your family's values, usually $S = 0$; log density $-\infty$ |
+| $t = 0$ | the origin | from the base: $S = 1$, $H = 0$, log CDF $-\infty$; density and hazard limits from your family |
+| $t = \infty$ | never | from the base: $\log S =$ `log_survival_at_infinity()` (default $-\infty$), $S$, log CDF and $H$ from it; log density $-\infty$; hazard limit from your family |
 | NaN | missing | NaN |
 
 ```{code-cell} ipython3
@@ -422,10 +423,11 @@ edge_times = jnp.array([-1.0, 0.0, jnp.inf, jnp.nan])
 progression.survival(edge_times), progression.log_prob(edge_times)
 ```
 
-survjax never passes a negative or NaN time to your code. It evaluates your
-family at the reference time instead, discards that value and returns the
-answer from the table. If your family gives NaN even at the reference time,
-typically because a parameter is NaN, that NaN is returned instead, so invalid
+survjax never passes a negative or NaN time to your code. For these and the
+base-supplied boundary values, it evaluates your family at the reference time
+instead, discards that value and returns the answer from the table. If your
+family gives NaN even at the reference time, typically because a parameter is
+NaN, that NaN is returned instead, so invalid
 parameters do not hide behind the table's constants:
 
 ```{code-cell} ipython3
@@ -442,7 +444,7 @@ what survjax guarantees.
 First, a proper distribution has $S(\infty) = 0$ and $\log F(\infty) = 0$
 whatever its parameters, so their derivatives are zero. Computing $e^{-\lambda
 \cdot \infty}$ naively and differentiating would multiply zero by infinity;
-survjax returns the correct 0 (JAX prints a signed zero, `-0.`):
+survjax returns the correct 0 (JAX may print a signed zero):
 
 ```{code-cell} ipython3
 def survival_at_infinity(rate):
@@ -466,21 +468,19 @@ def finite_cumulative_hazard(rate):
 jax.grad(finite_cumulative_hazard)(0.1)
 ```
 
-survjax does this by evaluating the default methods at the reference time
-wherever the limit is known to be $S = 0$, and only then filling in the
-limit. Derivatives of the infinite values themselves are not defined, and
-survjax promises nothing about them.
+survjax does this by evaluating the family at the reference time before
+filling in the base-supplied boundary values. This applies even to overrides
+of survival, log survival, log CDF and cumulative hazard. Derivatives of the
+infinite values themselves are not defined, and survjax promises nothing
+about them.
 
 Not every distribution has $S(\infty) = 0$. In a *cure model*, a fraction
 $p$ of patients never progresses, so $S(\infty) = p$ and
 $\log F(\infty) = \log(1 - p)$. These limits depend on $p$, and their
-derivatives, 1 and $-1/(1 - p)$, must survive. survjax leaves such finite
-limits to your `log_survival`, which therefore has to compute them with safe
-operands itself: replace the time before multiplying it by a parameter, then
-select the limit. The replacement is the family's own `reference_time()`, the
-same safe time survjax uses for negative and NaN times, wrapped in
-`jax.lax.stop_gradient` because it only stands in for a time and should carry
-no derivative.
+derivatives, 1 and $-1/(1 - p)$, must survive. Declare the limit by overriding
+`log_survival_at_infinity()`. The default returns $-\infty$ for a proper
+family; a cure family returns $\log p$, with exactly `batch_shape` in the
+parameter dtype. survjax differentiates through this value:
 
 ```{code-cell} ipython3
 @survjax.register_family
@@ -489,15 +489,11 @@ class CureHazard(ConstantHazard):
     fraction: jax.Array = survjax.param()  # p, never progresses
 
     def log_survival(self, t):
-        time = jnp.asarray(t)
-        infinite = jnp.isposinf(time)
-        # Substitute before multiplying: rate * inf would poison the gradient.
-        reference = jax.lax.stop_gradient(self.reference_time())
-        safe_time = jnp.where(infinite, reference, time)
-        remaining = jnp.exp(-self.rate * safe_time)
-        # At infinity no susceptible patient remains; keep NaN from bad rates.
-        remaining = jnp.where(infinite & ~jnp.isnan(remaining), 0.0, remaining)
+        remaining = jnp.exp(-self.rate * t)
         return jnp.log(self.fraction + (1.0 - self.fraction) * remaining)
+
+    def log_survival_at_infinity(self):
+        return jnp.log(self.fraction)
 
 
 def cure_limits(p):
@@ -509,10 +505,10 @@ cure_limits(0.25), jax.jacobian(cure_limits)(0.25)
 ```
 
 With $p = 0.25$ the limits are $0.25$ and $\log 0.75 \approx -0.288$, with
-derivatives $1$ and $-1/0.75 \approx -1.33$. The `jnp.where` before the
-multiplication is the important line: without it, the derivative of
-$-\lambda t$ at $t = \infty$ is infinite, and the masked-out branch turns the
-gradient into NaN even though the selected value is fine.
+derivatives $1$ and $-1/0.75 \approx -1.33$. The primitive never needs to
+multiply a parameter by infinity: survjax uses the declared limit instead.
+A NaN from that limit makes the base-supplied infinity values NaN, including
+log density. An analytic hazard override still supplies its own limit.
 
 Parameter values are not checked. A negative rate is stored as given and
 produces whatever the formula gives; validating parameters is up to the
@@ -534,21 +530,21 @@ S(t) = \frac{1}{1 + (t/b)^{k}},
 $$
 
 Because $k > 0$, $(t/b)^k$ grows from 0 to $\infty$, so $S(0) = 1$ and
-$S(\infty) = 0$, as a survival function requires. In code we write
+$S(\infty) = 0$, as a proper survival function requires. In code we write
 $(t/b)^k = e^{z}$ with $z = k(\log t - \log b)$, so that
 $\log S = -\operatorname{softplus}(z)$, where
 $\operatorname{softplus}(z) = \log(1 + e^{z})$ is JAX's numerically stable
 `jax.nn.softplus`: it stays accurate for large $z$, where computing $e^{z}$
 first would overflow.
 
-Written directly, it gives the right *values* at the boundaries, because
-$\log 0 = -\infty$ and softplus handles infinite arguments. But the hazard
-at zero and infinity, and the gradient of $S(0)$, are NaN:
+Written directly, the formula has troublesome derivatives at the boundaries.
+survjax supplies the survival values and parameter gradients there, so the
+plain formula works for survival; the default hazard still gives NaN:
 
 ```{code-cell} ipython3
 @survjax.register_family
 @dataclass(frozen=True)
-class NaiveLogLogistic(survjax.SurvivalDistribution):
+class LogLogistic(survjax.SurvivalDistribution):
     shape: jax.Array = survjax.param()
     scale: jax.Array = survjax.param()
 
@@ -560,18 +556,20 @@ class NaiveLogLogistic(survjax.SurvivalDistribution):
 
 
 boundaries = jnp.array([0.0, jnp.inf])
-naive = NaiveLogLogistic(shape=2.0, scale=10.0)
-naive.survival(boundaries), naive.hazard(boundaries)
+plain = LogLogistic(shape=2.0, scale=10.0)
+plain.survival(boundaries), plain.hazard(boundaries)
 ```
 
 ```{code-cell} ipython3
-jax.grad(lambda k: NaiveLogLogistic(shape=k, scale=10.0).survival(0.0))(2.0)
+jax.grad(lambda k: LogLogistic(shape=k, scale=10.0).survival(0.0))(2.0)
 ```
 
 With $z$ as above, the derivatives of $\log S$ are
 $-\sigma(z)\,k/t$ in $t$ and $-\sigma(z)(\log t - \log b)$ in $k$, where
 $\sigma$ is the logistic function. At $t = 0$ both are $0 \cdot \infty$,
-which JAX evaluates literally as NaN.
+which JAX evaluates literally as NaN if the raw formula is called there.
+The base avoids that call for survival, log survival, log CDF and cumulative
+hazard, so the gradient of $S(0)$ above is 0.
 
 ### Use the limits you already know
 
@@ -582,67 +580,36 @@ in advance:
 - $S(\infty) = 0$, so $\log S(\infty) = -\infty$, unless some individuals
   never have the event (a cure fraction $p$ gives $\log p$, as above).
 
-Neither depends on the parameters except through such a cure fraction. So
-select the limit, and make sure the formula never sees the boundary time:
-detect the boundary, substitute the reference time *before* the operation
-that fails, compute, then choose. This is the same double-`where` pattern as
-in the cure model.
+survjax supplies these limits for every registered family. Your
+`log_survival` can use the plain formula above, without testing for zero or
+infinity. The base substitutes a finite positive reference time before the
+formula runs, then selects the limit; the substituted time carries no
+parameter derivative. A cure family's limit comes from
+`log_survival_at_infinity()`, whose parameter derivatives stay active.
 
-```{code-cell} ipython3
-@survjax.register_family
-@dataclass(frozen=True)
-class LogLogistic(survjax.SurvivalDistribution):
-    shape: jax.Array = survjax.param()
-    scale: jax.Array = survjax.param()
-
-    def log_survival(self, t):
-        time = jnp.asarray(t)
-        boundary = (time == 0) | jnp.isposinf(time)
-        reference = jax.lax.stop_gradient(self.reference_time())
-        safe_time = jnp.where(boundary, reference, time)
-        interior = -jax.nn.softplus(self.shape * (jnp.log(safe_time) - jnp.log(self.scale)))
-        limit = jnp.where(time == 0, 0.0, -jnp.inf)
-        # A NaN parameter makes the safe interior value NaN: keep it.
-        limit = jnp.where(jnp.isnan(interior), interior, limit)
-        return jnp.where(boundary, limit, interior)
-
-    def reference_time(self):
-        return self.scale
-
-
-jax.grad(lambda k: LogLogistic(shape=k, scale=10.0).survival(0.0))(2.0)
-```
-
-The gradient of $S(0)$ is now 0, as it should be. Survival, cumulative hazard
-and `log_cdf` need only the *value* of $\log S$, so they are now right at both
-boundaries.
-
-The second `where` on `limit` matters too. The limits are constants, so
-without it a NaN shape or scale would still give $S(0) = 1$ and
-$S(\infty) = 0$: an undefined distribution would report valid-looking
-boundary values, and survjax cannot recover the NaN once your
-`log_survival` has dropped it. The interior formula, evaluated at the
-reference time, is NaN exactly when a parameter is NaN, so passing that NaN
-on is enough; it is the same rule survjax applies to negative and NaN times. survjax does not check parameter ranges for you; the formula is the
-judge of what is undefined.
+A NaN shape or scale still gives NaN at the boundaries: the base preserves a
+NaN from the formula evaluated at the reference time. survjax does not check
+parameter ranges for you; the formula is the judge of what is undefined.
 
 ### The hazard and density need more
 
 The hazard and density are different: survjax derives them from the
-*derivative* of $\log S$ in $t$. Selecting a constant at $t = 0$ makes that
-derivative 0 there, so the default hazard at zero becomes 0 for every
-shape. That is right for $k > 1$ but silently wrong for $k \le 1$, whose
-hazard at zero is $\infty$ ($k < 1$) or $1/b$ ($k = 1$), just as for the
-Weibull:
+*derivative* of $\log S$ in $t$. At $t = 0$, the generic defaults differentiate
+the raw primitive, the one exception to keeping it away from the boundaries.
+There is no value or gradient guarantee for those defaults at zero. Here
+they give NaN, although the correct hazard is $\infty$ ($k < 1$), $1/b$
+($k = 1$) or 0 ($k > 1$), just as for the Weibull:
 
 ```{code-cell} ipython3
 three_shapes = LogLogistic(shape=jnp.array([0.5, 1.0, 2.0]), scale=10.0)
 three_shapes.hazard(0.0)
 ```
 
-At infinity, where $S = 0$, the default hazard is undefined and returns NaN.
-So when you substitute at a boundary, also give the hazard and density their
-limits by overriding `log_hazard` and `log_prob`. Here the hazard is
+At infinity the default hazard returns NaN, including for cure families.
+Give the hazard and density their limits by overriding `log_hazard` and
+`log_prob`: these overrides are called at zero, and `log_hazard` also at
+infinity. Log density at infinity is always supplied by the base. Here the
+hazard is
 
 $$
 h(t) = \frac{k}{t}\,\frac{(t/b)^{k}}{1 + (t/b)^{k}},
@@ -670,7 +637,7 @@ class LogLogisticWithLimits(LogLogistic):
         at_zero = jnp.where(self.shape < 1, jnp.inf, -jnp.inf)
         at_zero = jnp.where(self.shape == 1, -jnp.log(self.scale), at_zero)
         limit = jnp.where(time == 0, at_zero, -jnp.inf)
-        # As in log_survival: a NaN parameter stays NaN at the boundaries.
+        # Keep a NaN from the safe interior value at the boundaries.
         limit = jnp.where(jnp.isnan(interior), interior, limit)
         return jnp.where(boundary, limit, interior)
 
@@ -691,9 +658,9 @@ changes only the boundaries:
 fixed.log_prob(5.0)[:, 0], three_shapes.log_prob(5.0)
 ```
 
-Both overrides keep NaN parameters visible at the boundaries. A batch with
-one valid and one NaN shape gives the limits in the first row and NaN in the
-second, for every method:
+The overrides and the base keep NaN parameters visible at the boundaries. A
+batch with one valid and one NaN shape gives the limits in the first row and
+NaN in the second, for every method:
 
 ```{code-cell} ipython3
 mixed = LogLogisticWithLimits(shape=jnp.array([2.0, jnp.nan])[:, None], scale=10.0)
@@ -702,11 +669,12 @@ mixed.survival(boundaries), mixed.log_cdf(boundaries), mixed.hazard(boundaries),
 
 A few rules of thumb:
 
-- **Values first.** If only survival, cumulative hazard and `log_cdf` matter
-  to you, selecting $\log S(0) = 0$ and $\log S(\infty) = -\infty$ is enough.
-- **Derivatives in $t$ at a boundary need an override.** Once you substitute
-  in `log_survival` at a time, override `log_hazard` and `log_prob` to supply
-  their limits there; otherwise the autodiff default sees a constant.
+- **Values first.** The base supplies survival, log survival, cumulative
+  hazard and `log_cdf` at zero and infinity. A proper family needs no boundary
+  code for these methods.
+- **Hazard and density need their limits.** Override `log_hazard` and
+  `log_prob` where the raw formula's derivative cannot supply a boundary
+  limit. `hazard` follows `log_hazard`; `log_prob` does not.
 - **Keep NaN parameters NaN.** A selected constant hides a NaN parameter.
   Pass on the NaN of the safe interior value, as above.
 - **Find limits from the leading term.** Near zero and near infinity, keep
@@ -789,14 +757,15 @@ progression.hazard(jnp.inf), survjax.Exponential(rate=0.1).hazard(jnp.inf)
 - Return $\log S(t)$, not $S(t)$, and use log-space functions such as
   `jnp.expm1`, `jnp.log1p` and `jnp.logaddexp` to avoid subtracting nearly
   equal numbers.
-- Give $\log S(0) = 0$ and $\log S(\infty) = -\infty$ (or the right limit for
-  your family). Negative and NaN times never reach your code.
+- Write `log_survival` for finite $t > 0$; the base supplies its zero and
+  infinity values. Negative and NaN times never reach your code. Only the
+  generic density and log-hazard defaults call the raw primitive at zero.
 - If your limit at infinity is finite and depends on parameters, as in a cure
-  model, substitute `jax.lax.stop_gradient(self.reference_time())` for the
-  time before any operation that would meet infinity, so that the limit's derivatives stay finite.
+  model, return it from `log_survival_at_infinity()` in the parameter dtype,
+  with exactly `batch_shape`. Its parameter derivatives stay active.
 - Make $\log S$ differentiable in $t$: the default hazard and density come
   from its derivative. At a kink, the derivative JAX returns is the hazard you
-  get. Where it is not differentiable, or where you select a boundary limit
+  get. Where the formula or its derivative breaks down at a boundary
   (see [when the formula breaks
   down](#when-the-formula-breaks-down-at-zero-or-infinity)), override both
   `log_hazard` and `log_prob`: `hazard` follows a `log_hazard` override, but

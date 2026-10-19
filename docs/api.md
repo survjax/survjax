@@ -53,6 +53,15 @@ Both families also have every method of `SurvivalDistribution` listed under
 .. automethod:: survjax.SurvivalDistribution.reference_time
 ```
 
+### Limit at infinity
+
+Proper families inherit the default $\log S(+\infty) = -\infty$. A cure
+family overrides this method with its log cure fraction.
+
+```{eval-rst}
+.. automethod:: survjax.SurvivalDistribution.log_survival_at_infinity
+```
+
 ### Shape and indexing
 
 ```{eval-rst}
