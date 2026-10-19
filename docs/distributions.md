@@ -605,8 +605,10 @@ an initial or limiting hazard, or plotting on a grid that includes zero.
 Starting a hazard plot at a positive time is often enough. The plain family
 above already works for ordinary evaluations at finite, positive times.
 
-The hazard and density are different: survjax derives them from the
-*derivative* of $\log S$ in $t$. At $t = 0$, the generic defaults differentiate
+If you decide to implement hazard and density values at the limits,
+it's important to understand how they are different from survival:
+survjax derives them from the *derivative* of $\log S$ in $t$.
+At $t = 0$, the generic defaults differentiate
 the raw primitive, the one exception to keeping it away from the boundaries.
 There is no value or gradient guarantee for those defaults at zero. Here
 they give NaN, although the correct hazard is $\infty$ ($k < 1$), $1/b$
