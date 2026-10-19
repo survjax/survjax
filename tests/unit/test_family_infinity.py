@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from impl_tolerances import ATOL, RTOL
+from impl_tolerances import ATOL, RTOL, TAIL_ATOL, TAIL_RTOL
 from jax.typing import ArrayLike
 
 import survjax
@@ -124,15 +124,24 @@ class Cure(Constant):
         return jnp.log(self.fraction)
 
     def log_survival(self, t: ArrayLike) -> jax.Array:
-        time = jnp.asarray(t)
-        infinite = jnp.isposinf(time)
-        # spec 7.2: guard multiplication before selecting the cure limit.
-        safe_time = jnp.where(
-            infinite, jax.lax.stop_gradient(jnp.ones_like(time)), time
-        )
-        remaining = jnp.exp(-self.rate * safe_time)
-        remaining = jnp.where(infinite & ~jnp.isnan(remaining), 0.0, remaining)
+        remaining = jnp.exp(-self.rate * jnp.asarray(t))
         return jnp.log(self.fraction + (1.0 - self.fraction) * remaining)
+
+
+def test_tiny_cure_fraction_keeps_log_cdf_infinity_relative_precision(x64_enabled):
+    """Spec 4.2/4.5/7.2: log F(inf)=log(1-p) stays negative for tiny p."""
+    fraction = 1e-12
+    # S(inf)=p, hence log F(inf)=log1p(-p)=-p-p**2/2-..., not zero.
+    expected = np.log1p(-fraction)
+    dist = Cure(rate=2.0, fraction=fraction)
+    for actual in (
+        dist.log_cdf(jnp.inf),
+        jax.jit(lambda d: d.log_cdf(jnp.inf))(dist),
+        jax.vmap(dist.log_cdf)(jnp.array([jnp.inf])),
+    ):
+        np.testing.assert_allclose(
+            actual, expected, atol=TAIL_ATOL[x64_enabled], rtol=TAIL_RTOL[x64_enabled]
+        )
 
 
 @survjax.register_family

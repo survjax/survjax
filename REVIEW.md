@@ -1,91 +1,78 @@
-# A5.6 — Base-owned boundary values (spec revision 27)
+# A5.6 review fix-up — F-1/F-2, N-1/N-2 (2026-10-19)
 
-Implemented the approved code/tests/docstrings step on branch `A5.6`, based on
-`9146251`. Step 2 (narrative docs) has not started. The source/test/docstring
-change is 299 lines, including the new 83-line unit module; planning/review
-records are additional. No spec sources, independent tests, docs pages,
-dependencies, top-level exports or deviation statuses changed.
+Addresses `../review/slices/A5.6.md`, including the maintainer's F-2 decision,
+on the existing `A5.6` branch after `a4bea80`. Narrative docs remain step 2.
+The spec, independent tests and deviation statuses are unchanged.
 
 ## Read first, in order
 
-1. `src/survjax/distributions/_survival_methods.py:apply_policy`: direct-method
-   names select the base-owned boundaries even over explicit/inherited
-   overrides; the old raw primitive probes at infinity are gone.
-2. `src/survjax/distributions/base.py:log_survival_at_infinity` and registration:
-   proper default, own-parameter dtype (or nested-leaf promotion for a
-   nested-only family), exactly batch_shape, no component axes. Public method
-   docstrings now state the boundary ownership and exceptions.
-3. `tests/unit/test_family_boundaries.py`: interior-only exponential and plain
-   softplus log-logistic primitives, zero/infinity parameter gradients and
-   finite grid-entry derivatives under debug_nans.
-4. Own infinity/direct/batching test diffs: explicit cure hooks, changed
-   override/NaN precedence, generic density's raw differentiation at zero,
-   existing cure Hessians and nested dtype checks.
+1. `_survival_methods.py:apply_policy`: hook-NaN precedence now applies only to
+   the four base-boundary methods and log density. Every method still preserves
+   its own NaN output. This follows section 4.5 and replaces the old approved
+   plan's broader rule; no spec change is needed.
+2. `test_family_mixed_infinity.py:test_nan_hook_preserves_analytic_hazard_limit`:
+   an analytic override gives log(rate)/rate at infinity despite a NaN hook,
+   in eager/jit/vmap. The same family's log survival/log density stay NaN.
+3. `test_family_infinity.py:test_tiny_cure_fraction_keeps_log_cdf_infinity_relative_precision`:
+   fraction=1e-12 gives log1p(-fraction), not zero, with existing zero-atol tail
+   tolerances. Eager/jit/vmap are covered; M4 evidence is below.
+4. Cure and NaNLimit fixture changes in those two modules: removed their dead
+   infinity branches so primitive formulas rely on the base and limit hooks.
+   `base.py` documents hook ownership and that the default does not raise for
+   parameter values (N-2, prose rather than an invented exception type).
 
-## Invariants and spec mapping
+## Invariants and test-to-spec mapping
 
-- Sections 4.2/4.5/7.2: one stopped reference input per direct call. Base-owned
-  zero/infinity rows reach raw formulas only through finite positive
-  substitutes for valid parameters. Stop no parameter or active hook value.
-- Four survival/CDF/H methods select the base's zero constants and the
-  infinity hook's values/derivatives. The hook is masked to a safe log value
-  on other rows before boundary exp/log1mexp operations. Density at infinity
-  is -inf; generic log hazard/hazard at infinity is NaN, including cure
-  families. The hook is consulted by every direct method at infinity.
-- NaNs from substituted family values and the infinity hook take precedence.
-  No validity domain, floor, clipping or epsilon is introduced.
-- Density/log-hazard overrides still receive zero; analytic hazard limits
-  remain active at infinity. Generic defaults differentiate the raw primitive
-  at zero without a new boundary guarantee. Existing raw override unwrapping,
-  dtype promotion, batch broadcasting and grids remain in place.
-- `test_family_boundaries` demonstrates sections 4.5/5/7.2 for primitives with
-  unsafe boundary values or gradients, in eager, jit and vmap transformations.
-  `test_family_mixed_infinity` retains mixed-entry Jacobians/Hessians and cure
-  log-survival/H first and second derivatives; `test_family_infinity` checks
-  cure survival/log-CDF first derivatives and override/NaN policy.
-- Independent `test_a4_base_boundaries` covers hook shape/dtype, proper/cure
-  values and gradients, unsafe primitives, NaN precedence and transformations
-  (2/4.2/4.5/12.1/12.2). The through-A5 suite also covers the revision-25
-  generic/built-in tail modules, dtype/dispatch regressions, built-in limits,
-  second-order interior derivatives and time-first grids.
+- F-1 (4.2/4.5/7.2/12.1): derive log F(inf) from log S(inf) with safe
+  log1mexp. The expected value is the analytical identity log(1-p), evaluated
+  by NumPy log1p; its expansion is -p-p**2/2-... . Zero absolute tolerance
+  rejects an erroneous zero; no tolerance was added or loosened.
+- F-2 (4.5): the hook's NaN governs base-supplied infinity values, including
+  log_prob(inf). Analytic hazard limits remain family-supplied. Generic hazard
+  defaults remain NaN at infinity, with or without a NaN hook. Existing
+  NaN-hook density tests and boundary acceptance cases remain regressions.
+- Safe time substitution, active hook derivatives, batching/dtypes, reference
+  reuse and primitive raw-method unwrapping are unchanged. No floor, clipping,
+  epsilon, parameter validation or new stop_gradient was introduced.
+- N-1's naive cure primitives now run the existing value/first-derivative and
+  mixed-entry Hessian suites without their former infinity guards. The base
+  must provide safe inputs; the primitives no longer hide an unsafe call.
 
 ## Checks actually run
 
-Commands used `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`. Focused pytest used
-`uv run --locked --group test pytest ... -q --tb=short` in separate processes
-with `JAX_ENABLE_X64=1` and `0`, and `SPEC_THROUGH=A5`.
+All commands used `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`. Focused pytest:
+`uv run --locked --group test pytest tests/unit/test_family_infinity.py tests/unit/test_family_mixed_infinity.py -q --tb=short`,
+in separate processes with JAX_ENABLE_X64=1 and 0.
 
-- First focused attempts exited 2 (four collection errors in each mode): the
-  initial edit placed the hook inside a doctest. Corrected before evaluation.
-- Focused boundary acceptance plus old direct/infinity modules then exited 1
-  in each mode: 13 failed, 205 passed. All 84 boundary acceptance cases passed;
-  failures were own assertions for the superseded contract, migrated here.
-- Focused new/changed own modules plus boundary acceptance: 250 passed in
-  each mode (11.22s x64, 11.48s x32). This run included a temporary standalone
-  hook-dtype case subsequently folded into the existing nested-dtype test.
-- A focused Ruff check found B023 on a loop closure; mypy found one reused
-  local's Array/float assignment. Bound the loop variable and named the
-  infinity constant separately; the full gate below verifies both fixes.
-- `scripts/check.sh --through A5` exited 0, ending with
-  `check: all gates passed through A5`. Guard passed on A5.6; Ruff reported
-  53 files already formatted and all checks passed; mypy found no issues in
-  13 source files. Own tests: x64 **463 passed, 7 skipped** (37.48s), x32
-  **469 passed, 1 skipped** (38.20s). Source doctests: **4 passed** per mode.
-  Independent tests: x64 **1256 passed, 26 skipped** (25.49s), x32
-  **1261 passed, 21 skipped** (20.93s). Existing dtype-specific skips retained.
-- Removed a redundant value assertion with default NumPy tolerances after the
-  gate; its exact gradient assertion remains. Final focused verification is
-  recorded below. No numerical source changed after the full gate.
-- Final focused pytest of the generic zero-time density gradient and nested
-  hook-dtype assertions: x64 **2 passed** (0.38s), x32 **2 passed** (0.36s),
-  exit 0 in each process. `uv run ruff format --check .` exited 0,
-  `53 files already formatted`; `git diff --check` exited 0 with no output.
+- Before the F-2 implementation fix: both modes exited 1, **2 failed,
+  47 passed** (6.63s x64, 6.77s x32). Exactly the new analytic log-hazard and
+  hazard cases failed: infinity became NaN while finite times were correct.
+- Reviewer mutant M4 temporarily replaced only the boundary safe log1mexp with
+  log(1-exp). The new F-1 test exited 1 in both modes, one failure each:
+  x64 relative error **2.21217201e-5** (atol 0, rtol 1e-8; 0.62s),
+  x32 actual **0** versus approximately **-1e-12** (atol 0, rtol 1e-4; 0.63s).
+  A finally block restored the source before any subsequent checks.
+- After the fix and fixture cleanup: focused modules exited 0 in both modes,
+  **49 passed** (5.85s x64, 6.11s x32).
+- `uv run ruff format` on the four source/test files: exit 0, one file
+  reformatted, three unchanged. `git diff --check`: exit 0, no output.
 
-## Remaining work and uncertainty
+- `scripts/check.sh --through A5`: exit 0, `check: all gates passed through A5`.
+  Guard passed on A5.6; Ruff reported 53 files already formatted and all checks
+  passed; mypy reported no issues in 13 source files. Exact dtype results:
 
-Narrative docs still describe primitive-owned boundaries and guarded cure/log-
-logistic recipes; the approved second step will update those guides and the
-API listing and run scripts/build_docs.sh. No docs build was run in this code
-step. Built-in and grid docstrings were audited and required no ownership
-correction. No new spec ambiguity was identified; D-016 closure stays with the
-maintainer. This is through-A5 evidence, not a claim that Slice A is complete.
+  | Suite | x64 | x32 |
+  | --- | --- | --- |
+  | Own tests | 466 passed, 7 skipped (36.79s) | 472 passed, 1 skipped (37.63s) |
+  | Source doctests | 4 passed (0.78s) | 4 passed (0.85s) |
+  | Independent through A5 | 1256 passed, 26 skipped (24.81s) | 1261 passed, 21 skipped (20.65s) |
+
+  Existing dtype-specific skips remain; no test was skipped or xfailed to
+  satisfy this review. No source/test changes followed the full gate.
+
+## Remaining work
+
+No narrative docs build was run: step 2 still needs its guide/API refresh and
+build. No new spec ambiguity was identified; Q-1 was settled by the maintainer
+in the review. Leave deviation closure to the maintainer and stop after this
+fix-up commit.

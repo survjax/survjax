@@ -253,7 +253,9 @@ def apply_policy(
         safe_time = jnp.where(substitute, reference, time)
         value = raw(self, safe_time)
         log_limit = self.log_survival_at_infinity()
-        family_nan = jnp.isnan(value) | (infinite & jnp.isnan(log_limit))
+        family_nan = jnp.isnan(value)
+        if base_boundary or name == "log_prob":
+            family_nan = family_nan | (infinite & jnp.isnan(log_limit))
         if base_boundary:
             # spec 7.2: the hook is active only on the infinity rows.
             safe_limit = jnp.where(infinite, log_limit, -jnp.ones_like(log_limit))
@@ -271,7 +273,7 @@ def apply_policy(
             infinity_constant = -jnp.inf if name == "log_prob" else jnp.nan
             value = jnp.where(infinite, infinity_constant, value)
         policy_value = jnp.where(negative, negative_value, value)
-        # spec 4.5: substituted family values and the infinity hook expose NaNs.
+        # spec 4.5: hook NaNs govern base-supplied values, not analytic hazards.
         policy_value = jnp.where(family_nan, jnp.nan, policy_value)
         policy_value = jnp.where(nan_time, jnp.nan, policy_value)
         return policy_value

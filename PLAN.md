@@ -1,10 +1,12 @@
 # A5.6 — Base boundary policy, then A5.d2 docs refresh
 
 Status: step 1 approved and implemented on the maintainer-created `A5.6`
-branch on 2026-10-18; ready for review. Planning started from clean `main` at
+branch on 2026-10-18. Review fix-up F-1/F-2 and nits are implemented on
+2026-10-19 and pass the full through-A5 gate in both dtype modes; ready for
+re-review. Planning started from clean `main` at
 `9146251`. The through-A5 gate passes in both dtype modes; exact results and
-reading order are in REVIEW.md. The code/test/docstring diff is 299 changed
-lines. Cure coverage reuses existing first derivatives for survival/log CDF
+reading order are in REVIEW.md. The original code/test/docstring diff was
+299 changed lines; this review fix-up adds 76 changed code/test/docstring lines. Cure coverage reuses existing first derivatives for survival/log CDF
 and first/second derivatives for log survival/cumulative hazard. Scalar/batch/
 component hook contracts also have independent acceptance coverage.
 The maintainer requests two ordered steps: code, tests and needed docstrings
@@ -17,6 +19,33 @@ independent suite records author commit `1d87b726a15072f6e7223a60fe1afefa5bb999b
 (dev sync `645479e`, merged in `9146251`). The only later design/spec change,
 `9d7483c`, adds PDF conversion helpers; it changes no normative requirement.
 Leave the marker and spec sources unchanged during implementation.
+
+## A5.6 review fix-up — F-1/F-2 and nits (2026-10-19)
+
+Authorized by the maintainer's request to address `../review/slices/A5.6.md`,
+including its explicit F-2 decision. Same step and `A5.6` branch; one fix-up
+commit, then stop. No new public API, spec edit or narrative-doc work.
+
+- F-1: add an own `log_cdf(+inf)` regression for Cure at fraction=1e-12,
+  expecting analytical `log1p(-fraction)` with the existing zero-atol tail
+  tolerances, in eager/jit/vmap and both dtype modes. Demonstrate that reviewer
+  mutant M4 (naive log(1-exp)) fails this test in both modes, then restore.
+- F-2: restrict hook-NaN precedence in `_survival_methods.py` to the four
+  base-boundary methods and log density. Add a NaN-hook family with an
+  analytic log-hazard override: log hazard/hazard keep log(rate)/rate at
+  infinity; log survival/log density remain NaN. Run both modes and
+  eager/jit/vmap. Keep every method's own NaN result intact.
+- N-1: simplify Cure primitives in both own infinity modules and remove
+  NaNLimit's dead primitive infinity branch; their hooks declare the limits.
+- N-2: clarify the hook docstring's role and explicitly state that its default
+  does not raise for parameter values; do not invent a raised exception.
+- Files: these two own infinity test modules, `_survival_methods.py`,
+  `base.py` (docstring only), PLAN.md and REVIEW.md. Cover spec 4.2/4.5/7.2/12.1.
+  Correct the superseded every-method hook-NaN assertion below and in REVIEW.md.
+  No independent-test or deviation-status changes.
+- Checks: focused own infinity modules in both dtype processes, M4 regression
+  evidence, `scripts/check.sh --through A5`, and `git diff --check`. Record
+  exact outputs in REVIEW.md and stop before the narrative-docs step.
 
 ## Step 1 — Code, tests and public API docstrings (A5.6)
 
@@ -58,9 +87,9 @@ Files and approach:
   they acquire no value or parameter-gradient guarantee there.
 - Use one stopped finite positive reference per direct call for valid
   parameters. Propagate NaNs from the family's substituted-input evaluation
-  and, at infinity, from the hook, as section 4.5 requires. Apply this precedence
-  to every method, including analytic hazard overrides. Eliminate probes of the
-  primitive at actual infinity. Preserve finite-support generic hazard behavior
+  and, on base-supplied infinity values, from the hook, as section 4.5 requires.
+  The maintainer's 2026-10-19 F-2 decision excludes analytic hazard overrides
+  from hook-NaN precedence. Eliminate probes of the primitive at actual infinity. Preserve finite-support generic hazard behavior
   at finite times, negative/NaN-time policy and inherited raw-method unwrapping.
   No floors, clipping, inferred parameter validity or stopped active values.
 - Update the base class, `log_survival`, `reference_time` and affected generic

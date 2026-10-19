@@ -208,8 +208,11 @@ class SurvivalDistribution:
         """Return log S(+inf), defaulting to -inf for a proper family.
 
         Improper families override this no-argument method with their log
-        cure fraction. The base uses it at +inf for every direct method;
-        its parameter derivatives remain active.
+        cure fraction. The base derives survival/CDF/cumulative-hazard limits
+        from it at +inf, retaining its parameter derivatives, and uses NaN
+        hook values for log-density NaN precedence. Analytic hazard limits
+        come from the family's override, independently of this hook.
+        The default does not raise for parameter values.
 
         Returns:
             An array of exactly ``batch_shape`` in the parameter dtype,

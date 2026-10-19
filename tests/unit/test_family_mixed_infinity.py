@@ -40,13 +40,7 @@ class Cure(Constant):
         return jnp.log(self.fraction)
 
     def log_survival(self, t: ArrayLike) -> jax.Array:
-        time = jnp.asarray(t)
-        infinite = jnp.isposinf(time)
-        safe_time = jnp.where(
-            infinite, jax.lax.stop_gradient(jnp.ones_like(time)), time
-        )
-        decay = jnp.exp(-self.rate * safe_time)
-        decay = jnp.where(infinite & ~jnp.isnan(decay), 0.0, decay)
+        decay = jnp.exp(-self.rate * jnp.asarray(t))
         return jnp.log(self.fraction + (1.0 - self.fraction) * decay)
 
 
@@ -95,11 +89,29 @@ class NaNLimit(Constant):
     def log_survival_at_infinity(self) -> jax.Array:
         return jnp.full_like(self.rate, jnp.nan)
 
-    def log_survival(self, t: ArrayLike) -> jax.Array:
-        time = jnp.asarray(t)
-        infinite = jnp.isposinf(time)
-        safe_time = jnp.where(infinite, jnp.ones_like(time), time)
-        return jnp.where(infinite, jnp.nan, -self.rate * safe_time)
+
+@survjax.register_family
+@dataclass(frozen=True)
+class AnalyticNaNLimit(NaNLimit):
+    def log_hazard(self, t: ArrayLike) -> jax.Array:
+        return jnp.log(self.rate) + jnp.zeros_like(jnp.asarray(t))
+
+
+@pytest.mark.parametrize(
+    "name,expected", [("log_hazard", np.log(2.0)), ("hazard", 2.0)]
+)
+def test_nan_hook_preserves_analytic_hazard_limit(name, expected, x64_enabled):
+    """Spec 4.5/F-2: analytic h=r at infinity survives a NaN survival hook."""
+    # h(t)=r gives log h=log(r), including its infinity limit, for r=2.
+    dist = AnalyticNaNLimit(rate=2.0)
+    times = jnp.array([1.0, jnp.inf])
+    method = getattr(dist, name)
+    for actual in (method(times), jax.jit(method)(times), jax.vmap(method)(times)):
+        np.testing.assert_allclose(
+            actual, [expected, expected], atol=ATOL[x64_enabled], rtol=RTOL[x64_enabled]
+        )
+    assert jnp.isnan(dist.log_survival(jnp.inf))
+    assert jnp.isnan(dist.log_prob(jnp.inf))
 
 
 @pytest.mark.parametrize("family", [Constant, Quadratic])
