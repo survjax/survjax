@@ -75,6 +75,11 @@ shape `(141, 3)`, and include per-observation survival at observed times.
 
 ## A8.1 Small exponential generator
 
+Review follow-up: the maintainer requested clearer R structure and spacing.
+Expand calls/checks, separate the script's phases and make the output schema
+readable as R lists. Preserve parameters, checks and export contents; rerun
+check-only validation and record the result in REVIEW.md. One fix-up commit.
+
 Files: `scripts/fixtures/generate_exponential.R` and
 `tests/fixtures/exponential/README.md`. No library/public API changes.
 

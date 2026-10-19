@@ -1,3 +1,26 @@
+# A8.1 review follow-up — R structure and spacing
+
+Read `scripts/fixtures/generate_exponential.R` first, then this validation.
+The maintainer requested this fix-up on the existing A8.1 branch.
+
+Calls and checks have more space; section breaks separate setup, simulation,
+reference checks and export. `evaluate_survreg(rows, mu)` is defined once.
+The JSON schema is a named R list, with a small base-R encoder for its types.
+Parameters, RNG order, row alignment, assertions and schema values are preserved.
+
+Validation (no fixture files written; R checks ran outside the OpenMP sandbox):
+- `Rscript --vanilla scripts/fixtures/generate_exponential.R --check-only`:
+  exit 0; 16 rows, 3 fixed rates, both reference paths passed.
+- `/private/tmp/survjax-a8-1-structure-check.R` piped to the companion Python
+  JSON comparison: CSV bytes and parsed JSON values match old/new versions.
+  Writes were intercepted, hashes normalized; 0.35 now uses 17-digit formatting.
+- `UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A5`:
+  exit 0; all gates passed, pass/skip counts match the original results below.
+  Log: `/private/tmp/survjax-a8-1-structure-gate.log`.
+- `git diff --check`: exit 0, no output. No test files or dependencies changed.
+
+Actual filesystem export/two-run regeneration remain A8.3. Original evidence:
+
 # A8.1 — Small exponential generator
 
 Implemented on `a8-1-r-generator`; stop after this commit for review.
