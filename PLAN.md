@@ -1,6 +1,6 @@
 # A6 — Revision 28 parameter diagnostics and exact/right likelihood
 
-Status: **A6.1 approved and in progress** (2026-10-19). This section supersedes
+Status: **A6.1 implemented, ready for review** (2026-10-19). This section supersedes
 older forward plans for A6; the A5 records below remain historical.
 Planning starts on clean `main` at `9623594`. The maintainer approved A6.1
 and created branch `A6.1`. Only that code/test step is authorized; later steps

@@ -43,6 +43,11 @@ Both families also have every method of `SurvivalDistribution` listed under
 ## Writing your own family
 
 ```{eval-rst}
+.. automodule:: survjax.constraints
+   :members: real, positive, nonnegative, greater_than, interval, closed_interval, unit_interval, ordered, simplex
+```
+
+```{eval-rst}
 .. autoclass:: survjax.SurvivalDistribution
 ```
 
