@@ -1,11 +1,12 @@
 # A8 R fixtures and reference tests
 
-Status: A8.1 implemented, 2026-10-19; validation and review recorded in
-REVIEW.md. Stop after the A8.1 commit; A8.2 is not started. The maintainer
+Status: A8.1 accepted; A8.2 implemented on 2026-10-20 on the existing unmerged
+`a8-1-r-generator` branch. Do not merge before at least A8.3, per maintainer.
+A8.2 checks and review are recorded in REVIEW.md; commit and stop. The maintainer
 approved starting work and created this isolated checkout at
 `/Users/wamster3/dev/survjax/dev-a8`, branch `a8-1-r-generator`, from main
 at `9623594`. Read this checkout's AGENTS.md/CLAUDE.md and the current spec,
-then implement A8.1 only. Write REVIEW.md, commit the step and stop for review;
+then implement the authorized step only. Write REVIEW.md, commit and stop for review;
 later steps keep their separate approval stops. Paths below are relative to
 this checkout. Historical plans below the A8 section are background only.
 
@@ -119,6 +120,16 @@ to the maintainer for A8.3, including the two-run comparison. Docs to-do:
 explain the eventual comparison evidence in A8.d1 after fixture tests pass.
 
 ## A8.2 Synthetic bc-like generator
+
+Implementation details: seed 8201, groups in Good/Medium/Poor blocks and
+independent Uniform(0.5, 7.5) year censoring. Use fixed flexsurv Weibull AFT
+coefficients, and survreg log-scale locations supplied through offsets with
+fixed sigma and zero iterations. Check singleton likelihoods, row alignment,
+all parameter conversions, case labels and both observed/grid predictions.
+Preserve the A8.1 R-only export text checks; verify exact numeric read-back
+with Python in scratch validation. Run mutation checks and through-A5 gate.
+No library/public API, dependency, spec-marker, narrative-doc or A8.3 payload
+changes. Docs to-do: describe this fixture evidence in A8.d1 after integration.
 
 Files: `scripts/fixtures/generate_bc_like.R` and
 `tests/fixtures/bc_like/README.md`. No library/public API changes.
