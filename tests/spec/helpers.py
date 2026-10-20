@@ -240,3 +240,30 @@ def assert_tail_close(actual, expected, rtol, err_msg=""):
         atol=0.0,
         err_msg=err_msg,
     )
+
+
+def ll(dist, data=None, **raw):
+    """``survjax.log_likelihood`` as a NumPy array (spec 7.1)."""
+    return np.asarray(survjax.log_likelihood(dist, data, **raw))
+
+
+def ll_method(dist, data=None, **raw):
+    """``dist.log_likelihood`` as a NumPy array (spec 7.1, rev 29)."""
+    return np.asarray(dist.log_likelihood(data, **raw))
+
+
+def nan_causes(dist, data, value):
+    """The spec 7.1 (rev 29) triage recipe, as NumPy bool arrays of ``value``'s shape.
+
+    Returns ``(bad_data, bad_params, other)``: ``data.issues.invalid_rows`` and
+    ``dist.parameter_issues().invalid_entries`` broadcast to the contribution
+    shape, and the NaN rows neither explains (``Z=0`` or numerical failure).
+    For raw-form inputs pass ``SurvivalData(time, event)``, as the recipe says.
+    """
+    value = np.asarray(value)
+    bad_data = np.broadcast_to(np.asarray(data.issues.invalid_rows).astype(bool), value.shape)
+    bad_params = np.broadcast_to(
+        np.asarray(dist.parameter_issues().invalid_entries).astype(bool), value.shape
+    )
+    other = np.isnan(value) & ~bad_data & ~bad_params
+    return bad_data, bad_params, other
