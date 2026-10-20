@@ -2,7 +2,7 @@
 
 from survjax import constraints
 from survjax.data import SurvivalData
-from survjax.diagnostics import InvalidDataError
+from survjax.diagnostics import InvalidDataError, InvalidParameterError
 from survjax.distributions import (
     Exponential,
     SurvivalDistribution,
@@ -19,6 +19,7 @@ __all__ = [
     "Weibull",
     "SurvivalData",
     "InvalidDataError",
+    "InvalidParameterError",
     "SurvivalDistribution",
     "register_family",
     "param",

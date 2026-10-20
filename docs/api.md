@@ -24,6 +24,10 @@ with `help()`. For worked examples, see the guides:
 .. autoexception:: survjax.InvalidDataError
 ```
 
+```{eval-rst}
+.. autoexception:: survjax.InvalidParameterError
+```
+
 ## Built-in distributions
 
 Both families also have every method of `SurvivalDistribution` listed under

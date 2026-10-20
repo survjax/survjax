@@ -11,6 +11,7 @@ def test_public_package_imports() -> None:
         "Weibull",
         "SurvivalData",
         "InvalidDataError",
+        "InvalidParameterError",
         "SurvivalDistribution",
         "register_family",
         "param",
@@ -19,3 +20,7 @@ def test_public_package_imports() -> None:
     }
     assert survjax.SurvivalData is not None
     assert issubclass(survjax.InvalidDataError, ValueError)
+    from survjax.diagnostics import InvalidParameterError
+
+    assert survjax.InvalidParameterError is InvalidParameterError
+    assert issubclass(InvalidParameterError, ValueError)

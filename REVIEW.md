@@ -1,76 +1,64 @@
-# A6.1 follow-up — ordinary JAX constraint comparisons
+# A6.2 — ParameterIssues container and host checkpoint
 
-Status: approved follow-up implemented on `A6.1`, based on `b26a461`.
-Focused tests and the through-A5 gate pass in both dtypes. Ready for review;
-stop after this commit. No A6.2 work has begun.
-
-The maintainer requested removing frexp, updated spec section 4.7 to revision
-30 and resumed implementation after the independent tests were updated.
-Marker: `fd150db`. No specification or protected-test edits in this step.
+Status: implemented on `A6.2`, based on `7274dd0`; ready for review.
+The maintainer approved the plan, branch creation and minimal docs exception.
+Spec revision 30: `.spec-seen` fd150db; synced acceptance snapshot f527f75.
+Stop after this step's commit; A6.3 has not begun.
 
 ## Read first
 
-1. `src/survjax/constraints.py`: nonnegative, _GreaterThan and _Interval.
-2. `tests/unit/test_constraints.py`: signed-zero boundary test replacing the
-   obsolete mathematical-subnormal-sign guarantee. The simplex exact-threshold
-   and huge-bound regression tests are retained.
-3. PLAN.md's approved plain-comparison follow-up and the revision-30 notes
-   in DEVIATIONS.md D-024/D-025; formal entry closure stays with the maintainer.
+1. `src/survjax/diagnostics.py`: ParameterIssues and InvalidParameterError.
+2. `tests/unit/test_parameter_issue_container.py`: 17 focused cases.
+3. `src/survjax/__init__.py`, `tests/unit/test_import.py`, `docs/api.md`:
+   exception export, identity check and approved autodoc entry.
+4. PLAN.md: approved A6.2 scope, evidence and A6 docs to-do.
 
-## Invariants and changes
+## Invariants and test/spec mapping
 
-- nonnegative is finite x>=0. Both signed zeros remain valid; positive and
-  open intervals starting at zero exclude them. Simplex still permits zero
-  weights. The finite-bound TypeError policy and exact 4*n*eps simplex
-  tolerance are unchanged.
-- Every comparison uses ordinary JAX operators on the parameter array.
-  Bound factories explicitly convert bounds to x.dtype before comparison.
-  There is no zero-bound special case, frexp, decomposition or bit-level
-  replacement. rg on src/survjax and the own constraint test finds no frexp.
-- Spec 4.7 revision 30 permits backend-dependent subnormal classification.
-  Neither values nor eager/jit/vmap agreement at subnormal boundaries are
-  strengthened beyond ordinary JAX behavior. Signed-zero, normal-domain,
-  endpoint and nonfinite rules are tested in all three execution modes.
-- No signatures, exports, constructor checks, distribution PyTree leaves,
-  direct-method policy, dependencies, docs or later-slice behavior changed.
-  No probability floors, stopped parameters or global dtype changes added.
-- Declarations remain metadata. Only the callable dataclass instances are
-  frozen; ordinary functions' Python attributes remain mutable.
+- Spec 4.7/6.3: frozen field assignment, ordinary mutable dictionaries;
+  supplied boolean masks and aggregates must be consistent. The A6.3 producer
+  will compute the union and scalar ok. No constructor checks are added.
+- Ordered field/condition key tuples are static metadata; only arrays are
+  leaves. Unflatten performs no calculations, including for vmap placeholders.
+  `test_round_trip_preserves_order_masks_and_frozen_fields`,
+  `test_jit_preserves_multidimensional_masks_and_empty_mappings` and
+  `test_vmap_and_jit_keep_order_and_per_example_ok` demonstrate scalar and
+  batch shapes, dotted/unsorted keys, empty mappings and stacked ok values.
+- Spec 7.2: `test_same_shaped_mask_values_reuse_compilation` changes mask
+  values and verifies one trace with updated output.
+- Spec 4.7/6.2: scalar field/condition, overlapping dotted-name and concrete
+  jit-result checkpoint tests verify return None or InvalidParameterError,
+  with each category's counts and first scalar/vector/multidimensional index.
+  Expected masks, counts and indices are hand-enumerated, with exact assertions.
+- `test_checkpoint_rejects_any_traced_mask` checks jit/vmap, valid/invalid
+  inputs and traced/concrete ok: exactly plain ValueError with "host-only".
+  All leaves are inspected before NumPy conversion; no callbacks are installed.
+- Spec 10.2: import test and independent public-exception test check the export.
+  Existing DataIssues calculation, checkpoint and repr code are unchanged.
 
-## Verification actually run
+## Checks actually run
 
-All uv commands use UV_CACHE_DIR=/private/tmp/survjax-uv-cache.
+All uv/build commands use UV_CACHE_DIR=/private/tmp/survjax-uv-cache.
 
-- Ruff format --check .: exit 0, 56 files already formatted.
-- Ruff check .: exit 0, All checks passed!
-- mypy src: exit 0, Success: no issues found in 14 source files.
-- Focused suite: separately with JAX_ENABLE_X64=1 and 0, SPEC_THROUGH=A6,
-  uv run --locked --group test pytest tests/unit/test_constraints.py
-  tests/unit/test_parameter_constraints.py tests/unit/test_import.py
-  ../spectest/tests/spec/test_a6_constraints.py -q --tb=short
-  -o cache_dir=/private/tmp/survjax-a61-plain-<mode>.
-  Each process: exit 0, 98 passed in 4.09s (36 own, 62 independent).
-  Expected signed-zero masks follow the inequalities in section 4.7;
-  exact simplex masks follow the specified 4*n*eps inequality.
-- scripts/check.sh --through A5: exit 0, guard ok (A6.1), Ruff format/lint
-  and mypy clean with the outputs above. Own tests: x64 501 passed, 7 skipped
-  in 43.21s; x32 507 passed, 1 skipped in 43.02s. Source doctests: 4 passed
-  per mode (0.91s/0.94s). Independent through-A5: x64 1256 passed, 26 skipped
-  in 27.95s; x32 1261 passed, 21 skipped in 23.02s. Final line:
-  "check: all gates passed through A5".
-- git diff --check: clean after implementation.
+- Focused command, separately with JAX_ENABLE_X64=1 and 0, SPEC_THROUGH=A6:
+  `uv run --locked --group test pytest tests/unit/test_parameter_issue_container.py tests/unit/test_import.py tests/unit/test_data_issues.py tests/spec/test_a6_parameter_issues.py::test_invalid_parameter_error_is_a_public_value_error -q --tb=short`.
+  Each exit 0: 32 passed in 2.83s (31 own, one independent).
+- `scripts/check.sh --through A5`: exit 0, guard ok (A6.2); Ruff format:
+  57 files already formatted; lint: All checks passed!; mypy:
+  Success: no issues found in 14 source files.
+  Own suite x64: 518 passed, 7 skipped (44.66s); x32: 524 passed, 1 skipped
+  (43.69s). Source doctests: 4 passed per mode (1.24s/1.03s).
+  Independent x64: 1256 passed, 26 skipped, 308 deselected (30.39s);
+  x32: 1261 passed, 21 skipped, 308 deselected (25.63s).
+  Final output: "check: all gates passed through A5".
+- `scripts/build_docs.sh`: initial sandboxed run exited 2 because Jupyter
+  could not bind a local port (PermissionError). Escalated rerun exited 0;
+  both dtype builds executed examples afresh and reported "build succeeded."
+- `git diff --check`: exit 0, no output before delivery.
 
-## Test snapshot and scope limits
+## Limits and uncertainties
 
-The revision-30 independent module is at tester HEAD `f527f75`, with its
-.spec-seen matching dev. A6.1 still records tests/spec/SOURCE_COMMIT `1d87b72`;
-the maintainer's spectests-A6r1 branch has not arrived on this branch. Executed
-the new constraint module directly from ../spectest; did not merge, copy,
-modify, skip or xfail any independent test. The through-A5 gate therefore
-covers this branch's earlier A0–A5 snapshot, and the focused run separately
-covers the updated A6 constraint vocabulary.
-
-No docs build: docs and docstrings are unchanged. No complete A6 gate, R
-fixtures, install check or benchmark run. The revision-29 likelihood plan
-still needs revision before approval; unsupported-mode D-023 remains open.
-Passing this follow-up is not evidence that later A6 steps are implemented.
+No new spec ambiguity found. No independent tests or spec files changed.
+The complete parameter-issues acceptance module needs A6.3's producer;
+no complete A6 gate, likelihood, derivatives, R fixtures, install or benchmark
+checks were run. D-023 remains open for the later likelihood step.

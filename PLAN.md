@@ -1,4 +1,28 @@
-# Spec alignment — revision 30 (2026-10-20)
+# A6.2 planning — ParameterIssues container and host checkpoint (2026-10-20)
+
+Status: **implemented; ready for review** (2026-10-20). Planning starts
+from clean `main` at `7274dd0`, after A6.1 merged. The maintainer approved the
+plan including the minimal API-reference entry, and explicitly authorized
+creating branch `A6.2`; that branch is now selected. The expanded A6.2
+step below is the current proposal and supersedes its revision-28 outline.
+Earlier A6.1 status and test-sync notes below are historical: the local
+`tests/spec/SOURCE_COMMIT` now records `f527f75325db5cac62c87c5bd28c7213cce51d8f`,
+and `.spec-seen` matches revision 30 at
+`fd150db3e82ad744277caecd1c68b2a524ad24df`.
+
+Read current GOALS and specification sections 4.7, 6.2–6.3, 10.2, 10.5 and
+12.1–12.2, existing DataIssues/checkpoint code, public-export checks, and the
+synced A6 parameter-diagnostic acceptance tests. The initial planning pass
+changed only PLAN.md; approval covers A6.2 only. It does not authorize or
+implement A6.3–A6.5. Their original
+likelihood plans still need revision-29 alignment before approval.
+
+Approval of A6.2 includes the single API-reference exception
+specified below: the new top-level exception needs an autodoc entry to satisfy
+the existing export-coverage test. The working agreement otherwise defers
+docs/ edits to docs steps; the earlier A6.1 exception was specific to A6.1.
+
+# Spec alignment — revision 30 (2026-10-20; historical record)
 
 Status: read and marked in `b26a461`; the maintainer resumed implementation on
 2026-10-20. **A6.1 plain-comparison follow-up implemented, ready for review.**
@@ -137,7 +161,8 @@ A6.1's docs/api.md exception; the review's scope question needs no new approval.
 
 Revision-29 follow-up: read `../scripts/spec-since.sh dev` and the complete
 0683e35..be8010c normative diff. A6.1's sections 4.2/4.7 are unchanged.
-Do not implement the stale revision-28 A6.2–A6.5 likelihood references below:
+Do not implement the stale revision-28 likelihood references below (A6.2 is
+now separately replanned against revision 30):
 remove LikelihoodIssues/log_likelihood_with_info and add base-owned
 `dist.log_likelihood`, equal to the function in values/derivatives, in a
 separate planning/alignment pass before the next step is approved. D-023 has
@@ -202,23 +227,120 @@ Spec: 4.1, 4.2, 4.7, 10.2, 12.1. Target about 300 changed lines including tests.
 
 ## Step A6.2 — ParameterIssues container and host checkpoint
 
-Spec: 4.7, 6.3, 10.2. Independent of evaluator implementation.
+Status: **implemented, ready for review**. One container/checkpoint concept and one
+implementation commit, targeting at most about 300 changed lines including
+tests and review notes. Keep diagnostics.py below about 300 lines; if the
+implementation or step budget grows beyond this, stop and propose a split.
 
-- Add typed frozen registered `ParameterIssues` to `src/survjax/diagnostics.py`:
-  `fields` and `conditions` dictionaries, `invalid_entries` array and scalar
-  `ok`. Preserve dictionary declaration order through tree reconstruction
-  (do not rely on JAX's default sorted-dict flattening for the public order).
-- Add `InvalidParameterError(ValueError)` there and export the exception from
-  `src/survjax/__init__.py`. Keep result types discoverable in diagnostics.
-  Reuse the existing host count/index reporting where suitable; traced
-  diagnostics raise a plain host-only ValueError. No callbacks or host work
-  during normal diagnostic calculation.
-- Add `tests/unit/test_parameter_issue_container.py`: analytical masks,
-  flatten/unflatten order, jit/vmap returns, valid/invalid host checkpoints,
-  scalar/multidimensional counts and first indices, traced rejection.
-- Public API: container in diagnostics, top-level exception. No new convenience
-  aliases or diagnostic constructor framework.
-- Docs to-do: explicit host checkpoint and diagnostics reference.
+Spec coverage: 4.7 (container fields, mask polarity/order and checkpoint),
+6.2 (checkpoint behavior mirrored from DataIssues), 6.3 (PyTree result),
+10.2 (module/export), 10.5 (public docstrings and minimal reference), and the
+applicable container/checkpoint requirements of 12.1–12.2. No likelihood or
+family aggregation is required for this step; D-023 does not block it.
+
+### Files and public API
+
+- `src/survjax/diagnostics.py`: add a small typed frozen `ParameterIssues`
+  dataclass with four explicit fields: `fields: dict[str, jax.Array]`,
+  `conditions: dict[str, jax.Array]`, `invalid_entries: jax.Array`, and
+  `ok: jax.Array`. Document True-as-violation, batch-shaped masks and scalar
+  ok. Like DataIssues, it stores supplied arrays; A6.3's producer will compute
+  the union and scalar reduction. No new validation/normalization framework,
+  derived properties, custom repr, or deep-immutability promise for the dicts.
+- Register the container as a PyTree with explicit flatten/unflatten methods.
+  Store the two ordered key tuples as static auxiliary data; expose their
+  mask values, invalid_entries and ok as array leaves. Reconstruct dicts in
+  that order, including dotted names, empty mappings and nonalphabetical
+  keys. Do not return raw dict children to JAX's sorted-dict flattening.
+  Unflatten only reconstructs: no array operations, host conversions or
+  recomputation of ok, including when vmap stacks per-example scalar ok.
+- Add `InvalidParameterError(ValueError)` and
+  `ParameterIssues.raise_if_invalid(self) -> None`. Reject tracing before
+  any NumPy conversion by checking all array leaves, even if ok is concrete;
+  raise a plain ValueError containing "host-only" for both valid and invalid
+  traced diagnostics. No callbacks. For concrete masks, reuse `_rule_counts`
+  without changing DataIssues behavior, returning None when no violation
+  fires and otherwise naming all violated fields and conditions, their counts
+  and first batch-index tuples, with dotted names intact. Qualify the two
+  categories so matching field/condition names remain distinguishable.
+- `src/survjax/__init__.py`: re-export InvalidParameterError beside
+  InvalidDataError and add it to __all__. ParameterIssues remains accessible
+  as `survjax.diagnostics.ParameterIssues`, following DataIssues; no top-level
+  container alias. Public docstrings cover attributes, return and exceptions.
+- `tests/unit/test_import.py`: extend the explicit export assertion and
+  check that the exception is the diagnostics class and subclasses ValueError.
+- `tests/unit/test_parameter_issue_container.py`: create the focused tests
+  below. No changes to tests/spec/, spec/, dependencies or check scripts.
+- `docs/api.md`, **only if the requested exception is approved**: add one
+  `autoexception:: survjax.InvalidParameterError` block. No narrative guide or
+  family-method documentation in A6.2. Keep the existing export-coverage test.
+- PLAN.md: record approval/completion; REVIEW.md: overwrite after the approved
+  implementation with reading order, invariants, test/spec mapping, exact
+  check output and uncertainties. Leave the A6.1 review intact while planning.
+
+### Tests and evidence
+
+Construct containers directly from hand-enumerated boolean masks, with explicit
+expected invalid_entries/ok. This verifies storage and transformations;
+calculation of those aggregates from family declarations belongs to A6.3.
+Use exact boolean/structural assertions, without numerical tolerances.
+
+- Spec 4.7/6.3: scalar, multidimensional and empty-mapping cases retain their
+  masks, shapes and scalar ok through tree flatten/unflatten. Assert frozen
+  field assignment and that leaves are arrays, while keys remain metadata.
+- Spec 4.7/6.3: deliberately unsorted own/dotted field and condition keys
+  retain insertion order and values after tree round-trip, jit and vmap.
+  Jitted identity must preserve even a vmap result's vector ok; vmap of scalar
+  examples returns the expected vector of per-example ok values.
+- Spec 4.7/7.2: changing only same-shaped mask values reuses a jitted function
+  (trace-count assertion), with fixed keys and structure and updated results.
+- Spec 4.7/6.2: all-valid and empty mappings return normally; field-only,
+  condition-only and overlapping violations raise InvalidParameterError.
+  Assert all names/categories, counts and first indices: scalar `()`, vector
+  `(i,)`, and multidimensional `(i, j)`. Expected counts/indices are enumerated
+  in the tests, not computed by `_rule_counts` or the container under test.
+- Spec 4.7/6.2/6.3: a concrete container returned by jit can be checked on the
+  host. Calling the checkpoint inside jit/vmap with valid or invalid traced
+  masks raises exactly plain ValueError with "host-only". Include a case
+  with concrete ok and a traced mask to catch incomplete tracer guards.
+
+### Validation and stop
+
+After approval, use UV_CACHE_DIR=/private/tmp/survjax-uv-cache. Run focused
+container/import/DataIssues regression tests in separate JAX_ENABLE_X64=1
+and 0 processes. Run the independent
+`tests/spec/test_a6_parameter_issues.py::test_invalid_parameter_error_is_a_public_value_error`
+with SPEC_THROUGH=A6 in both modes; it is the independent A6.2-only check.
+The other tests in that module call the A6.3 producer and are not yet an A6.2
+gate. Do not edit, skip or xfail them.
+
+Run `scripts/check.sh --through A5`: it includes Ruff format/lint, mypy src,
+the entire own suite in both modes, source doctests and independent A0–A5
+tests. If the minimal API-reference exception is approved, also run
+`scripts/build_docs.sh` clean. Finish with `git diff --check`. Do not claim
+the complete A6 gate, numerical derivatives, R fixtures, install checks or
+benchmarks. No gradient tests are needed for a boolean-only result container.
+
+Write REVIEW.md with exact commands, exit codes, pass/skip counts and any
+failures, commit this step only on the maintainer's A6.2 branch with an
+imperative subject and a body explaining why, then stop for review. Do not
+start A6.3.
+
+Planning verification actually run: `git diff --check` exited 0 with no
+output. Only PLAN.md changed. No runtime tests, static checks or docs build
+were run for this planning-only edit; no branch or commit was created.
+
+Docs to-do (A6 docs step): document ParameterIssues fields and polarity,
+ordered/dotted names, explicit host checkpoint and traced rejection, and
+clarify that no reported issue is not a validity guarantee. Add the container
+reference and examples using the A6.3 producer after that producer exists.
+
+Implementation evidence (2026-10-20): 17 container cases added; focused own
+regressions plus the independent exception check pass (32 tests per dtype).
+`scripts/check.sh --through A5` passes both modes; `scripts/build_docs.sh`
+passes after a sandbox port restriction required an escalated rerun. Exact
+commands, counts, invariants and remaining scope are in REVIEW.md. No A6.3
+producer or likelihood work started. Stop after the A6.2 implementation commit.
 
 ## Step A6.3 — Base-owned diagnostic composition
 
@@ -1928,6 +2050,10 @@ and notebooks executing. The next sub-slice waits for the last docs merge.
 
 Docs to-do:
 
+- A6.2: ParameterIssues fields, ordering and polarity, dotted names, host-only
+  raising (including traced rejection), the container reference, and the
+  distinction between no reported issue and guaranteed validity. Producer
+  examples follow A6.3; A6.2 proposes only a minimal exception autodoc entry.
 - Exact/right-censored likelihoods, result containers, issue propagation and
   explicit failure for unsupported modes; refine during A6 code steps.
 
