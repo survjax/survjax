@@ -1,71 +1,66 @@
-# A6.3 — Base-owned parameter diagnostics
+# A6.3 review fix-up — Mask batch shapes
 
-Status: implemented on maintainer-selected `A6`, based on `a715d3e`.
-Spec revision 30: .spec-seen fd150db; independent snapshot f527f75.
-Ready for review; focused tests and through-A5 gate pass. Stop after commit.
-The production/test diff is 299 changed lines; plan/review bookkeeping is extra.
+Status: approved fix-up implemented on `A6`, based on `b0b44a5`.
+Addresses S1/S2 in `../review/slices/A6.3.md`; stop after this commit.
+Spec revision 30 and independent snapshot f527f75 are unchanged.
 
 ## Read first
 
-1. `src/survjax/distributions/_parameter_issues.py`: the composition path.
-2. `src/survjax/distributions/base.py`: base-owned producer and condition hook.
-3. `tests/unit/test_parameter_issues.py`: 13 cases and hand-enumerated masks.
-4. PLAN.md: approved A6.3 scope and A6 docs to-do.
+1. `src/survjax/distributions/_parameter_issues.py`: own mask storage.
+2. `tests/unit/test_parameter_issues.py`: rebuilt-own and per-leaf vmap tests,
+   then the strengthened rebuilt-nested test.
+3. PLAN.md: approved fix-up scope and the optional findings left unchanged.
 
 ## Invariants and test/spec mapping
 
-- Spec 4.7: constraint True means valid; diagnostic True means violation.
-  Reduce exactly component_ndim minus event_dim trailing axes with any.
-  `test_component_reductions_and_ordered_nested_conditions` covers remaining
-  component axes, scalar constraints, union, boolean dtype and own-first order
-  eagerly/jit/vmap. Scalar vector-constraint coverage is in
-  `test_undeclared_and_conditions_only_families`.
-- Own constrained fields precede nested fields regardless of declaration
-  interleaving. Own conditions precede nested conditions. False masks stay
-  present; nested names retain dotted prefixes. Smaller reconstructed nested
-  batches broadcast to the current outer batch shape. Rebuilt-broadcast and
-  nested-only tests cover this independently of constructor broadcasting.
-- Only declared fields/conditions contribute. An undeclared NaN is not
-  diagnosed. Empty declarations give all-False masks and scalar True ok;
-  conditions-only families still report violations. Indexing recomputes ok;
-  vmap stacks per-example ok. Tests compare exact masks and analytical indexing
-  identities; no expected numbers come from the aggregation implementation.
-- Spec 4.7: condition results must be mappings with nonempty undotted string
-  keys and boolean arrays of exactly batch_shape. Errors use structural
-  checks during tracing. Own key/dtype/shape tests complement the independent
-  eight-case eager/jit matrix; MappingProxyType is accepted without coercion.
-- Spec 4.1/4.5: from_log checks stored natural values (overflow inf and
-  underflow zero). Constructors/direct methods never invoke diagnostics;
-  a forbidden condition hook and explicit log S=2 at rate=-1 demonstrate this.
-- Spec 4.1/6.3/7.2: traced construction reuses one compiled function for new
-  same-shaped values. The compiled runtime passes transfer_guard("disallow")
-  after input placement/warmup; assertions and host checkpoints stay outside.
-  Producer results work with A6.2's existing host checkpoint.
-- Constraints and hooks must obey their pure, traceable protocol and fixed-key
-  contract. No registry, inferred domains, parameter repair or new cache.
+- Spec 4.7 requires every field/condition mask to have current batch_shape.
+  Construction usually broadcasts leaves, but reconstruction and per-leaf
+  vmap axes can give own leaves different broadcast-compatible batch shapes.
+  Own masks now broadcast after component reduction, before storage, matching
+  nested masks. Union broadcasting alone did not enforce individual shapes.
+- `test_rebuilt_smaller_own_batch_broadcasts_field_masks` checks eager/jit
+  leaves with batch shapes (1,) and (3,): both masks have shape (3,), rate is
+  all True and cap all False, from the declared positive constraints.
+- `test_per_leaf_vmap_broadcasts_mapped_and_shared_field_masks` maps rate while
+  sharing cap: every per-example mask has shape (3,), stacked as (3,3).
+  Its explicit expected rows follow rate [-1,2,3] and positive cap [1,1,1].
+- `test_rebuilt_smaller_nested_batch_broadcasts_diagnostics` now asserts (3,)
+  separately for nested fields and conditions before checking their values.
+  NumPy's scalar/vector equality shortcut cannot hide missing broadcasts.
+- API, keys, polarity, component reductions and aggregate logic are unchanged.
+  Assertions use exact boolean values and shapes; no tolerance is involved.
 
 ## Checks actually run
 
-UV_CACHE_DIR=/private/tmp/survjax-uv-cache for every uv/gate command.
+All uv/gate commands use UV_CACHE_DIR=/private/tmp/survjax-uv-cache.
 
-- Focused command, separately with JAX_ENABLE_X64=1 and 0, SPEC_THROUGH=A6:
+- Separately with JAX_ENABLE_X64=1 and 0, SPEC_THROUGH=A6:
   `uv run --locked --group test pytest tests/unit/test_parameter_issues.py tests/unit/test_parameter_issue_container.py tests/unit/test_parameter_constraints.py tests/spec/test_a6_constraints.py tests/spec/test_a6_parameter_issues.py -q --tb=short`.
-  Each exit 0: 173 passed, 1 skipped in 4.33s. The existing optional NumPyro
-  interoperability case is skipped because NumPyro is not installed.
+  Each exit 0: 176 passed, 1 skipped in 4.54s. The existing optional NumPyro
+  interoperability check skips because NumPyro is absent.
+- Separately with JAX_ENABLE_X64=1 and 0:
+  `uv run --locked python /private/tmp/survjax_a63_broadcast_mutations.py`.
+  Each exit 0: four baseline regression checks pass. Removing own broadcasting
+  is rejected by eager, jit and per-leaf vmap shape assertions. Removing nested
+  field broadcasting fails its field shape assertion; removing nested condition
+  broadcasting fails its condition shape assertion. All three mutants are
+  compiled in memory and the class binding is restored; no source file changes.
 - `scripts/check.sh --through A5`: exit 0; guard ok (A6); Ruff format:
   59 files already formatted; lint: All checks passed!; mypy:
   Success: no issues found in 15 source files.
-  Own x64: 531 passed, 7 skipped (42.94s); x32: 537 passed, 1 skipped
-  (44.83s). Source doctests: 4 passed per mode (1.07s/1.01s).
-  Independent through-A5 x64: 1256 passed, 26 skipped, 308 deselected (28.46s).
-  Independent x32: 1261 passed, 21 skipped, 308 deselected (23.85s).
+  Own x64: 534 passed, 7 skipped (45.63s); x32: 540 passed, 1 skipped
+  (45.31s). Source doctests: 4 passed per mode (1.06s/1.14s).
+  Independent through-A5 x64: 1256 passed, 26 skipped, 308 deselected (29.56s);
+  x32: 1261 passed, 21 skipped, 308 deselected (24.04s).
   Final output: "check: all gates passed through A5".
 - `git diff --check`: exit 0, no output before delivery.
 
 ## Limits and uncertainties
 
-No new spec ambiguity identified. Spec, independent tests, diagnostics.py,
-constructor/registration behavior, dependencies, exports and docs/ unchanged.
-Narrative/API-method documentation is recorded under A6 docs to-do.
-No docs build, boolean-mask gradient suite, complete A6 likelihood gate,
-R fixture, wheel/install or benchmark checks. D-023 remains open for A6.4.
+No new spec ambiguity identified; DEVIATIONS.md unchanged. N1's optional
+nonboolean-constraint validation is deferred: such results violate the current
+protocol, and this fix-up adds no new error/coercion policy. N2's pre-existing
+base.py length is unchanged; no registration refactor.
+No docs/spec/independent-test/dependency/export edits. No docs build (docs and
+public docstrings unchanged), complete A6 gate, R, install or benchmark run.
+No A6.4 work; D-023 remains the later likelihood step's open question.

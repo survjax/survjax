@@ -1,4 +1,56 @@
-# A6.3 planning — Base-owned parameter diagnostics (2026-10-20)
+# A6.3 review fix-up — Mask batch shapes (2026-10-20)
+
+Status: **implemented; ready for review**. Read
+`../review/slices/A6.3.md` against clean `A6` at `b0b44a5`. Both should-fix
+findings S1/S2 are valid under spec 4.7's requirement that every mask has
+batch_shape, including when reconstruction changes current leaf shapes.
+One small follow-up commit on the same maintainer-selected `A6` branch,
+followed by an overwritten REVIEW.md and a stop. No A6.4 work.
+
+- S1: in `src/survjax/distributions/_parameter_issues.py`, broadcast each own
+  constrained field mask to the current batch_shape after component reduction
+  and before storing it, matching the existing nested path. Preserve values,
+  polarity, ordering and aggregate calculation. No API/signature/export change.
+- In `tests/unit/test_parameter_issues.py`, add a two-positive-field regression
+  whose reconstructed leaves have batch shapes (1,) and (3,). Check eager/jit
+  masks have exactly batch_shape and hand-enumerated values. Add a per-leaf
+  vmap in_axes regression (one parameter mapped, the other shared), asserting
+  the full stacked shapes and values so union broadcasting cannot hide a
+  malformed individual mask.
+- S2: strengthen the existing smaller-nested-batch regression with explicit
+  `.shape == (3,)` assertions for both the nested field and condition masks.
+  Keep its value assertions. Demonstrate the regressions reject removal of
+  own, nested-field and nested-condition broadcasting, each separately, using
+  in-memory mutants without changing the checkout or independent tests.
+- N1: leave nonboolean custom constraint results outside this fix-up. Such
+  results violate the existing bool-array protocol; the review explicitly
+  leaves additional validation to the maintainer. Do not silently cast them
+  or introduce a new exception policy. N2: retain the private-module split;
+  no unrelated base.py refactor. No deviation entry or status change needed.
+- Files: the private module and own test file above, PLAN.md and REVIEW.md.
+  No docs/, spec/, tests/spec/, dependency, constructor or direct-method edit.
+  Existing A6 docs to-do remains sufficient for this shape-contract repair.
+- Validation after approval: UV_CACHE_DIR=/private/tmp/survjax-uv-cache;
+  separate JAX_ENABLE_X64=1/0 focused own diagnostics/declaration suites plus
+  complete independent A6 constraints/parameter-issues modules with
+  SPEC_THROUGH=A6; mutation checks in both modes; then
+  `scripts/check.sh --through A5` and `git diff --check`. Record exact results
+  and any failures in REVIEW.md. No docs build or complete A6 gate is claimed.
+
+Read-only probes actually run: JAX_ENABLE_X64=1 and 0, `uv run --locked python`.
+Both exited 0. Eager and jit report batch_shape (3,), own field shapes
+rate=(1,), cap=(3,), invalid_entries=(3,). In both processes,
+`np.testing.assert_array_equal(jnp.array(True), [True]*3)` passes, confirming
+the missing shape assertion. No pytest suite or gate was rerun for this plan.
+
+Implementation evidence: own field masks now broadcast after reduction; the
+new reconstructed-own and per-leaf vmap cases and the strengthened nested
+case assert exact shapes. Focused tests pass in both modes (176 passed,
+1 optional skip); all three broadcast-removal mutants are rejected by shape
+assertions in both modes. The full through-A5 gate passes. Exact commands,
+counts and scope limits are in REVIEW.md. Stop after this fix-up commit.
+
+# A6.3 planning — Base-owned parameter diagnostics (historical)
 
 Status: **implemented; ready for review**. A6.2 is merged; planning
 starts from clean `main` at `a715d3e`. The local spec marker remains

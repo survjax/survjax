@@ -56,6 +56,39 @@ def mixed():
     )
 
 
+@survjax.register_family
+@dataclass(frozen=True)
+class Two(survjax.SurvivalDistribution):
+    rate: jax.Array = survjax.param(constraint=survjax.constraints.positive)
+    cap: jax.Array = survjax.param(constraint=survjax.constraints.positive)
+
+
+@pytest.mark.parametrize("transform", [lambda f: f, jax.jit], ids=["eager", "jit"])
+def test_rebuilt_smaller_own_batch_broadcasts_field_masks(transform):
+    """Spec 4.7: own masks follow current batch_shape after reconstruction."""
+    dist = Two(rate=[1.0, 2.0, 3.0], cap=[1.0, 1.0, 1.0])
+    leaves, tree = jax.tree.flatten(dist)
+    rebuilt = jax.tree.unflatten(tree, [jnp.array([-1.0]), leaves[1]])
+    issues = transform(lambda d: d.parameter_issues())(rebuilt)
+    assert rebuilt.batch_shape == (3,)
+    assert issues.fields["rate"].shape == rebuilt.batch_shape
+    assert issues.fields["cap"].shape == rebuilt.batch_shape
+    np.testing.assert_array_equal(issues.fields["rate"], [True, True, True])
+    np.testing.assert_array_equal(issues.fields["cap"], [False, False, False])
+
+
+def test_per_leaf_vmap_broadcasts_mapped_and_shared_field_masks():
+    """Spec 4.7: each mapped scalar's mask broadcasts over the shared batch."""
+    dist = Two(rate=[-1.0, 2.0, 3.0], cap=[1.0, 1.0, 1.0])
+    axes = jax.tree.unflatten(jax.tree.structure(dist), [0, None])
+    issues = jax.vmap(lambda d: d.parameter_issues(), in_axes=(axes,))(dist)
+    assert issues.fields["rate"].shape == issues.fields["cap"].shape == (3, 3)
+    np.testing.assert_array_equal(
+        issues.fields["rate"], [[True] * 3, [False] * 3, [False] * 3]
+    )
+    np.testing.assert_array_equal(issues.fields["cap"], [[False] * 3] * 3)
+
+
 @pytest.mark.parametrize(
     "transform", [lambda f: f, jax.jit, jax.vmap], ids=["eager", "jit", "vmap"]
 )
@@ -105,6 +138,8 @@ def test_rebuilt_smaller_nested_batch_broadcasts_diagnostics():
     # Reconstruction bypasses constructor broadcasting; outer batch remains (3,).
     rebuilt = jax.tree_util.tree_unflatten(tree, [jnp.array(-4.0), *children[1:]])
     issues = rebuilt.parameter_issues()
+    assert issues.fields["base.rate"].shape == (3,)
+    assert issues.conditions["base.a"].shape == (3,)
     np.testing.assert_array_equal(issues.fields["base.rate"], [True] * 3)
     np.testing.assert_array_equal(issues.conditions["base.a"], [True] * 3)
 

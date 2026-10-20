@@ -41,7 +41,7 @@ def parameter_issues(self: "SurvivalDistribution") -> ParameterIssues:
         if remaining:
             axes = tuple(range(mask.ndim - remaining, mask.ndim))
             mask = jnp.any(mask, axis=axes)
-        field_masks[declared.name] = mask
+        field_masks[declared.name] = jnp.broadcast_to(mask, batch_shape)
 
     nested_conditions: dict[str, jax.Array] = {}
     for declared in declarations:
