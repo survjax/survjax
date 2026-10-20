@@ -1,5 +1,88 @@
 # Deviations and spec questions
 
+## D-025 Plain comparisons versus subnormal acceptance expectations
+- Step: A6.1 plain-comparison follow-up planning (2026-10-19).
+- Spec: sections 4.7 and 12.1; independent
+  test_a6_constraints.py::test_unit_interval_includes_zero_and_one.
+- Spec says: nonnegative includes finite x>=0, unit_interval includes
+  0<=x<=1, and constraint tests cover eager/jit/vmap agreement. The independent
+  test requires nextafter(0,-inf) to fail unit_interval in every mode.
+- Did / propose: the maintainer requests removal of jnp.frexp and has chosen
+  JAX parameter-dtype/backend behavior. Propose plain comparisons, retaining
+  inclusive nonnegative pending clarification of "greater than 0". A CPU
+  probe in both dtypes shows finite x>=0 accepts the smallest negative
+  subnormal eagerly/vmap but rejects it under jit. Removing the workaround
+  therefore conflicts with the independent expectation and the stronger
+  transformation guarantee at subnormal boundaries. Report the acceptance
+  failure and preserve the independent test; ask the maintainer to approve
+  this explicit backend-semantic deviation with the implementation plan.
+- Revision-30 alignment note (2026-10-20): section 4.7 now explicitly allows
+  backend-dependent classification of subnormal values/bounds, including at
+  zero, and requires ordinary JAX comparisons with no added handling. The
+  nonnegative domain remains finite x>=0. The normative question is settled;
+  implementation and independent-test synchronization are pending. Formal
+  closure remains the maintainer's.
+- Implementation follow-up (2026-10-20): removed frexp and the own strict
+  subnormal-sign guarantee under revision 30. The updated tester module at
+  f527f75 uses normal neighbours around zero and passes alongside the focused
+  own tests in both dtypes (98 passed per process). No independent test was
+  changed here. Formal closure remains the maintainer's.
+- Status: open
+
+## D-024 Precision and subnormal semantics of constraint bounds
+- Step: A6.1 review check (2026-10-19), reviewer Q1.
+- Spec: section 4.7, unchanged in revisions 28–29.
+- Spec says: bound factories take finite Python numbers and compare x>a,
+  a<x<b or a<=x<=b, without specifying the precision of the Python bound or
+  the required handling of nonzero subnormal bounds on a flushing backend.
+- Did / propose: preserve the A6.1 implementation pending maintainer decision.
+  Zero-bound comparisons use frexp for signed subnormals; nonzero bounds use
+  JAX's parameter-dtype comparisons. The reviewer reports float32 cases
+  greater_than(-1e-40)(0) and greater_than(0.1)(float32(0.1)) returning False,
+  and notes NumPyro agrees. Ask whether the contract adopts parameter-dtype
+  bound conversion and backend comparison behavior, or requires mathematical
+  comparison against the Python bound with subnormal guarantees. Do not
+  silently broaden the zero-bound workaround or change the spec.
+- Maintainer decision (2026-10-19, fix-up approval): follow JAX's parameter-
+  dtype/backend comparison behavior. Preserve the current comparisons and
+  existing zero-bound frexp handling. No spec edit is requested; formal
+  closure of this entry remains with the maintainer.
+- Revision-30 alignment note (2026-10-20): section 4.7 and decision 0042 now
+  record the maintainer's chosen parameter-dtype/backend behavior and specify
+  no extra handling even at zero bounds. This supersedes the earlier note
+  preserving zero-bound frexp handling. Removing it awaits the maintainer's
+  test sync and instruction; formal closure remains the maintainer's.
+- Implementation follow-up (2026-10-20): all constraints now use ordinary
+  JAX comparisons; bound factories explicitly cast bounds to the parameter
+  dtype. The zero-bound special cases have been removed. The focused
+  revision-30 constraint checks pass in both modes. Formal closure remains
+  the maintainer's.
+- Status: open
+
+## D-023 Explicit unsupported likelihood failures under tracing
+- Step: A6 planning, revision 28 (2026-10-19)
+- Spec: sections 3.2, 6.1–6.3, 7.1, 12.2; independent Q-037.
+- Spec says: unsupported observation modes fail explicitly; traced data has
+  all-true may-contain metadata, while raw/traced supported exact/right data
+  must evaluate. The four LikelihoodIssues masks have no unsupported-mode
+  field. Valid left/interval/truncated data is not invalid_data, and absence
+  of an implementation is not numerical_failure or invalid_conditioning.
+- Did / propose: no evaluator implemented. Ask the maintainer to specify the
+  failure and diagnostics policy before A6.4. A possible policy is NaN only on
+  unsupported rows in eager and transformed calls, retaining supported rows,
+  with the existing four masks reserved for their stated meanings; this means
+  NaN without an explanatory issue on unsupported valid data and needs an
+  explicit decision. Independent tests permit eager NotImplementedError or
+  row NaN, require traced row NaN, and deliberately do not settle the masks.
+  Do not reject data solely because traced metadata says it may be unsupported.
+- Revision-29 review note (2026-10-19): LikelihoodIssues and the _with_info
+  entry point are removed. The four-mask premise above is historical; the
+  remaining question is whether unsupported valid rows raise or give NaN,
+  and how callers distinguish them from bad-data/bad-parameter rows and the
+  unexplained NaN remainder of section 7.1's triage recipe. This still needs
+  a maintainer decision before A6.4; no evaluator has been implemented.
+- Status: open
+
 ## D-022 Log-CDF upper tail rounds to zero before S underflows
 - Step: A5.4 review, 2026-10-14 (found after D-021)
 - Spec: sections 4.2, 4.3, 7.1 and 12.1 ("stable tails"), revision 24.
@@ -254,6 +337,10 @@ decision descriptions are retained as history.
   maintainer to settle the return contract and ownership of nested diagnostics.
   The earlier boolean-invalid-mask proposal is an option only, not an accepted
   API. No spec change is made here, and this entry remains open.
+- Revision-28 planning note (2026-10-19): section 4.7 now defines the
+  constraint/condition-based ParameterIssues contract and section 7.1 defines
+  likelihood attribution (decision 0042). A6.1–A6.5 in PLAN.md implement it;
+  this removes the planning blocker. Formal resolution remains the maintainer's.
 - Status: open
 
 ## D-012 Right precedence for the unbounded zero-lower observation

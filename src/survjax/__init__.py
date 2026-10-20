@@ -1,5 +1,6 @@
 """Survival analysis in JAX."""
 
+from survjax import constraints
 from survjax.data import SurvivalData
 from survjax.diagnostics import InvalidDataError
 from survjax.distributions import (
@@ -13,6 +14,7 @@ from survjax.distributions import (
 )
 
 __all__ = [
+    "constraints",
     "Exponential",
     "Weibull",
     "SurvivalData",
