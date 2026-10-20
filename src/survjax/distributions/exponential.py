@@ -178,8 +178,12 @@ class Exponential(SurvivalDistribution):
             Log density; log(rate) at t = 0, and -inf for t < 0 and at
             t = +inf. NaN times or rates give NaN.
         """
+        # spec 7.1–7.2: a zero cotangent through log(0) must not become 0/0.
+        zero_rate = self.rate == 0
+        safe_rate = jnp.where(zero_rate, jnp.ones_like(self.rate), self.rate)
+        log_rate = jnp.where(zero_rate, -jnp.inf, jnp.log(safe_rate))
         # spec 4.1: log f(t)=log(rate)-H(t), since h(t)=rate.
-        return jnp.log(self.rate) - self._cumulative_hazard(t)
+        return log_rate - self._cumulative_hazard(t)
 
     def log_hazard(self, t: ArrayLike) -> jax.Array:
         """Return the log hazard, log h(t) = log(rate), at every t >= 0.

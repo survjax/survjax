@@ -1,6 +1,6 @@
 # A6.4 planning — Exact/right likelihood (2026-10-20)
 
-Status: **implementation plan proposed; D-023 policy approved**. A6.3 and its
+Status: **A6.4a implemented; ready for review**. A6.3 and its
 fix-up are merged; planning started from clean `main` at `e0e0b4e`. The approved
 policy is now spec revision 31, .spec-seen `be7b253`. The existing `A6` branch
 is selected for this alignment; tests/spec/SOURCE_COMMIT remains `f527f75`.
@@ -23,9 +23,12 @@ D-023's formal status stays with the maintainer; no implementation is claimed.
 The work is split up front to keep each implementation/test/docstring diff
 around 300 lines or less. Each part needs separate approval, a maintainer-
 selected branch, one commit, an overwritten REVIEW.md and a stop. The approved
-policy removes the D-023 decision prerequisite; approval of implementation
-parts remains separate. REVIEW.md records
-this spec alignment, its checks and the still-proposed implementation plan.
+policy removes the D-023 decision prerequisite; A6.4b/c implementation
+approvals remain separate. Spec alignment is recorded in 56c503e; REVIEW.md
+now records the A6.4a implementation and its checks.
+The maintainer has now instructed implementation of the next step, A6.4a,
+on existing branch A6 at 3b0c3bf. A6.4b/c remain unapproved. Finish A6.4a
+with its tests, commit and overwritten REVIEW.md, then stop.
 
 Standing maintainer authorization (2026-10-20): "exception approved in
 general". Code steps may add the minimal generated API-reference entries
@@ -606,7 +609,7 @@ edits, new dependency or A6.4 work. Stop after this step's commit.
 
 ## Step A6.4a — Safe built-in operands before likelihood integration
 
-Status: **proposed, not approved**. One prerequisite concept: prevent undefined
+Status: **implemented, ready for review**. One prerequisite concept: prevent undefined
 operations on invalid built-in parameters from contaminating other rows'
 derivatives through zero cotangents. Spec 4.1/4.5/7.1–7.3/12.1; no public API
 or likelihood export. Target 150–250 changed lines including tests.
@@ -635,6 +638,14 @@ or likelihood export. Target 150–250 changed lines including tests.
 - Docs to-do: describe any material numerical limitation found; public method
   docstrings change only if currently inaccurate. No docs/ edit or build is
   planned. No spec deviation is needed for the observed implementation gap.
+
+Implementation evidence: Exponential log_prob now guards the zero-rate log;
+Weibull cumulative/log hazard guard zero-scale/shape operands and restore the
+existing extended values and boundary limits. Both new operand suites pass
+(36 tests per mode), expanded focused suites pass (212/213 passed, existing
+2/1 skips), and scripts/check.sh --through A5 passes both modes. Existing
+tolerances are unchanged. Exact results and invariants are in REVIEW.md.
+No likelihood entry point/core, export, docs or A6.4b/c work was added.
 
 ## Step A6.4b — Private exact/right likelihood core
 

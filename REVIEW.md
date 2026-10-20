@@ -1,57 +1,73 @@
-# Revision 31 alignment — Approved unsupported-mode policy
+# A6.4a — Safe built-in operands for zero parameters
 
-Status: the maintainer approved the policy and spec clarification during
-A6.4 planning. The spec change is committed separately in design; dev records
-it as read on existing branch A6. No likelihood implementation is authorized
-by this decision alone; A6.4a–c remain proposed.
+Status: approved A6.4a implemented on `A6`, based on `3b0c3bf`.
+Spec revision 31, marker be7b253; independent snapshot remains f527f75.
+This step adds no likelihood entry point. Stop after this commit for review;
+A6.4b/c have not begun.
 
 ## Read first
 
-1. `spec/SPECIFICATION.md`, sections 7.1 and 12.2: row-wise failure and recipe.
-2. `../design/decisions/0044-unsupported-likelihood-modes.md`: agreement and why.
-3. PLAN.md's current A6.4 plan and DEVIATIONS.md D-023's decision note.
+1. `src/survjax/distributions/exponential.py`: log_prob's zero-rate operand.
+2. `src/survjax/distributions/weibull.py`: cumulative-hazard and log-hazard
+   zero-scale/shape operands, value restoration and boundary handling.
+3. `tests/unit/test_likelihood_operands.py`: 36 focused cases.
+4. PLAN.md: approved A6.4a scope and remaining implementation parts.
 
-## Agreement and invariants
+## Invariants and test/spec mapping
 
-- Unsupported modes return NaN only on those rows, eagerly and under jit/vmap.
-  Supported rows retain contributions and the derivatives guaranteed by 7.3.
-- Unsupported valid observations acquire no invalid-data/parameter issue.
-  Check both diagnostics, then mode support, before calling a remaining NaN
-  zero normalization or numerical failure. No new public container or flag.
-- Slice A's support predicate uses current normalized fields: untruncated
-  exact rows or non-exact rows with upper=+inf. The recipe explicitly
-  broadcasts support and both diagnostics to the contribution shape.
-- This is accepted behavior, not evidence an evaluator exists. D-023's formal
-  status remains the maintainer's. Implementation plan/code approvals are
-  separate.
-- The maintainer also approved the minimal generated API-reference exception
-  in general. Code steps may add entries required by new exports without
-  asking again. PLAN.md records this standing authorization; narrative docs,
-  worked examples and broader reference changes remain separate docs steps.
+- Spec 7.1–7.2: a zero cotangent through log(0) gives 0/0; through exp(inf)
+  it can give 0*inf. A final NaN selection does not repair that arithmetic.
+  Safe constant operands are substituted before these operations. The
+  stored parameters and active valid calculations are unchanged. No floors,
+  clipping, stopped real parameters, global dtype changes or custom AD rules.
+- Exponential restores log(rate)=-inf at rate=0 after evaluating log on a
+  safe operand. Thus its direct log density remains -inf and log survival 0.
+- Weibull restores the zero-scale extended formula after finite operand work:
+  at positive t, H is inf for k>0, zero for k<0 and NaN for k=0. Log hazard
+  is inf for k>1 and NaN otherwise. With k=0 and b>0, H=1 and log h=-inf.
+  Boundary restoration remains separate, including the b=0 log-scale limit.
+- Spec 4.5: explicit interior-formula and zero-time-limit tests preserve the
+  affected direct values, including true -inf and undefined NaN. Expected
+  values follow the formulas stated in each test, not a saved code baseline.
+- `test_zero_parameter_keeps_other_rows_jacobian_finite` covers rate/shape/
+  scale zero between valid rows; active and inactive density branches; forward
+  and reverse mode; eager and jit. All valid Jacobian rows are finite, with
+  hand-derived diagonals and exactly zero in the invalid parameter column.
+- `test_valid_density_derivatives_and_transformations` checks analytical
+  valid Exponential/Weibull gradients and Hessians, plus Weibull eager/jit/vmap
+  values. A valid interior call runs with jax_debug_nans. Existing boundary,
+  tail and derivative tests run through the full gate. No tolerance changes.
 
-## Commits and checks actually run
+## Checks actually run
 
-- Design `be7b253`: spec(7.1,12.2), revision bump to 31, policy and triage.
-- Design `9cc2ab2`: decision 0044, register entry and cross-reference in 0043.
-  No code or unrelated maintainer files are included in either design commit.
-- `../scripts/spec-since.sh dev --mark`: exit 0, marker -> be7b253.
-  Follow-up `../scripts/spec-since.sh dev`: exit 0,
-  "dev: spec unchanged since be7b253".
-- With UV_CACHE_DIR=/private/tmp/survjax-uv-cache and separate
-  JAX_ENABLE_X64=1/0 processes, `uv run --locked python` executed the recipe
-  extracted verbatim after its unimplemented likelihood call. Supplied a
-  synthetic (2,6) output with supported finite, left-censored, truncated,
-  unexplained NaN, invalid-data and invalid-parameter/unsupported cases.
-  Exact hand-enumerated masks and every output shape (2,6) passed in both
-  processes (exit 0). This tests classification of supplied values only.
-- `git diff --check` in dev and design: exit 0, no output.
-- No pytest suite, Ruff/mypy gate, docs build or likelihood runtime checks:
-  source/tests/docs are unchanged and the evaluator is still unimplemented.
+All uv/gate commands use UV_CACHE_DIR=/private/tmp/survjax-uv-cache.
 
-## Remaining work
+- New operand module, separately with JAX_ENABLE_X64=1 and 0:
+  `uv run --locked --group test pytest tests/unit/test_likelihood_operands.py -q --tb=short`.
+  Each exit 0: 36 passed in 4.47s.
+- Expanded focus with SPEC_THROUGH=A6, separately in both dtype processes:
+  `uv run --locked --group test pytest tests/unit/test_likelihood_operands.py tests/unit/test_exponential.py tests/unit/test_weibull.py tests/spec/test_a6_constraints.py tests/spec/test_a6_parameter_issues.py -q --tb=short`.
+  x64: exit 0, 212 passed, 2 skipped (19.51s); x32: exit 0, 213 passed,
+  1 skipped (19.94s). Existing skips: optional NumPyro and x64-inapplicable
+  conversion-warning test.
+- Initial Ruff check reported E731 for an assigned test lambda. Replaced it
+  with a named local function; the final full gate checks the corrected file.
+- `scripts/check.sh --through A5`: exit 0; guard ok (A6); Ruff format:
+  60 files already formatted; lint: All checks passed!; mypy:
+  Success: no issues found in 15 source files.
+  Own x64: 570 passed, 7 skipped (49.32s); x32: 576 passed, 1 skipped
+  (47.99s). Source doctests: 4 passed per mode (1.13s/1.04s).
+  Independent through-A5 x64: 1256 passed, 26 skipped, 308 deselected (29.76s);
+  x32: 1261 passed, 21 skipped, 308 deselected (24.75s).
+  Final output: "check: all gates passed through A5".
+- `git diff --check`: exit 0, no output before delivery.
 
-Independent tests/spec remains read-only at snapshot f527f75, revision 30.
-A maintainer-managed sync must supply acceptance coverage for revision 31's
-stronger eager/compiled parity, preserved neighbors and triage requirements.
-The A6.4 implementation steps still await approval; A6.4c's minimal function
-reference entry is covered by the standing docs exception.
+## Limits and uncertainties
+
+No new spec ambiguity or deviation entry. No API/export/dependency/spec/
+independent-test/docs edits. No new helper module; Weibull stays at 296 lines.
+Isolation evidence covers the zero-parameter cases in the approved plan;
+invalid-row derivatives are still unspecified. The test-only composition is
+not a public or private library likelihood implementation.
+No docs build (public docstrings and docs unchanged), complete A6 gate,
+R fixture, install or benchmark run. A6.4b/c still need separate approval.

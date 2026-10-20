@@ -124,15 +124,21 @@ class Weibull(SurvivalDistribution):
         zero = time == 0
         infinite = jnp.isposinf(time)
         boundary = zero | infinite
+        zero_scale = self.scale == 0
 
         # spec 7.2: substitute before logs/products, including the scale operand.
         safe_time = jnp.where(boundary, jnp.ones_like(time), time)
-        safe_scale = jnp.where(boundary, jnp.ones_like(self.scale), self.scale)
+        safe_scale = jnp.where(
+            boundary | zero_scale, jnp.ones_like(self.scale), self.scale
+        )
 
         # spec 4.1: interior H(t)=(t/scale)**shape. Logs avoid forming a ratio
         # that could underflow/overflow before the power becomes representable.
         log_ratio = jnp.log(safe_time) - jnp.log(safe_scale)
         value = jnp.exp(self.shape * log_ratio)
+        # spec 7.1–7.2: restore the zero-scale formula without AD through exp(inf).
+        scale_limit = jnp.where(self.shape > 0, jnp.inf, 0.0)
+        value = jnp.where(zero_scale, scale_limit, value)
 
         # spec 4.5: restore boundary limits without hiding undefined parameters.
         zero_limit = jnp.where(self.shape > 0, 0.0, jnp.inf)
@@ -140,6 +146,7 @@ class Weibull(SurvivalDistribution):
         value = jnp.where(zero, zero_limit, jnp.where(infinite, infinity_limit, value))
         value = jnp.where(boundary & (self.shape == 0), 1.0, value)
         undefined = jnp.isnan(self.shape) | jnp.isnan(jnp.log(self.scale))
+        undefined = undefined | (zero_scale & ~boundary & (self.shape == 0))
         return jnp.where(undefined, jnp.nan, value)
 
     def log_survival(self, t: ArrayLike) -> jax.Array:
@@ -240,24 +247,38 @@ class Weibull(SurvivalDistribution):
         zero = time == 0
         infinite = jnp.isposinf(time)
         boundary = zero | infinite
+        zero_scale = self.scale == 0
 
         # spec 4.1/7.2: xlogy-style zero coefficients need safe AD operands too.
         safe_time = jnp.where(boundary, jnp.ones_like(time), time)
-        safe_scale = jnp.where(boundary, jnp.ones_like(self.scale), self.scale)
+        safe_scale = jnp.where(
+            boundary | zero_scale, jnp.ones_like(self.scale), self.scale
+        )
         safe_shape = jnp.where(boundary, jnp.ones_like(self.shape), self.shape)
+        zero_shape = safe_shape == 0
+        log_shape = jnp.log(
+            jnp.where(zero_shape, jnp.ones_like(safe_shape), safe_shape)
+        )
+        log_shape = jnp.where(zero_shape, -jnp.inf, log_shape)
 
         # spec 4.1: interior h(t)=(shape/scale)*(t/scale)**(shape-1), in log
         # space; computing it directly avoids cancellation when H is large.
         log_ratio = jnp.log(safe_time) - jnp.log(safe_scale)
-        value = jnp.log(safe_shape) - jnp.log(safe_scale) + (safe_shape - 1) * log_ratio
+        value = log_shape - jnp.log(safe_scale) + (safe_shape - 1) * log_ratio
+        # spec 4.5/7.2: b=0 gives +inf for k>1, otherwise an undefined interior h.
+        value = jnp.where(zero_scale, jnp.where(self.shape > 1, jnp.inf, 0.0), value)
 
         # spec 4.5: shape=1 retains its finite -log(scale) boundary value.
-        log_scale = jnp.log(self.scale)
+        log_scale = jnp.log(
+            jnp.where(zero_scale, jnp.ones_like(self.scale), self.scale)
+        )
+        log_scale = jnp.where(zero_scale, -jnp.inf, log_scale)
         power_limit = jnp.where(self.shape < 1, jnp.inf, -jnp.inf)
         zero_limit = jnp.where(self.shape == 1, -log_scale, power_limit)
         infinity_limit = jnp.where(self.shape == 1, -log_scale, -power_limit)
         value = jnp.where(zero, zero_limit, jnp.where(infinite, infinity_limit, value))
         undefined = jnp.isnan(jnp.log(self.shape)) | jnp.isnan(log_scale)
+        undefined = undefined | (zero_scale & ~boundary & (self.shape <= 1))
         return jnp.where(undefined, jnp.nan, value)
 
     def log_prob(self, t: ArrayLike) -> jax.Array:
