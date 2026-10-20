@@ -12,7 +12,7 @@ import jax.numpy as jnp
 from jax.typing import ArrayLike
 
 from survjax._dtypes import normalize_parameters
-from survjax.distributions import _grid_methods, _survival_methods
+from survjax.distributions import _grid_methods, _parameter_issues, _survival_methods
 
 
 def param(
@@ -158,6 +158,21 @@ class SurvivalDistribution:
     cumulative_hazard_grid = _grid_methods.cumulative_hazard_grid
     log_hazard_grid = _grid_methods.log_hazard_grid
     hazard_grid = _grid_methods.hazard_grid
+    parameter_issues = _parameter_issues.parameter_issues
+
+    def parameter_conditions(self) -> Mapping[str, jax.Array]:
+        """Return named boolean masks of parameter-condition violations.
+
+        Families override this hook for checks across fields. Keys must be
+        fixed, nonempty strings without dots; values must be boolean arrays
+        of exactly ``batch_shape``, True where a condition is violated.
+
+        Returns:
+            A fresh empty mapping by default. ``parameter_issues`` validates
+            overrides, reporting malformed keys, dtypes or shapes as TypeError.
+            Conditions do not change construction or direct-method values.
+        """
+        return {}
 
     @property
     def batch_shape(self) -> tuple[int, ...]:

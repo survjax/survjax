@@ -1,4 +1,27 @@
-# A6.2 planning — ParameterIssues container and host checkpoint (2026-10-20)
+# A6.3 planning — Base-owned parameter diagnostics (2026-10-20)
+
+Status: **implemented; ready for review**. A6.2 is merged; planning
+starts from clean `main` at `a715d3e`. The local spec marker remains
+`fd150db3e82ad744277caecd1c68b2a524ad24df` (revision 30), and the synced
+acceptance snapshot remains `f527f75325db5cac62c87c5bd28c7213cce51d8f`.
+The expanded A6.3 step below supersedes its revision-28 outline. A6.1/A6.2
+branch, approval and review statuses below are historical. A6.4/A6.5 still
+need likelihood-plan alignment before approval; D-023 does not block A6.3.
+
+Read current GOALS, spec 4.1–4.2/4.5/4.7/6.3/7.2/10.2/10.5/12.1–12.2,
+the merged container and family registration/batch-shape code, existing own
+declaration tests, and the synced parameter-issues acceptance module. This
+initial planning pass changed only PLAN.md. The maintainer approved A6.3 and
+selected branch `A6`, currently at `a715d3e`; use that branch for this step.
+Implementation ends in one commit, REVIEW.md and a stop. No later step is
+authorized.
+
+Planning verification: `git diff --check` exited 0 with no output; only
+PLAN.md changed. The read-only design diff from .spec-seen to design HEAD
+contains no changes to SPECIFICATION.md or GOALS.md. No new spec ambiguity
+was identified; existing deviation statuses are unchanged.
+
+# A6.2 planning — ParameterIssues container and host checkpoint (historical)
 
 Status: **implemented; ready for review** (2026-10-20). Planning starts
 from clean `main` at `7274dd0`, after A6.1 merged. The maintainer approved the
@@ -344,26 +367,123 @@ producer or likelihood work started. Stop after the A6.2 implementation commit.
 
 ## Step A6.3 — Base-owned diagnostic composition
 
-Spec: 4.2, 4.5, 4.7, 6.3, 12.1.
+Status: **implemented, ready for review**. One concept: compose the declared
+parameter diagnostics into the A6.2 result. Target about 250–300 changed
+implementation/test/docstring lines: roughly 75 for the private module,
+25 for the base hooks and 150–180 for focused own tests. If this cannot fit,
+propose a split before coding beyond the approved scope. No registration
+refactor or general diagnostic framework.
 
-- Add base `parameter_conditions()` (empty mapping) and `parameter_issues()`.
-  Put the field/nested aggregation in a private
-  `src/survjax/distributions/_parameter_issues.py` only as needed to keep this
-  separate responsibility out of the already 415-line registration module.
-- Compose own constrained field masks, reduce remaining component axes by any,
-  broadcast nested masks with dotted prefixes, and combine own/nested named
-  conditions. Preserve required fields/conditions order and fixed class keys.
-  Validate condition mapping, nonempty undotted string keys, boolean dtype
-  and exact batch shape using structural checks that also work while tracing.
-  Empty declarations give all-False batch masks and scalar True `ok`.
-- Add `tests/unit/test_parameter_issues.py`: hand-enumerated component/nested
-  masks, own-first order, nested-only and empty families, broadcasting,
-  indexing equality, jit/vmap, malformed hooks, and from_log overflow.
-  Compare constrained/unconstrained twins to pin unchanged direct values.
-  Do not infer undeclared validity domains or alter direct-method wrappers.
-- Independent target after A6.1–A6.3: the complete
-  `test_a6_constraints.py` and `test_a6_parameter_issues.py` in both dtypes.
-- Docs to-do: custom condition hook and nested diagnostics example.
+Spec: 4.1–4.2 (pure methods and extension hooks), 4.5 (direct values unchanged),
+4.7 (composition, order, shapes and hook errors), 6.3 (PyTree results), 7.2
+(compiled execution and reuse), and relevant 12.1–12.2 acceptance checks.
+
+### Files and public API
+
+- `src/survjax/distributions/base.py`: expose typed base methods
+  `parameter_conditions() -> Mapping[str, jax.Array]` and
+  `parameter_issues() -> ParameterIssues`, following the existing method
+  attachment pattern where useful. The default condition hook returns a fresh
+  empty mapping. Families override that hook; parameter_issues is base-owned.
+  Include public docstrings describing violation polarity, exact batch shapes,
+  ordering, return type and TypeError for malformed hook results. No new
+  top-level exports, constructor arguments or distribution PyTree leaves.
+- Create `src/survjax/distributions/_parameter_issues.py` for aggregation;
+  use TYPE_CHECKING imports to avoid a base/private-module import cycle.
+  The 449-line base module gets only the small hook integration, without
+  moving existing registration, dtype, broadcasting or value-policy code.
+- For each constrained own parameter in declaration order, evaluate its
+  constraint, invert the valid-domain mask, and reduce exactly the remaining
+  trailing component axes (`component_ndim - event_dim`) with any. Preserve
+  all batch axes, including scalar batches. Use declaration metadata and
+  current leaf shapes; never infer an undeclared parameter's validity domain.
+- Recursively obtain each nested distribution's issues in field declaration
+  order, prefix all field/condition names with `field_name + "."`, and
+  broadcast masks to the current outer batch_shape. Retain deeper dotted
+  prefixes. Fields contain own entries before nested entries; conditions
+  likewise contain own hook entries before nested entries. Preserve false
+  masks and unsorted insertion order so values cannot change the result tree.
+- Validate the own condition hook using Mapping, key types/content, array
+  dtype and exact shape only. Reject non-mappings, non-string/empty/dotted
+  names, nonboolean values and any shape other than batch_shape with TypeError,
+  also while tracing. Accept other Mapping implementations and preserve their
+  iteration order. Do not coerce invalid values or broadcast condition masks.
+  Fixed keys are the hook author's contract; add no key registry or cache.
+- Start invalid_entries as a boolean all-False array of batch_shape, OR every
+  field/condition mask into it, then compute scalar ok as negated any. Empty,
+  undeclared and nested-only families use the same path. Return ParameterIssues
+  directly; its reconstruction and explicit host checkpoint stay unchanged.
+- Create `tests/unit/test_parameter_issues.py` for the evidence below.
+  PLAN.md records approval/completion and docs to-do; overwrite REVIEW.md only
+  after the implementation. No changes to diagnostics.py, docs/, spec/,
+  tests/spec/, dependencies, public exports or gate scripts are planned.
+
+### Tests and invariants
+
+Use small frozen custom families and explicit expected boolean masks derived
+from their inequalities. Do not copy the independent fixture families or
+repeat A6.1's entire constraint-domain suite. Exact mask assertions need no
+new tolerance; use existing tolerances for numerical identity comparisons.
+
+- Spec 4.7: own fields with no constraint, scalar constraints on component
+  arrays, and event_dim smaller than/equal to component_ndim. Hand-enumerate
+  failures in different batch/component positions to distinguish any from all
+  and catch accidental batch reduction. Verify union, boolean dtype and
+  scalar ok, including no declarations, conditions only and scalar batches.
+- Spec 4.7: nested and nested-only families, own-first unsorted key order in
+  both mappings, dotted prefixes, nested conditions and outer broadcasting.
+  Include reconstruction with a smaller nested batch shape to exercise
+  diagnostic broadcasting independently of constructor broadcasting.
+- Spec 4.7/6.3: compare eager, jit, vmap and traced-construction diagnostics
+  against explicit masks; check per-example ok under vmap and the recomputed
+  reduction after indexing. Verify keys/tree structure stay fixed between
+  valid/invalid parameter values, with a one-trace compilation-reuse check.
+  Exercise compiled diagnostics under a device-to-host transfer guard after
+  input placement; host checkpoints remain outside that guard.
+- Spec 4.7: malformed conditions raise TypeError eagerly and while tracing;
+  include key, dtype and exact-shape errors and an accepted non-dict Mapping.
+  The independent module supplies the complete eight-case error matrix.
+- Spec 4.1/4.5: from_log overflow/underflow is diagnosed on the stored natural
+  parameters. Constrained/undeclared twins retain matching direct values,
+  including a finite formula at a declared violation; a hook that fails if
+  called demonstrates constructors/direct methods never invoke diagnostics.
+  Include an explicit host checkpoint on diagnostics from the new producer;
+  the full host-error matrix is already covered by A6.2 and acceptance tests.
+
+### Validation and stop
+
+After approval use UV_CACHE_DIR=/private/tmp/survjax-uv-cache. In separate
+JAX_ENABLE_X64=1 and 0 processes run focused own parameter-issue/container/
+declaration tests, then with SPEC_THROUGH=A6 run the complete synced
+`tests/spec/test_a6_constraints.py` and
+`tests/spec/test_a6_parameter_issues.py`. Do not edit, skip or xfail acceptance
+tests. NumPyro interoperability may retain its existing explicit skip when
+that optional package is absent; do not install a new dependency.
+
+Run `scripts/check.sh --through A5` for the protected-path guard, Ruff
+format/lint, mypy src, the full own suite in both modes, source doctests and
+independent A0–A5 checks. Finish with `git diff --check`. Boolean diagnostic
+masks need no gradient suite. No docs build is planned because docs/ and
+executable examples are unchanged. No complete through-A6 gate is claimed:
+likelihood work and its independent tests remain A6.4/A6.5.
+
+Write REVIEW.md with reading order, these invariants, test/spec mapping,
+exact commands/counts/outputs and remaining concerns. Commit only on the
+maintainer-selected `A6` branch with an imperative subject and a body explaining why,
+then stop. No A6.4 work, unsupported-mode decision or deviation closure.
+
+Docs to-do (A6 docs step): document both new methods and the hook contract,
+including violations-as-True versus constraints' validity-as-True; component
+reductions; own/nested ordering and dotted prefixes; fixed keys; no-issue
+limitations; and custom-condition, nested-family and compiled-host-checkpoint
+examples using the merged producer. No API reference exception is needed:
+the export set stays unchanged.
+
+Implementation evidence (2026-10-20): producer and hook integrated on `A6`;
+299 production/test lines changed. The focused own/independent suite passes
+in both dtypes (173 passed, 1 optional skip per mode). The through-A5 gate
+passes; exact counts and commands are in REVIEW.md. No spec/acceptance-test
+edits, new dependency or A6.4 work. Stop after this step's commit.
 
 ## Step A6.4 — Exact/right likelihood and result masks
 
@@ -2050,6 +2170,10 @@ and notebooks executing. The next sub-slice waits for the last docs merge.
 
 Docs to-do:
 
+- A6.3: parameter_issues/parameter_conditions reference and hook contract,
+  component reductions, own/nested ordering and dotted keys, fixed structure,
+  and custom-condition/nesting/compiled-checkpoint examples. Explain the
+  opposite polarity of constraint results and diagnostic masks.
 - A6.2: ParameterIssues fields, ordering and polarity, dotted names, host-only
   raising (including traced rejection), the container reference, and the
   distinction between no reported issue and guaranteed validity. Producer

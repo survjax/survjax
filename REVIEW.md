@@ -1,64 +1,71 @@
-# A6.2 — ParameterIssues container and host checkpoint
+# A6.3 — Base-owned parameter diagnostics
 
-Status: implemented on `A6.2`, based on `7274dd0`; ready for review.
-The maintainer approved the plan, branch creation and minimal docs exception.
-Spec revision 30: `.spec-seen` fd150db; synced acceptance snapshot f527f75.
-Stop after this step's commit; A6.3 has not begun.
+Status: implemented on maintainer-selected `A6`, based on `a715d3e`.
+Spec revision 30: .spec-seen fd150db; independent snapshot f527f75.
+Ready for review; focused tests and through-A5 gate pass. Stop after commit.
+The production/test diff is 299 changed lines; plan/review bookkeeping is extra.
 
 ## Read first
 
-1. `src/survjax/diagnostics.py`: ParameterIssues and InvalidParameterError.
-2. `tests/unit/test_parameter_issue_container.py`: 17 focused cases.
-3. `src/survjax/__init__.py`, `tests/unit/test_import.py`, `docs/api.md`:
-   exception export, identity check and approved autodoc entry.
-4. PLAN.md: approved A6.2 scope, evidence and A6 docs to-do.
+1. `src/survjax/distributions/_parameter_issues.py`: the composition path.
+2. `src/survjax/distributions/base.py`: base-owned producer and condition hook.
+3. `tests/unit/test_parameter_issues.py`: 13 cases and hand-enumerated masks.
+4. PLAN.md: approved A6.3 scope and A6 docs to-do.
 
 ## Invariants and test/spec mapping
 
-- Spec 4.7/6.3: frozen field assignment, ordinary mutable dictionaries;
-  supplied boolean masks and aggregates must be consistent. The A6.3 producer
-  will compute the union and scalar ok. No constructor checks are added.
-- Ordered field/condition key tuples are static metadata; only arrays are
-  leaves. Unflatten performs no calculations, including for vmap placeholders.
-  `test_round_trip_preserves_order_masks_and_frozen_fields`,
-  `test_jit_preserves_multidimensional_masks_and_empty_mappings` and
-  `test_vmap_and_jit_keep_order_and_per_example_ok` demonstrate scalar and
-  batch shapes, dotted/unsorted keys, empty mappings and stacked ok values.
-- Spec 7.2: `test_same_shaped_mask_values_reuse_compilation` changes mask
-  values and verifies one trace with updated output.
-- Spec 4.7/6.2: scalar field/condition, overlapping dotted-name and concrete
-  jit-result checkpoint tests verify return None or InvalidParameterError,
-  with each category's counts and first scalar/vector/multidimensional index.
-  Expected masks, counts and indices are hand-enumerated, with exact assertions.
-- `test_checkpoint_rejects_any_traced_mask` checks jit/vmap, valid/invalid
-  inputs and traced/concrete ok: exactly plain ValueError with "host-only".
-  All leaves are inspected before NumPy conversion; no callbacks are installed.
-- Spec 10.2: import test and independent public-exception test check the export.
-  Existing DataIssues calculation, checkpoint and repr code are unchanged.
+- Spec 4.7: constraint True means valid; diagnostic True means violation.
+  Reduce exactly component_ndim minus event_dim trailing axes with any.
+  `test_component_reductions_and_ordered_nested_conditions` covers remaining
+  component axes, scalar constraints, union, boolean dtype and own-first order
+  eagerly/jit/vmap. Scalar vector-constraint coverage is in
+  `test_undeclared_and_conditions_only_families`.
+- Own constrained fields precede nested fields regardless of declaration
+  interleaving. Own conditions precede nested conditions. False masks stay
+  present; nested names retain dotted prefixes. Smaller reconstructed nested
+  batches broadcast to the current outer batch shape. Rebuilt-broadcast and
+  nested-only tests cover this independently of constructor broadcasting.
+- Only declared fields/conditions contribute. An undeclared NaN is not
+  diagnosed. Empty declarations give all-False masks and scalar True ok;
+  conditions-only families still report violations. Indexing recomputes ok;
+  vmap stacks per-example ok. Tests compare exact masks and analytical indexing
+  identities; no expected numbers come from the aggregation implementation.
+- Spec 4.7: condition results must be mappings with nonempty undotted string
+  keys and boolean arrays of exactly batch_shape. Errors use structural
+  checks during tracing. Own key/dtype/shape tests complement the independent
+  eight-case eager/jit matrix; MappingProxyType is accepted without coercion.
+- Spec 4.1/4.5: from_log checks stored natural values (overflow inf and
+  underflow zero). Constructors/direct methods never invoke diagnostics;
+  a forbidden condition hook and explicit log S=2 at rate=-1 demonstrate this.
+- Spec 4.1/6.3/7.2: traced construction reuses one compiled function for new
+  same-shaped values. The compiled runtime passes transfer_guard("disallow")
+  after input placement/warmup; assertions and host checkpoints stay outside.
+  Producer results work with A6.2's existing host checkpoint.
+- Constraints and hooks must obey their pure, traceable protocol and fixed-key
+  contract. No registry, inferred domains, parameter repair or new cache.
 
 ## Checks actually run
 
-All uv/build commands use UV_CACHE_DIR=/private/tmp/survjax-uv-cache.
+UV_CACHE_DIR=/private/tmp/survjax-uv-cache for every uv/gate command.
 
 - Focused command, separately with JAX_ENABLE_X64=1 and 0, SPEC_THROUGH=A6:
-  `uv run --locked --group test pytest tests/unit/test_parameter_issue_container.py tests/unit/test_import.py tests/unit/test_data_issues.py tests/spec/test_a6_parameter_issues.py::test_invalid_parameter_error_is_a_public_value_error -q --tb=short`.
-  Each exit 0: 32 passed in 2.83s (31 own, one independent).
-- `scripts/check.sh --through A5`: exit 0, guard ok (A6.2); Ruff format:
-  57 files already formatted; lint: All checks passed!; mypy:
-  Success: no issues found in 14 source files.
-  Own suite x64: 518 passed, 7 skipped (44.66s); x32: 524 passed, 1 skipped
-  (43.69s). Source doctests: 4 passed per mode (1.24s/1.03s).
-  Independent x64: 1256 passed, 26 skipped, 308 deselected (30.39s);
-  x32: 1261 passed, 21 skipped, 308 deselected (25.63s).
+  `uv run --locked --group test pytest tests/unit/test_parameter_issues.py tests/unit/test_parameter_issue_container.py tests/unit/test_parameter_constraints.py tests/spec/test_a6_constraints.py tests/spec/test_a6_parameter_issues.py -q --tb=short`.
+  Each exit 0: 173 passed, 1 skipped in 4.33s. The existing optional NumPyro
+  interoperability case is skipped because NumPyro is not installed.
+- `scripts/check.sh --through A5`: exit 0; guard ok (A6); Ruff format:
+  59 files already formatted; lint: All checks passed!; mypy:
+  Success: no issues found in 15 source files.
+  Own x64: 531 passed, 7 skipped (42.94s); x32: 537 passed, 1 skipped
+  (44.83s). Source doctests: 4 passed per mode (1.07s/1.01s).
+  Independent through-A5 x64: 1256 passed, 26 skipped, 308 deselected (28.46s).
+  Independent x32: 1261 passed, 21 skipped, 308 deselected (23.85s).
   Final output: "check: all gates passed through A5".
-- `scripts/build_docs.sh`: initial sandboxed run exited 2 because Jupyter
-  could not bind a local port (PermissionError). Escalated rerun exited 0;
-  both dtype builds executed examples afresh and reported "build succeeded."
 - `git diff --check`: exit 0, no output before delivery.
 
 ## Limits and uncertainties
 
-No new spec ambiguity found. No independent tests or spec files changed.
-The complete parameter-issues acceptance module needs A6.3's producer;
-no complete A6 gate, likelihood, derivatives, R fixtures, install or benchmark
-checks were run. D-023 remains open for the later likelihood step.
+No new spec ambiguity identified. Spec, independent tests, diagnostics.py,
+constructor/registration behavior, dependencies, exports and docs/ unchanged.
+Narrative/API-method documentation is recorded under A6 docs to-do.
+No docs build, boolean-mask gradient suite, complete A6 likelihood gate,
+R fixture, wheel/install or benchmark checks. D-023 remains open for A6.4.
