@@ -1,45 +1,76 @@
-# Spec alignment — revisions 29–30
+# A6.1 follow-up — ordinary JAX constraint comparisons
 
-Requested 2026-10-20 on `A6.1`, after implementation commit `142b778`.
-Read the full normative range from `0683e35` (revision 28) to
-`fd150db3e82ad744277caecd1c68b2a524ad24df` (revision 30), and current GOALS.
-This step records reading; it does not claim implementation conformance.
+Status: approved follow-up implemented on `A6.1`, based on `b26a461`.
+Focused tests and the through-A5 gate pass in both dtypes. Ready for review;
+stop after this commit. No A6.2 work has begun.
+
+The maintainer requested removing frexp, updated spec section 4.7 to revision
+30 and resumed implementation after the independent tests were updated.
+Marker: `fd150db`. No specification or protected-test edits in this step.
 
 ## Read first
 
-1. PLAN.md's new revision-30 alignment section and the updated pending
-   plain-comparison plan directly below it.
-2. DEVIATIONS.md D-024/D-025 revision-30 notes; statuses stay open for the
-   maintainer to close. The earlier questions/decisions remain as history.
-3. .spec-seen, now pointing at the current spec commit.
+1. `src/survjax/constraints.py`: nonnegative, _GreaterThan and _Interval.
+2. `tests/unit/test_constraints.py`: signed-zero boundary test replacing the
+   obsolete mathematical-subnormal-sign guarantee. The simplex exact-threshold
+   and huge-bound regression tests are retained.
+3. PLAN.md's approved plain-comparison follow-up and the revision-30 notes
+   in DEVIATIONS.md D-024/D-025; formal entry closure stays with the maintainer.
 
-## Contract changes and invariants
+## Invariants and changes
 
-- Revision 29 adds the base dist.log_likelihood method, identical to the
-  top-level function in values and derivatives. It removes LikelihoodIssues
-  and log_likelihood_with_info; NaN causes come from data.issues and
-  parameter_issues(), with the remainder representing conditioning/numerical
-  failure. Update the later likelihood plans before their approval.
-- Revision 30 requires ordinary JAX comparisons in the parameter dtype after
-  bound conversion. It permits backend-dependent subnormal classification
-  and adds no special handling, including at zero. nonnegative remains
-  inclusive (finite x>=0); the earlier clarification is no longer needed.
-- Do not change implementation or own/independent tests until the maintainer
-  syncs the acceptance tests and gives the next implementation instruction.
-  The current source still contains frexp and the own strict subnormal test;
-  marking the spec as read is not proof of revision-30 conformance.
-- No spec sources, protected tests, docs, dependencies or runtime APIs changed.
+- nonnegative is finite x>=0. Both signed zeros remain valid; positive and
+  open intervals starting at zero exclude them. Simplex still permits zero
+  weights. The finite-bound TypeError policy and exact 4*n*eps simplex
+  tolerance are unchanged.
+- Every comparison uses ordinary JAX operators on the parameter array.
+  Bound factories explicitly convert bounds to x.dtype before comparison.
+  There is no zero-bound special case, frexp, decomposition or bit-level
+  replacement. rg on src/survjax and the own constraint test finds no frexp.
+- Spec 4.7 revision 30 permits backend-dependent subnormal classification.
+  Neither values nor eager/jit/vmap agreement at subnormal boundaries are
+  strengthened beyond ordinary JAX behavior. Signed-zero, normal-domain,
+  endpoint and nonfinite rules are tested in all three execution modes.
+- No signatures, exports, constructor checks, distribution PyTree leaves,
+  direct-method policy, dependencies, docs or later-slice behavior changed.
+  No probability floors, stopped parameters or global dtype changes added.
+- Declarations remain metadata. Only the callable dataclass instances are
+  frozen; ordinary functions' Python attributes remain mutable.
 
-## Checks
+## Verification actually run
 
-- ../scripts/spec-since.sh dev: listed be8010c and fd150db; normative diffstat
-  was 91 insertions, 44 deletions in spec/SPECIFICATION.md.
-- Read the complete diff and current GOALS. design/spec has no uncommitted
-  changes. No tests, lint, mypy, runtime gate or docs build run in this
-  metadata-only step.
-- ../scripts/spec-since.sh dev --mark: "dev/.spec-seen -> fd150db; commit it
-  in dev". Repeated read-only command: "dev: spec unchanged since fd150db".
-- git diff --check: exit 0, no output.
+All uv commands use UV_CACHE_DIR=/private/tmp/survjax-uv-cache.
 
-Stop after the alignment commit. The maintainer performs the spec-test sync;
-no implementation work has begun or been resumed by this request.
+- Ruff format --check .: exit 0, 56 files already formatted.
+- Ruff check .: exit 0, All checks passed!
+- mypy src: exit 0, Success: no issues found in 14 source files.
+- Focused suite: separately with JAX_ENABLE_X64=1 and 0, SPEC_THROUGH=A6,
+  uv run --locked --group test pytest tests/unit/test_constraints.py
+  tests/unit/test_parameter_constraints.py tests/unit/test_import.py
+  ../spectest/tests/spec/test_a6_constraints.py -q --tb=short
+  -o cache_dir=/private/tmp/survjax-a61-plain-<mode>.
+  Each process: exit 0, 98 passed in 4.09s (36 own, 62 independent).
+  Expected signed-zero masks follow the inequalities in section 4.7;
+  exact simplex masks follow the specified 4*n*eps inequality.
+- scripts/check.sh --through A5: exit 0, guard ok (A6.1), Ruff format/lint
+  and mypy clean with the outputs above. Own tests: x64 501 passed, 7 skipped
+  in 43.21s; x32 507 passed, 1 skipped in 43.02s. Source doctests: 4 passed
+  per mode (0.91s/0.94s). Independent through-A5: x64 1256 passed, 26 skipped
+  in 27.95s; x32 1261 passed, 21 skipped in 23.02s. Final line:
+  "check: all gates passed through A5".
+- git diff --check: clean after implementation.
+
+## Test snapshot and scope limits
+
+The revision-30 independent module is at tester HEAD `f527f75`, with its
+.spec-seen matching dev. A6.1 still records tests/spec/SOURCE_COMMIT `1d87b72`;
+the maintainer's spectests-A6r1 branch has not arrived on this branch. Executed
+the new constraint module directly from ../spectest; did not merge, copy,
+modify, skip or xfail any independent test. The through-A5 gate therefore
+covers this branch's earlier A0–A5 snapshot, and the focused run separately
+covers the updated A6 constraint vocabulary.
+
+No docs build: docs and docstrings are unchanged. No complete A6 gate, R
+fixtures, install check or benchmark run. The revision-29 likelihood plan
+still needs revision before approval; unsupported-mode D-023 remains open.
+Passing this follow-up is not evidence that later A6 steps are implemented.

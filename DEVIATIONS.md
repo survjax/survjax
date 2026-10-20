@@ -22,6 +22,11 @@
   nonnegative domain remains finite x>=0. The normative question is settled;
   implementation and independent-test synchronization are pending. Formal
   closure remains the maintainer's.
+- Implementation follow-up (2026-10-20): removed frexp and the own strict
+  subnormal-sign guarantee under revision 30. The updated tester module at
+  f527f75 uses normal neighbours around zero and passes alongside the focused
+  own tests in both dtypes (98 passed per process). No independent test was
+  changed here. Formal closure remains the maintainer's.
 - Status: open
 
 ## D-024 Precision and subnormal semantics of constraint bounds
@@ -47,6 +52,11 @@
   no extra handling even at zero bounds. This supersedes the earlier note
   preserving zero-bound frexp handling. Removing it awaits the maintainer's
   test sync and instruction; formal closure remains the maintainer's.
+- Implementation follow-up (2026-10-20): all constraints now use ordinary
+  JAX comparisons; bound factories explicitly cast bounds to the parameter
+  dtype. The zero-bound special cases have been removed. The focused
+  revision-30 constraint checks pass in both modes. Formal closure remains
+  the maintainer's.
 - Status: open
 
 ## D-023 Explicit unsupported likelihood failures under tracing

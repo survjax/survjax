@@ -22,8 +22,7 @@ def real(x: ArrayLike) -> jax.Array:
 def nonnegative(x: ArrayLike) -> jax.Array:
     """Check finite x >= 0. Args: x, parameter array. Returns: same-shape mask."""
     x = jnp.asarray(x)
-    # spec 4.7: frexp retains subnormal signs when comparisons flush to zero.
-    return jnp.isfinite(x) & (jnp.frexp(x)[0] >= 0)
+    return jnp.isfinite(x) & (x >= 0)
 
 
 def unit_interval(x: ArrayLike) -> jax.Array:
@@ -38,8 +37,8 @@ class _GreaterThan:
 
     def __call__(self, x: ArrayLike) -> jax.Array:
         x = jnp.asarray(x)
-        positive = jnp.frexp(x)[0] > 0 if self.bound == 0 else x > self.bound
-        return jnp.isfinite(x) & positive
+        bound = jnp.asarray(self.bound, dtype=x.dtype)
+        return jnp.isfinite(x) & (x > bound)
 
 
 @dataclass(frozen=True)
@@ -50,11 +49,11 @@ class _Interval:
 
     def __call__(self, x: ArrayLike) -> jax.Array:
         x = jnp.asarray(x)
-        lower_value = jnp.frexp(x)[0] if self.lower == 0 else x
-        upper_value = jnp.frexp(x)[0] if self.upper == 0 else x
+        lower = jnp.asarray(self.lower, dtype=x.dtype)
+        upper = jnp.asarray(self.upper, dtype=x.dtype)
         if self.closed:
-            return (lower_value >= self.lower) & (upper_value <= self.upper)
-        return (lower_value > self.lower) & (upper_value < self.upper)
+            return (x >= lower) & (x <= upper)
+        return (x > lower) & (x < upper)
 
 
 @dataclass(frozen=True)

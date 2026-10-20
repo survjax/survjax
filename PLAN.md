@@ -1,9 +1,9 @@
 # Spec alignment — revision 30 (2026-10-20)
 
-Status: read and marked; **awaiting the maintainer's spec-test sync and later
-instruction before implementation**. This bookkeeping supersedes the pending
-clarifications below, without approving or implementing the plain-comparison
-follow-up. No source, test, docs or specification edits in this step.
+Status: read and marked in `b26a461`; the maintainer resumed implementation on
+2026-10-20. **A6.1 plain-comparison follow-up implemented, ready for review.**
+The alignment commit made no source/test edits. The separately approved
+implementation follow-up is recorded below; later A6 steps remain unapproved.
 
 Reviewed the full normative diff from marker `0683e35` (revision 28) through
 `fd150db3e82ad744277caecd1c68b2a524ad24df` (revision 30), and current GOALS.
@@ -36,7 +36,7 @@ Reviewed the full normative diff from marker `0683e35` (revision 28) through
 
 # A6 — Revision 28 parameter diagnostics and exact/right likelihood
 
-Status: **A6.1 plain-comparison follow-up planned, awaiting approval** (2026-10-19). This section supersedes
+Status: **A6.1 plain-comparison follow-up implemented, ready for review** (2026-10-19). This section supersedes
 older forward plans for A6; the A5 records below remain historical.
 Planning starts on clean `main` at `9623594`. The maintainer approved A6.1
 and created branch `A6.1`. Only that code/test step is authorized; later steps
@@ -44,11 +44,18 @@ still need approval. The maintainer creates/selects each step branch; do not
 commit on main. Every implementation step needs its own
 approval, tests, commit, overwritten REVIEW.md and stop.
 
-## A6.1 follow-up — Plain comparisons without frexp (awaiting approval)
+## A6.1 follow-up — Plain comparisons without frexp (approved 2026-10-20)
 
 Requested after `142b778`: remove jnp.frexp for transparent comparisons.
-Same `A6.1` branch, one small follow-up commit after plan approval, overwrite
-REVIEW.md and stop. No implementation or test edits yet.
+The maintainer explicitly resumed this work after the revision-30 spec and
+independent-test updates. Same `A6.1` branch, one small follow-up commit,
+overwrite REVIEW.md and stop. Later A6 steps remain unapproved.
+
+Revision-30 tests are at tester HEAD `f527f75`, with matching .spec-seen.
+This branch still records tests/spec/SOURCE_COMMIT `1d87b72`; the maintainer
+has a spectests-A6r1 branch, but its snapshot has not arrived on A6.1. Run the
+updated constraint module directly from ../spectest without merging/syncing
+or changing protected paths.
 
 - Revision 30 confirms inclusive `nonnegative` as finite x>=0. Signed zeros,
   zero weights and unit_interval(0) remain valid. No clarification is pending.
@@ -65,12 +72,12 @@ REVIEW.md and stop. No implementation or test edits yet.
 - Public API: same signatures/exports. Values at subnormal boundaries inherit
   JAX/backend comparisons, per the maintainer's preference. No docs, spec,
   dependency or later-step changes. D-025 records the pre-revision-30 acceptance
-  conflict; await the maintainer's revised spec-test sync. Entry statuses
-  remain the maintainer's responsibility.
+  conflict; the revised tester module now avoids those subnormal assertions.
+  Entry statuses remain the maintainer's responsibility.
 - Validation: focused own constraints/declarations/import tests and the
   independent A6 constraint module in both dtype processes, then the full
   through-A5 gate, Ruff/mypy and git diff --check. Run against the newly synced
-  revision-30 tests and report all results; do not change/skip/xfail them.
+  revision-30 tester module and report all results; do not change/skip/xfail it.
   No docs build needed if docstrings and narrative docs remain unchanged.
 
 Read-only probe (JAX_ENABLE_X64=1/0, uv run --locked python): on

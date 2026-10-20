@@ -62,17 +62,15 @@ def test_overflowing_bound_check_raises_type_error(make):
         make(10**400)
 
 
-def test_zero_boundaries_distinguish_subnormals_from_signed_zero():
-    """Spec 4.7: signed zeros are zero; nextafter neighbours have strict signs."""
-    dtype = jnp.asarray(0.0).dtype
-    tiny = np.nextafter(dtype.type(0), dtype.type(1))
-    x = jnp.asarray([-tiny, -0.0, 0.0, tiny])
+def test_signed_zeros_follow_the_constraint_boundary_inclusion():
+    """Spec 4.7, rev 30: both signed zeros obey the ordinary boundary rule."""
+    x = jnp.asarray([-0.0, 0.0])
     for con, expected in (
-        (c.positive, [False, False, False, True]),
-        (c.nonnegative, [False, True, True, True]),
-        (c.unit_interval, [False, True, True, True]),
-        (c.interval(0, 1), [False, False, False, True]),
-        (c.closed_interval(0, 1), [False, True, True, True]),
+        (c.positive, [False, False]),
+        (c.nonnegative, [True, True]),
+        (c.unit_interval, [True, True]),
+        (c.interval(0, 1), [False, False]),
+        (c.closed_interval(0, 1), [True, True]),
     ):
         for evaluate in (con, jax.jit(con), jax.vmap(con)):
             np.testing.assert_array_equal(evaluate(x), expected)
