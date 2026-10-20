@@ -24,13 +24,16 @@ The work is split up front to keep each implementation/test/docstring diff
 around 300 lines or less. Each part needs separate approval, a maintainer-
 selected branch, one commit, an overwritten REVIEW.md and a stop. The approved
 policy removes the D-023 decision prerequisite; approval of implementation
-parts and A6.4c's minimal docs exception remains separate. REVIEW.md records
+parts remains separate. REVIEW.md records
 this spec alignment, its checks and the still-proposed implementation plan.
 
-Approval for A6.4c will also need a minimal docs/api.md exception: add only
-the new top-level function's autodoc entry so the existing export-coverage
-test passes. Prior A6.1/A6.2 exceptions do not authorize this one. Narrative
-guides and the method reference remain A6 docs to-do.
+Standing maintainer authorization (2026-10-20): "exception approved in
+general". Code steps may add the minimal generated API-reference entries
+needed alongside new exports, keeping the existing export-coverage check
+passing. This is a general exception to the working agreement's code-step
+docs/ restriction; do not request it again for each symbol or step. Narrative
+guides, worked examples and broader reference changes remain separate docs
+steps. A6.4c's one function autodoc entry is covered by this approval.
 
 ## Planning evidence, not implementation verification
 
@@ -708,7 +711,7 @@ Spec 4.2/5/6.1–6.3/7.1–7.3/10.2/10.5/12.1–12.2.
   exponential expectations. Pin unchanged stored issue evidence through both
   forms. Public docstrings cover args, shapes, returns, errors and Slice A's
   unsupported-mode policy, with longer examples deferred to docs.
-- Request the minimal docs/api.md exception described at the top: one
+- Use the standing docs/api.md exception recorded at the top: one
   `autofunction:: survjax.log_likelihood` block, keeping the export-coverage
   test unchanged. No narrative guide or method-reference expansion here.
 - Run every synced A6 likelihood module, including the method, shapes, values,

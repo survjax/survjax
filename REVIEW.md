@@ -23,7 +23,11 @@ by this decision alone; A6.4a–c remain proposed.
   broadcasts support and both diagnostics to the contribution shape.
 - This is accepted behavior, not evidence an evaluator exists. D-023's formal
   status remains the maintainer's. Implementation plan/code approvals are
-  separate, as is the still-proposed A6.4c API-reference exception.
+  separate.
+- The maintainer also approved the minimal generated API-reference exception
+  in general. Code steps may add entries required by new exports without
+  asking again. PLAN.md records this standing authorization; narrative docs,
+  worked examples and broader reference changes remain separate docs steps.
 
 ## Commits and checks actually run
 
@@ -49,4 +53,5 @@ by this decision alone; A6.4a–c remain proposed.
 Independent tests/spec remains read-only at snapshot f527f75, revision 30.
 A maintainer-managed sync must supply acceptance coverage for revision 31's
 stronger eager/compiled parity, preserved neighbors and triage requirements.
-The A6.4 implementation steps and minimal docs exception still await approval.
+The A6.4 implementation steps still await approval; A6.4c's minimal function
+reference entry is covered by the standing docs exception.
