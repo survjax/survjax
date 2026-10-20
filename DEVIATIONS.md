@@ -1,5 +1,29 @@
 # Deviations and spec questions
 
+## D-025 Plain comparisons versus subnormal acceptance expectations
+- Step: A6.1 plain-comparison follow-up planning (2026-10-19).
+- Spec: sections 4.7 and 12.1; independent
+  test_a6_constraints.py::test_unit_interval_includes_zero_and_one.
+- Spec says: nonnegative includes finite x>=0, unit_interval includes
+  0<=x<=1, and constraint tests cover eager/jit/vmap agreement. The independent
+  test requires nextafter(0,-inf) to fail unit_interval in every mode.
+- Did / propose: the maintainer requests removal of jnp.frexp and has chosen
+  JAX parameter-dtype/backend behavior. Propose plain comparisons, retaining
+  inclusive nonnegative pending clarification of "greater than 0". A CPU
+  probe in both dtypes shows finite x>=0 accepts the smallest negative
+  subnormal eagerly/vmap but rejects it under jit. Removing the workaround
+  therefore conflicts with the independent expectation and the stronger
+  transformation guarantee at subnormal boundaries. Report the acceptance
+  failure and preserve the independent test; ask the maintainer to approve
+  this explicit backend-semantic deviation with the implementation plan.
+- Revision-30 alignment note (2026-10-20): section 4.7 now explicitly allows
+  backend-dependent classification of subnormal values/bounds, including at
+  zero, and requires ordinary JAX comparisons with no added handling. The
+  nonnegative domain remains finite x>=0. The normative question is settled;
+  implementation and independent-test synchronization are pending. Formal
+  closure remains the maintainer's.
+- Status: open
+
 ## D-024 Precision and subnormal semantics of constraint bounds
 - Step: A6.1 review check (2026-10-19), reviewer Q1.
 - Spec: section 4.7, unchanged in revisions 28–29.
@@ -18,6 +42,11 @@
   dtype/backend comparison behavior. Preserve the current comparisons and
   existing zero-bound frexp handling. No spec edit is requested; formal
   closure of this entry remains with the maintainer.
+- Revision-30 alignment note (2026-10-20): section 4.7 and decision 0042 now
+  record the maintainer's chosen parameter-dtype/backend behavior and specify
+  no extra handling even at zero bounds. This supersedes the earlier note
+  preserving zero-bound frexp handling. Removing it awaits the maintainer's
+  test sync and instruction; formal closure remains the maintainer's.
 - Status: open
 
 ## D-023 Explicit unsupported likelihood failures under tracing

@@ -1,85 +1,45 @@
-# A6.1 review fix-up — simplex threshold and bound errors
+# Spec alignment — revisions 29–30
 
-Status: approved fix-up implemented on `A6.1`, based on `98be832`.
-Focused checks, M2 mutation evidence and the through-A5 gate pass.
-Ready for review; stop after this fix-up commit. A6.2 has not started.
-
-Review addressed: `../review/slices/A6.1.md`, S1 and N1/N2. The maintainer
-approved the fix-up and chose JAX parameter-dtype/backend behavior for Q1.
-Spec 4.7 is unchanged between revisions 28 and 29. The alignment marker stays
-at revision 28 (`0683e35`); future-step replanning/alignment remains separate.
+Requested 2026-10-20 on `A6.1`, after implementation commit `142b778`.
+Read the full normative range from `0683e35` (revision 28) to
+`fd150db3e82ad744277caecd1c68b2a524ad24df` (revision 30), and current GOALS.
+This step records reading; it does not claim implementation conformance.
 
 ## Read first
 
-1. `tests/unit/test_constraints.py`, the new exact simplex threshold test.
-2. `src/survjax/constraints.py`, `_bound`, then the new huge-bound regression
-   in the same own test module.
-3. `DEVIATIONS.md` D-024 for the maintainer's precision decision and D-023 for
-   the revision-29 note about the still-open unsupported-mode policy.
-4. `PLAN.md`, the approved A6.1 fix-up and warning that the revision-28
-   likelihood plans need updating before another step is approved.
+1. PLAN.md's new revision-30 alignment section and the updated pending
+   plain-comparison plan directly below it.
+2. DEVIATIONS.md D-024/D-025 revision-30 notes; statuses stay open for the
+   maintainer to close. The earlier questions/decisions remain as history.
+3. .spec-seen, now pointing at the current spec commit.
 
-## Changes and invariants
+## Contract changes and invariants
 
-- S1: each length-10 vector has only x[0]=1+k*eps nonzero, so its sum is exact.
-  Spec 4.7's inequality gives acceptance for k=30 and 40, rejection for 41
-  and 50. In particular, 40 is the inclusive 4*n endpoint and 41 is its next
-  representable neighbour. The expected masks are hand-derived from the
-  domain, with no approximate assertion tolerance. Test eager/jit/vmap in
-  each separate dtype process, reading the configured mode via the fixture.
-- N1: overflow during finite-bound validation now gives the existing TypeError
-  and message. Test 10**400 through greater_than and both endpoints of open
-  and closed interval factories. Valid-bound comparisons are unchanged.
-- N2: frozen applies only to the callable dataclass instances. The module
-  functions real/nonnegative/unit_interval have mutable Python attributes;
-  they were not converted to objects or otherwise changed by this fix-up.
-- Q1/D-024: keep current JAX parameter-dtype/backend comparisons and the
-  existing zero-bound frexp handling, following the maintainer's decision.
-  No new mathematical comparison against Python bounds is introduced.
-  Formal deviation closure remains with the maintainer; status stays open.
-- N3: no registration refactor. No public signature/export, constructor,
-  direct-method, constraint domain, simplex implementation, dependency, docs
-  or independent-test changes. No probability floors or epsilons added to
-  numerical calculations; eps here is the specified diagnostic domain.
+- Revision 29 adds the base dist.log_likelihood method, identical to the
+  top-level function in values and derivatives. It removes LikelihoodIssues
+  and log_likelihood_with_info; NaN causes come from data.issues and
+  parameter_issues(), with the remainder representing conditioning/numerical
+  failure. Update the later likelihood plans before their approval.
+- Revision 30 requires ordinary JAX comparisons in the parameter dtype after
+  bound conversion. It permits backend-dependent subnormal classification
+  and adds no special handling, including at zero. nonnegative remains
+  inclusive (finite x>=0); the earlier clarification is no longer needed.
+- Do not change implementation or own/independent tests until the maintainer
+  syncs the acceptance tests and gives the next implementation instruction.
+  The current source still contains frexp and the own strict subnormal test;
+  marking the spec as read is not proof of revision-30 conformance.
+- No spec sources, protected tests, docs, dependencies or runtime APIs changed.
 
-## Checks actually run
+## Checks
 
-All uv commands use UV_CACHE_DIR=/private/tmp/survjax-uv-cache.
+- ../scripts/spec-since.sh dev: listed be8010c and fd150db; normative diffstat
+  was 91 insertions, 44 deletions in spec/SPECIFICATION.md.
+- Read the complete diff and current GOALS. design/spec has no uncommitted
+  changes. No tests, lint, mypy, runtime gate or docs build run in this
+  metadata-only step.
+- ../scripts/spec-since.sh dev --mark: "dev/.spec-seen -> fd150db; commit it
+  in dev". Repeated read-only command: "dev: spec unchanged since fd150db".
+- git diff --check: exit 0, no output.
 
-- Ruff format --check .: exit 0, 56 files already formatted.
-- Ruff check .: exit 0, All checks passed!
-- mypy src: exit 0, Success: no issues found in 14 source files.
-- Focused command, separately for JAX_ENABLE_X64=1 and 0, with SPEC_THROUGH=A6:
-  uv run --locked --group test pytest tests/unit/test_constraints.py
-  tests/unit/test_parameter_constraints.py tests/unit/test_import.py
-  ../spectest/tests/spec/test_a6_constraints.py -q --tb=short
-  -o cache_dir=/private/tmp/survjax-a61-fixup-<mode>.
-  Each process: exit 0, 93 passed in 4.72s (36 own, 57 independent).
-- M2: execute constraints.py's source in an isolated in-memory module after
-  replacing only 4*x.shape[-1]*finfo(x.dtype).eps with 40*..., then temporarily
-  assign that process's constraints.simplex to the mutant. Run pytest.main
-  on the new exact-threshold test with -q --tb=short. Each process, x64/x32:
-  exit 1 as expected, 1 failed in 0.22s; mutant mask [True, True, True, True]
-  differs from expected [True, True, False, False] at indices 2 and 3. The
-  original checkout source was never mutated and needs no restoration.
-- scripts/check.sh --through A5: exit 0, guard ok (A6.1); Ruff format/lint
-  and mypy pass with the same outputs above. Own tests: x64 501 passed,
-  7 skipped in 43.84s; x32 507 passed, 1 skipped in 44.99s. Source doctests:
-  4 passed per mode (1.02s/1.03s). Independent through-A5: x64 1256 passed,
-  26 skipped in 28.32s; x32 1261 passed, 21 skipped in 23.33s. Final line:
-  "check: all gates passed through A5".
-- git diff --check: clean after implementation.
-
-No docs build was run for this fix-up: docs and docstrings are unchanged.
-No complete A6 gate, R fixture check, install check or benchmark was run.
-Independent tests remain read-only and were executed directly from spectest,
-without syncing or changing them. The previous main-step docs entry was
-explicitly authorized by the maintainer's "ok make the minimal entry".
-
-## Remaining questions
-
-D-023 still needs a maintainer decision before A6.4. Revision 29 removes
-LikelihoodIssues/_with_info and adds the base log_likelihood method, so the
-later plan must be refreshed before approval. No later API is implemented
-or asserted verified by this fix-up. There is no remaining A6.1 code question
-from this review; the full gate passes.
+Stop after the alignment commit. The maintainer performs the spec-test sync;
+no implementation work has begun or been resumed by this request.

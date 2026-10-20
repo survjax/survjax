@@ -1,12 +1,85 @@
+# Spec alignment — revision 30 (2026-10-20)
+
+Status: read and marked; **awaiting the maintainer's spec-test sync and later
+instruction before implementation**. This bookkeeping supersedes the pending
+clarifications below, without approving or implementing the plain-comparison
+follow-up. No source, test, docs or specification edits in this step.
+
+Reviewed the full normative diff from marker `0683e35` (revision 28) through
+`fd150db3e82ad744277caecd1c68b2a524ad24df` (revision 30), and current GOALS.
+
+- Revision 29 (`be8010c`), sections 4.1–4.2, 6.1–6.3, 7.1, 11.4 and 12:
+  add the base-owned dist.log_likelihood(data=None, *, time=None, event=None),
+  identical to the top-level function in values and derivatives. Remove
+  log_likelihood_with_info and LikelihoodIssues; explain NaN rows using
+  data.issues and parameter_issues(), broadcast to the contribution shape.
+  Preserve invalid-row NaNs, genuine zero likelihood -inf and gradient
+  isolation. Later A6 likelihood plans below remain historical until replanned.
+- Revision 30 (`fd150db`), section 4.7 and decision 0042: use ordinary JAX
+  comparisons in the parameter dtype, converting bounds to that dtype.
+  Backend-flushed subnormal values/bounds and values within rounding of a bound
+  may be classified either way. Add no extra handling, including at zero.
+  The table still specifies finite x>=0 for nonnegative; zero remains valid.
+  This settles the outstanding boundary clarification and the normative
+  questions behind D-024/D-025; formal entry closure remains the maintainer's.
+- After the independent tests are synced and the maintainer resumes work,
+  update the plain-comparison follow-up below to the synchronized acceptance
+  suite: remove frexp and the own strict subnormal-sign guarantee, retain
+  signed-zero inclusion, ordinary domains, exact simplex threshold and bound
+  TypeError coverage. No implementation change is made now.
+- Run ../scripts/spec-since.sh dev --mark and confirm no unread spec changes.
+  The marker records reading, not conformance. Commit alignment bookkeeping
+  on A6.1 so scripts/sync_spec_tests.sh can start from a clean dev checkout.
+  No runtime checks are needed or claimed for this metadata-only step.
+
+---
+
 # A6 — Revision 28 parameter diagnostics and exact/right likelihood
 
-Status: **A6.1 review fix-up implemented, ready for review** (2026-10-19). This section supersedes
+Status: **A6.1 plain-comparison follow-up planned, awaiting approval** (2026-10-19). This section supersedes
 older forward plans for A6; the A5 records below remain historical.
 Planning starts on clean `main` at `9623594`. The maintainer approved A6.1
 and created branch `A6.1`. Only that code/test step is authorized; later steps
 still need approval. The maintainer creates/selects each step branch; do not
 commit on main. Every implementation step needs its own
 approval, tests, commit, overwritten REVIEW.md and stop.
+
+## A6.1 follow-up — Plain comparisons without frexp (awaiting approval)
+
+Requested after `142b778`: remove jnp.frexp for transparent comparisons.
+Same `A6.1` branch, one small follow-up commit after plan approval, overwrite
+REVIEW.md and stop. No implementation or test edits yet.
+
+- Revision 30 confirms inclusive `nonnegative` as finite x>=0. Signed zeros,
+  zero weights and unit_interval(0) remain valid. No clarification is pending.
+- `src/survjax/constraints.py`: replace all four frexp expressions with plain
+  JAX comparisons: finite x>=0 for nonnegative, finite x>bound for
+  _GreaterThan, and direct lower/upper comparisons in _Interval. No zero-bound
+  special case or replacement decomposition/bit-level workaround. Keep the
+  exact simplex tolerance and finite-bound error normalization unchanged.
+- `tests/unit/test_constraints.py`: replace the own mathematical-subnormal-sign
+  assertion with explicit signed-zero boundary inclusion/exclusion cases.
+  Keep the existing ordinary domain, nonfinite, transformation, simplex exact
+  threshold and huge-bound coverage. Do not assert eager/jit identity for
+  subnormal values when the chosen backend does not provide it.
+- Public API: same signatures/exports. Values at subnormal boundaries inherit
+  JAX/backend comparisons, per the maintainer's preference. No docs, spec,
+  dependency or later-step changes. D-025 records the pre-revision-30 acceptance
+  conflict; await the maintainer's revised spec-test sync. Entry statuses
+  remain the maintainer's responsibility.
+- Validation: focused own constraints/declarations/import tests and the
+  independent A6 constraint module in both dtype processes, then the full
+  through-A5 gate, Ruff/mypy and git diff --check. Run against the newly synced
+  revision-30 tests and report all results; do not change/skip/xfail them.
+  No docs build needed if docstrings and narrative docs remain unchanged.
+
+Read-only probe (JAX_ENABLE_X64=1/0, uv run --locked python): on
+[-nextafter(0,1), -0, 0, nextafter(0,1)], finite x>=0 gives
+[True,True,True,True] eagerly/vmap and [False,True,True,True] under jit,
+for both dtypes in this CPU environment. This is observed backend behavior,
+not a verified cross-backend guarantee. The external independent
+`test_unit_interval_includes_zero_and_one` expects False for the first input.
+No pytest or gate was rerun during this planning check.
 
 ## A6.1 review fix-up — S1 and small nits (approved)
 
