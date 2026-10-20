@@ -60,27 +60,42 @@
 - Status: open
 
 ## D-023 Explicit unsupported likelihood failures under tracing
-- Step: A6 planning, revision 28 (2026-10-19)
-- Spec: sections 3.2, 6.1–6.3, 7.1, 12.2; independent Q-037.
-- Spec says: unsupported observation modes fail explicitly; traced data has
-  all-true may-contain metadata, while raw/traced supported exact/right data
-  must evaluate. The four LikelihoodIssues masks have no unsupported-mode
-  field. Valid left/interval/truncated data is not invalid_data, and absence
-  of an implementation is not numerical_failure or invalid_conditioning.
-- Did / propose: no evaluator implemented. Ask the maintainer to specify the
-  failure and diagnostics policy before A6.4. A possible policy is NaN only on
-  unsupported rows in eager and transformed calls, retaining supported rows,
-  with the existing four masks reserved for their stated meanings; this means
-  NaN without an explanatory issue on unsupported valid data and needs an
-  explicit decision. Independent tests permit eager NotImplementedError or
-  row NaN, require traced row NaN, and deliberately do not settle the masks.
-  Do not reject data solely because traced metadata says it may be unsupported.
-- Revision-29 review note (2026-10-19): LikelihoodIssues and the _with_info
-  entry point are removed. The four-mask premise above is historical; the
-  remaining question is whether unsupported valid rows raise or give NaN,
-  and how callers distinguish them from bad-data/bad-parameter rows and the
-  unexplained NaN remainder of section 7.1's triage recipe. This still needs
-  a maintainer decision before A6.4; no evaluator has been implemented.
+- Step: A6.4 planning against revision 30 (2026-10-20); first raised during
+  revision-28 A6 planning on 2026-10-19, independent Q-037.
+- Spec: sections 3.2, 6.1–6.3, 7.1, 12.2.
+- Spec says: Slice A implements exact/right likelihoods without truncation;
+  other modes fail explicitly. Traced construction has all-true may-contain
+  flags, while supported traced inputs must evaluate. Valid left/interval/
+  truncated observations are not invalid data. Since revision 29 there is no
+  LikelihoodIssues or likelihood _with_info variant: data and parameter
+  diagnostics explain NaNs, and section 7.1 labels the unexplained remainder
+  as zero normalization or numerical failure. Unsupported valid observations
+  fit neither diagnostic nor that remainder's stated meaning.
+- Did / propose: no evaluator implemented. Propose NaN only on unsupported
+  rows, eagerly and under transformations, preserving supported neighbors.
+  Keep data/parameter issue masks truthful and document unsupported modes as
+  an additional cause of unexplained NaN during Slice A. Add no diagnostic
+  container, issue bit or family-type dispatch. Never reject a traced exact/
+  right batch solely because conservative metadata permits unsupported modes.
+  This was proposed before A6.4b; the maintainer's subsequent approval and
+  specification clarification are recorded below.
+- Acceptance evidence: the synced unsupported-mode module permits eager
+  NotImplementedError or row NaN, requires row NaN from traced construction,
+  and explicitly leaves diagnostic attribution and supported-neighbor behavior
+  unspecified. Passing it would not settle the open contract question.
+- Discussion: the maintainer requested more explanation during A6.4 planning.
+  Explained the mixed exact/left-censored example, runtime-versus-Python
+  exception distinction, and why current section 7.1's triage explanation
+  would need an additional cause.
+- Maintainer decision (2026-10-20): approved row-wise NaN eagerly and under
+  transformations, preserving supported contributions and guaranteed
+  derivatives; no new diagnostic container or issue flag. Approved clarifying
+  the spec and triage recipe to check support after data/parameter issues.
+- Spec alignment: revision 31, design commit be7b253, sections 7.1/12.2,
+  decision 0044 (9cc2ab2). The normative policy is settled. The older f527f75
+  independent snapshot remains unchanged; it does not assert all newly settled
+  requirements. Implementation and stronger acceptance evidence remain future
+  work. Formal deviation closure remains the maintainer's responsibility.
 - Status: open
 
 ## D-022 Log-CDF upper tail rounds to zero before S underflows

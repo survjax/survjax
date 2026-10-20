@@ -1,66 +1,52 @@
-# A6.3 review fix-up — Mask batch shapes
+# Revision 31 alignment — Approved unsupported-mode policy
 
-Status: approved fix-up implemented on `A6`, based on `b0b44a5`.
-Addresses S1/S2 in `../review/slices/A6.3.md`; stop after this commit.
-Spec revision 30 and independent snapshot f527f75 are unchanged.
+Status: the maintainer approved the policy and spec clarification during
+A6.4 planning. The spec change is committed separately in design; dev records
+it as read on existing branch A6. No likelihood implementation is authorized
+by this decision alone; A6.4a–c remain proposed.
 
 ## Read first
 
-1. `src/survjax/distributions/_parameter_issues.py`: own mask storage.
-2. `tests/unit/test_parameter_issues.py`: rebuilt-own and per-leaf vmap tests,
-   then the strengthened rebuilt-nested test.
-3. PLAN.md: approved fix-up scope and the optional findings left unchanged.
+1. `spec/SPECIFICATION.md`, sections 7.1 and 12.2: row-wise failure and recipe.
+2. `../design/decisions/0044-unsupported-likelihood-modes.md`: agreement and why.
+3. PLAN.md's current A6.4 plan and DEVIATIONS.md D-023's decision note.
 
-## Invariants and test/spec mapping
+## Agreement and invariants
 
-- Spec 4.7 requires every field/condition mask to have current batch_shape.
-  Construction usually broadcasts leaves, but reconstruction and per-leaf
-  vmap axes can give own leaves different broadcast-compatible batch shapes.
-  Own masks now broadcast after component reduction, before storage, matching
-  nested masks. Union broadcasting alone did not enforce individual shapes.
-- `test_rebuilt_smaller_own_batch_broadcasts_field_masks` checks eager/jit
-  leaves with batch shapes (1,) and (3,): both masks have shape (3,), rate is
-  all True and cap all False, from the declared positive constraints.
-- `test_per_leaf_vmap_broadcasts_mapped_and_shared_field_masks` maps rate while
-  sharing cap: every per-example mask has shape (3,), stacked as (3,3).
-  Its explicit expected rows follow rate [-1,2,3] and positive cap [1,1,1].
-- `test_rebuilt_smaller_nested_batch_broadcasts_diagnostics` now asserts (3,)
-  separately for nested fields and conditions before checking their values.
-  NumPy's scalar/vector equality shortcut cannot hide missing broadcasts.
-- API, keys, polarity, component reductions and aggregate logic are unchanged.
-  Assertions use exact boolean values and shapes; no tolerance is involved.
+- Unsupported modes return NaN only on those rows, eagerly and under jit/vmap.
+  Supported rows retain contributions and the derivatives guaranteed by 7.3.
+- Unsupported valid observations acquire no invalid-data/parameter issue.
+  Check both diagnostics, then mode support, before calling a remaining NaN
+  zero normalization or numerical failure. No new public container or flag.
+- Slice A's support predicate uses current normalized fields: untruncated
+  exact rows or non-exact rows with upper=+inf. The recipe explicitly
+  broadcasts support and both diagnostics to the contribution shape.
+- This is accepted behavior, not evidence an evaluator exists. D-023's formal
+  status remains the maintainer's. Implementation plan/code approvals are
+  separate, as is the still-proposed A6.4c API-reference exception.
 
-## Checks actually run
+## Commits and checks actually run
 
-All uv/gate commands use UV_CACHE_DIR=/private/tmp/survjax-uv-cache.
+- Design `be7b253`: spec(7.1,12.2), revision bump to 31, policy and triage.
+- Design `9cc2ab2`: decision 0044, register entry and cross-reference in 0043.
+  No code or unrelated maintainer files are included in either design commit.
+- `../scripts/spec-since.sh dev --mark`: exit 0, marker -> be7b253.
+  Follow-up `../scripts/spec-since.sh dev`: exit 0,
+  "dev: spec unchanged since be7b253".
+- With UV_CACHE_DIR=/private/tmp/survjax-uv-cache and separate
+  JAX_ENABLE_X64=1/0 processes, `uv run --locked python` executed the recipe
+  extracted verbatim after its unimplemented likelihood call. Supplied a
+  synthetic (2,6) output with supported finite, left-censored, truncated,
+  unexplained NaN, invalid-data and invalid-parameter/unsupported cases.
+  Exact hand-enumerated masks and every output shape (2,6) passed in both
+  processes (exit 0). This tests classification of supplied values only.
+- `git diff --check` in dev and design: exit 0, no output.
+- No pytest suite, Ruff/mypy gate, docs build or likelihood runtime checks:
+  source/tests/docs are unchanged and the evaluator is still unimplemented.
 
-- Separately with JAX_ENABLE_X64=1 and 0, SPEC_THROUGH=A6:
-  `uv run --locked --group test pytest tests/unit/test_parameter_issues.py tests/unit/test_parameter_issue_container.py tests/unit/test_parameter_constraints.py tests/spec/test_a6_constraints.py tests/spec/test_a6_parameter_issues.py -q --tb=short`.
-  Each exit 0: 176 passed, 1 skipped in 4.54s. The existing optional NumPyro
-  interoperability check skips because NumPyro is absent.
-- Separately with JAX_ENABLE_X64=1 and 0:
-  `uv run --locked python /private/tmp/survjax_a63_broadcast_mutations.py`.
-  Each exit 0: four baseline regression checks pass. Removing own broadcasting
-  is rejected by eager, jit and per-leaf vmap shape assertions. Removing nested
-  field broadcasting fails its field shape assertion; removing nested condition
-  broadcasting fails its condition shape assertion. All three mutants are
-  compiled in memory and the class binding is restored; no source file changes.
-- `scripts/check.sh --through A5`: exit 0; guard ok (A6); Ruff format:
-  59 files already formatted; lint: All checks passed!; mypy:
-  Success: no issues found in 15 source files.
-  Own x64: 534 passed, 7 skipped (45.63s); x32: 540 passed, 1 skipped
-  (45.31s). Source doctests: 4 passed per mode (1.06s/1.14s).
-  Independent through-A5 x64: 1256 passed, 26 skipped, 308 deselected (29.56s);
-  x32: 1261 passed, 21 skipped, 308 deselected (24.04s).
-  Final output: "check: all gates passed through A5".
-- `git diff --check`: exit 0, no output before delivery.
+## Remaining work
 
-## Limits and uncertainties
-
-No new spec ambiguity identified; DEVIATIONS.md unchanged. N1's optional
-nonboolean-constraint validation is deferred: such results violate the current
-protocol, and this fix-up adds no new error/coercion policy. N2's pre-existing
-base.py length is unchanged; no registration refactor.
-No docs/spec/independent-test/dependency/export edits. No docs build (docs and
-public docstrings unchanged), complete A6 gate, R, install or benchmark run.
-No A6.4 work; D-023 remains the later likelihood step's open question.
+Independent tests/spec remains read-only at snapshot f527f75, revision 30.
+A maintainer-managed sync must supply acceptance coverage for revision 31's
+stronger eager/compiled parity, preserved neighbors and triage requirements.
+The A6.4 implementation steps and minimal docs exception still await approval.
