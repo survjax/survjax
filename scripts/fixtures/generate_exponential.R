@@ -9,6 +9,10 @@ stopifnot(length(args) <= 1L)
 check_only <- identical(args, "--check-only")
 output <- "tests/fixtures/exponential"
 if (length(args) && !check_only) {
+  if (startsWith(args[[1L]], "--")) {
+    stop("Unknown option: ", args[[1L]])
+  }
+
   output <- args[[1L]]
 }
 
@@ -33,7 +37,8 @@ RNGkind("Mersenne-Twister", "Inversion", "Rejection")
 set.seed(seed)
 
 n <- 16L
-event_time <- rexp(n, rate = 0.35)
+generating_rate <- 0.35
+event_time <- rexp(n, rate = generating_rate)
 censor_time <- runif(n, min = 0.5, max = 5)
 
 data <- data.frame(
@@ -81,7 +86,7 @@ evaluate_survreg <- function(rows, mu) {
 }
 
 references <- list()
-rates <- c(slow = 0.1, generating = 0.35, fast = 1.2)
+rates <- c(slow = 0.1, generating = generating_rate, fast = 1.2)
 
 for (label in names(rates)) {
   rate <- unname(rates[[label]])
@@ -175,6 +180,11 @@ for (label in names(rates)) {
   )
 }
 
+stopifnot(identical(names(references), names(rates)))
+for (label in names(rates)) {
+  stopifnot(identical(references[[label]]$rate, unname(rates[[label]])))
+}
+
 message("Checks passed: 16 synthetic rows, 3 fixed rates, both R reference paths")
 if (check_only) {
   quit(save = "no", status = 0L)
@@ -193,6 +203,9 @@ to_json <- function(value) {
   if (is.numeric(value)) {
     stopifnot(length(value) > 0L, all(is.finite(value)))
     encoded <- sprintf("%.17g", value)
+    # The pinned macOS R decimal reader can lose an ULP; check the text instead.
+    expected <- trimws(formatC(value, digits = 17, format = "g"))
+    stopifnot(identical(encoded, expected))
   } else {
     stopifnot(is.character(value))
     encoded <- encodeString(value, quote = '"')
@@ -209,6 +222,13 @@ dir.create(output, recursive = TRUE, showWarnings = FALSE)
 csv <- file.path(output, "data.csv")
 csv_rows <- sprintf("%d,%.17g,%d", data$row_id, data$time, data$event)
 writeLines(c("row_id,time,event", csv_rows), csv, useBytes = TRUE)
+
+expected_data <- data.frame(
+  row_id = as.character(data$row_id),
+  time = trimws(formatC(data$time, digits = 17, format = "g")),
+  event = as.character(data$event)
+)
+stopifnot(identical(read.csv(csv, colClasses = "character"), expected_data))
 
 header <- list(
   schema_version = 1,
@@ -232,7 +252,7 @@ header <- list(
   row_order = "simulation order",
   simulation = list(
     n = n,
-    event_rate = 0.35,
+    event_rate = generating_rate,
     censoring = "Uniform(0.5,5) independent"
   ),
   counts = list(exact = sum(data$event == 1L), right = sum(data$event == 0L)),
@@ -251,5 +271,8 @@ header <- list(
 )
 
 payload <- to_json(list(header = header, row_id = data$row_id, cases = references))
-writeLines(payload, file.path(output, "expected.json"), useBytes = TRUE)
+json <- file.path(output, "expected.json")
+writeLines(payload, json, useBytes = TRUE)
+stopifnot(identical(readLines(json), payload))
+
 message("Wrote data.csv and expected.json to ", output)

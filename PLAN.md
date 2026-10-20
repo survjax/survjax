@@ -17,7 +17,7 @@ checkout; do not change its branch or files. This worktree inherited an older
 A8 supplies committed, synthetic R references for exponential and Weibull
 exact/right-censored likelihoods without truncation. The required larger
 fixture is a 686-row synthetic `bc`-like dataset, evaluated at the three
-parameter vectors in specification 11.1. Contract: specification revision 28,
+parameter vectors in specification 11.1. Planned contract: specification revision 30,
 sections 4.6, 6.3, 10.3–10.5, 11.1 and 12.1–12.2.
 
 ## Coordination with A6 and A7
@@ -29,7 +29,9 @@ sections 4.6, 6.3, 10.3–10.5, 11.1 and 12.1–12.2.
   A5 distributions and normative parameter mappings. This is the parallel
   preparation proposed here; normal integration still follows A6 then A7.
 - Likelihood reference tests require merged A6, including the final public
-  `log_likelihood` and `log_likelihood_with_info` contract. A8 calls that API;
+  `survjax.log_likelihood` and `dist.log_likelihood` contract. Diagnostics come
+  from `data.issues` and `dist.parameter_issues()`; there is no likelihood
+  `_with_info` variant (revision 29, unchanged by revision 30). A8 calls that API;
   numerical defects go back to the responsible implementation step.
 - A7 owns mpmath, delicate tails, boundary derivatives and debug-nans evidence.
   A8 owns agreement with committed R values. Coordinate any shared edit to
@@ -74,6 +76,20 @@ real-data audit totals. Use the specified 0–7 year grid in steps of 0.05,
 shape `(141, 3)`, and include per-observation survival at observed times.
 
 ## A8.1 Small exponential generator
+
+Review corrections (2026-10-20), authorized by the request to address
+`../review/slices/A8.1.md`: SF-1 adds exact CSV text read-back, per-number JSON
+format checks, case-label/rate checks and written-JSON verification. N-1 rejects
+unknown flags; N-3 uses one generating rate. Keep N-2/N-4 as reviewed. Files:
+the generator, its README, PLAN.md and REVIEW.md; no public API changes.
+The maintainer chose R-only exact text checks after the pinned R decimal
+reader lost one ULP on correct 17-digit output. Verify exact numeric round
+trips separately with Python against the original R hexadecimal values.
+Exercise exports and M6/M7/M8 mutations in temporary directories, check the
+CLI typo fails before writing, and run the through-A5 gate (spec 4.6, 10.4,
+12.1). S-1 updates only the future A8 plan; the inherited `.spec-seen` still
+describes the implementation baseline pending A6 integration. One fix-up
+commit, then stop; do not start A8.2 or commit A8.3 fixture payloads.
 
 Review follow-up: the maintainer requested clearer R structure and spacing.
 Expand calls/checks, separate the script's phases and make the output schema
@@ -152,8 +168,9 @@ dtype; expected values remain the R doubles. Missing or malformed fixtures
 fail explicitly rather than skip. All reference tests use this loader.
 
 Compare per-row exponential likelihoods against each R source, using both
-public likelihood entry points and requiring clear issue masks for valid
-data. Compare direct survival/log survival and include a summed-likelihood
+`survjax.log_likelihood` and `dist.log_likelihood`, and requiring clear
+`data.issues` and `dist.parameter_issues()` diagnostics for valid inputs.
+Compare direct survival/log survival and include a summed-likelihood
 sanity check without letting totals replace per-row assertions. Use existing
 central tolerances. Loader checks and reference tests accompany its code;
 keep the step within 300 changed lines and stop with REVIEW.md.

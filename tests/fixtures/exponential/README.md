@@ -14,6 +14,14 @@ Rscript --vanilla scripts/fixtures/generate_exponential.R
 Rscript --vanilla scripts/fixtures/generate_exponential.R /tmp/exponential-run1
 ```
 
+Unknown `--` options fail before simulation or output. `--check-only` checks
+the references and case labels; a full run also checks the export: CSV columns
+and decimal text must read back identically, JSON numbers must match 17-digit
+formatting, and the written JSON must match the encoded payload. The pinned
+macOS R decimal reader can lose one ULP on correct 17-digit text, so numeric
+round trips are checked separately against R hexadecimal values with Python
+during validation. Python is not required by the generator.
+
 Seed 8101 with Mersenne-Twister/Inversion/Rejection generates 16 event times
 from an exponential rate of 0.35/year and independent Uniform(0.5, 5) year
 censoring. Simulation order is preserved; `event=1` means exact and `0` right
