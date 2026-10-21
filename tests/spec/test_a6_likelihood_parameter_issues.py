@@ -9,6 +9,9 @@ Since revision 29 there is no ``LikelihoodIssues``: rows marked by
 ``dist.parameter_issues().invalid_entries``, broadcast to the contribution
 shape, are NaN, and the documented triage recipe (7.1) reads the causes of NaN
 rows from ``data.issues`` and ``dist.parameter_issues()`` (``helpers.nan_causes``).
+Revision 32 widens the isolation of rows without issues to second derivatives,
+both modes, every violation class and custom and nested families; that suite is
+``test_a6_likelihood_gradient_isolation.py``.
 """
 
 import jax
@@ -285,7 +288,7 @@ def test_rows_without_issues_keep_their_values():
 @pytest.mark.step("A6")
 @pytest.mark.parametrize("mode", ["rev", "fwd"])
 def test_rows_without_issues_keep_their_gradients(mode):
-    """spec 7.1, rev 28: forcing NaN "leaves the ... parameter gradients of other rows unchanged" (per-row parameters).
+    """spec 7.1, rev 32: rows without issues give "the same first ... parameter derivatives as when evaluated alone" (per-row parameters).
 
     The Jacobian rows of the valid contributions are finite, equal the
     hand-derived diagonal, and carry exactly zero with respect to the invalid
@@ -305,7 +308,7 @@ def test_rows_without_issues_keep_their_gradients(mode):
 @pytest.mark.step("A6")
 @pytest.mark.parametrize("mode", ["rev", "fwd"])
 def test_rows_without_issues_keep_their_gradients_under_jit(mode):
-    """spec 7.1 and 7.3, rev 28: the gradient guarantee for rows without issues holds under `jit`."""
+    """spec 7.1 and 7.3, rev 32: the derivative guarantee for rows without issues holds under `jit`."""
     rate, data = _per_row_case()
 
     def ll(r):
@@ -319,7 +322,7 @@ def test_rows_without_issues_keep_their_gradients_under_jit(mode):
 
 @pytest.mark.step("A6")
 def test_sum_over_valid_rows_has_alone_gradient():
-    """spec 7.1, rev 28: the gradient of the valid rows' sum equals that of the valid rows evaluated alone."""
+    """spec 7.1, rev 32: the gradient of the valid rows' sum equals that of the valid rows evaluated alone."""
     rate, data = _per_row_case()
     keep = jnp.asarray(ROWS_OK)
 
