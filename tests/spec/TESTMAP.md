@@ -1,6 +1,6 @@
 # Test map
 
-Spec: revision 30 (see `.spec-seen`). Unchanged requirements keep their
+Spec: revision 32 (see `.spec-seen`). Unchanged requirements keep their
 earlier revision tags. Tests from the revision 10 decision (sections 6.2, 10.2,
 13) are tagged `rev 10`. Tests from the performance amendment (section 7.2),
 accepted in revision 11, are tagged `rev 11`. A4 tests derive from revision 11 and
@@ -55,7 +55,19 @@ subnormals may be classified either way) changes only
 `test_a6_constraints.py`: `test_unit_interval_includes_zero_and_one` now
 probes below 0 at `-finfo.tiny` instead of the negative subnormal
 `nextafter(0, -inf)`, and new `rev 30` tests pin the cases ordinary
-comparison still fixes (`±finfo.tiny`, `-0.0`). The mpmath references
+comparison still fixes (`±finfo.tiny`, `-0.0`). Revision 31 (decision
+0044: unsupported Slice A modes return NaN rows eagerly and under
+transformations, preserving supported rows, without adding data or parameter
+issues; the triage recipe checks mode support; 7.1, 12.2) rewrites
+`test_a6_unsupported_modes.py` (rev 31; Q-037 resolved) and adds the mode
+check to `helpers.nan_causes` (new `helpers.supported_mode`,
+`helpers.unsupported_nan`); callers' data are all supported, so their
+assertions are unchanged. Revision 32 (decision 0045: the likelihood stops
+gradients on parameter entries of rows with issues; isolation to second
+order, both modes, every violation class and family; 7.1, 7.2, 7.3, 12.1)
+adds `test_a6_likelihood_gradient_isolation.py` and retags the three
+gradient tests of `test_a6_likelihood_parameter_issues.py` whose quoted
+mechanism text was removed. The mpmath references
 need `mpmath` in the test environment. Tests are static acceptance tests and have never
 been executed against survjax. Test names below are relative to `tests/spec/`.
 
@@ -1148,7 +1160,7 @@ Each constraint is checked eagerly, under `jit` and under `vmap` (helper
 | 7.1/5 | with valid data the NaN rows are `invalid_entries` broadcast to the contribution shape (paired, scalar distribution, `(D,1)` draws); valid parameters give no NaN. | `test_nan_rows_are_parameter_issues_invalid_entries`, `test_scalar_invalid_distribution_marks_every_row`, `test_invalid_entries_broadcast_over_draws`, `test_valid_parameters_give_no_nan_rows` |
 | 7.1 | triage recipe: a row with invalid data and parameters is attributed to both; undeclared NaN is the remainder (`other`). | `test_invalid_parameters_and_invalid_data_overlap`, `test_undeclared_nan_is_the_recipe_remainder`, `test_undeclared_negative_rate_log_is_the_recipe_remainder` |
 | 7.1/12.1 | method equals function on violations; raw form in both. | `test_method_and_function_agree_on_parameter_violations`, `test_raw_form_forces_nan_on_parameter_violations` |
-| 7.1/12.1 | rows without issues keep their values and parameter gradients (per-row parameters; Jacobian in both modes, eager and `jit`; sum over valid rows). | `test_rows_without_issues_keep_their_values`, `test_rows_without_issues_keep_their_gradients`, `test_rows_without_issues_keep_their_gradients_under_jit`, `test_sum_over_valid_rows_has_alone_gradient` |
+| 7.1/12.1 | rows without issues keep their values and parameter gradients (per-row parameters; Jacobian in both modes, eager and `jit`; sum over valid rows). Rev 32 widening: `test_a6_likelihood_gradient_isolation.py`. | `test_rows_without_issues_keep_their_values`, `test_rows_without_issues_keep_their_gradients`, `test_rows_without_issues_keep_their_gradients_under_jit`, `test_sum_over_valid_rows_has_alone_gradient` |
 | 7.1/5 | `jit` and `vmap` agreement of values and `invalid_entries`. | `test_parameter_violations_under_jit_match_eager`, `test_parameter_violations_under_vmap_match_batched_call` |
 
 ### A6 (section 4.7 part): deliberately not tested
@@ -1161,8 +1173,13 @@ Each constraint is checked eagerly, under `jit` and under `vmap` (helper
   4.5 gives "possibly finite" values and 7.2 leaves `reference_time()`
   unspecified for invalid parameters, so neither the value nor the absence
   of an issue is asserted.
-- **Shared (non-per-row) parameters with an invalid entry**: 7.1 makes the
-  unchanged-gradient guarantee for per-row parameters only.
+- **A shared (scalar) leaf that is itself invalid**: every row then has an
+  issue, so no row is left to isolate. A shared valid leaf beside a per-row
+  invalid one is tested (rev 32: leaves are broadcast to `batch_shape`).
+- **Undeclared invalidity** (7.1, rev 32): "is not masked and has no
+  isolation guarantee".
+- **The 7.2 `stop_gradient` exception as such** (rev 32): observable only as
+  the isolation, which is tested.
 - **Exact `raise_if_invalid()` message text**: only the presence of names,
   counts and first indices.
 - **`simplex` exactly at the `4*n*eps` tolerance edge, `ordered` of length
@@ -1180,7 +1197,7 @@ Each constraint is checked eagerly, under `jit` and under `vmap` (helper
 - **`parameter_issues()` is not overridden by families**: a rule for family
   authors with no observable outcome.
 
-## A6: exact and right-censored likelihood, method, unsupported modes (spec 4.2, 5, 6.1–6.3, 7.1, 7.2, 12.2; rev 28, 29)
+## A6: exact and right-censored likelihood, method, unsupported modes (spec 4.2, 5, 6.1–6.3, 7.1–7.3, 12.2; rev 28, 29, 31, 32)
 
 Hand-derived exponential and Weibull contributions (`Z=1` without
 truncation). Tails, boundaries, mpmath and `jax_debug_nans` are A7; R
@@ -1246,27 +1263,44 @@ Invalid-data and parameter-issue NaN rows through the method are in
 `test_a6_likelihood_parameter_issues.py`; the method's static shape
 mismatch is in `test_a6_likelihood_shapes.py`.
 
-### `test_a6_unsupported_modes.py`: explicit failure (Q-037)
+### `test_a6_unsupported_modes.py`: NaN rows for unsupported modes (rev 31)
+
+Cases: left, interval, bounds-left, bounds-interval, left-truncated exact and
+right, right-truncated exact; row 0 is a supported exact row.
 
 | Spec section | Requirement covered | Test |
 | --- | --- | --- |
-| 3.2/12.2 | left, interval, bounds-left, bounds-interval, left- and right-truncated rows are valid data. | `test_unsupported_row_is_valid_data` |
-| 12.2 | they fail explicitly: `NotImplementedError` or NaN on the row, function and method. | `test_unsupported_mode_fails_explicitly`, `test_unsupported_mode_fails_explicitly_in_method` |
-| 3.2/6.1/12.2 | with traced construction the row is NaN. | `test_unsupported_mode_from_traced_construction_is_nan` |
+| 3.2/7.1 | the rows are valid data and add no data or parameter issue. | `test_unsupported_row_is_valid_data`, `test_unsupported_row_adds_no_parameter_issue` |
+| 7.1/12.2 | NaN on the row without an exception, function and method; the supported row keeps its value; method equals function. | `test_unsupported_row_is_nan`, `test_unsupported_row_is_nan_in_method`, `test_supported_row_keeps_its_value`, `test_supported_row_keeps_its_value_in_method` |
+| 7.1/12.2 | the same under `jit` (prepared data, both entry points), traced construction and `vmap` over draws. | `test_unsupported_row_is_nan_under_jit`, `test_unsupported_mode_from_traced_construction_is_nan`, `test_unsupported_row_is_nan_under_vmap` |
+| 7.1/12.2 | the Slice A triage recipe attributes the row to mode support (`unsupported_nan`), not `other`. | `test_triage_recipe_attributes_row_to_mode_support` |
+| 7.1/7.3 | the supported row keeps its first and second rate derivatives, per-row (Jacobian both modes, Hessian, `jit`) and with a shared rate. | `test_supported_row_keeps_its_gradient_per_row`, `test_supported_row_keeps_its_hessian_per_row`, `test_supported_row_keeps_its_gradient_with_shared_rate`, `test_supported_row_keeps_its_gradient_under_jit` |
+
+### `test_a6_likelihood_gradient_isolation.py`: isolation of rows without parameter issues (rev 32)
+
+Each case: three rows, row 1 violates a declaration. "Alone" is the family
+built from the per-row leaves at rows 0 and 2 on those data rows, as a
+function of the same flat parameter vector.
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 7.1/12.1 | values of rows without issues equal alone; row 1 NaN. Violation classes zero, negative, NaN, `+inf`, `-inf` (and non-finite `real`), and named conditions; Exponential, Weibull (per-row scale with shared shape, per-row shape with shared scale), custom `constrained_rate`, `capped_rate` condition, `component_constrained` (batch leaf and component leaf), nested `scaled_capped` (base leaf, outer leaf, base and outer conditions). | `test_rows_without_issues_keep_values[*]` |
+| 7.1/7.3/12.1 | first and second derivatives equal alone, finite, in every leaf: `jacrev`, `jacfwd`, fwd-over-rev, rev-over-rev, fwd-over-fwd, rev-over-fwd. | `test_rows_without_issues_keep_derivatives[*]` |
+| 7.1/7.3 | the same under `jit`; through `dist.log_likelihood`. | `test_rows_without_issues_keep_derivatives_under_jit[*]`, `test_rows_without_issues_keep_derivatives_in_method[*]` |
+| 7.1/7.3 | hand-derived anchors: Exponential per-row Hessian; Weibull shared-shape gradient and Hessian with a negative per-row scale; nested shared `log_ratio` with a NaN base rate. | `test_exponential_isolated_hessian_is_hand_derived`, `test_weibull_shared_shape_derivatives_are_hand_derived`, `test_nested_shared_log_ratio_derivatives_are_hand_derived` |
 
 ### A6 (likelihood part): deliberately not tested
 
-- **How unsupported modes fail, beyond ruling out a plausible value**
-  (12.2): no exception type, issue mask or effect on supported rows is
-  specified (Q-037).
+- **Unsupported-row derivatives** (7.1, rev 31): "unspecified".
 - **Families do not override `log_likelihood`** (4.2): a rule for family
   authors; whether registration rejects an override is not specified.
 - **`Z=0` NaN rows** (the recipe's `other`): `Z=0` needs truncation, Slice B;
   the bounded-support zero-numerator versus zero-denominator case of 12.1 is
   Slice B for the same reason.
 - **Invalid rows whose normalized kind may be left or interval** (conflicting
-  flags, equal non-exact bounds): which failure applies is unclear while
-  unsupported modes fail explicitly (Q-037). They return at Slice B.
+  flags, equal non-exact bounds): rev 31 makes them NaN either way, but the
+  triage of such rows (both invalid data and possibly unsupported) is left
+  to Slice B with the modes themselves.
 - **Inactive-input substitution** (7.2: own window for exact rows,
   `reference_time()` for censored rows, `stop_gradient`): not observable on
   valid exact/right data beyond finite values and gradients; A7
@@ -1277,6 +1311,8 @@ mismatch is in `test_a6_likelihood_shapes.py`.
 - **No host callbacks or synchronisation** (7.2) beyond the transfer guard:
   callbacks are not observable through the public API.
 - **Tails, narrow cases, boundaries, mpmath and R fixtures**: A7 and A8.
-- **Second derivatives, Hessians, `check_grads`**: A9 (7.3).
+- **Second derivatives, Hessians, `check_grads`**: A9 (7.3), except the
+  rev 31/32 isolation of supported rows and of rows without parameter
+  issues, which 12.1 lists with the parameter diagnostics.
 - **"Multiplying invalid rows by zero does not make them valid"**: guidance
   for callers, not library behaviour.

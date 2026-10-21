@@ -252,12 +252,26 @@ def ll_method(dist, data=None, **raw):
     return np.asarray(dist.log_likelihood(data, **raw))
 
 
+def supported_mode(data):
+    """The Slice A mode-support view of the spec 7.1 (rev 31) triage recipe, as a NumPy bool array.
+
+    Exact or right-censored (``upper=+inf``) rows without truncation; a view of
+    normalized fields, not a public container.
+    """
+    return (
+        (np.asarray(data.left_trunc) == 0)
+        & np.isposinf(np.asarray(data.right_trunc))
+        & (np.asarray(data.exact).astype(bool) | np.isposinf(np.asarray(data.upper)))
+    )
+
+
 def nan_causes(dist, data, value):
-    """The spec 7.1 (rev 29) triage recipe, as NumPy bool arrays of ``value``'s shape.
+    """The spec 7.1 (rev 31) Slice A triage recipe, as NumPy bool arrays of ``value``'s shape.
 
     Returns ``(bad_data, bad_params, other)``: ``data.issues.invalid_rows`` and
     ``dist.parameter_issues().invalid_entries`` broadcast to the contribution
-    shape, and the NaN rows neither explains (``Z=0`` or numerical failure).
+    shape, and the NaN rows that neither explains and whose mode is supported
+    (``Z=0`` or numerical failure). ``unsupported_nan`` gives the rest.
     For raw-form inputs pass ``SurvivalData(time, event)``, as the recipe says.
     """
     value = np.asarray(value)
@@ -265,5 +279,14 @@ def nan_causes(dist, data, value):
     bad_params = np.broadcast_to(
         np.asarray(dist.parameter_issues().invalid_entries).astype(bool), value.shape
     )
-    other = np.isnan(value) & ~bad_data & ~bad_params
+    unsupported = np.broadcast_to(~supported_mode(data), value.shape)
+    other = np.isnan(value) & ~bad_data & ~bad_params & ~unsupported
     return bad_data, bad_params, other
+
+
+def unsupported_nan(dist, data, value):
+    """The recipe's ``unsupported_nan`` (spec 7.1, rev 31): unexplained NaN rows in an unsupported mode."""
+    value = np.asarray(value)
+    bad_data, bad_params, _ = nan_causes(dist, data, value)
+    unsupported = np.broadcast_to(~supported_mode(data), value.shape)
+    return np.isnan(value) & ~bad_data & ~bad_params & unsupported

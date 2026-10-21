@@ -452,30 +452,16 @@ on it. Guessed exception types and call shapes are centralised in
   `test_parameter_constraints_*`, `test_numpyro_constraint_object_is_accepted`,
   `test_built_in_constraints_behave_as_positive`.
 
-## Q-037: how Slice A fails explicitly for unimplemented modes (spec 12.2, rev 28)
+## Q-037: how Slice A fails explicitly for unimplemented modes (spec 12.2, rev 28) — resolved by rev 31
 
-- **Checked:** 3.2, 6.1, 6.2, 7.1, 12.2.
-- **Open:** 12.2 says unimplemented observation modes (left and interval
-  censoring, truncation) "fail explicitly instead of producing plausible
-  values", without an exception type, issue mask or value.
-- **Derived constraint, possibly a spec inconsistency:** traced construction
-  sets every may-contain flag (3.2), and traced exact/right-censored data must
-  evaluate (6.1: raw form "behaves identically eagerly and under `jit`";
-  12.1 compiled composition). A failure decided at trace time from metadata
-  would therefore reject every traced dataset, so under `jit` with traced
-  construction only a value-based failure (NaN on the unsupported row) is
-  consistent. Under the rev 29 triage recipe (7.1) such a NaN row would fall
-  in the remainder ("`Z=0` or numerical failure"), which mislabels it; it
-  cannot be in `data.issues.invalid_rows` without contradicting
-  `data.issues.ok`. The method `dist.log_likelihood` is assumed to fail the
-  same way as the function (7.1: it "returns exactly what the function
-  returns").
-- **Guess:** eager concrete data may raise `NotImplementedError` or give NaN
-  on the unsupported row; traced construction gives NaN. Neither the issue
-  mask nor the value of supported rows in the same call is asserted.
-- **Depends:** every test in `test_a6_unsupported_modes.py`; also why
-  `test_a6_likelihood_invalid_data.py` avoids invalid rows whose normalized
-  kind could be left or interval (conflicting flags, equal bounds endpoints).
+- **Resolved by rev 31 (decision 0044):** unsupported rows return NaN in both
+  entry points, eagerly and under `jit`/`vmap`, without a value-dependent
+  exception; supported rows keep their values and derivatives; no data or
+  parameter issue is added, and the 7.1 recipe gains a mode-support check
+  (`helpers.supported_mode`, `helpers.unsupported_nan`). The
+  `NotImplementedError` alternative is withdrawn.
+- **Depends:** nothing guessed remains; `test_a6_unsupported_modes.py` follows
+  the spec text.
 
 ## Q-038: likelihood module placement (spec 6.3, 10.2, rev 28; narrowed by rev 29)
 
