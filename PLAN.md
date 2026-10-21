@@ -1,8 +1,9 @@
 # A6.4 replanning — Exact/right likelihood (2026-10-21)
 
-Status: **A6.4a rework implemented; ready for review**.
-The maintainer's "get to it" authorizes the next planned part on `A6` at
-`2247f88`. Finish A6.4a rework, commit and stop; A6.4b1/b2/c remain proposed.
+Status: **A6.4b1 implemented; ready for review**.
+The maintainer's "ok now do the actual next step" authorizes A6.4b1 on `A6`
+at `9099310`. Finish the helper and its tests, commit and stop; A6.4b2/c
+remain proposed. A6.4a rework is complete.
 Initial alignment on maintainer-selected branch `A6` at `21c2632` read the complete normative
 diff from `be7b253` to `cf4fef9`, current sections 7.1–7.3/12.1, decision 0045,
 and the A6.4a review and designer request. Ran spec-since.sh dev --mark;
@@ -26,7 +27,7 @@ calculations still must not be stopped. No edit to that protected file or
 new design decision is needed here. Direct-method policy remains section 4.5.
 The superseded zero-only guards are now removed. Rework and core integration
 are separate reviewable steps below; the initial alignment pass changed no
-code, and only A6.4a rework has since been approved and implemented.
+code. A6.4a rework and the separately approved A6.4b1 are complete.
 
 The expanded A6.4a–c plan below replaces the obsolete revision-28 likelihood
 outline. Revision 29 requires one array-returning function plus the base
@@ -43,8 +44,8 @@ D-023's formal status stays with the maintainer; no implementation is claimed.
 
 The work is split up front to keep each implementation/test/docstring diff
 around 300 lines or less. Each part needs separate approval, a maintainer-
-selected branch, one commit, an overwritten REVIEW.md and a stop. The next
-part is A6.4a rework; A6.4b1/b2/c remain proposed. D-023 and review B1's
+selected branch, one commit, an overwritten REVIEW.md and a stop. Stop for
+review of A6.4b1; A6.4b2/c remain proposed. D-023 and review B1's
 design decisions are settled by revisions 31 and 32 respectively. Do not
 rewrite the published A6.4a commit or treat its checks as revision-32 evidence.
 
@@ -689,7 +690,7 @@ step; stop after committing for review.
 
 ## Step A6.4b1 — Prepare parameter leaves for likelihood evaluation
 
-Status: **proposed, not approved**. Requires reviewed A6.4a rework.
+Status: **implemented, ready for review** (2026-10-21).
 One concept: section 7.1's parameter-gradient barrier. Spec 4.1/4.7/5/7.1–7.3/
 12.1, revision 32. Target at most 300 implementation/test/docstring lines.
 
@@ -723,6 +724,15 @@ One concept: section 7.1's parameter-gradient barrier. Spec 4.1/4.7/5/7.1–7.3/
   exceeds the budget, replan before adding more code or tests.
 - Docs to-do: declared constraints/conditions suffice for likelihood
   isolation; undeclared invalidity and direct-method calls are outside it.
+
+Implementation evidence: the private helper and 38 tests add 300 lines
+(41 source, 259 tests). All 35 violation/family cases preserve valid-row
+values and derivatives through second order, including jit/vmap and shared
+leaves. Structural tests cover smaller rebuilt nested leaves, two component
+axes, per-leaf vmap and draws columns. The full through-A5 gate passes in
+both dtypes (own suites 572/578 passed, existing 7/1 skips). Initial test-hook
+shape errors and their correction are recorded honestly in REVIEW.md.
+No public likelihood or core integration yet; stop after this commit.
 
 ## Step A6.4b2 — Private exact/right likelihood core
 
