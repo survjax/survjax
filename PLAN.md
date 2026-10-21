@@ -1,8 +1,9 @@
 # A8 R fixtures and reference tests
 
-Status: A8.1 accepted; A8.2 implemented on 2026-10-20 on the existing unmerged
+Status: A8.1/A8.2 accepted; A8.3 generated and validated on 2026-10-21 on the unmerged
 `a8-1-r-generator` branch. Do not merge before at least A8.3, per maintainer.
-A8.2 checks and review are recorded in REVIEW.md; commit and stop. The maintainer
+A8.3 generation evidence is recorded in REVIEW.md; the generated-data size
+exception was explicitly approved in the final commit request. Commit and stop. The maintainer
 approved starting work and created this isolated checkout at
 `/Users/wamster3/dev/survjax/dev-a8`, branch `a8-1-r-generator`, from main
 at `9623594`. Read this checkout's AGENTS.md/CLAUDE.md and the current spec,
@@ -18,7 +19,7 @@ checkout; do not change its branch or files. This worktree inherited an older
 A8 supplies committed, synthetic R references for exponential and Weibull
 exact/right-censored likelihoods without truncation. The required larger
 fixture is a 686-row synthetic `bc`-like dataset, evaluated at the three
-parameter vectors in specification 11.1. Planned contract: specification revision 30,
+parameter vectors in specification 11.1. Planned contract: specification revision 32,
 sections 4.6, 6.3, 10.3–10.5, 11.1 and 12.1–12.2.
 
 ## Coordination with A6 and A7
@@ -155,6 +156,16 @@ Target at most 300 changed lines; stop with REVIEW.md before the next step.
 
 ## A8.3 Generate and review the committed R outputs
 
+Current execution: the maintainer requested this step in this conversation.
+Run the reviewed, unchanged generators in the pinned R environment twice per
+fixture into temporary destinations. Validate byte identity, schema, row/group
+counts, finite values, case labels, checksums and exact R-to-Python numeric
+read-back. Import verified candidates; update both fixture READMEs and REVIEW.md.
+No public API, generator, Python/test, dependency, spec-marker or narrative-doc
+changes. Run the through-A5 gate; leave A6/A7 integration and A8.4/A8.5 untouched.
+The generated-data diff exceeds 300 lines; prepare the concrete payloads for
+the explicit exception below before committing. One data-only step, then stop.
+
 Files: `data.csv` and `expected.json` in both fixture directories; update their
 READMEs with exact regeneration commands and provenance.
 
@@ -172,11 +183,12 @@ outputs out of the code diffs and review them through provenance, regeneration
 and structural checks. If that exception is declined, agree a partitioned
 fixture layout before generation. Do not silently exceed the code-step budget.
 
-Local preflight found R 4.4.2, flexsurv 2.3.2 and survival 3.7.0 (the R version
-notation for package release 3.7-0). Loading flexsurv failed with OpenMP
-shared-memory error 179 in this environment. Package metadata alone is not a
-successful reference run. No fixtures were generated during planning; never
-replace unavailable R results with Python-generated or hand-entered numbers.
+The reviewed generators ran successfully for A8.3 outside the sandbox with
+R 4.4.2, flexsurv 2.3.2 and survival 3.7.0 (release 3.7-0). Both fixture sets
+were generated twice and byte-compared; exact numeric read-back was checked
+against original R hexadecimal values. Four payloads are 706 generated lines
+and 341,548 bytes. The data-only size exception was approved in the final commit request;
+source code and handwritten verification values were not substituted.
 
 ## A8.4 Fixture loader and exponential reference tests
 

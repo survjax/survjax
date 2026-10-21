@@ -1,8 +1,8 @@
-# Synthetic exponential R reference (A8.1)
+# Synthetic exponential R reference
 
-This directory currently contains the generator handoff only. `data.csv` and
-`expected.json` are produced and reviewed separately in A8.3; no numerical
-agreement with survjax is claimed yet. No patient data are loaded.
+The committed `data.csv` and `expected.json` were generated and verified in
+A8.3. No numerical agreement with survjax is claimed yet; that comparison is
+A8.4. No patient data are loaded.
 
 From the repository root, use R 4.4.2, flexsurv 2.3.2 and survival 3.7-0
 (reported by R as `3.7.0`). No additional R packages are needed for export:
@@ -12,6 +12,9 @@ Rscript --vanilla scripts/fixtures/generate_exponential.R --check-only
 Rscript --vanilla scripts/fixtures/generate_exponential.R
 # Optional destination for independent regeneration (overwrites payload files):
 Rscript --vanilla scripts/fixtures/generate_exponential.R /tmp/exponential-run1
+Rscript --vanilla scripts/fixtures/generate_exponential.R /tmp/exponential-run2
+cmp /tmp/exponential-run1/data.csv /tmp/exponential-run2/data.csv
+cmp /tmp/exponential-run1/expected.json /tmp/exponential-run2/expected.json
 ```
 
 Unknown `--` options fail before simulation or output. `--check-only` checks
@@ -48,5 +51,19 @@ named `cases`. Each case records natural/log/AFT parameters and separate
 records RNG, versions, platform, units, realized counts, evaluation paths and
 MD5 checksums of the CSV and generator. Numbers use 17 significant digits;
 nonfinite values fail checks. There are no timestamps or destination paths.
-In A8.3, generate twice into separate destinations and byte-compare both files
-on the same platform before committing. Normal tests will only read outputs.
+Both payload files were byte-identical across two independent runs on the
+recorded platform. Repeat the commands above for regeneration. Normal tests
+only read committed outputs.
+
+## Generation provenance
+
+Generated on 2026-10-21 from the unchanged generators at commit
+`8e8a96a8302f5706ce3434152ddabab146b9881a` on `aarch64-apple-darwin20`.
+Rows: 16; exact: 11; right-censored: 5.
+R/package versions and generator/CSV MD5 hashes are also stored in the JSON
+header. These are SHA-256 hashes of the exact committed payload bytes:
+
+```text
+048a990f9dbdab3b34182e7cd286c9de0a68ffa3893a4c3d14c2d91610a2af19  data.csv
+32b09d596481c7a96d6136b8e284b01ae3f68925c89ef34c076330795905ae38  expected.json
+```
