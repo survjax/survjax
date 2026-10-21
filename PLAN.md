@@ -1,11 +1,29 @@
-# A6.4 planning — Exact/right likelihood (2026-10-20)
+# A6.4 replanning — Exact/right likelihood (2026-10-21)
 
-Status: **A6.4a implemented; ready for review**. A6.3 and its
-fix-up are merged; planning started from clean `main` at `e0e0b4e`. The approved
-policy is now spec revision 31, .spec-seen `be7b253`. The existing `A6` branch
-is selected for this alignment; tests/spec/SOURCE_COMMIT remains `f527f75`.
-Read current GOALS, spec 3.2–3.3/4.2/4.5/6.1–6.3/7.1–7.3/10.2/10.5/12,
-the merged data/diagnostic/distribution code and synced A6 likelihood tests.
+Status: **revision 32 read and marked; replacement plan awaits approval**.
+On maintainer-selected branch `A6` at `21c2632`, read the complete normative
+diff from `be7b253` to `cf4fef9`, current sections 7.1–7.3/12.1, decision 0045,
+and the A6.4a review and designer request. Ran spec-since.sh dev --mark;
+.spec-seen is now `cf4fef9`. Independent tests remain snapshot `f527f75`;
+marking the spec read does not update those tests or establish conformance.
+
+Review B1 demonstrates that A6.4a's family-local guards isolate only zeros;
+NaN, infinity and negative violations still contaminate reverse derivatives.
+Revision 32 settles the mechanism: the likelihood broadcasts every parameter
+leaf to the current distribution batch shape, then stops its gradients only
+at entries in parameter_issues().invalid_entries, before any family code.
+Nested leaves and component axes are included. Parameter values stay unchanged;
+final invalid-row contributions are NaN. Valid rows retain values, gradients
+and Hessians in forward and reverse modes. Invalid-row gradients remain
+unspecified, and undeclared invalidity has no isolation guarantee.
+
+This expressly authorizes the invalid-entry exception to the older
+stop_gradient wording in CLAUDE.md; valid parameters and active valid
+calculations still must not be stopped. No edit to that protected file or
+new design decision is needed here. Direct-method policy remains section 4.5.
+Remove the superseded zero-only guards rather than extend them. Rework and
+core integration are separate reviewable steps below; no code changes in
+this alignment pass, and no new implementation approval is inferred.
 
 The expanded A6.4a–c plan below replaces the obsolete revision-28 likelihood
 outline. Revision 29 requires one array-returning function plus the base
@@ -22,13 +40,10 @@ D-023's formal status stays with the maintainer; no implementation is claimed.
 
 The work is split up front to keep each implementation/test/docstring diff
 around 300 lines or less. Each part needs separate approval, a maintainer-
-selected branch, one commit, an overwritten REVIEW.md and a stop. The approved
-policy removes the D-023 decision prerequisite; A6.4b/c implementation
-approvals remain separate. Spec alignment is recorded in 56c503e; REVIEW.md
-now records the A6.4a implementation and its checks.
-The maintainer has now instructed implementation of the next step, A6.4a,
-on existing branch A6 at 3b0c3bf. A6.4b/c remain unapproved. Finish A6.4a
-with its tests, commit and overwritten REVIEW.md, then stop.
+selected branch, one commit, an overwritten REVIEW.md and a stop. The next
+part is A6.4a rework; A6.4b1/b2/c remain proposed. D-023 and review B1's
+design decisions are settled by revisions 31 and 32 respectively. Do not
+rewrite the published A6.4a commit or treat its checks as revision-32 evidence.
 
 Standing maintainer authorization (2026-10-20): "exception approved in
 general". Code steps may add the minimal generated API-reference entries
@@ -38,7 +53,7 @@ docs/ restriction; do not request it again for each symbol or step. Narrative
 guides, worked examples and broader reference changes remain separate docs
 steps. A6.4c's one function autodoc entry is covered by this approval.
 
-## Planning evidence, not implementation verification
+## Historical revision-31 planning evidence, superseded by revision 32
 
 Read-only probes actually run with UV_CACHE_DIR=/private/tmp/survjax-uv-cache,
 JAX_ENABLE_X64=1 and 0, `uv run --locked python`; all exited 0. No likelihood
@@ -607,50 +622,68 @@ in both dtypes (173 passed, 1 optional skip per mode). The through-A5 gate
 passes; exact counts and commands are in REVIEW.md. No spec/acceptance-test
 edits, new dependency or A6.4 work. Stop after this step's commit.
 
-## Step A6.4a — Safe built-in operands before likelihood integration
+## Step A6.4a rework — Withdraw the superseded family-local guards
 
-Status: **implemented, ready for review**. One prerequisite concept: prevent undefined
-operations on invalid built-in parameters from contaminating other rows'
-derivatives through zero cotangents. Spec 4.1/4.5/7.1–7.3/12.1; no public API
-or likelihood export. Target 150–250 changed lines including tests.
+Status: **proposed, awaiting approval under working agreement section 1**.
+Replace the approach in `21c2632` with a follow-up commit on `A6`, preserving
+history. Spec 4.5/7.1–7.3/12.1, revision 32; public API unchanged.
 
-- Inspect and narrowly guard log/division/power operands in
-  `src/survjax/distributions/exponential.py` and `weibull.py` along the paths
-  used by log_prob/log_survival, including raw helpers and inactive boundary
-  branches. Substitute safe operands before operations, restore the existing
-  direct-method value policy afterwards, and preserve valid calculations.
-  Add no floors, clipping, global dtype change, parameter normalization,
-  constraint-driven model repair or stopped real parameters. No generic
-  replacement distribution or custom AD rule is planned.
-- Add `tests/unit/test_likelihood_operands.py`: zero rate, zero shape and zero
-  scale between valid per-row parameters. Test forward/reverse Jacobian rows
-  of selected direct-method contributions eagerly and under jit, with explicit
-  expected zero off-diagonals and hand-derived valid diagonals. Also verify
-  direct values at affected invalid/boundary cases against the formula/spec,
-  retaining genuine -inf and NaN where required. Invalid-row gradients remain
-  unspecified; this step does not promise them.
-- Pin valid interior first/second derivatives and eager/jit/vmap agreement on
-  affected methods using existing tolerances. Any new derivative tolerance
-  belongs in tests/impl_tolerances.py with a scale justification. Do not loosen
-  an existing tolerance. Reuse the existing boundary/tail suite for regressions.
-- Keep modifications local and small; if preserving the direct-method policy
-  requires a larger change or a new helper module, stop and replan first.
-- Docs to-do: describe any material numerical limitation found; public method
-  docstrings change only if currently inaccurate. No docs/ edit or build is
-  planned. No spec deviation is needed for the observed implementation gap.
+- Restore only `src/survjax/distributions/exponential.py` and `weibull.py`
+  to their pre-A6.4a implementations at `3b0c3bf`. Retain all A5 guards for
+  valid-parameter time boundaries. No parameter-domain repair or replacement
+  direct-method policy is introduced.
+- Remove `tests/unit/test_likelihood_operands.py`, whose test-only evaluator
+  and zero-only isolation checks served the rejected mechanism. Replacement
+  isolation tests belong with the actual parameter preparation in A6.4b1
+  and its evaluator integration in A6.4b2. Existing direct-method, boundary
+  and valid-interior derivative suites remain and must pass in both dtypes.
+- Verify the two source files exactly match `3b0c3bf`, then run focused
+  Exponential/Weibull and A6 constraint/parameter-issue suites, followed by
+  scripts/check.sh --through A5. This rollback makes no isolation claim.
+- Target about 200 changed source/test lines, mainly deletions. No new
+  tests of the discarded behavior, helper module or export in this part.
+- Docs to-do: no direct-method documentation change; explain the central
+  likelihood mechanism with its implementation in later parts.
 
-Implementation evidence: Exponential log_prob now guards the zero-rate log;
-Weibull cumulative/log hazard guard zero-scale/shape operands and restore the
-existing extended values and boundary limits. Both new operand suites pass
-(36 tests per mode), expanded focused suites pass (212/213 passed, existing
-2/1 skips), and scripts/check.sh --through A5 passes both modes. Existing
-tolerances are unchanged. Exact results and invariants are in REVIEW.md.
-No likelihood entry point/core, export, docs or A6.4b/c work was added.
+## Step A6.4b1 — Prepare parameter leaves for likelihood evaluation
 
-## Step A6.4b — Private exact/right likelihood core
+Status: **proposed, not approved**. Requires reviewed A6.4a rework.
+One concept: section 7.1's parameter-gradient barrier. Spec 4.1/4.7/5/7.1–7.3/
+12.1, revision 32. Target at most 300 implementation/test/docstring lines.
 
-Status: **proposed, not approved**. Requires reviewed A6.4a. D-023's policy is
-approved and specified in revision 31.
+- Create private `src/survjax/_likelihood_parameters.py`: a typed helper
+  accepts a distribution and its declared invalid-entry mask, reconstructs
+  a temporary distribution without invoking constructors, and preserves
+  types/static configuration. No public API, family-specific dispatch,
+  custom derivative rule or registry change.
+- Use field metadata to broadcast own and recursively nested parameter
+  leaves to the outer distribution's current batch_shape plus each leaf's
+  component_shape, including leaves rebuilt smaller than their siblings.
+  Expand the outer union mask across component axes. Apply
+  `where(mask, stop_gradient(leaf), leaf)` only after broadcasting; do not
+  substitute numerical values, alter diagnostics or stop valid gradients.
+- Add `tests/unit/test_likelihood_parameters.py`: assert unchanged leaf
+  values (including NaN/inf), exact shapes/static fields and input immutability;
+  compare selected valid contributions and their first/second derivatives
+  with those rows evaluated alone, plus hand-derived Exponential checks.
+  Exercise zero, negative, NaN and both infinities in built-ins, an unguarded
+  custom family and a nested custom family, plus a named-condition violation.
+- Cover component axes, an unconstrained sibling leaf in an invalid entry,
+  outer-only condition masks reaching nested leaves, reconstructed smaller
+  leaves, a shared leaf, per-leaf vmap and a draws batch shaped (S,1).
+  Use eager/jit/vmap, forward/reverse Jacobians and both Hessian orderings.
+  Make no assertion about invalid-row gradients. These helper-level checks
+  are not yet evidence for the complete likelihood contract.
+- Run focused tests and the through-A5 gate in both dtypes. Keep tolerances
+  in tests/impl_tolerances.py; no tolerance loosening. If the full matrix
+  exceeds the budget, replan before adding more code or tests.
+- Docs to-do: declared constraints/conditions suffice for likelihood
+  isolation; undeclared invalidity and direct-method calls are outside it.
+
+## Step A6.4b2 — Private exact/right likelihood core
+
+Status: **proposed, not approved**. Requires reviewed A6.4b1. D-023's policy is
+approved in revision 31; parameter isolation follows revision 32.
 One concept: evaluate prepared SurvivalData. Spec 3.2–3.3/4.2/4.5/5/6.2/7.1–7.3/
 12.1–12.2. Target at most 300 implementation/test/docstring lines; no public
 entry point until A6.4c, so no partially functional public export.
@@ -666,6 +699,10 @@ entry point until A6.4c, so no partially functional public export.
   distribution leaves to the common data/parameter float dtype, including
   nested leaves; preserve original objects, component axes and static fields.
   Diagnostics and mode masks must explicitly have the contribution shape.
+- Obtain parameter_issues().invalid_entries and apply A6.4b1's helper before
+  calling reference_time, log_prob, log_survival or any other family code.
+  Broadcast the same declared mask to the contribution shape for final NaN
+  selection. Do not recompute it from repaired values or infer extra domains.
 - Support only exact rows and non-exact rows with upper=+inf, all with
   left_trunc=0 and right_trunc=+inf. Determine this from current array fields;
   all-true traced metadata must not reject supported inputs. Derived-kind
@@ -674,8 +711,9 @@ entry point until A6.4c, so no partially functional public export.
   overrides and generic defaults. Before inactive density evaluation use the
   stopped reference_time; before inactive set probability use the untruncated
   window's zero lower endpoint through the base boundary method. Substitute
-  inactive/invalid observation operands before operations. Never modify active
-  valid parameters, stop their gradients, or dispatch by family type.
+  inactive/invalid/unsupported observation operands before operations. Valid
+  parameters remain differentiable; the only stopped parameter entries are
+  those already declared invalid under revision 32. No family-type dispatch.
 - Exact rows contribute log density; right-censored rows log survival. At
   censoring time zero the base's log S(0) yields structural zero with zero
   parameter gradient. Preserve true zero density/survival as -inf. Do not
@@ -691,16 +729,19 @@ entry point until A6.4c, so no partially functional public export.
   and changed normalized values after indexing/reconstruction, -inf zero mass,
   and zero-censoring value/gradient. Include supported neighbors of invalid
   or unsupported rows and the approved eager/jit unsupported-mode behavior.
-- Verify baseline eager/jit/vmap and valid-row forward/reverse gradients using
-  the core. Run a valid mixed batch eagerly with jax_debug_nans. The public
-  independent likelihood modules are not an A6.4b gate: the public API arrives
+- Verify eager/jit/vmap and valid-row values/Jacobians/Hessians against
+  isolated valid rows through the actual core, reusing A6.4b1's family cases
+  and violation matrix. Cover exact and right-censored contributions and
+  both differentiation modes. Run a valid mixed batch eagerly with
+  jax_debug_nans. The public independent modules are not an A6.4b2 gate:
+  the public API arrives
   in A6.4c. Do not edit or skip tests to accommodate this intermediate step.
 - Docs to-do: supported subset, return shape/dtype, stored-issue propagation,
   zero-mass and zero-censoring behavior, D-023 policy and triage limitation.
 
 ## Step A6.4c — Public function, method and shared input convention
 
-Status: **proposed, not approved**. Requires reviewed A6.4b. One integration
+Status: **proposed, not approved**. Requires reviewed A6.4b2. One integration
 concept, targeting 150–250 changed implementation/test/docstring lines.
 Spec 4.2/5/6.1–6.3/7.1–7.3/10.2/10.5/12.1–12.2.
 
@@ -739,7 +780,7 @@ Spec 4.2/5/6.1–6.3/7.1–7.3/10.2/10.5/12.1–12.2.
 
 Use UV_CACHE_DIR=/private/tmp/survjax-uv-cache and separate JAX_ENABLE_X64=1/0
 processes. Run focused own tests and applicable existing independent modules,
-then scripts/check.sh --through A5 for A6.4a/b and through A6 for A6.4c.
+then scripts/check.sh --through A5 for A6.4a rework/b1/b2 and through A6 for A6.4c.
 Those gates include Ruff format/lint, mypy src, the entire own suite, source
 doctests and independent acceptance checks in both modes. Finish with
 git diff --check. Keep tests/spec/ and the gate scripts unchanged.
@@ -753,8 +794,8 @@ part without instruction. Replan before exceeding the code/test budget.
 ## Step A6.5 — Likelihood composition and derivative regressions
 
 Status: forward outline, not approved. Spec 4.7/6.3/7.1–7.3/12.1. Broader
-verification after A6.4c; the known zero-parameter arithmetic gap belongs to
-A6.4a and the new core's baseline checks to A6.4b, not deferred to this step.
+verification after A6.4c; revision-32 parameter isolation belongs to
+A6.4b1/b2 and must not be deferred to this step.
 Replan against the reviewed public implementation before approval.
 
 - Add `tests/unit/test_likelihood_transformations.py`: eager/jit/vmap agreement,

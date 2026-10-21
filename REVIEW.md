@@ -1,73 +1,64 @@
-# A6.4a — Safe built-in operands for zero parameters
+# Revision 32 alignment and A6.4 replacement plan
 
-Status: approved A6.4a implemented on `A6`, based on `3b0c3bf`.
-Spec revision 31, marker be7b253; independent snapshot remains f527f75.
-This step adds no likelihood entry point. Stop after this commit for review;
-A6.4b/c have not begun.
+Status: spec read and marked on maintainer-selected branch `A6`, based on
+`21c2632`. This commit changes only `.spec-seen`, PLAN.md and REVIEW.md.
+No source or test implementation has been redone yet. The new plan awaits
+approval under working agreement section 1 before code changes.
 
 ## Read first
 
-1. `src/survjax/distributions/exponential.py`: log_prob's zero-rate operand.
-2. `src/survjax/distributions/weibull.py`: cumulative-hazard and log-hazard
-   zero-scale/shape operands, value restoration and boundary handling.
-3. `tests/unit/test_likelihood_operands.py`: 36 focused cases.
-4. PLAN.md: approved A6.4a scope and remaining implementation parts.
+1. Spec 7.1–7.3 and 12.1 at `cf4fef9` (revision 32), and accepted decision
+   0045: parameter-gradient isolation before family code.
+2. `../review/slices/A6.4a.md`, B1 and its addendum, plus the designer request:
+   the prior zero-only guards do not cover all declared violations.
+3. PLAN.md's opening alignment and A6.4a rework / A6.4b1 / A6.4b2 / A6.4c:
+   withdraw guards, prepare parameters centrally, integrate the evaluator,
+   then expose the public function and method. Each part ends in a stop.
+4. `.spec-seen`: `cf4fef9`; independent tests remain snapshot `f527f75`.
 
-## Invariants and test/spec mapping
+## Contract and planned evidence
 
-- Spec 7.1–7.2: a zero cotangent through log(0) gives 0/0; through exp(inf)
-  it can give 0*inf. A final NaN selection does not repair that arithmetic.
-  Safe constant operands are substituted before these operations. The
-  stored parameters and active valid calculations are unchanged. No floors,
-  clipping, stopped real parameters, global dtype changes or custom AD rules.
-- Exponential restores log(rate)=-inf at rate=0 after evaluating log on a
-  safe operand. Thus its direct log density remains -inf and log survival 0.
-- Weibull restores the zero-scale extended formula after finite operand work:
-  at positive t, H is inf for k>0, zero for k<0 and NaN for k=0. Log hazard
-  is inf for k>1 and NaN otherwise. With k=0 and b>0, H=1 and log h=-inf.
-  Boundary restoration remains separate, including the b=0 log-scale limit.
-- Spec 4.5: explicit interior-formula and zero-time-limit tests preserve the
-  affected direct values, including true -inf and undefined NaN. Expected
-  values follow the formulas stated in each test, not a saved code baseline.
-- `test_zero_parameter_keeps_other_rows_jacobian_finite` covers rate/shape/
-  scale zero between valid rows; active and inactive density branches; forward
-  and reverse mode; eager and jit. All valid Jacobian rows are finite, with
-  hand-derived diagonals and exactly zero in the invalid parameter column.
-- `test_valid_density_derivatives_and_transformations` checks analytical
-  valid Exponential/Weibull gradients and Hessians, plus Weibull eager/jit/vmap
-  values. A valid interior call runs with jax_debug_nans. Existing boundary,
-  tail and derivative tests run through the full gate. No tolerance changes.
+- Spec 7.1: every own/nested parameter leaf is first broadcast to the
+  current outer batch shape, preserving trailing component axes. At entries
+  in the declared union mask, gradients are stopped before family code.
+  Numerical parameter values remain unchanged; invalid contributions are NaN.
+- Spec 7.2: this is the explicit exception to the older rule against stopping
+  actual parameters. Valid entries remain differentiable. The protected
+  CLAUDE.md has not been edited; revision 32 settles the exception.
+- Spec 7.3/12.1: planned helper and evaluator tests compare valid rows' values,
+  Jacobians and Hessians with those rows evaluated alone, in forward/reverse
+  modes, eager/jit/vmap, both dtypes. Coverage includes zero, negative, NaN,
+  both infinities and named-condition violations in built-in, custom and
+  nested families; component axes, smaller rebuilt leaves and draws batches.
+- Invalid-row gradients remain unspecified. Undeclared invalidity has no
+  isolation guarantee. Direct-method policy and unsupported-mode policy
+  remain unchanged. There is no promise of direct-method gradient isolation
+  at invalid parameters.
+- A6.4a rework will remove the superseded guards and their dedicated test
+  module in a follow-up commit, retaining the original A5 boundary guards.
+  Its existing direct-method suites and through-A5 gate must still pass.
+  Complete likelihood evidence follows in A6.4b2/c, not in this alignment.
 
 ## Checks actually run
 
-All uv/gate commands use UV_CACHE_DIR=/private/tmp/survjax-uv-cache.
+- Read the full normative diff `git -C ../design diff be7b253 cf4fef9 --
+  spec/SPECIFICATION.md`, current changed sections and decision 0045.
+- `../scripts/spec-since.sh dev --mark`: exit 0,
+  `dev/.spec-seen -> cf4fef9; commit it in dev`.
+- `../scripts/spec-since.sh dev`: exit 0,
+  `dev: spec unchanged since cf4fef9`.
+- `git diff --check`: exit 0, no output.
 
-- New operand module, separately with JAX_ENABLE_X64=1 and 0:
-  `uv run --locked --group test pytest tests/unit/test_likelihood_operands.py -q --tb=short`.
-  Each exit 0: 36 passed in 4.47s.
-- Expanded focus with SPEC_THROUGH=A6, separately in both dtype processes:
-  `uv run --locked --group test pytest tests/unit/test_likelihood_operands.py tests/unit/test_exponential.py tests/unit/test_weibull.py tests/spec/test_a6_constraints.py tests/spec/test_a6_parameter_issues.py -q --tb=short`.
-  x64: exit 0, 212 passed, 2 skipped (19.51s); x32: exit 0, 213 passed,
-  1 skipped (19.94s). Existing skips: optional NumPyro and x64-inapplicable
-  conversion-warning test.
-- Initial Ruff check reported E731 for an assigned test lambda. Replaced it
-  with a named local function; the final full gate checks the corrected file.
-- `scripts/check.sh --through A5`: exit 0; guard ok (A6); Ruff format:
-  60 files already formatted; lint: All checks passed!; mypy:
-  Success: no issues found in 15 source files.
-  Own x64: 570 passed, 7 skipped (49.32s); x32: 576 passed, 1 skipped
-  (47.99s). Source doctests: 4 passed per mode (1.13s/1.04s).
-  Independent through-A5 x64: 1256 passed, 26 skipped, 308 deselected (29.76s);
-  x32: 1261 passed, 21 skipped, 308 deselected (24.75s).
-  Final output: "check: all gates passed through A5".
-- `git diff --check`: exit 0, no output before delivery.
+No pytest, Ruff, mypy, runtime gate or docs build was run for this metadata
+and planning change. The earlier A6.4a results remain in commit `21c2632`;
+they do not establish compliance with revision 32. No independent-test sync,
+spec edit, dependency, docs edit or source/test change in this pass.
 
 ## Limits and uncertainties
 
-No new spec ambiguity or deviation entry. No API/export/dependency/spec/
-independent-test/docs edits. No new helper module; Weibull stays at 296 lines.
-Isolation evidence covers the zero-parameter cases in the approved plan;
-invalid-row derivatives are still unspecified. The test-only composition is
-not a public or private library likelihood implementation.
-No docs build (public docstrings and docs unchanged), complete A6 gate,
-R fixture, install or benchmark run. A6.4b/c still need separate approval.
+No open design question: revision 32 and decision 0045 settle review B1.
+The replacement plan is deliberately split to keep each code/test diff near
+300 lines; replan before exceeding that budget. Independent revision-32
+acceptance tests must come from their author through the maintainer's sync
+workflow; their absence does not reduce our own planned test coverage.
+No deviation was added or marked resolved.
