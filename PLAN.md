@@ -1,5 +1,30 @@
 # A6.4 replanning — Exact/right likelihood (2026-10-21)
 
+## A6.4b1 review fix-up — Two nested levels and precise test diagnostics
+
+Status: **implemented, ready for review**; authorized by the explicit review request, based on
+`2e7ae42` on `A6`. One fix-up commit, then stop. No A6.4b2 work.
+
+- Add `tests/unit/test_likelihood_parameters_depth.py` with a custom wrapper
+  nested twice around a Weibull. A NaN deepest scale sits between valid
+  scales; both wrapper levels have shared valid parameters. Compare valid-row
+  values and first/second derivatives with the hand-derived isolated formula,
+  eager and jit, naming transforms via pytest ids. Spec 7.1/7.3.
+- N1: retain the explicit broadcast in the helper. Correct REVIEW.md:
+  implicit where broadcasting makes deleting that line behaviorally equivalent;
+  structural tests catch skipped masking of rebuilt leaves, not that deletion.
+- N2: add transform names to the existing loop's assertions, including the
+  jit-vmap check. Keep the existing case builder and coverage intact.
+- Run focused tests in both dtypes, Ruff/mypy and the through-A5 gate.
+  Record actual results in REVIEW.md; no spec-test/public-API/docs changes.
+- Docs to-do: unchanged from A6.4b1; no narrative documentation in this fix-up.
+
+Evidence: all 14 depth cases pass in each dtype. An in-memory mutation that
+skips the deepest masking is caught by four reverse-mode cases per dtype.
+The full through-A5 gate passes (own suites 586/592 passed, existing 7/1
+skips). REVIEW.md records exact results and the corrected N1 claim. Library
+source is unchanged; stop after this review fix-up commit.
+
 Status: **A6.4b1 implemented; ready for review**.
 The maintainer's "ok now do the actual next step" authorizes A6.4b1 on `A6`
 at `9099310`. Finish the helper and its tests, commit and stop; A6.4b2/c
@@ -725,7 +750,7 @@ One concept: section 7.1's parameter-gradient barrier. Spec 4.1/4.7/5/7.1–7.3/
 - Docs to-do: declared constraints/conditions suffice for likelihood
   isolation; undeclared invalidity and direct-method calls are outside it.
 
-Implementation evidence: the private helper and 38 tests add 300 lines
+Original implementation evidence (`2e7ae42`): the helper and 38 tests add 300 lines
 (41 source, 259 tests). All 35 violation/family cases preserve valid-row
 values and derivatives through second order, including jit/vmap and shared
 leaves. Structural tests cover smaller rebuilt nested leaves, two component

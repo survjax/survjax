@@ -1,89 +1,77 @@
-# A6.4b1 — Prepare parameter leaves for likelihood evaluation
+# A6.4b1 review fix-up — Two nested levels and clearer failure messages
 
-Status: implemented on maintainer-selected branch `A6`, based on `9099310`.
+Status: requested review fixes implemented on `A6`, based on `2e7ae42`.
 Spec revision 32, marker `cf4fef9`; independent snapshot `08d97a6`.
-The maintainer approved this next part with "ok now do the actual next step".
-Stop after this commit for review. A6.4b2/c have not begun.
+No library source changed. Stop after this fix-up commit; no A6.4b2 work.
 
 ## Read first
 
-1. `src/survjax/_likelihood_parameters.py`: stop_invalid_gradients, a private
-   helper returning a temporary distribution with unchanged parameter values.
-2. `tests/unit/test_likelihood_parameters.py`: custom families, the 35-case
-   isolation matrix, then reconstruction, per-leaf vmap and draw-column checks.
-3. PLAN.md: implementation scope and remaining evaluator/public-API steps.
+1. `tests/unit/test_likelihood_parameters_depth.py`: a wrapper nested twice
+   around a Weibull, with a deepest NaN scale and valid shared parameters in
+   both wrapper levels. Transform names and eager/jit appear in pytest ids.
+2. `tests/unit/test_likelihood_parameters.py`: existing transform loops now
+   name failures in finite-value assertions and allclose messages, including
+   jit-vmap. Existing cases and mathematical coverage are unchanged.
+3. N1 below: the explicit broadcast remains, and the earlier test claim is
+   corrected. PLAN.md records the authorized fix-up scope.
 
 ## Invariants and test/spec mapping
 
-- Spec 7.1: compute the outer current batch_shape once. Every own or nested
-  parameter leaf broadcasts to it plus its own trailing component_shape.
-  The supplied declared invalid-entry union expands only over components.
-  `where(mask, stop_gradient(value), value)` stops invalid entries without
-  numerical substitution. Valid entries stay differentiable.
-- The outer union reaches every leaf, including unconstrained siblings and
-  nested leaves whose own diagnostics report no issue. It is never narrowed
-  to a nested family's mask, and the helper infers no new validity domain.
-- Spec 4.2/7.2: reconstruct without constructors, dtype normalization, family
-  formulas, host inspection or mutation. Preserve runtime types/static fields
-  and leaf dtypes. This is revision 32's explicit stop_gradient exception;
-  invalid-row gradients remain unspecified. No NaN contribution selection yet.
-- `test_declared_violations_isolate_valid_values_and_derivatives`: zero,
-  negative, NaN and both infinities for Exponential rate, Weibull shape/scale,
-  unguarded custom/nested rate and a two-axis component field; nonfinite outer
-  parameters, base conditions, and an outer-only condition with an undeclared
-  NaN sibling. As functions of the same original parameter vector, selected
-  valid rows match evaluation alone in values, jacfwd/jacrev, all four
-  second-derivative compositions, compiled reverse Jacobian/Hessian and
-  compiled vmap Jacobians. Shared valid leaves are differentiated too.
-- The same test anchors all Exponential violation cases to hand-derived
-  gradients [[1,0,0],[0,0,-3]] and a Hessian with only entry [0,0,0]=-4
-  (spec 7.3); these binary values are checked exactly. Other comparisons use
-  existing central tolerances. No tolerance changes or new AD rules.
-- Reconstruction test: mixed-dtype smaller nested leaves, outer-only condition,
-  two component axes and current batch (2,1); asserts values, types, static
-  fields, shapes and unchanged input shapes. Constructor spies reject calls.
-  A shared unconstrained leaf has identity derivative only at valid entries.
-- Per-leaf vmap test: a mapped scalar broadcasts with shared batched siblings;
-  explicit output shapes and analytical identity/zero Jacobian blocks catch
-  skipped broadcasting or failure to mask the unconstrained sibling.
-  Draw-column test retains batch shape (2,1), values and valid identity Jacobian.
-  Leaf Jacobian blocks verify the mandated barrier itself; no invalid-row
-  likelihood derivative is asserted.
+- Spec 7.1/7.3: the new test compares valid-row values, jacfwd/jacrev and all
+  four second-derivative compositions, eagerly and under jit, with the
+  isolated analytical formula `-exp(a+b)*(t/scale)**1.5`. Both wrapper
+  parameters and all three deepest scales are coordinates of the same input
+  vector. The bad scale is unused by the expected formula, so valid-row
+  cross derivatives with respect to it must remain finite and zero.
+- A nonlinear Weibull baseline makes omitting the deepest masking observable
+  in reverse derivatives. The test differentiates selected valid contributions
+  only; no invalid-row likelihood derivative is asserted. It adds 14 cases.
+- N1: keep `_likelihood_parameters.py`'s explicit broadcast, matching the
+  specification and making shapes visible to readers. Deleting only that
+  line is behaviorally equivalent because where broadcasts its operands.
+  The structural tests catch skipped masking of rebuilt leaves, not removal
+  of this redundant broadcast. No test is claimed to distinguish equivalent
+  implementations. The reviewer's M1 evidence is accepted, not rerun here.
+- N2: transform names identify which existing comparison fails. The case
+  builder and existing assertions remain intact; no broader test refactor.
+- No public API, parameter policy, tolerance, dependency, docs, spec or
+  independent-test change. New coverage is helper-level, before integration
+  with the likelihood evaluator in A6.4b2/c.
 
 ## Checks actually run
 
 All uv/gate commands use UV_CACHE_DIR=/private/tmp/survjax-uv-cache.
 
-- Initial full focused module, separate JAX_ENABLE_X64=1/0:
-  `uv run --locked --group test pytest tests/unit/test_likelihood_parameters.py
-  -q --tb=short`. Both exited 1: 36 passed, 2 failed (46.18s/46.01s).
-  The test family's condition hook returned a scalar for rebuilt/per-leaf-vmap
-  batches; diagnostics correctly rejected its shape. Corrected the test hook
-  to broadcast its condition to current batch_shape. No library change needed.
-- Corrected cases in both modes with the same command plus
-  `-k 'rebuilt or per_leaf'`: exit 0, 2 passed, 36 deselected in each
-  (1.20s/1.17s). The complete corrected suite runs again in the full gate.
-- Focused Ruff format/check: exit 0, both files formatted and lint clean.
-  mypy src: exit 0, no issues found in 16 source files.
+- Final Weibull depth suite, separate JAX_ENABLE_X64=1/0:
+  `uv run --locked --group test pytest
+  tests/unit/test_likelihood_parameters_depth.py -q --tb=short`.
+  Both exit 0: 14 passed in 4.90s per mode.
+- An initial linear Exponential variant also passed (14 per mode, 4.64s);
+  replaced it with Weibull to expose a missed deepest mask.
+- In-memory mutation only, separate dtype processes:
+  `uv run --locked --group test python
+  /private/tmp/survjax-a64b1-depth-mutation.py`.
+  It skips parameter masking at depth two, retaining masks above it, then
+  runs the depth suite with `-k 'eager and rev'`. Each pytest run returns 1:
+  4 failed, 10 deselected (2.14s/2.13s), all at the finite-derivative assertion.
+  The harness exits 0 because these failures are expected. It changes no
+  repository files; this is evidence that the new regression detects the gap.
+- Focused Ruff format/lint checks pass; both test files are formatted.
 - `scripts/check.sh --through A5`: exit 0, final output
-  `check: all gates passed through A5`. Guard: `ok (A6)`; Ruff format:
-  `61 files already formatted`; lint: `All checks passed!`; mypy:
+  `check: all gates passed through A5`. Guard: `ok (A6)`; Ruff:
+  `62 files already formatted`, `All checks passed!`; mypy:
   `Success: no issues found in 16 source files`.
-  Corrected complete own x64: 572 passed, 7 skipped (90.95s); x32:
-  578 passed, 1 skipped (89.58s). This includes all 38 new tests per mode.
-  Source doctests: 4 passed per mode (0.93s/0.99s).
+  Own x64: 586 passed, 7 skipped (84.71s); x32: 592 passed, 1 skipped
+  (89.04s). Source doctests: 4 passed per mode (0.92s/0.98s).
   Independent through-A5 x64: 1256 passed, 26 skipped, 769 deselected
-  (27.59s); x32: 1261 passed, 21 skipped, 769 deselected (22.98s).
-  Full log: `/private/tmp/survjax-a64b1-check.log`.
+  (24.42s); x32: 1261 passed, 21 skipped, 769 deselected (20.85s).
+  Full log: `/private/tmp/survjax-a64b1-review-check.log`.
+- `git diff --exit-code 2e7ae42 -- src`: exit 0, no output.
 - `../scripts/spec-since.sh dev`: exit 0, spec unchanged since cf4fef9.
 - `git diff --check`: exit 0, no output.
 
 ## Limits and uncertainties
 
-No new spec ambiguity or deviation. No public API/export, docs, dependency,
-spec or independent-test change. This is helper-level isolation evidence;
-A6.4b2 must call it before reference_time/density/survival evaluation and force
-invalid contributions to NaN. A6.4c will expose the entry points and run the
-synced public isolation and unsupported-mode suites through the A6 gate.
-No complete A6 gate, docs build, R fixture, wheel/install or benchmark run.
-Implementation plus tests are 300 new lines (41 helper, 259 tests).
+No new ambiguity or deviation. Public A6 likelihood acceptance tests remain
+for the public integration step; helper coverage does not establish complete
+likelihood conformance. No docs build, R fixture, install or benchmark run.

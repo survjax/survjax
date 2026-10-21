@@ -148,21 +148,29 @@ def test_declared_violations_isolate_valid_values_and_derivatives(
         expected[0, 0, 0] = -4
         np.testing.assert_array_equal(jax.hessian(together)(flat), expected)
     # Identity: removing the bad row cannot change valid per-row contributions.
-    transforms = [lambda f: f, jax.jacfwd, jax.jacrev]
-    transforms += [
-        lambda f, a=a, b=b: a(b(f))
-        for a in (jax.jacfwd, jax.jacrev)
-        for b in (jax.jacfwd, jax.jacrev)
+    transforms = [
+        ("identity", lambda f: f),
+        ("jacfwd", jax.jacfwd),
+        ("jacrev", jax.jacrev),
     ]
-    transforms += [lambda f: jax.jit(jax.jacrev(f)), lambda f: jax.jit(jax.hessian(f))]
-    for transform in transforms:
+    transforms += [
+        (f"{outer}-over-{inner}", lambda f, a=a, b=b: a(b(f)))
+        for outer, a in (("fwd", jax.jacfwd), ("rev", jax.jacrev))
+        for inner, b in (("fwd", jax.jacfwd), ("rev", jax.jacrev))
+    ]
+    transforms += [
+        ("jit-jacrev", lambda f: jax.jit(jax.jacrev(f))),
+        ("jit-hessian", lambda f: jax.jit(jax.hessian(f))),
+    ]
+    for name, transform in transforms:
         actual = transform(together)(flat)
-        assert np.isfinite(actual).all()
+        assert np.isfinite(actual).all(), name
         np.testing.assert_allclose(
             actual,
             transform(alone)(flat),
             atol=ATOL[x64_enabled],
             rtol=RTOL[x64_enabled],
+            err_msg=name,
         )
     mapped = jax.jit(jax.vmap(jax.jacrev(together)))(jnp.stack([flat, flat]))
     np.testing.assert_allclose(
@@ -170,6 +178,7 @@ def test_declared_violations_isolate_valid_values_and_derivatives(
         jnp.stack([jax.jacrev(alone)(flat)] * 2),
         atol=ATOL[x64_enabled],
         rtol=RTOL[x64_enabled],
+        err_msg="jit-vmap-jacrev",
     )
 
 
