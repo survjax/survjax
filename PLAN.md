@@ -1,5 +1,15 @@
 # A6.4 replanning — Exact/right likelihood (2026-10-21)
 
+## Current step — A6.4b2 implementation
+
+Status: **implemented, ready for review**, approved by "now do the next bit
+of slice A6". Starting at
+`523532a`; returned from main to the existing authorized A6 branch at the
+same commit. Implement the private core and tests below, then commit and
+stop. Reuse the existing parameter-isolation matrix by running it against
+both the helper and the core; no copied family/test scaffolding. A6.4c is
+still separate. No new public API or docs/ edits in this step.
+
 ## A6.4b1 review fix-up — Two nested levels and precise test diagnostics
 
 Status: **implemented, ready for review**; authorized by the explicit review request, based on
@@ -761,7 +771,7 @@ No public likelihood or core integration yet; stop after this commit.
 
 ## Step A6.4b2 — Private exact/right likelihood core
 
-Status: **proposed, not approved**. Requires reviewed A6.4b1. D-023's policy is
+Status: **implemented, ready for review**. D-023's policy is
 approved in revision 31; parameter isolation follows revision 32.
 One concept: evaluate prepared SurvivalData. Spec 3.2–3.3/4.2/4.5/5/6.2/7.1–7.3/
 12.1–12.2. Target at most 300 implementation/test/docstring lines; no public
@@ -820,6 +830,15 @@ entry point until A6.4c, so no partially functional public export.
   in A6.4c. Do not edit or skip tests to accommodate this intermediate step.
 - Docs to-do: supported subset, return shape/dtype, stored-issue propagation,
   zero-mass and zero-censoring behavior, D-023 policy and triage limitation.
+
+Implementation evidence: a 69-line private evaluator, 219 lines of focused
+core tests and 9 changed lines reusing the existing matrix (297 source/test
+lines total). The 35 core isolation cases and 26 new core cases pass in
+both dtypes through the full through-A5 gate; own suites report 647/653
+passed with existing 7/1 skips. Mixed valid likelihoods pass eager
+jax_debug_nans. REVIEW.md records exact counts and the corrected NumPy
+expected-value expression. No public function/method/export or A6.4c work;
+stop after this commit for review.
 
 ## Step A6.4c — Public function, method and shared input convention
 

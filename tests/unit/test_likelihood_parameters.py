@@ -12,6 +12,7 @@ from jax.flatten_util import ravel_pytree
 
 import survjax
 from survjax._likelihood_parameters import stop_invalid_gradients
+from survjax.likelihood import _log_likelihood
 
 
 @survjax.register_family
@@ -106,20 +107,24 @@ CASES = (
 
 
 @pytest.mark.parametrize("kind,bad", CASES)
+@pytest.mark.parametrize("evaluation", ["helper", "core"])
 def test_declared_violations_isolate_valid_values_and_derivatives(
-    kind, bad, x64_enabled
+    kind, bad, evaluation, x64_enabled
 ):
     """Spec 7.1/7.3: unguarded families match valid rows alone, including shared leaves."""
     params, per_row = case(kind, bad)
     flat, unravel = ravel_pytree({k: jnp.asarray(v) for k, v in params.items()})
     keep = jnp.array([0, 2])
     time = jnp.array([1.0, 2.0, 3.0])
+    data = survjax.SurvivalData(time, time == 1)
 
     def contributions(dist, times):
         return jnp.where(times == 1, dist.log_prob(times), dist.log_survival(times))
 
     def together(values):
         dist = build(kind, unravel(values))
+        if evaluation == "core":
+            return _log_likelihood(dist, data)[keep]
         prepared = stop_invalid_gradients(dist, dist.parameter_issues().invalid_entries)
         return contributions(prepared, time)[keep]
 
@@ -129,6 +134,8 @@ def test_declared_violations_isolate_valid_values_and_derivatives(
         return contributions(build(kind, p), time[keep])
 
     dist = build(kind, unravel(flat))
+    if evaluation == "core":
+        assert jnp.isnan(_log_likelihood(dist, data)[1])
     np.testing.assert_array_equal(
         dist.parameter_issues().invalid_entries, [False, True, False]
     )
