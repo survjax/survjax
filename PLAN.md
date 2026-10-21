@@ -1,11 +1,12 @@
 # A6.4 replanning — Exact/right likelihood (2026-10-21)
 
 Status: **revision 32 read and marked; replacement plan awaits approval**.
-On maintainer-selected branch `A6` at `21c2632`, read the complete normative
+Initial alignment on maintainer-selected branch `A6` at `21c2632` read the complete normative
 diff from `be7b253` to `cf4fef9`, current sections 7.1–7.3/12.1, decision 0045,
 and the A6.4a review and designer request. Ran spec-since.sh dev --mark;
-.spec-seen is now `cf4fef9`. Independent tests remain snapshot `f527f75`;
-marking the spec read does not update those tests or establish conformance.
+.spec-seen remains `cf4fef9`. After the maintainer's sync/merge, planning is
+now based on `f07c560`, with independent snapshot `08d97a6` (revision 32).
+Read all seven synced-file changes; collection is not conformance evidence.
 
 Review B1 demonstrates that A6.4a's family-local guards isolate only zeros;
 NaN, infinity and negative violations still contaminate reverse derivatives.
@@ -52,6 +53,37 @@ passing. This is a general exception to the working agreement's code-step
 docs/ restriction; do not request it again for each symbol or step. Narrative
 guides, worked examples and broader reference changes remain separate docs
 steps. A6.4c's one function autodoc entry is covered by this approval.
+
+## Synced revision-31/32 acceptance coverage (2026-10-21)
+
+The sync removes the pending acceptance-test prerequisite. It does not
+change the chosen mechanism, step order or implementation approval status.
+tests/spec/ remains read-only; no acceptance tests are copied into our suite.
+
+- `test_a6_likelihood_gradient_isolation.py`: 41 violation/family cases;
+  finite valid-row values and derivatives equal evaluation alone as functions
+  of the same flat parameter vector, including shared leaves and zero cross
+  derivatives. Checks jacfwd/jacrev and all four second-derivative combinations
+  (fwd/rev over fwd/rev), plus selected jit/method checks and hand-derived
+  Exponential, shared-shape Weibull and nested shared-log-ratio anchors.
+  The matrix covers five violation classes, component leaves, shared leaves,
+  unguarded custom families and base/outer named conditions.
+- `test_a6_unsupported_modes.py`: seven modes across flag/bounds construction,
+  truncation and censoring. Requires NaN without a value-dependent exception
+  in both entry points; supported neighbors retain values, gradients and
+  Hessians with per-row/shared parameters, including jit/traced construction
+  and vmap value checks. Diagnostics stay clear; triage uses unsupported_nan
+  rather than the numerical remainder. Q-037's exception alternative is gone.
+- `helpers.py`, `test_a6_likelihood_parameter_issues.py`, TESTMAP.md and
+  API_ASSUMPTIONS.md now reflect revisions 31/32. No API change is needed.
+- Retain own helper/evaluator checks for current shapes after reconstruction,
+  smaller leaves, input immutability, unconstrained sibling masking, draws
+  and per-leaf vmap; the new isolation module does not exercise these paths.
+  Own valid-interior transformation and analytical checks remain required.
+- A6.4a rework and A6.4b1/b2 still gate through A5 while the public entry
+  points are absent. A6.4c must explicitly run both modules above in each
+  dtype, then the complete through-A6 gate. No tests are edited or skipped
+  to make an intermediate step pass.
 
 ## Historical revision-31 planning evidence, superseded by revision 32
 
@@ -671,7 +703,9 @@ One concept: section 7.1's parameter-gradient barrier. Spec 4.1/4.7/5/7.1–7.3/
 - Cover component axes, an unconstrained sibling leaf in an invalid entry,
   outer-only condition masks reaching nested leaves, reconstructed smaller
   leaves, a shared leaf, per-leaf vmap and a draws batch shaped (S,1).
-  Use eager/jit/vmap, forward/reverse Jacobians and both Hessian orderings.
+  Use eager/jit/vmap, forward/reverse Jacobians and all four compositions
+  of forward/reverse differentiation to second order, matching revision-32
+  acceptance coverage. Include a shared valid leaf beside a per-row violation.
   Make no assertion about invalid-row gradients. These helper-level checks
   are not yet evidence for the complete likelihood contract.
 - Run focused tests and the through-A5 gate in both dtypes. Keep tolerances
@@ -732,7 +766,10 @@ entry point until A6.4c, so no partially functional public export.
 - Verify eager/jit/vmap and valid-row values/Jacobians/Hessians against
   isolated valid rows through the actual core, reusing A6.4b1's family cases
   and violation matrix. Cover exact and right-censored contributions and
-  both differentiation modes. Run a valid mixed batch eagerly with
+  all four second-derivative compositions. For unsupported rows separately,
+  verify supported neighbors' gradients and Hessians with per-row and shared
+  parameters; parameter-issue masking must not be used to flag unsupported
+  modes. Run a valid mixed batch eagerly with
   jax_debug_nans. The public independent modules are not an A6.4b2 gate:
   the public API arrives
   in A6.4c. Do not edit or skip tests to accommodate this intermediate step.
@@ -767,8 +804,13 @@ Spec 4.2/5/6.1–6.3/7.1–7.3/10.2/10.5/12.1–12.2.
   `autofunction:: survjax.log_likelihood` block, keeping the export-coverage
   test unchanged. No narrative guide or method-reference expansion here.
 - Run every synced A6 likelihood module, including the method, shapes, values,
-  invalid-data, parameter-issue, entry-point and unsupported-mode tests in both
-  dtypes. Then run scripts/check.sh --through A6 and scripts/build_docs.sh.
+  invalid-data, parameter-issue and entry-point tests in both dtypes.
+  Explicitly run `SPEC_THROUGH=A6 uv run --locked --group test pytest
+  tests/spec/test_a6_likelihood_gradient_isolation.py
+  tests/spec/test_a6_unsupported_modes.py -q --tb=short` in separate
+  JAX_ENABLE_X64=1/0 processes with the cache setting below. These public-API
+  suites are available now; do not defer isolation to A6.5 or A9.
+  Then run scripts/check.sh --through A6 and scripts/build_docs.sh.
   Record actual skips and failures without modifying the independent tests.
   A passing A6 gate is not completion of Slice A or the later A6.5 verification.
 - Docs to-do: public usage, raw/prepared equivalence and errors, unsummed
