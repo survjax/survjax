@@ -5,22 +5,26 @@
 
 args <- commandArgs(trailingOnly = TRUE)
 stopifnot(length(args) <= 1L)
+
 check_only <- identical(args, "--check-only")
 output <- "tests/fixtures/bc_like"
 if (length(args) && !check_only) {
   if (startsWith(args[[1L]], "--")) {
     stop("Unknown option: ", args[[1L]])
   }
+
   output <- args[[1L]]
 }
 
 script <- "scripts/fixtures/generate_bc_like.R"
 versions <- c(flexsurv = "2.3.2", survival = "3.7.0")
 stopifnot(file.exists(script), getRversion() == "4.4.2")
+
 for (name in names(versions)) {
   stopifnot(as.character(utils::packageVersion(name)) == versions[[name]])
 }
 suppressPackageStartupMessages(library(flexsurv))
+
 options(OutDec = ".", digits = 17)
 
 # Parameter conventions and package evaluation -----------------------------
@@ -29,11 +33,23 @@ group_sizes <- c(Good = 229L, Medium = 229L, Poor = 228L)
 group_names <- names(group_sizes)
 cases <- list(
   fitted = c(
-    shape = 1.3796517717622814, scale_Good = 11.422861823436245,
-    beta_Medium = -0.6135891674792526, beta_Poor = -1.2122137266943085
+    shape = 1.3796517717622814,
+    scale_Good = 11.422861823436245,
+    beta_Medium = -0.6135891674792526,
+    beta_Poor = -1.2122137266943085
   ),
-  unit_shape = c(shape = 1, scale_Good = 10, beta_Medium = -0.5, beta_Poor = -1),
-  alternative = c(shape = 1.5, scale_Good = 12, beta_Medium = -0.6, beta_Poor = -1.2)
+  unit_shape = c(
+    shape = 1,
+    scale_Good = 10,
+    beta_Medium = -0.5,
+    beta_Poor = -1
+  ),
+  alternative = c(
+    shape = 1.5,
+    scale_Good = 12,
+    beta_Medium = -0.6,
+    beta_Poor = -1.2
+  )
 )
 
 group_scales <- function(parameters) {
@@ -44,7 +60,8 @@ group_scales <- function(parameters) {
 close <- function(actual, expected) {
   stopifnot(
     length(actual) == length(expected),
-    all(is.finite(actual)), all(is.finite(expected)),
+    all(is.finite(actual)),
+    all(is.finite(expected)),
     all(abs(actual - expected) <= 1e-10 + 1e-8 * abs(expected))
   )
 }
@@ -53,24 +70,37 @@ survreg_total <- function(rows, mu, sigma) {
   # spec 4.6: offset fixes each log-scale location; the intercept stays at zero.
   fit <- survival::survreg(
     survival::Surv(time, event) ~ 1 + offset(mu),
-    data = rows, dist = "weibull", init = 0, scale = sigma,
+    data = rows,
+    dist = "weibull",
+    init = 0,
+    scale = sigma,
     control = survival::survreg.control(maxiter = 0)
   )
   close(unname(coef(fit)), 0)
   close(fit$scale, sigma)
   close(fit$linear.predictors, mu)
   close(fit$y[, "time"], rows$time)
-  stopifnot(fit$iter == 0L, all(fit$y[, "status"] == rows$event))
+  stopifnot(
+    fit$iter == 0L,
+    all(fit$y[, "status"] == rows$event)
+  )
+
   unname(fit$loglik[[2L]])
 }
 
 flex_values <- function(fit, times, groups, type) {
   predictions <- summary(
-    fit, newdata = data.frame(group = factor(groups, levels = group_names)),
-    t = times, type = type, cross = FALSE, ci = FALSE, tidy = TRUE
+    fit,
+    newdata = data.frame(group = factor(groups, levels = group_names)),
+    t = times,
+    type = type,
+    cross = FALSE,
+    ci = FALSE,
+    tidy = TRUE
   )
   stopifnot(
-    nrow(predictions) == length(times), identical(predictions$time, times),
+    nrow(predictions) == length(times),
+    identical(predictions$time, times),
     identical(as.character(predictions$group), as.character(groups))
   )
   predictions$est
@@ -81,19 +111,31 @@ flex_values <- function(fit, times, groups, type) {
 seed <- 8201L
 RNGkind("Mersenne-Twister", "Inversion", "Rejection")
 set.seed(seed)
+
 group <- factor(rep(group_names, group_sizes), levels = group_names)
 contrasts(group) <- contr.treatment(group_names, base = 1L)
-event_time <- rweibull(length(group), cases$fitted[["shape"]], group_scales(cases$fitted)[group])
-censor_time <- runif(length(group), min = 0.5, max = 7.5)
-data <- data.frame(
-  row_id = seq_along(group), time = pmin(event_time, censor_time),
-  event = as.integer(event_time <= censor_time), group = group
+event_time <- rweibull(
+  length(group),
+  shape = cases$fitted[["shape"]],
+  scale = group_scales(cases$fitted)[as.character(group)]
 )
+censor_time <- runif(length(group), min = 0.5, max = 7.5)
+
+data <- data.frame(
+  row_id = seq_along(group),
+  time = pmin(event_time, censor_time),
+  event = as.integer(event_time <= censor_time),
+  group = group
+)
+
 stopifnot(
-  nrow(data) == 686L, identical(data$row_id, seq_len(686L)),
+  nrow(data) == 686L,
+  identical(data$row_id, seq_len(686L)),
   identical(as.integer(table(data$group)), unname(group_sizes)),
   identical(as.character(data$group), rep(group_names, group_sizes)),
-  all(is.finite(data$time)), all(data$time > 0), setequal(data$event, c(0L, 1L))
+  all(is.finite(data$time)),
+  all(data$time > 0),
+  setequal(data$event, c(0L, 1L))
 )
 
 eval_times <- seq(0, 7, by = 0.05)
@@ -106,40 +148,66 @@ references <- list()
 for (label in names(cases)) {
   parameters <- cases[[label]]
   scales <- group_scales(parameters)
-  mu <- unname(log(scales[data$group]))
+  mu <- unname(log(scales[as.character(data$group)]))
   sigma <- 1 / parameters[["shape"]]
-  close(exp(mu), unname(scales[data$group]))
-  close(mu, model.matrix(~ group, data) %*% c(log(parameters[["scale_Good"]]), parameters[3:4]))
+
+  close(exp(mu), unname(scales[as.character(data$group)]))
+  close(
+    mu,
+    model.matrix(~ group, data) %*% c(log(parameters[["scale_Good"]]), parameters[3:4])
+  )
+
+  # flexsurv likelihood and paired predictions
 
   flex <- flexsurv::flexsurvreg(
-    survival::Surv(time, event) ~ group, data = data, dist = "weibull",
-    inits = unname(parameters), fixedpars = 1:4, hessian = FALSE
+    survival::Surv(time, event) ~ group,
+    data = data,
+    dist = "weibull",
+    inits = unname(parameters),
+    fixedpars = 1:4,
+    hessian = FALSE
   )
   close(flex$res[, "est"], unname(parameters))
   close(flex$data$Y[, "time"], data$time)
   stopifnot(
-    flex$npars == 0L, length(flex$logliki) == nrow(data),
+    flex$npars == 0L,
+    length(flex$logliki) == nrow(data),
     identical(rownames(flex$data$Y), as.character(data$row_id)),
     all(flex$data$Y[, "status"] == data$event)
   )
 
   flex_survival <- flex_values(flex, data$time, data$group, "survival")
   flex_log_survival <- -flex_values(flex, data$time, data$group, "cumhaz")
-  flex_grid <- matrix(flex_values(flex, grid_times, grid_groups, "survival"), ncol = 3L)
+  flex_grid <- matrix(
+    flex_values(flex, grid_times, grid_groups, "survival"),
+    ncol = 3L
+  )
+
+  # survreg density/CDF contributions and fixed-parameter totals
 
   density <- survival::dsurvreg(data$time, mean = mu, scale = sigma)
   cdf <- survival::psurvreg(data$time, mean = mu, scale = sigma)
-  stopifnot(all(density > 0), all(cdf > 0 & cdf < 1))
+  stopifnot(
+    all(density > 0),
+    all(cdf > 0 & cdf < 1)
+  )
+
   log_survival <- log1p(-cdf)
   log_likelihood <- ifelse(data$event == 1L, log(density), log_survival)
   total <- survreg_total(data, mu, sigma)
   row_totals <- vapply(seq_len(nrow(data)), function(i) {
     survreg_total(data[i, , drop = FALSE], mu[i], sigma)
   }, numeric(1))
-  survreg_grid <- matrix(1 - survival::psurvreg(
-    grid_times, mean = unname(log(scales[grid_groups])), scale = sigma
-  ), ncol = 3L)
+  survreg_grid <- matrix(
+    1 - survival::psurvreg(
+      grid_times,
+      mean = unname(log(scales[grid_groups])),
+      scale = sigma
+    ),
+    ncol = 3L
+  )
 
+  # Agreement of reference paths, dimensions and column labels
   close(log_likelihood, row_totals)
   close(sum(log_likelihood), total)
   close(sum(flex$logliki), flex$loglik)
@@ -149,19 +217,40 @@ for (label in names(cases)) {
   close(flex_survival, 1 - cdf)
   close(flex_grid, survreg_grid)
   stopifnot(
-    identical(dim(flex_grid), c(141L, 3L)), identical(dim(survreg_grid), c(141L, 3L)),
-    all(flex_grid[1L, ] == 1), all(survreg_grid[1L, ] == 1)
+    identical(dim(flex_grid), c(141L, 3L)),
+    identical(dim(survreg_grid), c(141L, 3L)),
+    all(flex_grid[1L, ] == 1),
+    all(survreg_grid[1L, ] == 1)
   )
 
+  # spec 11.1: verify each exported label independently of shared grid_groups.
+  for (column in seq_along(group_names)) {
+    expected_curve <- flex_values(
+      flex,
+      eval_times,
+      rep(group_names[[column]], length(eval_times)),
+      "survival"
+    )
+    close(flex_grid[, column], expected_curve)
+  }
+
   references[[label]] <- c(as.list(parameters), list(
-    scale_by_group = as.list(scales), mu_by_group = as.list(log(scales)), sigma = sigma,
+    scale_by_group = as.list(scales),
+    mu_by_group = as.list(log(scales)),
+    sigma = sigma,
     flexsurv = list(
-      log_likelihood = unname(flex$logliki), total_log_likelihood = flex$loglik,
-      log_survival = flex_log_survival, survival = flex_survival, survival_grid = flex_grid
+      log_likelihood = unname(flex$logliki),
+      total_log_likelihood = flex$loglik,
+      log_survival = flex_log_survival,
+      survival = flex_survival,
+      survival_grid = flex_grid
     ),
     survreg = list(
-      log_likelihood = log_likelihood, total_log_likelihood = total,
-      log_survival = log_survival, survival = 1 - cdf, survival_grid = survreg_grid
+      log_likelihood = log_likelihood,
+      total_log_likelihood = total,
+      log_survival = log_survival,
+      survival = 1 - cdf,
+      survival_grid = survreg_grid
     )
   ))
 }

@@ -1,93 +1,66 @@
-# A8.2 — Synthetic bc-like Weibull generator
+# A8.2 review corrections — 2026-10-20
 
-Implemented atop accepted A8.1 (`07c6d24`) on `a8-1-r-generator`.
-Review this step with `git diff 07c6d24..HEAD`; A8.1 is intentionally unmerged.
-One commit, then stop. No merge or A8.3 payloads; the maintainer defers merging
-until at least A8.3. The code/fixture-README addition is 297 lines.
+Requested against `../review/slices/A8.2.md`, reviewed at `b87dcc1`.
+Review this fix-up with `git diff b87dcc1..HEAD` on `a8-1-r-generator`.
+A8.1/A8.2 remain unmerged; one fix-up commit, then stop for review.
 
 ## Read in this order
 
-1. `scripts/fixtures/generate_bc_like.R`: fixed parameter vectors and package
-   helpers; simulation; per-row and grid checks; then export.
-2. `tests/fixtures/bc_like/README.md`: schema, commands and generator limits.
-3. `PLAN.md`: A8.2 implementation details and remaining integration steps.
+1. `scripts/fixtures/generate_bc_like.R`: expanded per-case loop, especially
+   the new per-column prediction check and the three label-based scale lookups.
+2. `tests/fixtures/bc_like/README.md`: stored grid times and grid-path limits.
+3. `PLAN.md`: review corrections and A8.5/A8.d1 handoff.
 
-## Invariants and requirement mapping
+## Findings addressed and invariants
 
-- Spec 10.3/10.4: check exact R 4.4.2 / flexsurv 2.3.2 / survival 3.7.0 before
-  loading packages. Seed 8201 and explicit RNG settings generate synthetic
-  rows only. No `bc`, patient rows or real-data log-likelihood totals are read.
-- Spec 11.1: 686 rows, Good/Medium/Poor blocks of 229/229/228, fitted generating
-  vector from the spec, independent Uniform(0.5, 7.5) year censoring. The row
-  IDs/order, group sizes, finite positive times and both event kinds are checked.
-  Realized events are 52/91/150 (293 total), with 393 censored. These are
-  similar to the cohort's pattern; matching the exact real counts is not claimed.
-- Spec 4.6/11.1: all three specified vectors are evaluated without fitting.
-  Check `b_g=b_Good*exp(beta_g)`, `mu_g=log(b_g)`, `sigma=1/k` and treatment
-  contrasts with Good baseline. Each case exports natural and AFT parameters;
-  label/parameter checks prevent one case silently replacing another.
-- Spec 10.4/12.1: flexsurv receives four fixed natural-scale initial values;
-  the result must retain them and report zero free parameters. The survreg
-  path uses fixed `offset(mu)`, zero intercept, fixed scale and zero iterations;
-  assertions require unchanged locations, scale and intercept. Density/CDF
-  composition agrees with every singleton total and the full-data total.
-  Both packages agree per row and in total at the ordinary float64 targets.
-- Spec 5/11.1: paired flexsurv predictions check returned time/group order.
-  Grids have 141 times (0–7 by 0.05), Good/Medium/Poor columns, shape (141,3),
-  and exactly S(0)=1 in both paths. Observed survival/log survival and both
-  grids are compared. Matrix export checks that its row arrays reconstruct
-  the original matrix exactly, preventing a serialization transpose.
-- Spec 10.4: retain A8.1's base-R 17-digit numeric formatting, exact CSV text
-  read-back, written-JSON check, case checks and generator/CSV MD5 hashes.
-  Header includes versions/platform, RNG, units, group/event counts, generating
-  parameters and evaluation paths. No Python runtime dependency or framework.
+- SF-1 (spec 11.1, PLAN grid orientation): each grid column is compared with
+  a separate flexsurv prediction for its exported `group_names` label. This
+  expectation is independent of shared `grid_groups`, so permuting both
+  reference grids no longer preserves the checks. Existing cross-path, shape,
+  S(0)=1 and serialization reconstruction checks remain.
+- N-1 (spec 4.6): named scale vectors are indexed using character labels in
+  simulation, row locations and conversion checks, rather than factor codes.
+- N-2: expand the reviewed calls, case constants, conditions and result fields;
+  separate simulation and reference phases with space. The standalone script
+  is now 343 lines rather than 254. This fix-up's code/README diff is 162 lines;
+  no helper framework or dependency was introduced to reduce the file length.
+- N-3: fixture consumers must use stored `grid.time`, preserving R's actual
+  seq doubles. README and A8.5 plan state this explicitly.
+- N-4: README and A8.d1 handoff describe psurvreg grid evaluation at supplied
+  AFT locations, cross-checked with flexsurv. Singleton-fit checks apply to
+  observed contributions, not grid cells; no stronger independence claim.
 
 ## Commands and results
 
-- `../scripts/spec-since.sh dev-a8`: exit 0, reports changes through `fd150db`
-  (spec revision 30). Read the current relevant contract; inherited `.spec-seen`
-  stays unchanged pending A6 integration. No spec or protected-path changes.
-- Installed `?flexsurvreg`, `?summary.flexsurvreg`, `?survreg` documentation:
-  checked fixed parameters, paired predictions and fixed-scale evaluation.
-- `Rscript --vanilla scripts/fixtures/generate_bc_like.R --check-only`: exit 0
-  outside the sandbox for the known OpenMP issue; `Checks passed: 686 synthetic
-  rows, 3 fixed vectors, 141-by-3 grids, both R paths`.
-- `python3 /private/tmp/survjax-a82-check.py`: exit 0 outside the sandbox;
-  actual generator in check-only/full-export modes plus scratch mutations:
-  - Two full exports pass; CSV and JSON are byte-identical across runs. JSON
-    parses, hashes and fixed-vector labels/values match the spec and source.
-  - All per-row likelihoods/log survivals/survivals and grid values match the
-    spec 11.1 closed forms. Max absolute error 7.96e-13; max relative error
-    5.58e-14. Python checks the stated algebra; fixture values come from R.
-  - All 15,770 JSON numbers and all 686 CSV times exactly match original R `%a`
-    values on Python read-back. This avoids the pinned R decimal-parser issue
-    handled by the maintainer's A8.1 decision; no precision tolerance is weakened.
-  - Unknown `--chek-only` fails before writing. All temporary payloads/mutants
-    are removed after success; no generated files remain in the checkout.
-
-| Mutation | Check that rejects it |
-| --- | --- |
-| sigma=k instead of 1/k | flexsurv/survreg agreement |
-| reversed groups in survreg grid | grid agreement |
-| matrix exported by columns | exact matrix reconstruction |
-| CSV event replaced by 1-event | CSV text read-back |
-| JSON formatted with six digits | 17-digit text check |
-| alternative case replaced by unit_shape | label/parameter identity |
-
+- `python3 /private/tmp/survjax-a82-review-fixes-check.py`: exit 0 outside the
+  sandbox for the known R OpenMP issue, with the pinned R 4.4.2 / flexsurv
+  2.3.2 / survival 3.7.0 environment. It runs the prior focused suite and:
+  - B4 replaces `rep(group_names, each = length(eval_times))` with
+    `rep(rev(group_names), each = length(eval_times))`. Both check-only and
+    full export exit nonzero at `close(flex_grid[, column], expected_curve)`.
+  - Before/after CSV bytes are identical. Parsed JSON values are identical
+    after excluding the changed generator checksum; schema/parameters unchanged.
+  - Check-only also passes with `options(warn = 2)` in a scratch copy.
+  - Two full exports byte-identical; JSON valid, hashes and case labels checked.
+  - All 15,770 JSON numbers and all 686 CSV times match original R `%a` values
+    exactly on Python read-back. Closed-form checks retain max absolute error
+    7.96e-13 and max relative error 5.58e-14, using unchanged tolerances.
+  - Existing six mutants remain rejected: wrong AFT sigma, reversed survreg
+    grid groups, transposed matrix export, flipped CSV events, six-digit JSON
+    and duplicated case label. Unknown flags still fail before writing.
+  - All temporary exports/mutants removed; no fixture payloads in the checkout.
 - `UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A5`:
   exit 0, `check: all gates passed through A5`. Ruff: 55 files already
   formatted, all checks passed; mypy: no issues in 13 source files.
   Own tests: x64 466 passed/7 skipped; x32 472 passed/1 skipped.
   Doctests: 4 passed per mode. Spec tests: x64 1256 passed/26 skipped;
-  x32 1261 passed/21 skipped. Log: `/private/tmp/survjax-a82-gate.log`.
+  x32 1261 passed/21 skipped. Log: `/private/tmp/survjax-a82-review-fixes-gate.log`.
 - `git diff --check`: exit 0, no output.
 
-## Limits and next review stop
+## Limits and stop
 
-The two R paths are not independent oracles. CDF complements are used only
-on these checked finite interior cases; delicate tails remain A7's scope.
-Exact decimal read-back is not claimed for the pinned R parser itself.
-No Python/library, dependency, independent-test or narrative-doc changes.
-No survjax/R comparison, through-A8 gate or completion claim. A8.3 still owns
-committed generation/acceptance, A8.4/A8.5 own integration, A8.d1 owns docs.
-No unresolved ambiguity or new DEVIATIONS entry. Stop for review after commit.
+No new dependencies, public API, Python/library, spec, independent-test or
+narrative-doc changes. The R generator remains R-only; Python verifies exact
+numeric read-back separately under the A8.1 decision. No R parser exactness,
+survjax/R agreement or through-A8 completion claim. A8.3 committed generation
+and acceptance remain pending. No new ambiguity or DEVIATIONS entry.

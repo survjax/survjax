@@ -34,6 +34,13 @@ log-likelihood, log-survival and survival vectors (686), a total, and a nested
 `survival_grid` array (141 time rows, three Good/Medium/Poor columns).
 `grid` records times 0–7 by 0.05, groups and shape. Provenance includes RNG,
 versions/platform, generator/CSV MD5 hashes, simulation and realized counts.
+Each column is checked against a separate prediction for its exported label.
+Use the stored `grid.time` values in reference tests: rebuilding R's `seq`
+grid with JAX arange/linspace can change some times by one ULP.
+
+Grid survreg values come directly from `psurvreg` at supplied AFT locations.
+They are cross-checked with flexsurv; singleton-fit checks cover observed-time
+likelihoods, not grid cells.
 
 Unknown flags fail before writing. Check-only validates references and labels;
 full export also validates exact CSV/JSON text and 17-digit numeric formatting.

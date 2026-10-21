@@ -121,6 +121,18 @@ explain the eventual comparison evidence in A8.d1 after fixture tests pass.
 
 ## A8.2 Synthetic bc-like generator
 
+Review fix-up (2026-10-20), authorized by the request to address
+`../review/slices/A8.2.md`: SF-1 checks every grid column against a separate
+prediction for its exported group label; reproduce B4 in check-only/export
+modes. N-1 uses character group labels for named-vector indexing. N-2 expands
+calls/checks and separates phases; keep the fix-up small without compressing
+it to preserve the initial step's cumulative line count. N-3 documents using
+stored grid times in A8.5; retain the N-4 grid-path limitation for A8.d1.
+Files: generator, fixture README, PLAN.md and REVIEW.md. No public API or
+fixture payload changes. Check unchanged export values, numeric read-back,
+mutants and the through-A5 gate (spec 4.6, 10.4, 11.1, 12.1). One commit,
+then stop; no merge or A8.3 generation/acceptance.
+
 Implementation details: seed 8201, groups in Good/Medium/Poor blocks and
 independent Uniform(0.5, 7.5) year censoring. Use fixed flexsurv Weibull AFT
 coefficients, and survreg log-scale locations supplied through offsets with
@@ -200,6 +212,12 @@ references. Keep transformation coverage focused on these reference cases;
 the broader derivative suite belongs to A7/A9. Both dtypes use existing
 `tests/impl_tolerances.py` targets; investigate failures without loosening them.
 Keep the step within 300 changed lines and stop with REVIEW.md.
+
+Use the fixture's stored `grid.time` values as inputs, rather than rebuilding
+the R `seq` grid with JAX arange/linspace; decimal-looking times can differ by
+one ULP when rebuilt. Describe the grid's direct psurvreg route in A8.d1:
+locations are supplied explicitly and cross-checked with flexsurv, without
+singleton-fit checks for grid cells.
 
 ## Validation and documentation
 
