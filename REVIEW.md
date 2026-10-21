@@ -1,65 +1,77 @@
-# A6.4 plan update after revision-32 spec-test sync
+# A6.4a rework — Withdraw the superseded family-local guards
 
-Status: planning only on maintainer-selected branch `A6`, based on `f07c560`.
-The maintainer synced independent snapshot `08d97a6`; `.spec-seen` remains
-`cf4fef9` (revision 32). This change updates PLAN.md and REVIEW.md only.
-The replacement implementation still awaits plan approval.
+Status: implemented on maintainer-selected branch `A6`, based on `2247f88`.
+The maintainer approved this next part with "get to it". Specification revision
+32, marker `cf4fef9`; independent snapshot `08d97a6`. Stop after this step's
+commit; A6.4b1/b2/c have not begun.
 
 ## Read first
 
-1. PLAN.md, "Synced revision-31/32 acceptance coverage": what the new suites
-   require, which own checks remain, and when the public suites must run.
-2. `tests/spec/test_a6_likelihood_gradient_isolation.py`: 41 cases comparing
-   valid rows with evaluation alone, six derivative transforms, selected jit
-   and method checks, and analytical anchors.
-3. `tests/spec/test_a6_unsupported_modes.py`: supported-row values and first/
-   second derivatives beside unsupported modes, diagnostics and triage.
-4. PLAN.md's A6.4b1/b2/c: explicit four-way second-derivative coverage and
-   the focused public acceptance command before the complete A6 gate.
+1. `src/survjax/distributions/exponential.py`: log_prob again uses the direct
+   log(rate) formula, without the zero-rate operand guard from `21c2632`.
+2. `src/survjax/distributions/weibull.py`: removed the zero-scale/shape operand
+   substitutions and value restoration added in that commit; retained all A5
+   time-boundary handling. Both files exactly match `3b0c3bf`.
+3. Deletion of `tests/unit/test_likelihood_operands.py`: its test-only
+   evaluator and zero-only isolation checks served the rejected approach.
+4. PLAN.md: A6.4a rework and the proposed central masking in A6.4b1/b2.
 
 ## Invariants and test/spec mapping
 
-- Spec 7.1–7.3/12.1 rev 32: the accepted mechanism is unchanged. Broadcast
-  every own/nested parameter leaf to the current outer batch shape, expand
-  the declared invalid-entry union over components, and stop gradients at
-  invalid entries before family code runs. Valid entries remain differentiable;
-  invalid-row numerical values are unchanged until final NaN selection.
-- The isolation suite covers zero, negative, NaN and both infinities in
-  built-ins and unguarded custom/nested families, component and shared leaves,
-  named conditions at base and outer levels, and all four second-order
-  forward/reverse compositions. Method checks accompany function checks.
-- Spec 7.1/12.2 rev 31: the unsupported-mode suite now requires NaN eagerly,
-  jit/traced construction and vmap, preserving supported values, gradients
-  and Hessians with per-row/shared parameters. No data/parameter issue is
-  invented; the recipe attributes the NaN to mode support.
-- Own tests still cover smaller rebuilt leaves/current shapes, immutability,
-  unconstrained siblings, draws and per-leaf vmap. The synced isolation suite
-  does not replace these implementation responsibilities.
-- A6.4a rework and private A6.4b1/b2 keep the through-A5 gate. Public A6.4c
-  runs the new modules explicitly in both dtypes, then the full A6 gate.
-  Their sync removes the pending-test prerequisite, not the implementation
-  approval requirement. Invalid-row derivatives remain unspecified.
+- Spec 7.1–7.3/12.1 rev 32: isolation belongs in likelihood parameter
+  preparation. This step withdraws the family-local mechanism; it does not
+  implement or claim isolation for direct methods at invalid parameters.
+  The complete replacement test matrix remains planned in A6.4b1/b2/c.
+- Spec 4.1/4.5: direct formulas and existing boundary guards are restored
+  byte for byte from the pre-A6.4a source. There is no constraint-driven
+  repair, new parameter validity domain or change to the public API.
+- `tests/unit/test_exponential.py::test_parameter_derivatives` covers the
+  analytical interior gradient/Hessian and valid boundary gradients.
+  `test_mixed_infinity_jacobians` covers inactive infinity contributions.
+- `tests/unit/test_weibull.py::test_mixed_boundary_full_parameter_derivatives`
+  covers analytical interior Jacobians/Hessians beside time boundaries, with
+  shared/per-row parameters under jit/vmap. The constant-boundary and
+  shape-one boundary tests cover the retained A5 guards (spec 4.5/7.2/7.3).
+- Independent A5 boundary, tail, closed-form and derivative suites run in the
+  full gate, including second-order check_grads and the time-zero grid.
+  Focused A6 constraint/parameter-issue suites verify existing declarations,
+  diagnostics, transformations and unchanged direct-method behavior.
+- No new behavior or test is added for this restoration. Existing tests and
+  tolerances are unchanged; only the obsolete dedicated module is removed.
+  No spec, independent-test, dependency, docs or protected-file changes.
 
 ## Checks actually run
 
-- Read all seven files changed by the maintainer's sync, including TESTMAP.md,
-  API_ASSUMPTIONS.md, helpers.py and the parameter-issue test wording changes.
+All uv/gate commands use UV_CACHE_DIR=/private/tmp/survjax-uv-cache.
+
 - `../scripts/spec-since.sh dev`: exit 0,
   `dev: spec unchanged since cf4fef9`.
-- In separate processes with UV_CACHE_DIR=/private/tmp/survjax-uv-cache,
-  SPEC_THROUGH=A6 and JAX_ENABLE_X64=1 / 0:
-  `uv run --locked --group test pytest
-  tests/spec/test_a6_likelihood_gradient_isolation.py
-  tests/spec/test_a6_unsupported_modes.py --collect-only -q`.
-  Both exited 0: `489 tests collected in 0.24s` per mode.
-- `git diff --check`: exit 0, no output.
-
-Collection verifies imports and parametrized test availability only. No test
-bodies, runtime gate, Ruff, mypy or docs build ran for this planning change.
-The likelihood API is still unimplemented; no passing acceptance claim.
+- `git diff --exit-code 3b0c3bf --
+  src/survjax/distributions/exponential.py
+  src/survjax/distributions/weibull.py`: exit 0, no output.
+- Focused suites, with SPEC_THROUGH=A6 and separate JAX_ENABLE_X64=1/0:
+  `uv run --locked --group test pytest tests/unit/test_exponential.py
+  tests/unit/test_weibull.py tests/spec/test_a6_constraints.py
+  tests/spec/test_a6_parameter_issues.py -q --tb=short`.
+  x64: exit 0, 176 passed, 2 skipped (13.87s).
+  x32: exit 0, 177 passed, 1 skipped (14.34s).
+  Existing skips: optional NumPyro absent in both; conversion-warning test
+  applies only with x64 disabled.
+- `scripts/check.sh --through A5`: exit 0, final output
+  `check: all gates passed through A5`. Guard: `ok (A6)`; Ruff format:
+  `59 files already formatted`; lint: `All checks passed!`; mypy:
+  `Success: no issues found in 15 source files`.
+  Own x64: 534 passed, 7 skipped (39.53s); own x32: 540 passed, 1 skipped
+  (39.54s). Source doctests: 4 passed in each mode (1.05s/0.93s).
+  Independent through-A5 x64: 1256 passed, 26 skipped, 769 deselected
+  (25.31s); x32: 1261 passed, 21 skipped, 769 deselected (20.43s).
+  Full log: `/private/tmp/survjax-a64a-rework-check.log`.
+- `git diff --check`: exit 0, no output. Source/test diff: 194 changed
+  lines (5 additions, 189 deletions), within the planned review budget.
 
 ## Limits and uncertainties
 
-No new spec ambiguity or deviation. No spec-test, source, dependency, docs,
-marker or protected-file edit. Step order remains A6.4a rework, A6.4b1,
-A6.4b2, A6.4c, with separate review stops and the existing diff budgets.
+No new spec ambiguity or deviation. No likelihood core, helper or public entry
+point yet. The synced public isolation/unsupported-mode modules are reserved
+for A6.4c's through-A6 gate; passing through A5 is not revision-32 likelihood
+conformance. No docs build, R fixture, wheel/install or benchmark run.

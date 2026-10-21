@@ -1,6 +1,8 @@
 # A6.4 replanning — Exact/right likelihood (2026-10-21)
 
-Status: **revision 32 read and marked; replacement plan awaits approval**.
+Status: **A6.4a rework implemented; ready for review**.
+The maintainer's "get to it" authorizes the next planned part on `A6` at
+`2247f88`. Finish A6.4a rework, commit and stop; A6.4b1/b2/c remain proposed.
 Initial alignment on maintainer-selected branch `A6` at `21c2632` read the complete normative
 diff from `be7b253` to `cf4fef9`, current sections 7.1–7.3/12.1, decision 0045,
 and the A6.4a review and designer request. Ran spec-since.sh dev --mark;
@@ -22,9 +24,9 @@ This expressly authorizes the invalid-entry exception to the older
 stop_gradient wording in CLAUDE.md; valid parameters and active valid
 calculations still must not be stopped. No edit to that protected file or
 new design decision is needed here. Direct-method policy remains section 4.5.
-Remove the superseded zero-only guards rather than extend them. Rework and
-core integration are separate reviewable steps below; no code changes in
-this alignment pass, and no new implementation approval is inferred.
+The superseded zero-only guards are now removed. Rework and core integration
+are separate reviewable steps below; the initial alignment pass changed no
+code, and only A6.4a rework has since been approved and implemented.
 
 The expanded A6.4a–c plan below replaces the obsolete revision-28 likelihood
 outline. Revision 29 requires one array-returning function plus the base
@@ -656,7 +658,7 @@ edits, new dependency or A6.4 work. Stop after this step's commit.
 
 ## Step A6.4a rework — Withdraw the superseded family-local guards
 
-Status: **proposed, awaiting approval under working agreement section 1**.
+Status: **implemented, ready for review** (2026-10-21).
 Replace the approach in `21c2632` with a follow-up commit on `A6`, preserving
 history. Spec 4.5/7.1–7.3/12.1, revision 32; public API unchanged.
 
@@ -676,6 +678,14 @@ history. Spec 4.5/7.1–7.3/12.1, revision 32; public API unchanged.
   tests of the discarded behavior, helper module or export in this part.
 - Docs to-do: no direct-method documentation change; explain the central
   likelihood mechanism with its implementation in later parts.
+
+Implementation evidence: both distribution files exactly match `3b0c3bf`;
+the obsolete operand-test module is removed. Focused own/A6 diagnostic
+suites pass (176/177 passed, 2/1 existing skips), and the full through-A5
+gate passes in both dtypes, including A5 boundary/derivative regressions.
+194 source/test lines changed, mainly deletions. REVIEW.md records exact
+commands and counts. No new helper, likelihood API or A6.4b1 work in this
+step; stop after committing for review.
 
 ## Step A6.4b1 — Prepare parameter leaves for likelihood evaluation
 
