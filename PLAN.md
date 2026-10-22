@@ -1,5 +1,81 @@
 # A6.4 replanning — Exact/right likelihood (2026-10-21)
 
+## Current step — A6.4c public likelihood integration (2026-10-22)
+
+Status: **implemented, ready for review**, authorized by "do it".
+Planning starts on clean `A6` at
+`6a35b7a`, after the A6.4b2 review fixes and N3 rename. Spec revision 32 is
+unchanged since `.spec-seen` (`cf4fef9`); the public integration outline below
+still applies. This entry refines its files, test budget and validation order.
+One implementation commit with REVIEW.md on the existing A6 branch, then stop.
+
+### Files and public API
+
+- `src/survjax/likelihood.py`: add typed
+  `log_likelihood(dist, data=None, *, time=None, event=None) -> jax.Array`.
+  One private resolver accepts SurvivalData unchanged, or constructs it from
+  both raw keywords using the existing pure checked constructor. Reject mixed
+  or missing forms and positional raw arrays with TypeError; point positional
+  array users to `time=`/`event=`. Delegate evaluation to `_log_likelihood`.
+  Keep all existing numerical preparation and row checks intact.
+- `src/survjax/distributions/base.py`: add the same typed base method without
+  the dist argument, forwarding directly to the public function. Use a local
+  import for the function and TYPE_CHECKING for the data annotation if needed
+  to avoid a cycle. No registration/declaration or direct-method changes.
+- `src/survjax/__init__.py` and `tests/unit/test_import.py`: add exactly the
+  `log_likelihood` export. No result wrapper, reduction or new diagnostic API.
+- `docs/api.md`: add one generated function entry under the standing minimal
+  API-reference authorization. Public function/method docstrings describe
+  inputs, trailing-axis broadcasting (no time-grid axis), unsummed output,
+  static TypeErrors and invalid/unsupported-row NaNs. No narrative docs here.
+
+### Own tests and specification coverage
+
+Create `tests/unit/test_likelihood_entry_points.py`, aiming for 130–180 lines;
+total source/test/docstring changes should stay around 250–300 lines. Replan
+before exceeding the budget; do not copy the existing core/masking matrices.
+
+- Check raw/prepared and function/method values against hand-derived
+  Exponential exact/right contributions. Confirm a custom family inherits the
+  method using existing test coverage in the independent suite (4.2/6.1/7.1).
+- Small named cases check mixed/missing forms, positional arrays, extra
+  constructor keywords and incompatible raw shapes, through both entry
+  points. Include a traced misuse case; signature checks remain static (6.1).
+- Invalid raw indicator values must retain their constructor issue evidence
+  and yield NaN only on the affected rows, eager/jit/vmap, through both forms.
+  Reuse the core suites for normalized-field reconstruction cases (6.2/7.1).
+- Compare values, Jacobians and Hessians in both entry points/forms with
+  analytical Exponential anchors, using named transform cases and existing
+  tolerances. Exercise jit and vmap without duplicating the full isolation
+  matrix; independent method/isolation suites provide broader coverage
+  (3.3/5/7.2–7.3/12.1).
+
+### Verification, limits and delivery
+
+Use UV_CACHE_DIR=/private/tmp/survjax-uv-cache and separate x64/x32 processes.
+First run the new own tests and the independent entry-point, method,
+gradient-isolation and unsupported-mode modules with SPEC_THROUGH=A6.
+Then run `scripts/check.sh --through A6`: it covers every other synced A6
+module plus Ruff, mypy, the full own suite and source doctests in both modes.
+Run `scripts/build_docs.sh`, inspect the generated function entry in both
+dtype builds, and finish with `git diff --check`. Record exact results and
+any optional skips in REVIEW.md; independent tests and gate scripts stay
+read-only. Planning used read-only inspection; implementation evidence is
+recorded below and in REVIEW.md.
+
+D-026 remains an open recipe-wording question; this step preserves the
+specified stored-issue and current-field behavior without editing the spec.
+Docs to-do: likelihood usage, diagnostic triage, method reference and examples
+remain separate docs work. A6.5 composition checks and A7–A9/remaining Slice A
+completion evidence remain later steps. Approval covers this integration
+only; stop after its implementation commit and REVIEW.md.
+
+Evidence: 52 own API cases and 544 focused independent cases pass in each
+dtype. The complete through-A6 gate passes (own 700/706 passed; independent
+2023/2027 passed), as do both executable docs builds. REVIEW.md records exact
+counts, skips and the sandbox-only docs retry. The source/test/docstring/API
+entry diff is 234 lines. No A6.5 or Slice A completion is claimed.
+
 ## A6.4b2 nit N3 — Name the current-field check (2026-10-22)
 
 Status: **implemented, ready for review**, explicitly requested by the maintainer.
@@ -887,7 +963,8 @@ stop after this commit for review.
 
 ## Step A6.4c — Public function, method and shared input convention
 
-Status: **proposed, not approved**. Requires reviewed A6.4b2. One integration
+Status: **implemented, ready for review**; see the current A6.4c entry at the top.
+Follows reviewed A6.4b2. One integration
 concept, targeting 150–250 changed implementation/test/docstring lines.
 Spec 4.2/5/6.1–6.3/7.1–7.3/10.2/10.5/12.1–12.2.
 
@@ -912,8 +989,9 @@ Spec 4.2/5/6.1–6.3/7.1–7.3/10.2/10.5/12.1–12.2.
 - Use the standing docs/api.md exception recorded at the top: one
   `autofunction:: survjax.log_likelihood` block, keeping the export-coverage
   test unchanged. No narrative guide or method-reference expansion here.
-- Run every synced A6 likelihood module, including the method, shapes, values,
-  invalid-data, parameter-issue and entry-point tests in both dtypes.
+- The complete through-A6 gate runs every synced A6 likelihood module,
+  including method, shapes, values, invalid-data, parameter-issue and
+  entry-point tests in both dtypes.
   Explicitly run `SPEC_THROUGH=A6 uv run --locked --group test pytest
   tests/spec/test_a6_likelihood_gradient_isolation.py
   tests/spec/test_a6_unsupported_modes.py -q --tb=short` in separate

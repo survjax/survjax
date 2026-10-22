@@ -6,6 +6,12 @@ with `help()`. For worked examples, see the guides:
 [SurvivalData](survival-data.md), [Exponential and Weibull](builtin-families.md),
 [time grids](grids.md) and [writing a distribution](distributions.md).
 
+## Likelihood contributions
+
+```{eval-rst}
+.. autofunction:: survjax.log_likelihood
+```
+
 ## Observation data
 
 ```{eval-rst}

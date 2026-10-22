@@ -12,6 +12,7 @@ import jax.numpy as jnp
 from jax.typing import ArrayLike
 
 from survjax._dtypes import normalize_parameters
+from survjax.data import SurvivalData
 from survjax.distributions import _grid_methods, _parameter_issues, _survival_methods
 
 
@@ -159,6 +160,35 @@ class SurvivalDistribution:
     log_hazard_grid = _grid_methods.log_hazard_grid
     hazard_grid = _grid_methods.hazard_grid
     parameter_issues = _parameter_issues.parameter_issues
+
+    def log_likelihood(
+        self,
+        data: SurvivalData | None = None,
+        *,
+        time: ArrayLike | None = None,
+        event: ArrayLike | None = None,
+    ) -> jax.Array:
+        """Return the same contributions and derivatives as survjax.log_likelihood.
+
+        Args:
+            data: Prepared SurvivalData, instead of the raw keyword form.
+            time: Raw exact/right-censoring times; requires event.
+            event: 1/True for exact and 0/False for right censoring; requires time.
+
+        Returns:
+            Unsummed log contributions, broadcasting trailing data and parameter
+            batch axes with no time-grid axis. Slice A supports exact/right
+            observations without truncation. Invalid or unsupported rows give
+            NaN, and true zero likelihood gives -inf, eagerly and under jit/vmap.
+
+        Raises:
+            TypeError: Mixed/missing forms, positional raw arrays, invalid types
+                or incompatible shapes. Richer inputs require SurvivalData.
+        """
+        # spec 4.2/7.1: use the single evaluator; defer the import to avoid a cycle.
+        from survjax.likelihood import log_likelihood
+
+        return log_likelihood(self, data, time=time, event=event)
 
     def parameter_conditions(self) -> Mapping[str, jax.Array]:
         """Return named boolean masks of parameter-condition violations.
