@@ -16,7 +16,7 @@
   construction, other may also include violations found by the likelihood's
   field recheck. data.issues.invalid_rows only decodes stored construction issues."
   Await the maintainer's decision before a separate spec/documentation change.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; specification revision 33, section 7.1 (decision 0046) adopts the proposed clarification.
 
 ## D-025 Plain comparisons versus subnormal acceptance expectations
 - Step: A6.1 plain-comparison follow-up planning (2026-10-19).
@@ -45,7 +45,7 @@
   f527f75 uses normal neighbours around zero and passes alongside the focused
   own tests in both dtypes (98 passed per process). No independent test was
   changed here. Formal closure remains the maintainer's.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; specification revision 30, section 4.7.
 
 ## D-024 Precision and subnormal semantics of constraint bounds
 - Step: A6.1 review check (2026-10-19), reviewer Q1.
@@ -75,7 +75,7 @@
   dtype. The zero-bound special cases have been removed. The focused
   revision-30 constraint checks pass in both modes. Formal closure remains
   the maintainer's.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; specification revision 30, section 4.7 (decision 0042).
 
 ## D-023 Explicit unsupported likelihood failures under tracing
 - Step: A6.4 planning against revision 30 (2026-10-20); first raised during
@@ -114,7 +114,7 @@
   independent snapshot remains unchanged; it does not assert all newly settled
   requirements. Implementation and stronger acceptance evidence remain future
   work. Formal deviation closure remains the maintainer's responsibility.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; specification revision 31, sections 7.1/12.2 (decision 0044), implemented in A6.4.
 
 ## D-022 Log-CDF upper tail rounds to zero before S underflows
 - Step: A5.4 review, 2026-10-14 (found after D-021)
@@ -155,7 +155,7 @@
   two-branch helper and upper-tail relative-precision checks normative in
   sections 4.1–4.3, 7.2 and 12.1. No new tests were run during alignment;
   formal closure remains with the maintainer.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; specification revision 25, sections 4.1–4.3, 7.2 and 12.1.
 
 ## D-021 Built-in log-CDF lower-tail switch
 - Step: A5.4 review fix-up, 2026-10-14
@@ -173,7 +173,7 @@
   explicitly requires the built-ins' lower-tail calculation from `log H`;
   the switch point remains an implementation choice preserving relative
   precision. Formal closure remains with the maintainer.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; specification revision 25, section 4.1.
 
 ## D-020 Mixed-time Weibull density acceptance expectation omits log(shape)
 - Step: A5.4 implementation, 2026-10-13
@@ -199,7 +199,7 @@
   includes `log(shape)` in its expected Weibull density. The full A5 run no
   longer reports D-020; the non-grid A5 acceptance modules pass in both dtype
   modes. The maintainer retains closure; this entry remains open.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; the independent boundary test was corrected in revision-24 sync.
 
 ## D-019 Natural parameter leaves versus overflow-safe log constructors
 - Step: A5 planning
@@ -223,7 +223,7 @@
   claim. Independent Q-028 and `test_a5_from_log.py` at tester commit `7f1d6df`
   follow the new contract. The revised A5 plan implements that contract; no
   representation decision remains pending. Formal closure stays with the maintainer.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; specification revision 22, section 4.1 (`from_log` stores natural parameters).
 
 ## D-016 NaN parameter gradients of finite values at `t=+inf`
 - Step: A4.4 review; decision deferred to A5
@@ -284,7 +284,7 @@
   infinity hook. The full through-A5 gate passes in both dtype modes,
   including the updated independent boundary suite. See REVIEW.md for exact
   results and derivative coverage; maintainer closure remains pending.
-- Status: open (maintainer decision 2026-10-03: defer to A5)
+- Status: resolved by maintainer, 2026-10-22; specification revisions 22 and 26–27, sections 4.2/4.5, implemented in A5.2b and A5.6.
 
 ## D-017 Dtype policy for direct-method times
 - Step: A4.4 review
@@ -337,7 +337,7 @@ decision descriptions are retained as history.
   family and raise a field-named TypeError otherwise. Implement this before
   reading nested batch shapes, including rejecting unregistered subclasses
   of registered parents. No parameter-value validation or spec change.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; specification revision 33, section 4.2 (decision 0046).
 
 ## D-014 Unmarked family fields and inherited constructors
 - Step: A4.2 review fix-up
@@ -353,7 +353,7 @@ decision descriptions are retained as history.
   at registration, and rejection of classes without their own initializer.
   The maintainer approved both rejections on 2026-10-02; this fix-up
   implements them. The specification is unchanged; this entry remains open.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; specification revision 33, section 4.2 (decision 0046).
 
 ## D-013 Parameter diagnostic return contract
 - Step: A4 planning; deferred to A6 after acceptance-suite sync
@@ -374,7 +374,7 @@ decision descriptions are retained as history.
   constraint/condition-based ParameterIssues contract and section 7.1 defines
   likelihood attribution (decision 0042). A6.1–A6.5 in PLAN.md implement it;
   this removes the planning blocker. Formal resolution remains the maintainer's.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; specification revision 28, sections 4.7 and 7.1 (decision 0042), implemented in A6.
 
 ## D-012 Right precedence for the unbounded zero-lower observation
 - Step: A3 review fix-up
@@ -389,7 +389,7 @@ decision descriptions are retained as history.
   precedence, as approved in `A3-review-handoff.md`. Propose a later spec
   revision make the precedence explicit in section 3.2. Metadata still
   includes rows with issue bits; this classification is not a validity check.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; specification revision 33, section 3.2 (decision 0046).
 
 ## D-010 A3 vmap acceptance test indexes scalar `data.issues.ok`
 - Step: A2 constructor API migration; observed in an A3 acceptance test
@@ -402,7 +402,7 @@ decision descriptions are retained as history.
   indexes `batched.issues.ok[i]`, which raises `IndexError` for the scalar. To
   compare per-batch validity, the independent test author could vmap a function
   returning `data.issues` or compare `~jnp.any(invalid_rows, axis=1)`.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; the independent A3 tracing test no longer indexes scalar `issues.ok`.
 
 ## D-006 Legacy diagnostic compatibility after pure construction
 - Step: specification revision 8 (`spec-constructor`)
@@ -431,7 +431,7 @@ Entries are added by the implementer and resolved by the maintainer.
   is true. This allows one `time2` array to accompany mixed observation kinds
   without treating unused entries as endpoints. The maintainer approved this
   handling in conversation on 2026-09-25; the entry remains formally open.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; specification section 3.1 ignores `time2` on non-interval rows (approved 2026-09-25).
 
 ## D-002 JAX weak Python inputs and float64 warnings
 - Step: A1 review fix-up
@@ -449,7 +449,7 @@ Entries are added by the implementer and resolved by the maintainer.
   their weak contribution. Integer-only or scalar-only input uses the default
   floating dtype. The clarifying spec edit has landed as `3041ebd`; this
   entry awaits maintainer resolution.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; specification section 3.3 (`3041ebd`) states the weak-input and warning policy.
 
 ## D-003 Right censoring at entry
 - Step: A2
@@ -516,9 +516,7 @@ Entries are added by the implementer and resolved by the maintainer.
   `TypeError` in both paths in conversation on 2026-09-29, reserving the bit
   for row-wise conflicts between true flags. Implement this in the A2 review
   fix-up; the entry remains formally open for maintainer resolution.
-- Status: open; superseded by specification revision 9, which requires
-  `TypeError` when `event` is combined with any non-None censoring flag.
-  Awaiting maintainer closure.
+- Status: resolved by maintainer, 2026-10-22; superseded by specification revision 9.
 
 ## D-007 Concrete observation inputs captured inside `jit`
 - Step: A2 independent-review fix-up
@@ -532,9 +530,7 @@ Entries are added by the implementer and resolved by the maintainer.
   The reviewer recommends checking inputs for tracers and evaluating fully
   concrete construction under `jax.ensure_compile_time_eval()`. Await
   maintainer decision before changing this behavior.
-- Status: open; superseded by specification revision 9, which requires both
-  ordinary constructors to accept traced and concrete inputs inside `jit`.
-  Awaiting maintainer closure.
+- Status: resolved by maintainer, 2026-10-22; superseded by specification revision 9.
 
 ## D-008 Pure bounds constructor name and signature
 - Step: A2 independent-review fix-up
@@ -547,9 +543,7 @@ Entries are added by the implementer and resolved by the maintainer.
   need to be placed in the normative spec. A possible form is
   `SurvivalData.from_bounds_with_issues(...)`. The maintainer will update the
   spec before adding a public method (conversation, 2026-09-29).
-- Status: open; superseded by specification revision 9, which makes
-  `from_bounds` the pure bounds constructor and removes issue-returning
-  constructor methods. Awaiting maintainer closure.
+- Status: resolved by maintainer, 2026-10-22; superseded by specification revision 9.
 
 ## D-009 Unsupported outside-interval keyword in `from_bounds`
 - Step: A2 independent-review fix-up
@@ -561,6 +555,4 @@ Entries are added by the implementer and resolved by the maintainer.
 - Did / propose: `from_bounds(..., outside_interval_censored=...)` currently
   raises Python's `TypeError`. The maintainer will update the spec before a
   change to this behavior (conversation, 2026-09-29).
-- Status: open; superseded by specification revision 9, whose constructor
-  signatures reject the unsupported keyword with `TypeError`. Awaiting
-  maintainer closure.
+- Status: resolved by maintainer, 2026-10-22; superseded by specification revision 9.
