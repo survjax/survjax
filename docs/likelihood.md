@@ -131,7 +131,8 @@ from_arrays.sum(), from_function.sum(), contributions.sum()
 ```
 
 All three agree. `time` and `event` are keyword-only and must be given
-together, and they cannot be combined with a `SurvivalData`. A raw array in
+together, and they cannot be combined with a `SurvivalData`. `event`
+broadcasts against `time`, so `event=1` marks every observation as an event. A raw array in
 the data position is a mistake in the call, so it raises `TypeError`
 immediately, also while JAX traces a function:
 
