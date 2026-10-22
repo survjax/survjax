@@ -1,5 +1,47 @@
 # A6.4 replanning — Exact/right likelihood (2026-10-21)
 
+## Current step — A6.5 remaining derivative verification (2026-10-22)
+
+Status: **implemented, ready for review**, authorized by "ok get to it" after the
+remaining-gap explanation. Start at `dca2ee8` on the existing maintainer-
+selected A6 branch, at the same commit as main. One test-only commit with
+REVIEW.md, then stop; docs follow in their own reviewed steps.
+
+- Create `tests/unit/test_likelihood_transformations.py` with two explicit
+  tests: Exponential rate and joint Weibull shape/scale. On a small valid
+  exact/right batch at positive finite times, run check_grads(order=2,
+  modes=("fwd", "rev")) through the public function and method, raw and
+  prepared forms, eager and jit. Differentiate only model parameters.
+  Expected derivatives come from central finite differences; choose
+  representative O(1) interior parameters, not boundary/tail cases.
+- Use the mean contribution so the scalar objective is O(1). In
+  `tests/impl_tolerances.py`, retain the existing derivative tolerances and
+  add documented finite-difference step sizes: h=1e-4 for x64 and 1e-3 for
+  x32. For these smooth O(1) cases, centered truncation is O(h**2); rounding
+  is O(eps/h). These scales fit the existing 1e-7/1e-3 derivative targets.
+  Never loosen the tolerances to pass a test; report a failure if they fail.
+- Spec 7.3/12.1: second-order finite-difference checks close the identified
+  gap. Existing suites already cover analytical values, Jacobians/Hessians,
+  invalid-parameter isolation, jit/vmap, compile reuse, host-transfer guards
+  and mixed valid debug_nans evaluation. Keep that evidence rather than
+  duplicating its matrices. No src/, public API, docs/, spec-test, dependency
+  or numerical implementation changes. Target under 150 test/comment lines.
+- Run focused new tests in separate JAX_ENABLE_X64=1/0 processes, then
+  scripts/check.sh --through A6 and git diff --check. Use the existing tmp
+  uv cache; record actual outputs and any limits in REVIEW.md.
+- Docs to-do: parameter diagnostics first, then likelihood usage. Maintainer
+  writing instruction: tutorial prose, introduce the mathematics, follow it
+  with code applying that idea, then interpret the result. Use one coherent
+  synthetic example and meaningful displayed output. Examples teach use;
+  avoid unit-test-style assert sequences or verification matrices. Keep
+  API details in the reference. D-026 remains open for the triage wording.
+
+Evidence: all 16 new checks pass on their first run in each dtype. The full
+through-A6 gate passes (own 722/728 passed, existing 7/1 skips; independent
+2023/2027 passed, existing 28/24 skips). REVIEW.md records exact commands and
+results. This test-only step adds 87 test/comment lines. A6 implementation
+and its planned verification are ready for review; tutorial docs are next.
+
 ## A6.4c review follow-up — Distribution argument type (2026-10-22)
 
 Status: **implemented, ready for review**, authorized by "look at the review
@@ -1049,25 +1091,12 @@ part without instruction. Replan before exceeding the code/test budget.
 
 ## Step A6.5 — Likelihood composition and derivative regressions
 
-Status: forward outline, not approved. Spec 4.7/6.3/7.1–7.3/12.1. Broader
-verification after A6.4c; revision-32 parameter isolation belongs to
-A6.4b1/b2 and must not be deferred to this step.
-Replan against the reviewed public implementation before approval.
-
-- Add `tests/unit/test_likelihood_transformations.py`: eager/jit/vmap agreement,
-  prepared and traced construction, stored issues, compilation reuse with new
-  same-shaped values/minibatches, and device transfer guard after warmup.
-- Extend the A6.4 baseline Jacobian isolation cases across both families,
-  method/function and batching patterns. Do not invent validity-repair
-  transformations for arbitrary custom families.
-- Include second-order check_grads/Hessians on valid interior mixed likelihoods
-  with analytical exponential derivatives and justified central tolerances in
-  tests/impl_tolerances.py; a valid mixed eager jax_debug_nans run. A7/A9 retain
-  broader tail/transformation verification; this step must verify new code.
-- Run the complete through-A6 gate with the expanded own tests. Later A7–A9,
-  fixtures, install and CPU benchmark evidence remain required for Slice A
-  completion.
-- Docs to-do: transformation and diagnostic composition examples.
+Status: **implemented, ready for review**, narrowed to the remaining finite-difference
+checks in the current entry at the top. The reviewed A6.4 implementation and
+passing suites already cover the other items from the original outline.
+Do not repeat their matrices. Later A7–A9 and the remaining Slice A completion
+evidence remain separate. Docs to-do: transformation/diagnostic composition
+examples in tutorial style, mathematics followed by applied code.
 
 ## Validation and delivery for every approved code step
 
@@ -2698,6 +2727,10 @@ most 300 changed lines each, and pass `scripts/build_docs.sh` with examples
 and notebooks executing. The next sub-slice waits for the last docs merge.
 
 ### A6 docs
+
+Writing direction (maintainer, 2026-10-22): tutorial style, with mathematics
+followed by code that applies it and prose interpreting the output. Build a
+coherent example; avoid writing the guide as a collection of unit tests.
 
 Docs to-do:
 
