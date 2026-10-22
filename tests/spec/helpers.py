@@ -290,3 +290,70 @@ def unsupported_nan(dist, data, value):
     bad_data, bad_params, _ = nan_causes(dist, data, value)
     unsupported = np.broadcast_to(~supported_mode(data), value.shape)
     return np.isnan(value) & ~bad_data & ~bad_params & unsupported
+
+
+# ------------------------------------------------ likelihood references (A7, rev 33)
+
+
+def _rounded(*values):
+    """Inputs rounded to the active dtype first, so a reference measures only survjax's arithmetic."""
+    return [float(np.asarray(v, dtype=FLOAT)) for v in values]
+
+
+def _reference(terms):
+    """Sum of ``(term, amplification)`` pairs in mpmath, and a relative tolerance.
+
+    Each term computed in floating point carries a relative error of a few
+    ulps times its amplification (``1`` for ``log`` and products; ``1 + k|log z|``
+    for ``z**k = exp(k log z)``, whose relative error is that of ``k log z``
+    times its size). Summed, the absolute error is about
+    ``eps * sum(|term| * amplification)``. The returned tolerance is the 12.1
+    ``rtol`` or ``16`` times that bound relative to the value, whichever is
+    larger, so cancellation between terms widens it and an erroneous zero
+    (compared with zero absolute tolerance) still fails.
+    """
+    from tolerances import TOLERANCES
+
+    value = sum(term for term, _ in terms)
+    scale = sum(abs(term) * amp for term, amp in terms)
+    eps = float(np.finfo(FLOAT).eps)
+    rtol = max(TOLERANCES[FLOAT]["rtol"], 16.0 * eps * float(scale / abs(value)))
+    return float(value), rtol
+
+
+def mp_exponential_contribution(rate, t, exact):
+    """mpmath (50 digits) untruncated contribution of an exponential row: ``log r - r t`` or ``-r t``.
+
+    Returns ``(value, rtol)``; see ``_reference``.
+    """
+    import mpmath
+
+    r, t = _rounded(rate, t)
+    with mpmath.workdps(50):
+        r, t = mpmath.mpf(r), mpmath.mpf(t)
+        terms = [(-r * t, 1)]
+        if exact:
+            terms.append((mpmath.log(r), 1))
+        return _reference(terms)
+
+
+def mp_weibull_contribution(shape, scale, t, exact):
+    """mpmath (50 digits) untruncated contribution of a Weibull row (spec 2, 4.1).
+
+    ``z = t/b``: exact ``log k - log b + (k-1) log z - z**k``; right-censored
+    ``-z**k``. Returns ``(value, rtol)``; see ``_reference``.
+    """
+    import mpmath
+
+    k, b_, t = _rounded(shape, scale, t)
+    with mpmath.workdps(50):
+        k, b_, t = mpmath.mpf(k), mpmath.mpf(b_), mpmath.mpf(t)
+        log_z = mpmath.log(t / b_)
+        terms = [(-mpmath.exp(k * log_z), 1 + k * abs(log_z))]
+        if exact:
+            terms += [
+                (mpmath.log(k), 1),
+                (-mpmath.log(b_), 1),
+                ((k - 1) * log_z, 1 + abs(log_z)),
+            ]
+        return _reference(terms)

@@ -160,6 +160,74 @@ def test_no_automatic_subclass_registration():
     assert found[0] is obj
 
 
+@pytest.mark.step("A4")
+def test_unmarked_field_is_rejected_at_registration():
+    """spec 4.2, rev 33: every dataclass field must use a field helper; registration raises `TypeError`."""
+
+    @dataclasses.dataclass(frozen=True)
+    class Unmarked(survjax.SurvivalDistribution):
+        rate: jax.Array = survjax.param()
+        unmarked_scale: float = 1.0
+
+        def log_survival(self, t):
+            return -self.rate * t
+
+        def reference_time(self):
+            return 1.0 / self.rate
+
+    with pytest.raises(TypeError):
+        survjax.register_family(Unmarked)
+
+
+@pytest.mark.step("A4")
+def test_unmarked_field_error_names_the_field():
+    """spec 4.2, rev 33: registration "raises a `TypeError` naming an unmarked field"."""
+
+    @dataclasses.dataclass(frozen=True)
+    class Unmarked(survjax.SurvivalDistribution):
+        rate: jax.Array = survjax.param()
+        unmarked_scale: float = 1.0
+
+        def log_survival(self, t):
+            return -self.rate * t
+
+        def reference_time(self):
+            return 1.0 / self.rate
+
+    with pytest.raises(TypeError) as info:
+        survjax.register_family(Unmarked)
+    assert "unmarked_scale" in str(info.value)
+
+
+@pytest.mark.step("A4")
+def test_unmarked_field_without_default_is_rejected_at_registration():
+    """spec 4.2, rev 33: a plain annotated field with no helper and no default is also unmarked."""
+
+    @dataclasses.dataclass(frozen=True)
+    class Unmarked(survjax.SurvivalDistribution):
+        unmarked_rate: jax.Array
+
+        def log_survival(self, t):
+            return -self.unmarked_rate * t
+
+        def reference_time(self):
+            return 1.0 / self.unmarked_rate
+
+    with pytest.raises(TypeError):
+        survjax.register_family(Unmarked)
+
+
+@pytest.mark.step("A4")
+def test_subclass_inheriting_registered_initializer_is_rejected():
+    """spec 4.2, rev 33: "a subclass that only inherits a registered initializer raises `TypeError` at registration"."""
+
+    class Inherits(fam.const_hazard()):  # no @dataclass of its own
+        pass
+
+    with pytest.raises(TypeError):
+        survjax.register_family(Inherits)
+
+
 # --------------------------------------------------------------- immutability
 
 

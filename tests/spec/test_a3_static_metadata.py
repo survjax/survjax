@@ -175,6 +175,47 @@ def test_eager_bounds_constructor_computes_flags_from_values():
     assert treedef(eager) == treedef(_exact_only())
 
 
+def _exact_and_bounds(lower, upper, **trunc):
+    """Four rows from ``from_bounds``: three exact and one censored row ``(lower, upper]``."""
+    return survjax.SurvivalData.from_bounds(
+        f([1.0, 2.0, 3.0, lower]),
+        f([1.0, 2.0, 3.0, upper]),
+        exact=b([True, True, True, False]),
+        **{k: f([0.0, 0.0, 0.0, v]) if k == "left_trunc" else f([INF, INF, INF, v]) for k, v in trunc.items()},
+    )
+
+
+@pytest.mark.step("A3")
+def test_zero_to_inf_row_is_classified_as_right_censored():
+    """spec 3.2, rev 33: "Right takes precedence": a non-exact row with `upper=+inf` is right-censored even when `lower=0`.
+
+    `from_bounds(0, inf)` therefore gives the same flags as a right-censored
+    row `(4, inf]`.
+    """
+    assert treedef(_exact_and_bounds(0.0, INF)) == treedef(_exact_and_bounds(4.0, INF))
+
+
+@pytest.mark.step("A3")
+def test_zero_to_inf_row_is_not_classified_as_left_censored():
+    """spec 3.2, rev 33: valid left rows have `upper<+inf`; `(0, inf]` is not a left-censored row."""
+    assert treedef(_exact_and_bounds(0.0, INF)) != treedef(_exact_and_bounds(0.0, 4.0))
+
+
+@pytest.mark.step("A3")
+def test_zero_to_inf_row_with_issue_is_still_classified_as_right_censored():
+    """spec 3.2, rev 33: "This classification is not a validity check; rows with issue bits are still classified."
+
+    With L=1, `from_bounds(0, inf)` is invalid (spec 3.3: `lower<L`). It is
+    classified as right-censored all the same, so its flags match a valid
+    right-censored row `(4, inf]` with the same left truncation.
+    """
+    invalid = _exact_and_bounds(0.0, INF, left_trunc=1.0)
+    assert not bool(invalid.issues.ok)
+    valid = _exact_and_bounds(4.0, INF, left_trunc=1.0)
+    assert bool(valid.issues.ok)
+    assert treedef(invalid) == treedef(valid)
+
+
 @pytest.mark.step("A3")
 def test_flags_include_rows_with_issue_bits():
     """spec 3.2, rev 6: flags are computed from the normalized fields of all rows, including rows with issue bits.
