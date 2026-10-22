@@ -156,6 +156,14 @@ Target at most 300 changed lines; stop with REVIEW.md before the next step.
 
 ## A8.3 Generate and review the committed R outputs
 
+Review nits (2026-10-22), authorized in this conversation: N-1 adds committed
+payload comparisons and a no-argument overwrite warning to both READMEs.
+N-2 adds a two-entry SHA256SUMS manifest per fixture, a documented verification
+command and an A8.4 loader requirement. Files: both fixture READMEs/manifests,
+PLAN.md and REVIEW.md; no payload, generator or public API changes. Validate
+all hashes, committed-file comparisons and independent CSV/JSON corruption
+checks in temporary copies; run git diff --check. One fix-up commit, then stop.
+
 Current execution: the maintainer requested this step in this conversation.
 Run the reviewed, unchanged generators in the pinned R environment twice per
 fixture into temporary destinations. Validate byte identity, schema, row/group
@@ -193,7 +201,7 @@ source code and handwritten verification values were not substituted.
 ## A8.4 Fixture loader and exponential reference tests
 
 Requires A6's completed API and genuine committed outputs.
-Files: extend `tests/conftest.py`; add
+Files: extend `tests/conftest.py`; consume the fixture SHA256SUMS manifests; add
 `tests/reference/test_exponential_r.py`. No new public exports.
 
 Add one shared loader exposed through a pytest fixture. It reads CSV/JSON with
@@ -201,6 +209,12 @@ the standard library, checks schema, provenance and row alignment, and returns
 host arrays in their stored precision. Tests convert inputs to the active JAX
 dtype; expected values remain the R doubles. Missing or malformed fixtures
 fail explicitly rather than skip. All reference tests use this loader.
+
+Before parsing, use the standard library's hashlib to verify both `data.csv`
+and `expected.json` against each fixture's SHA256SUMS manifest. Require both
+entries; missing or malformed manifests and mismatched payloads fail explicitly.
+Add loader tests that independently alter CSV and JSON in temporary copies
+without updating the manifest, and require rejection in each case.
 
 Compare per-row exponential likelihoods against each R source, using both
 `survjax.log_likelihood` and `dist.log_likelihood`, and requiring clear

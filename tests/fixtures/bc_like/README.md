@@ -6,13 +6,17 @@ that comparison is A8.5.
 From the repository root, use R 4.4.2, flexsurv 2.3.2 and survival 3.7-0
 (R reports `3.7.0`), with no extra export dependencies:
 
+Running the generator without arguments overwrites the committed CSV/JSON files.
+
 ```sh
 Rscript --vanilla scripts/fixtures/generate_bc_like.R --check-only
-Rscript --vanilla scripts/fixtures/generate_bc_like.R
 Rscript --vanilla scripts/fixtures/generate_bc_like.R /tmp/bc-like-run1
 Rscript --vanilla scripts/fixtures/generate_bc_like.R /tmp/bc-like-run2
 cmp /tmp/bc-like-run1/data.csv /tmp/bc-like-run2/data.csv
 cmp /tmp/bc-like-run1/expected.json /tmp/bc-like-run2/expected.json
+cmp /tmp/bc-like-run1/data.csv tests/fixtures/bc_like/data.csv
+cmp /tmp/bc-like-run1/expected.json tests/fixtures/bc_like/expected.json
+(cd tests/fixtures/bc_like && shasum -a 256 -c SHA256SUMS)
 ```
 
 Seed 8201, Mersenne-Twister/Inversion/Rejection: 686 Weibull draws from the
@@ -61,9 +65,6 @@ Generated on 2026-10-21 from the unchanged generators at commit
 Rows: 686; exact: 293; right-censored: 393.
 Good/Medium/Poor events: 52/91/150, simulated counts rather than cohort counts.
 R/package versions and generator/CSV MD5 hashes are also stored in the JSON
-header. These are SHA-256 hashes of the exact committed payload bytes:
-
-```text
-8f3a71e916c4afa2a5a600607d166d5772801e67ab27bc73b74eeb2ae567215e  data.csv
-1d326c0eecedcd95aad6b00bb11f4907b9aa2c24a789f2f62ecd1451afefe4a9  expected.json
-```
+header. SHA-256 hashes of both committed payloads are recorded in
+[SHA256SUMS](SHA256SUMS). The command above verifies both files. The A8.4
+loader will verify this manifest before parsing either payload.

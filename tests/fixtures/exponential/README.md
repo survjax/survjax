@@ -7,14 +7,18 @@ A8.4. No patient data are loaded.
 From the repository root, use R 4.4.2, flexsurv 2.3.2 and survival 3.7-0
 (reported by R as `3.7.0`). No additional R packages are needed for export:
 
+Running the generator without arguments overwrites the committed CSV/JSON files.
+
 ```sh
 Rscript --vanilla scripts/fixtures/generate_exponential.R --check-only
-Rscript --vanilla scripts/fixtures/generate_exponential.R
 # Optional destination for independent regeneration (overwrites payload files):
 Rscript --vanilla scripts/fixtures/generate_exponential.R /tmp/exponential-run1
 Rscript --vanilla scripts/fixtures/generate_exponential.R /tmp/exponential-run2
 cmp /tmp/exponential-run1/data.csv /tmp/exponential-run2/data.csv
 cmp /tmp/exponential-run1/expected.json /tmp/exponential-run2/expected.json
+cmp /tmp/exponential-run1/data.csv tests/fixtures/exponential/data.csv
+cmp /tmp/exponential-run1/expected.json tests/fixtures/exponential/expected.json
+(cd tests/fixtures/exponential && shasum -a 256 -c SHA256SUMS)
 ```
 
 Unknown `--` options fail before simulation or output. `--check-only` checks
@@ -61,9 +65,6 @@ Generated on 2026-10-21 from the unchanged generators at commit
 `8e8a96a8302f5706ce3434152ddabab146b9881a` on `aarch64-apple-darwin20`.
 Rows: 16; exact: 11; right-censored: 5.
 R/package versions and generator/CSV MD5 hashes are also stored in the JSON
-header. These are SHA-256 hashes of the exact committed payload bytes:
-
-```text
-048a990f9dbdab3b34182e7cd286c9de0a68ffa3893a4c3d14c2d91610a2af19  data.csv
-32b09d596481c7a96d6136b8e284b01ae3f68925c89ef34c076330795905ae38  expected.json
-```
+header. SHA-256 hashes of both committed payloads are recorded in
+[SHA256SUMS](SHA256SUMS). The command above verifies both files. The A8.4
+loader will verify this manifest before parsing either payload.
