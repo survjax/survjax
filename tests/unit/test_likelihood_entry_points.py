@@ -16,6 +16,21 @@ def evaluate(request):
     return survjax.log_likelihood
 
 
+@pytest.mark.parametrize(
+    "dist", [None, object(), survjax.Exponential], ids=["none", "object", "class"]
+)
+@pytest.mark.parametrize("compiled", [False, True], ids=["eager", "jit"])
+def test_non_distribution_argument_raises_clear_type_error(dist, compiled):
+    """Spec 6.1: invalid distribution types are rejected before evaluation."""
+    data = survjax.SurvivalData([1.0], [1])
+
+    def run():
+        return survjax.log_likelihood(dist, data)
+
+    with pytest.raises(TypeError, match="dist must be a SurvivalDistribution instance"):
+        (jax.jit(run) if compiled else run)()
+
+
 @pytest.mark.parametrize("form", ["raw", "prepared"])
 def test_public_contributions_match_hand_derived_values(evaluate, form, x64_enabled):
     """Spec 6.1/7.1: both forms return each contribution, without a reduction."""
@@ -60,7 +75,7 @@ def test_positional_raw_array_points_to_keyword_form(evaluate):
 
 
 def test_raw_keywords_are_keyword_only(evaluate):
-    """Spec 7.1: only data may follow the distribution positionally."""
+    """Spec 6.1: only data may follow the distribution positionally."""
     with pytest.raises(TypeError):
         evaluate(survjax.Exponential(rate=1.0), None, [1.0], [1])
 

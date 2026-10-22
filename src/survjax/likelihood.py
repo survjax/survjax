@@ -57,6 +57,8 @@ def log_likelihood(
             input types or incompatible shapes. time and event are keyword-only;
             constructor options such as truncation are not accepted here.
     """
+    if not isinstance(dist, SurvivalDistribution):
+        raise TypeError("dist must be a SurvivalDistribution instance")
     return _log_likelihood(dist, _resolve_data(data, time, event))
 
 

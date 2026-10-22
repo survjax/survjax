@@ -1,5 +1,32 @@
 # A6.4 replanning — Exact/right likelihood (2026-10-21)
 
+## A6.4c review follow-up — Distribution argument type (2026-10-22)
+
+Status: **implemented, ready for review**, authorized by "look at the review
+and implement". Read all of `../review/slices/A6.4c.md`, reviewing `b1edf82` on A6.
+One small follow-up commit on the same branch, then REVIEW.md and a stop.
+
+- S1: add an isinstance guard at the public function's entry in
+  `src/survjax/likelihood.py`, raising TypeError with a useful message for a
+  non-SurvivalDistribution instance. Preserve signatures, resolver and numerics.
+- In `tests/unit/test_likelihood_entry_points.py`, add one regression with
+  named cases for None, an unrelated object and a distribution class rather
+  than an instance, eager/jit. First demonstrate failure without the guard.
+  Spec 6.1 and the public docstring's existing TypeError contract.
+- N1: correct the keyword-only test's citation from 7.1 to 6.1 in that file.
+  N2 explicitly requires no A6.4c action: defer the base.py module split.
+- Run the own entry-point and independent entry-point/method suites in both
+  dtype modes, then `scripts/check.sh --through A6` and `git diff --check`.
+  Overwrite REVIEW.md with actual checks and the reading order. Public API
+  shape is unchanged; no docs/, spec/, independent-test or dependency changes.
+- Docs to-do: unchanged; D-026 remains open. No docs build is needed for this
+  static guard and test-docstring citation correction.
+
+Evidence: the new regression fails all six cases in each dtype before the
+guard. With the guard, 113 focused cases pass per dtype. The full through-A6
+gate passes (own 706/712 passed; independent 2023/2027 passed, with existing
+skips). REVIEW.md records exact outputs. Source/test diff: 19 changed lines.
+
 ## Current step — A6.4c public likelihood integration (2026-10-22)
 
 Status: **implemented, ready for review**, authorized by "do it".
