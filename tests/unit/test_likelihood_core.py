@@ -90,6 +90,33 @@ def test_true_zero_density_and_survival_remain_negative_infinity():
     np.testing.assert_array_equal(value, [-np.inf, -np.inf])
 
 
+@survjax.register_family
+@dataclass(frozen=True)
+class NarrowExponential(survjax.SurvivalDistribution):
+    def log_survival(self, t: jax.Array) -> jax.Array:
+        return -jnp.asarray(t, dtype=jnp.float32)
+
+    def log_prob(self, t: jax.Array) -> jax.Array:
+        return -jnp.asarray(t, dtype=jnp.float32)
+
+    def reference_time(self) -> jax.Array:
+        return jnp.asarray(1.0, dtype=jnp.float32)
+
+    def log_survival_at_infinity(self) -> jax.Array:
+        return jnp.asarray(-jnp.inf, dtype=jnp.float32)
+
+
+def test_fixed_precision_overrides_still_return_common_contribution_dtype(x64_enabled):
+    """Spec 3.3: custom float32 outputs do not narrow float64 contributions."""
+    dtype = jnp.float64 if x64_enabled else jnp.float32
+    data = survjax.SurvivalData(jnp.array([1.0, 2.0], dtype=dtype), [True, False])
+    for evaluate in (_log_likelihood, jax.jit(_log_likelihood)):
+        value = evaluate(NarrowExponential(), data)
+        assert value.dtype == dtype
+        # A unit-rate exponential has log f=log S=-t, exact at integer times.
+        np.testing.assert_array_equal(value, [-1.0, -2.0])
+
+
 @pytest.mark.parametrize(
     "rates,shape",
     [(2.0, (2,)), ([1.0, 2.0], (2,)), ([[1.0], [2.0]], (2, 2))],

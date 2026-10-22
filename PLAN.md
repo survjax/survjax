@@ -1,5 +1,40 @@
 # A6.4 replanning — Exact/right likelihood (2026-10-21)
 
+## A6.4b2 review follow-up — Readability (2026-10-22)
+
+Status: **implemented, ready for review**, authorized by
+"check the review in ../review/slices and update",
+on A6 at `401ce87`. Read all of `../review/slices/A6.4b2.md`. One follow-up
+commit, then stop; no A6.4c or constructor rewrite.
+
+- R1: give likelihood evaluation named private stages for unusable data,
+  mode support and safe evaluation, leaving the entry point as orchestration.
+- R2: move normalized-field checks into `stored_field_issues` in
+  `_data_validation.py`. Explain reconstruction bypassing constructors,
+  normalized exact upper=lower, and unavailable raw indicator evidence;
+  retain the existing rules and shared row_issues packing.
+- R3/R4/R6: build one bad-row mask, use its complement for substitutions,
+  name the broadcast exact mask separately, and read data.issues.invalid_rows
+  rather than the private bitfield.
+- R5: cite dtype promotion; explain the reference, data-time and output
+  casts, including references/overrides with fixed precision. Add a fixed-float32 custom family
+  test that demonstrates why the output cast remains necessary.
+- SQ1: record the recipe-wording gap as D-026, with a proposed clarification;
+  no spec or diagnostic behavior change without the maintainer's decision.
+- Run core and core-matrix focused tests in both dtypes, then the full
+  through-A5 gate and git diff checks. Overwrite REVIEW.md with actual
+  results and outstanding SQ1. No public API, docs/ or spec-test changes.
+- Docs to-do: clarify the recipe's numerical remainder after edited fields,
+  pending SQ1 approval; existing likelihood usage docs remain a later step.
+
+Evidence: 62 focused core cases pass in both dtypes; the fixed-precision
+regression also passes after pinning its infinity limit. An in-memory
+output-cast deletion fails that regression in x64 as expected. The full
+through-A5 gate passes in both dtypes (own suites 648/654 passed with
+existing 7/1 skips). REVIEW.md records exact results. R1–R6 are implemented;
+D-026/SQ1 remains open pending the separate spec-clarification decision.
+The source/test diff is 172 lines; files remain below 300 lines.
+
 ## Current step — A6.4b2 implementation
 
 Status: **implemented, ready for review**, approved by "now do the next bit

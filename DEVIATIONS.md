@@ -1,5 +1,23 @@
 # Deviations and spec questions
 
+## D-026 NaN triage after normalized fields are edited
+- Step: A6.4b2 review follow-up, SQ1
+- Spec: sections 6.2 and 7.1, revision 32
+- Spec says: data.issues decodes stored issue bits, while likelihood evaluation
+  also checks current normalized fields. The Slice A recipe labels supported
+  NaNs unexplained by stored data/parameter issues as zero normalization or
+  numerical failure.
+- Gap: a tree-rebuilt row with a newly invalid field can have issues.ok=True
+  and a NaN likelihood; the recipe then misattributes that NaN to its remainder.
+  The implementation follows both requirements; this is a wording question,
+  not a proposed change to diagnostic or likelihood behavior.
+- Did / propose: preserve current behavior in the readability refactor.
+  Proposed clarification: "For data whose normalized fields were edited after
+  construction, other may also include violations found by the likelihood's
+  field recheck. data.issues.invalid_rows only decodes stored construction issues."
+  Await the maintainer's decision before a separate spec/documentation change.
+- Status: open
+
 ## D-025 Plain comparisons versus subnormal acceptance expectations
 - Step: A6.1 plain-comparison follow-up planning (2026-10-19).
 - Spec: sections 4.7 and 12.1; independent
