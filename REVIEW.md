@@ -1,5 +1,23 @@
 # Review: A6 docs rewrite — tutorial likelihood guide
 
+## Fixes for review/slices/A6.docs.md (third follow-up)
+
+- S1: aligned comments in the entry-point snippet now use Ruff's spacing;
+  `ruff format --check .` reports 67 files already formatted.
+- S2: restored the spec 7.1 Slice A triage recipe as "Telling the causes
+  apart": one freshly constructed batch with a valid event, an invalid exact
+  time, an interval row and a right-censored row; the recipe's masks show
+  bad data in the second row, unsupported mode in the third and empty `other`. Limited
+  explicitly to data as constructed; edited fields stay with D-026.
+- N2: LR interpretation now describes the evidence in this sample only.
+- Maintainer requests: the Weibull Newton step now has its vector formula
+  (Hessian solve) in the text, and a short note says JAX derivatives make a
+  hand-written Newton easy, with external-optimizer (Optimistix) examples
+  planned for a later slice (spec 11.1, Slice C).
+- N1 (size) not fixed: the docs diff against main is now about 375 changed
+  lines. Needs the maintainer to accept or ask for a split (the Weibull
+  section is the natural candidate, about 45 lines).
+
 ## Follow-up (second commit)
 
 Reframed per review: the page is now "Log likelihoods" and is about how survjax
