@@ -7,187 +7,264 @@ kernelspec:
   name: python3
 ---
 
-# Likelihood contributions
+# Fitting a model to censored data
 
-A survival likelihood combines observed events with follow-up that ended
-before an event was observed. survjax currently evaluates exact events and
-right censoring without truncation. Both built-in families,
-[Exponential and Weibull](builtin-families.md), and registered custom
-families have this interface. Other censoring modes and truncation can be
-represented in `SurvivalData`, but their likelihood contributions are NaN
-in Slice A.
+```{note}
+survjax currently evaluates likelihoods for exact events and right
+censoring, without truncation. Interval and left censoring and truncation
+can already be described with `SurvivalData`, but their likelihood
+contributions are NaN for now (see the last section).
+```
 
-## Events contribute density; censoring contributes survival
+This page fits the [exponential and Weibull](builtin-families.md) families to
+a small synthetic cohort by maximum likelihood. We start from the
+mathematics, then let survjax and JAX do the work.
 
-For an event observed at time $t$, the contribution is $\log f(t)$. For a
-subject still event free when follow-up ends at $t$, it is $\log S(t)$.
-With exponential rate $\lambda$, these become
+## The cohort
 
-$$
-\ell_i = d_i \log\lambda - \lambda t_i,
-$$
-
-where $d_i=1$ denotes an event and $d_i=0$ right censoring. Exact event times
-must be finite and positive; a right-censored time of zero is valid and
-contributes zero. The direct method `log_prob(0)` has a separate boundary
-policy and does not make an exact observation at zero valid.
-
-Consider three synthetic subjects, with events at times 1 and 3 and
-censoring at time 2. At rate 1 the contributions are exactly -1, -2 and -3:
+Ten patients were followed from diagnosis. Time is in months and the event
+is disease progression. Six patients progressed; four were still progression
+free when follow-up ended, so their event time is only known to be later:
+they are *right censored*.
 
 ```{code-cell} ipython3
 import jax
 import jax.numpy as jnp
+import matplotlib.pyplot as plt
 
 import survjax
 
-time = jnp.array([1.0, 2.0, 3.0])
-event = jnp.array([True, False, True])
-data = survjax.SurvivalData(time, event)
-dist = survjax.Exponential(rate=1.0)
-values = dist.log_likelihood(data)
-assert jnp.array_equal(values, jnp.array([-1.0, -2.0, -3.0]))
-values
+months = jnp.array([4.0, 12.0, 7.0, 9.0, 15.0, 2.0, 20.0, 11.0, 5.0, 18.0])
+progressed = jnp.array([1, 0, 1, 0, 1, 1, 0, 1, 1, 0])
+cohort = survjax.SurvivalData(months, progressed)
+cohort
 ```
 
-The result is an array of **per-observation** contributions. Choose your own
-reduction, such as `-values.sum()` for a negative total log likelihood or
-`-values.mean()` for a negative average. There is no implicit weighting.
-A density can exceed one, so a positive log contribution is not itself an
-error. A true zero density or survival probability gives `-inf`; invalid
-inputs and detected numerical failures give NaN. Multiplying an invalid
-contribution by zero does not remove its NaN.
+## The likelihood of a censored sample
 
-## Prepared data or keyword arrays
+Suppose $T$ has density $f$ and survival function $S(t) = P(T > t)$. A
+patient who progressed at time $t_i$ tells us the density there, $f(t_i)$.
+A patient censored at $t_i$ tells us only that $T > t_i$, which has
+probability $S(t_i)$. With $d_i = 1$ for an event and $d_i = 0$ for
+censoring, and patients independent, the likelihood of parameters $\theta$
+is
 
-The method and top-level function are equivalent, including parameter
-derivatives. Both accept either prepared data or the two keyword arrays:
+$$
+L(\theta) = \prod_i f(t_i)^{d_i}\, S(t_i)^{1 - d_i}.
+$$
+
+We work with its logarithm. Each patient adds one *contribution*,
+
+$$
+\ell_i(\theta) = d_i \log f(t_i) + (1 - d_i) \log S(t_i),
+\qquad
+\ell(\theta) = \sum_i \ell_i(\theta).
+$$
+
+For the exponential with rate $\lambda$, $\log f(t) = \log\lambda - \lambda
+t$ and $\log S(t) = -\lambda t$, so
+
+$$
+\ell_i(\lambda) = d_i \log\lambda - \lambda t_i,
+\qquad
+\ell(\lambda) = D \log\lambda - \lambda \sum_i t_i,
+$$
+
+where $D = \sum_i d_i$ is the number of events.
+
+## Contributions in survjax
+
+`log_likelihood` returns the contributions $\ell_i$, one per patient. Here is
+the exponential with rate 0.05 per month:
 
 ```{code-cell} ipython3
-raw = dist.log_likelihood(time=time, event=event)
-functional = survjax.log_likelihood(dist, data)
-functional_raw = survjax.log_likelihood(dist, time=time, event=event)
-assert jnp.array_equal(raw, values)
-assert jnp.array_equal(functional, values)
-assert jnp.array_equal(functional_raw, values)
+model = survjax.Exponential(rate=0.05)
+contributions = model.log_likelihood(cohort)
+contributions
 ```
 
-Do not combine `data` with `time` or `event`; raw arrays are keyword-only
-and both are required. Incorrect call forms, types or incompatible shapes
-raise `TypeError`, including during tracing. Invalid runtime values instead
-produce NaN contributions. Use `SurvivalData` for constructor options such
-as dtype; the likelihood entry points do not accept those options.
+Patient 1 progressed at month 4: $\log 0.05 - 0.05 \cdot 4 \approx -3.196$.
+Patient 2 was censored at month 12: $-0.05 \cdot 12 = -0.6$.
 
-## Batches use trailing-axis broadcasting
-
-Data and distribution batches broadcast along their trailing axes. A scalar
-model against data of shape `(n,)` returns `(n,)`. Parameters of shape `(n,)`
-assign a model to each observation. To evaluate `m` models against all `n`
-observations, give the parameters shape `(m, 1)`:
+survjax does not sum for you. The log likelihood is the sum, and how you
+reduce (a sum, a mean, a weighted sum) is your choice:
 
 ```{code-cell} ipython3
-models = survjax.Exponential(rate=jnp.array([1.0, 2.0])[:, None])
-by_model = models.log_likelihood(data)
-assert by_model.shape == (2, 3)
-assert jnp.array_equal(by_model[0], values)
-by_model.sum(axis=-1)
+contributions.sum()
 ```
 
-The last expression totals over observations and keeps the model axis.
-Unlike [time-grid methods](grids.md), likelihood evaluation adds no grid
-axis. Calculations use the common floating dtype of parameters and data,
-subject to JAX's configured 64-bit mode; survjax does not enable it globally.
-
-## Compose with JAX
-
-Construction and likelihood evaluation can occur inside `jax.jit`. Here the
-parameter is log rate, so exponentiation keeps the rate positive:
+For plain time/status data you can skip `SurvivalData` and pass the arrays as
+keywords. The function `survjax.log_likelihood(model, cohort)` is the same as
+the method:
 
 ```{code-cell} ipython3
-@jax.jit
-def negative_log_likelihood(log_rate, time, event):
-    model = survjax.Exponential(rate=jnp.exp(log_rate))
-    return -model.log_likelihood(time=time, event=event).sum()
-
-eta = jnp.array(0.0)
-loss = negative_log_likelihood(eta, time, event)
-gradient = jax.grad(negative_log_likelihood)(eta, time, event)
-curvature = jax.grad(jax.grad(negative_log_likelihood))(eta, time, event)
-# Algebra: loss = 6*exp(eta) - 2*eta, so at eta=0 these are 6, 4, 6.
-assert loss == 6.0
-assert gradient == 4.0
-assert curvature == 6.0
-loss, gradient, curvature
+model.log_likelihood(time=months, event=progressed).sum(), survjax.log_likelihood(model, cohort).sum()
 ```
 
-`jax.vmap` can also map likelihood computations over model parameters.
-First and second parameter derivatives are supported on valid smooth
-interior cases. Derivatives of invalid or unsupported contributions are
-unspecified; do not treat a NaN-containing objective as a valid fitting
-problem. survjax supplies contributions; optimization and the choice of
-objective belong to the caller.
+## The exponential in closed form
 
-## Diagnose NaN contributions
+Setting the derivative of $\ell(\lambda)$ to zero,
 
-Inspect `data.issues` for observation problems and
-`dist.parameter_issues()` for declared parameter violations. Their boolean
-masks use `True` to mark a problem. At an explicit host checkpoint, call
-`data.issues.raise_if_invalid()` or
-`dist.parameter_issues().raise_if_invalid()` to raise `InvalidDataError` or
-`InvalidParameterError`. These raising methods belong outside JAX transforms;
-the diagnostic arrays themselves work in compiled code.
+$$
+\frac{d\ell}{d\lambda} = \frac{D}{\lambda} - \sum_i t_i = 0
+\quad\Longrightarrow\quad
+\hat\lambda = \frac{D}{\sum_i t_i}:
+$$
+
+events divided by total time at risk. Our cohort has $D = 6$ events in 103
+months of follow-up, so $\hat\lambda = 6/103 \approx 0.0583$ per month.
+
+To see the likelihood as a function of $\lambda$, evaluate many rates at
+once. A distribution with parameters of shape `(m, 1)` broadcasts against
+the `(10,)` patients to give an `(m, 10)` array of contributions; summing
+over the last axis gives one log likelihood per rate.
 
 ```{code-cell} ipython3
-bad_data = survjax.SurvivalData(time, jnp.array([1, 2, 0]))
-assert jnp.array_equal(bad_data.issues.invalid_rows, jnp.array([False, True, False]))
-assert jnp.array_equal(jnp.isnan(dist.log_likelihood(bad_data)),
-                       jnp.array([False, True, False]))
+rates = jnp.linspace(0.02, 0.15, 200)
+profile = survjax.Exponential(rate=rates[:, None]).log_likelihood(cohort).sum(axis=-1)
 
-bad_model = survjax.Exponential(rate=jnp.array([1.0, -1.0, 1.0]))
-assert jnp.array_equal(bad_model.parameter_issues().invalid_entries,
-                       jnp.array([False, True, False]))
-assert jnp.array_equal(jnp.isnan(bad_model.log_likelihood(data)),
-                       jnp.array([False, True, False]))
+fig, ax = plt.subplots(figsize=(5, 3.2))
+ax.plot(rates, profile)
+ax.axvline(6 / 103, color="grey", linestyle=":")
+ax.set(xlabel="rate λ (per month)", ylabel="log likelihood ℓ(λ)")
+fig.tight_layout()
 ```
 
-The invalid indicator remains recorded even after construction normalizes
-it. Declared parameter violations produce NaN even if a family's formula
-happens to return a finite value. For custom families, an empty parameter
-report only means no declared violation was found.
+The maximum sits at $\hat\lambda = 6/103$ (dotted line).
 
-Unsupported observation modes are a separate cause: structurally valid
-interval censoring has no data issue, but its likelihood is not implemented.
-This example mixes an event, an interval and right censoring:
+## Fitting with JAX
+
+Most models have no closed-form maximum, so we fit numerically. Rates must
+be positive; optimising the log rate $\eta = \log\lambda$ removes that
+constraint. In $\eta$,
+
+$$
+\ell(\eta) = D\eta - e^{\eta} \sum_i t_i,
+\qquad
+\ell'(\eta) = D - e^{\eta} \sum_i t_i,
+\qquad
+\ell''(\eta) = -e^{\eta} \sum_i t_i.
+$$
+
+Newton's method updates $\eta \leftarrow \eta - \ell'(\eta)/\ell''(\eta)$.
+We let JAX compute both derivatives of the negative log likelihood:
 
 ```{code-cell} ipython3
-mixed = survjax.SurvivalData.from_bounds(
-    lower=jnp.array([1.0, 1.0, 2.0]),
-    upper=jnp.array([1.0, 3.0, jnp.inf]),
+def exponential_nll(log_rate):
+    model = survjax.Exponential.from_log(log_rate=log_rate)
+    return -model.log_likelihood(cohort).sum()
+
+
+gradient = jax.jit(jax.grad(exponential_nll))
+hessian = jax.jit(jax.hessian(exponential_nll))
+
+log_rate = jnp.log(1 / months.mean())  # a rough starting value
+for _ in range(6):
+    log_rate = log_rate - gradient(log_rate) / hessian(log_rate)
+
+jnp.exp(log_rate)
+```
+
+Newton lands on $6/103$. The curvature at the maximum also gives a standard
+error: the observed information is $-\ell''(\hat\eta) = \hat\lambda \sum_i
+t_i = D$, so $\operatorname{se}(\hat\eta) = 1/\sqrt{D} = 1/\sqrt 6 \approx
+0.408$.
+
+```{code-cell} ipython3
+1 / jnp.sqrt(hessian(log_rate))
+```
+
+## A Weibull fit
+
+The Weibull with shape $k$ and scale $b$ has
+
+$$
+\log f(t) = \log\frac{k}{b} + (k - 1)\log\frac{t}{b} - \left(\frac{t}{b}\right)^{k},
+\qquad
+\log S(t) = -\left(\frac{t}{b}\right)^{k}.
+$$
+
+Setting both partial derivatives of $\ell(k, b)$ to zero has no closed-form
+solution, but the numerical recipe is the same with two parameters, $(\log k,
+\log b)$. The Newton step solves a 2×2 system with the Hessian. We start at
+the exponential fit, which is the Weibull with $k = 1$ and $b = 1/\hat\lambda$:
+
+```{code-cell} ipython3
+def weibull_nll(log_params):
+    model = survjax.Weibull.from_log(log_shape=log_params[0], log_scale=log_params[1])
+    return -model.log_likelihood(cohort).sum()
+
+
+gradient = jax.jit(jax.grad(weibull_nll))
+hessian = jax.jit(jax.hessian(weibull_nll))
+
+log_params = jnp.array([0.0, -log_rate])
+for _ in range(6):
+    log_params = log_params - jnp.linalg.solve(hessian(log_params), gradient(log_params))
+
+jnp.exp(log_params)
+```
+
+The fitted shape is about 1.29, a hazard that rises slowly with time, and
+the scale is about 16 months. Is the extra parameter worth it? The
+exponential is the Weibull with $k = 1$, so the likelihood-ratio statistic
+$2(\ell_{\text{Weibull}} - \ell_{\text{exp}})$ is approximately
+$\chi^2_1$ distributed under the exponential:
+
+```{code-cell} ipython3
+2 * (exponential_nll(log_rate) - weibull_nll(log_params))
+```
+
+A statistic of about 0.47 is far below the 5% critical value of 3.84: ten
+patients cannot distinguish a slowly rising hazard from a constant one.
+
+## When a contribution is NaN
+
+survjax never raises inside a likelihood for a bad *value*, because it must
+work under `jit` and `vmap`. Instead, that patient's contribution is NaN and
+the others are unaffected. Two diagnostics explain why. Suppose the last
+status was mistyped as 2:
+
+```{code-cell} ipython3
+typo = survjax.SurvivalData(months, progressed.at[-1].set(2))
+model.log_likelihood(typo)[-3:], typo.issues
+```
+
+A negative rate is reported by `parameter_issues()`:
+
+```{code-cell} ipython3
+survjax.Exponential(rate=-0.05).parameter_issues()
+```
+
+Outside JIT, at a point where you want to stop on bad input, call
+`raise_if_invalid()`:
+
+```{code-cell} ipython3
+:tags: [raises-exception]
+
+typo.issues.raise_if_invalid()
+```
+
+A NaN is different from $-\infty$. A contribution of $-\infty$ means the
+model gives the observation zero probability: the data are valid, the model
+just rules them out. NaN means the contribution could not be computed. Since
+$0 \times \text{NaN}$ is still NaN, a NaN cannot be masked away by a zero
+weight; fix or drop the row first.
+
+The third cause of NaN is an observation that is valid but whose likelihood
+is not implemented yet. Patient 5 from the [data guide](survival-data.md)
+progressed between scans at months 6 and 9. That row is interval censored,
+so `issues` reports nothing, but its contribution is NaN, while the exact
+and right-censored rows around it are computed as usual:
+
+```{code-cell} ipython3
+with_interval = survjax.SurvivalData.from_bounds(
+    lower=jnp.array([4.0, 6.0, 12.0]),
+    upper=jnp.array([4.0, 9.0, jnp.inf]),
     exact=jnp.array([True, False, False]),
 )
-assert mixed.issues.ok
-ll = dist.log_likelihood(mixed)
-bad_data_rows = jnp.broadcast_to(mixed.issues.invalid_rows, ll.shape)
-bad_params = jnp.broadcast_to(dist.parameter_issues().invalid_entries, ll.shape)
-supported_mode = (
-    (mixed.left_trunc == 0)
-    & jnp.isposinf(mixed.right_trunc)
-    & (mixed.exact | jnp.isposinf(mixed.upper))
-)
-unsupported = jnp.broadcast_to(~supported_mode, ll.shape)
-unexplained = jnp.isnan(ll) & ~bad_data_rows & ~bad_params
-unsupported_nan = unexplained & unsupported
-other = unexplained & ~unsupported
-assert jnp.array_equal(unsupported_nan, jnp.array([False, True, False]))
-assert not jnp.any(other)
-assert ll[0] == -1.0 and ll[2] == -2.0
-ll
+with_interval.issues.ok, model.log_likelihood(with_interval)
 ```
 
-For data constructed as above, check both diagnostics and mode support
-before investigating remaining NaNs as numerical failures. This recipe is
-for data whose normalized fields have not been edited after construction.
-Unsupported rows also yield NaN under `jit` and `vmap`; supported rows keep
-their contributions. All truncation, including otherwise valid left
-truncation, is currently unsupported. See the [API reference](api.md) for
-signatures and the [data guide](survival-data.md) for observation rules.
+The same holds for left censoring and for any truncation. See the
+[API reference](api.md) for the full signatures.

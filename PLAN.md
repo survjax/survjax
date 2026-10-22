@@ -1,3 +1,19 @@
+# A6 docs rewrite — tutorial likelihood guide (2026-10-22)
+
+Status: **implemented, ready for review**. Requested directly by the maintainer
+("redo them; make them tutorial like. start with math followed by code").
+
+- Rewrite `docs/likelihood.md` as a tutorial on one synthetic 10-patient
+  cohort: derive the censored-data likelihood, show per-patient contributions,
+  closed-form exponential MLE with a batched profile plot, Newton fits in log
+  parameters with `jax.grad`/`jax.hessian` (exponential, then Weibull), a
+  likelihood-ratio comparison, and NaN diagnostics. No assert cells.
+- Update the guide's one-line description in `docs/index.md`.
+- Docs only; no source, test or spec changes. D-026 stays open: the guide no
+  longer presents a general NaN-triage recipe.
+
+---
+
 # A6 docs — Likelihood usage (2026-10-22)
 
 Status: **implemented, ready for review**. The maintainer authorized this plan with

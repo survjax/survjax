@@ -10,8 +10,8 @@ available; other likelihood modes, families, summaries and evaluation metrics
 are planned; the Slice A completion gate has not yet been
 met.
 
-The [likelihood guide](likelihood.md) covers contributions, JAX objectives
-and diagnostics.
+[Fitting a model to censored data](likelihood.md) derives the censored-data
+likelihood and fits exponential and Weibull models with JAX.
 The [SurvivalData guide](survival-data.md) walks a synthetic cohort through
 both constructors, diagnostics and R input conventions.
 [Exponential and Weibull](builtin-families.md) introduces the built-in
