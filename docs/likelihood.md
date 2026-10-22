@@ -230,8 +230,9 @@ $$
 
 Setting both partial derivatives of $\ell(k, b)$ to zero has no closed-form
 solution, but the numerical recipe is the same with two parameters, $(\log k,
-\log b)$. With a parameter vector $\theta$, the Newton step divides by the
-Hessian matrix instead of a scalar second derivative,
+\log b)$. With a parameter vector $\theta$, the Newton step multiplies the
+gradient by the inverse Hessian matrix instead of dividing by a scalar
+second derivative,
 $\theta \leftarrow \theta - \left[\nabla^2 \ell(\theta)\right]^{-1} \nabla \ell(\theta)$,
 which the code computes by solving the 2×2 linear system with
 `jnp.linalg.solve` rather than forming the inverse. We start at the
@@ -254,9 +255,10 @@ jnp.exp(log_params)
 ```
 
 Because JAX supplies exact gradients and Hessians of the likelihood, a
-hand-written Newton method like this takes only a few lines. For larger
-models, a dedicated optimizer is the better tool; a later version of these
-guides shows fits with JAX-based optimizer libraries such as
+hand-written Newton method like this takes only a few lines. It has no
+safeguards, though: no line search, convergence test or failure reporting.
+Dedicated optimizers handle these, and a later version of these guides
+shows fits with JAX-based optimizer libraries such as
 [Optimistix](https://docs.kidger.site/optimistix/).
 
 The fitted shape is about 1.29, a hazard that rises slowly with time, and
