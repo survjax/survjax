@@ -1,3 +1,58 @@
+# A6 docs — Likelihood usage (2026-10-22)
+
+Status: **implemented, ready for review**. The maintainer authorized this plan with
+"get to it" and selected `docs-A6`; the branch is verified.
+
+## One topic and files
+
+- Create `docs/likelihood.md` as an executable MyST guide, following the
+  existing notebook front matter. Cover exact/right contributions without
+  truncation: log density for events, log survival for censoring, both input
+  forms and both entry points, explicit caller reduction, trailing-axis
+  broadcasting, and a small jitted objective with parameter derivatives.
+- Explain data and parameter diagnostics, explicit host raising, NaN for
+  unsupported modes and invalid rows, and genuine zero likelihood as -inf.
+  Use newly constructed data in the Slice A triage example. D-026 remains
+  open: do not generalize that recipe to edited/rebuilt normalized fields
+  or settle the disputed remainder wording in this docs step.
+- Update `docs/index.md` to describe the available likelihood subset and link
+  the guide in the toctree; retain the incomplete Slice A qualification.
+- Update `docs/api.md` with a guide link and generated entries for the
+  inherited likelihood method and parameter diagnostics needed by the guide.
+  Reuse existing docstrings; no public API or source changes are planned.
+- Overwrite `REVIEW.md` with reading order, invariants, executable checks,
+  actual build results and remaining limitations. One docs commit, then stop.
+
+## Examples, checks and scope
+
+Keep the documentation diff at or below approximately 300 changed lines;
+this is one likelihood topic, not a full A6 extension-author reference.
+Use synthetic data only and existing dependencies. Leave the simulation guide,
+playground and broader constraint-authoring guide for separate docs steps.
+
+Executable cells will check hand-derived exponential exact/right values,
+function/method and raw/prepared equality, batch output shape, analytical
+log-rate gradient, and row-wise diagnostic/unsupported-mode behavior.
+Use existing project tolerances if numerical assertions need tolerances.
+No new standalone tests or changes to tests/spec are needed for prose/examples.
+
+Spec coverage: 3.3 (dtype), 4.7 (parameter diagnostics), 5 (broadcasting),
+6.1–6.3 (inputs/diagnostics), 7.1–7.3 (likelihood and derivative limits),
+10.5 (executable docs), 12.2 (Slice A support boundary).
+
+After approval, run `scripts/build_docs.sh` with
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache` (both dtype builds, warnings fatal),
+inspect the generated guide and API entries in both outputs, and run
+`git diff --check`. Record exact outputs; no code gate or Slice A completion
+claim. Planning checks only: git status/branches and read-only inspection of
+existing docs, build configuration, likelihood source, spec and D-026.
+
+Evidence: both executable dtype builds passed; generated HTML navigation and
+API anchors were checked. REVIEW.md records exact checks and the sandbox retry.
+The new guide is 193 lines; guide/navigation/API changes total 215 changed lines.
+
+---
+
 # A6.4 replanning — Exact/right likelihood (2026-10-21)
 
 ## A6.4c review follow-up — Distribution argument type (2026-10-22)

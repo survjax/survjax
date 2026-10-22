@@ -4,12 +4,13 @@ Everything below is exported from the top-level `survjax` package; anything
 else is internal. Each entry is generated from the docstring you also see
 with `help()`. For worked examples, see the guides:
 [SurvivalData](survival-data.md), [Exponential and Weibull](builtin-families.md),
-[time grids](grids.md) and [writing a distribution](distributions.md).
+[likelihoods](likelihood.md), [time grids](grids.md) and [writing a distribution](distributions.md).
 
 ## Likelihood contributions
 
 ```{eval-rst}
 .. autofunction:: survjax.log_likelihood
+.. automethod:: survjax.SurvivalDistribution.log_likelihood
 ```
 
 ## Observation data
@@ -33,6 +34,17 @@ with `help()`. For worked examples, see the guides:
 ```{eval-rst}
 .. autoexception:: survjax.InvalidParameterError
 ```
+
+## Parameter diagnostics
+
+```{eval-rst}
+.. automethod:: survjax.SurvivalDistribution.parameter_issues
+.. autoclass:: survjax.diagnostics.ParameterIssues
+   :members: raise_if_invalid
+```
+
+`ParameterIssues` is obtained from `dist.parameter_issues()` and is not a
+top-level export.
 
 ## Built-in distributions
 
