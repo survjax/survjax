@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 from jax.typing import DTypeLike
 
-from survjax._data_validation import stored_field_issues
+from survjax._data_validation import current_field_issues
 from survjax._likelihood_parameters import stop_invalid_gradients
 from survjax.data import SurvivalData
 from survjax.distributions.base import SurvivalDistribution
@@ -12,7 +12,7 @@ from survjax.distributions.base import SurvivalDistribution
 
 def _unusable_data_rows(data: SurvivalData, shape: tuple[int, ...]) -> jax.Array:
     """Combine construction evidence with current-field checks (spec 7.1)."""
-    current_bits = stored_field_issues(
+    current_bits = current_field_issues(
         data.exact, data.lower, data.upper, data.left_trunc, data.right_trunc
     )
     return jnp.broadcast_to(data.issues.invalid_rows | (current_bits != 0), shape)

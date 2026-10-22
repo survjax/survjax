@@ -153,7 +153,7 @@ def row_issues(
     return bits
 
 
-def stored_field_issues(
+def current_field_issues(
     exact: jax.Array,
     lower: jax.Array,
     upper: jax.Array,

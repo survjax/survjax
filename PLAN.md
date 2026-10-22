@@ -1,5 +1,15 @@
 # A6.4 replanning — Exact/right likelihood (2026-10-21)
 
+## A6.4b2 nit N3 — Name the current-field check (2026-10-22)
+
+Status: **implemented, ready for review**, explicitly requested by the maintainer.
+Rename the private helper to `current_field_issues` in `_data_validation.py`
+and its import/call in `likelihood.py`; update the review notes. No logic,
+public API or spec changes. Spec 3.3/6.2/7.1 coverage remains unchanged.
+Run Ruff, mypy and the existing likelihood-core tests in both dtype modes;
+no new test is needed for this rename. Commit on A6, then stop.
+Docs to-do: unchanged; D-026 remains open.
+
 ## A6.4b2 review follow-up — Readability (2026-10-22)
 
 Status: **implemented, ready for review**, authorized by
@@ -9,7 +19,7 @@ commit, then stop; no A6.4c or constructor rewrite.
 
 - R1: give likelihood evaluation named private stages for unusable data,
   mode support and safe evaluation, leaving the entry point as orchestration.
-- R2: move normalized-field checks into `stored_field_issues` in
+- R2: move normalized-field checks into `current_field_issues` in
   `_data_validation.py`. Explain reconstruction bypassing constructors,
   normalized exact upper=lower, and unavailable raw indicator evidence;
   retain the existing rules and shared row_issues packing.
