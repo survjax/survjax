@@ -1,4 +1,4 @@
-"""Diagnostic containers for survival data (spec 6.2–6.3)."""
+"""Diagnostic containers for data and parameters (spec 4.7, 6.2–6.3)."""
 
 from dataclasses import dataclass
 
@@ -11,6 +11,10 @@ from survjax._data_validation import ISSUE_NAMES
 
 class InvalidDataError(ValueError):
     """An explicit host checkpoint found invalid observation values (spec 6.2)."""
+
+
+class InvalidParameterError(ValueError):
+    """An explicit host checkpoint found parameter violations (spec 4.7)."""
 
 
 def _plural(count: int, noun: str) -> str:
@@ -185,4 +189,78 @@ class DataIssues:
         )
 
 
+@dataclass(frozen=True, eq=False)
+class ParameterIssues:
+    """Store declared parameter violations with True marking a violation.
+
+    The producer supplies consistent masks and aggregates; construction stores
+    them without validation. An empty report does not guarantee validity.
+    Field assignment is frozen, but the dictionaries are ordinary mutable dicts.
+
+    Attributes:
+        fields: Boolean batch-shaped masks in declaration order, own fields
+            first, followed by nested fields with dotted names.
+        conditions: Boolean batch-shaped masks, own named conditions first,
+            followed by nested conditions with dotted names.
+        invalid_entries: Boolean batch-shaped union of all violation masks.
+        ok: Scalar boolean array, ``~jnp.any(invalid_entries)``. After vmap,
+            this contains one value per mapped example.
+    """
+
+    fields: dict[str, jax.Array]
+    conditions: dict[str, jax.Array]
+    invalid_entries: jax.Array
+    ok: jax.Array
+
+    def raise_if_invalid(self) -> None:
+        """Check concrete masks at an explicit host checkpoint (spec 4.7).
+
+        Returns:
+            None when no field or condition reports a violation.
+
+        Raises:
+            InvalidParameterError: Violations, with counts and first indices.
+            ValueError: Any diagnostic array is traced; this is host-only.
+        """
+        leaves, _ = self.tree_flatten()
+        if any(isinstance(leaf, jax.core.Tracer) for leaf in leaves):
+            raise ValueError("ParameterIssues.raise_if_invalid is host-only")
+        problems = []
+        for category, masks in (("field", self.fields), ("condition", self.conditions)):
+            for name, count, first in _rule_counts(tuple(masks), tuple(masks.values())):
+                problems.append(
+                    f"{category} {name}: {count} entry(s), first index {first}"
+                )
+        if problems:
+            raise InvalidParameterError("invalid parameters: " + "; ".join(problems))
+
+    def tree_flatten(
+        self,
+    ) -> tuple[tuple[jax.Array, ...], tuple[tuple[str, ...], tuple[str, ...]]]:
+        """Keep ordered keys static and expose only arrays as leaves."""
+        # spec 4.7: JAX's default dict flattening would sort declaration keys.
+        keys = (tuple(self.fields), tuple(self.conditions))
+        leaves = (
+            *self.fields.values(),
+            *self.conditions.values(),
+            self.invalid_entries,
+            self.ok,
+        )
+        return leaves, keys
+
+    @classmethod
+    def tree_unflatten(
+        cls,
+        keys: tuple[tuple[str, ...], tuple[str, ...]],
+        children: tuple[jax.Array, ...],
+    ) -> "ParameterIssues":
+        """Rebuild without calculations, including vmap placeholders (spec 6.3)."""
+        field_names, condition_names = keys
+        split = len(field_names)
+        fields = dict(zip(field_names, children[:split], strict=True))
+        conditions = dict(zip(condition_names, children[split:-2], strict=True))
+        return cls(fields, conditions, children[-2], children[-1])
+
+
 jax.tree_util.register_pytree_node_class(DataIssues)
+jax.tree_util.register_pytree_node_class(ParameterIssues)

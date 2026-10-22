@@ -10,6 +10,13 @@
 DERIVATIVE_ATOL = {True: 1e-7, False: 1e-3}
 DERIVATIVE_RTOL = {True: 1e-7, False: 1e-3}
 
+# Likelihood checks average three contributions at O(1) times/parameters.
+# Centered differences have O(h**2) truncation and O(eps/h) rounding error,
+# also when differencing the O(1) AD derivatives for the second-order check.
+# h=1e-4 in x64 gives scales ~1e-8/2e-12; h=1e-3 in x32 gives ~1e-6/1e-4,
+# within the existing derivative tolerances above, which are unchanged.
+LIKELIHOOD_GRAD_EPS = {True: 1e-4, False: 1e-3}
+
 ATOL = {True: 1e-10, False: 1e-5}
 RTOL = {True: 1e-8, False: 1e-4}
 

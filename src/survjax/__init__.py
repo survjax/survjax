@@ -1,7 +1,8 @@
 """Survival analysis in JAX."""
 
+from survjax import constraints
 from survjax.data import SurvivalData
-from survjax.diagnostics import InvalidDataError
+from survjax.diagnostics import InvalidDataError, InvalidParameterError
 from survjax.distributions import (
     Exponential,
     SurvivalDistribution,
@@ -11,15 +12,19 @@ from survjax.distributions import (
     register_family,
     static,
 )
+from survjax.likelihood import log_likelihood
 
 __all__ = [
+    "constraints",
     "Exponential",
     "Weibull",
     "SurvivalData",
     "InvalidDataError",
+    "InvalidParameterError",
     "SurvivalDistribution",
     "register_family",
     "param",
     "distribution",
     "static",
+    "log_likelihood",
 ]

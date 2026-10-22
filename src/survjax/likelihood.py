@@ -1,0 +1,138 @@
+"""Exact and right-censored likelihood contributions (spec 6.1/7.1–7.3)."""
+
+import jax
+import jax.numpy as jnp
+from jax.typing import ArrayLike, DTypeLike
+
+from survjax._data_validation import current_field_issues
+from survjax._likelihood_parameters import stop_invalid_gradients
+from survjax.data import SurvivalData
+from survjax.distributions.base import SurvivalDistribution
+
+
+def _resolve_data(
+    data: SurvivalData | None, time: ArrayLike | None, event: ArrayLike | None
+) -> SurvivalData:
+    """Resolve the two input forms without inspecting runtime values (spec 6.1)."""
+    if data is not None:
+        if not isinstance(data, SurvivalData):
+            raise TypeError("data must be SurvivalData; use time=... and event=...")
+        if time is not None or event is not None:
+            raise TypeError("data cannot be combined with time or event")
+        return data
+    if time is None or event is None:
+        raise TypeError("provide SurvivalData or both time=... and event=...")
+    # spec 6.1/6.2: preserve raw-input evidence through the pure checked constructor.
+    return SurvivalData(time, event)
+
+
+def log_likelihood(
+    dist: SurvivalDistribution,
+    data: SurvivalData | None = None,
+    *,
+    time: ArrayLike | None = None,
+    event: ArrayLike | None = None,
+) -> jax.Array:
+    """Return unsummed exact/right log contributions without truncation.
+
+    Args:
+        dist: A registered survival distribution with parameter batch axes.
+        data: Prepared SurvivalData, supplied instead of time and event.
+        time: Raw exact or right-censoring times; requires event. Inputs must
+            broadcast to time.shape without enlarging it.
+        event: Raw event indicators, 1/True for exact and 0/False for right
+            censoring. Requires time. Richer observations use SurvivalData.
+
+    Returns:
+        An array with the trailing-axis broadcast shape of the data and
+        distribution batch shapes, in their common floating dtype. There is
+        no time-grid axis, reduction or weighting. Invalid data/parameter rows
+        and modes unsupported in Slice A give NaN, eagerly and under jit/vmap;
+        supported rows retain their contributions. True zero likelihood gives
+        -inf. Inspect data.issues and dist.parameter_issues() for diagnostics;
+        only explicit host checkpoints raise for invalid runtime values.
+
+    Raises:
+        TypeError: Mixed or missing input forms, positional raw arrays, invalid
+            input types or incompatible shapes. time and event are keyword-only;
+            constructor options such as truncation are not accepted here.
+    """
+    if not isinstance(dist, SurvivalDistribution):
+        raise TypeError("dist must be a SurvivalDistribution instance")
+    return _log_likelihood(dist, _resolve_data(data, time, event))
+
+
+def _unusable_data_rows(data: SurvivalData, shape: tuple[int, ...]) -> jax.Array:
+    """Combine construction evidence with current-field checks (spec 7.1)."""
+    current_bits = current_field_issues(
+        data.exact, data.lower, data.upper, data.left_trunc, data.right_trunc
+    )
+    return jnp.broadcast_to(data.issues.invalid_rows | (current_bits != 0), shape)
+
+
+def _supported_rows(data: SurvivalData, shape: tuple[int, ...]) -> jax.Array:
+    """Read current mode support, independent of diagnostics/metadata (spec 7.1)."""
+    supported = (
+        (data.left_trunc == 0)
+        & jnp.isposinf(data.right_trunc)
+        & (data.exact | jnp.isposinf(data.upper))
+    )
+    return jnp.broadcast_to(supported, shape)
+
+
+def _evaluate(
+    prepared: SurvivalDistribution,
+    data: SurvivalData,
+    bad: jax.Array,
+    common: DTypeLike,
+) -> jax.Array:
+    """Evaluate exact/right pieces with safe inactive operands (spec 7.2)."""
+    exact_rows = jnp.broadcast_to(data.exact, bad.shape)
+    # spec 3.3: stored times may be narrower than the promoted parameters.
+    time = jnp.asarray(data.lower, dtype=common)
+    # spec 3.3/7.2: a family reference may use a fixed dtype. Keep substituted
+    # times in the common dtype, and stop only this substituted value.
+    reference = jax.lax.stop_gradient(
+        jnp.asarray(prepared.reference_time(), dtype=common)
+    )
+    # spec 7.2: keep likelihood-level substitution even though direct methods
+    # also guard their inputs under 4.5. Inactive survival uses window (0,inf].
+    density_time = jnp.where(~bad & exact_rows, time, reference)
+    survival_time = jnp.where(~bad & ~exact_rows, time, jnp.zeros((), dtype=common))
+    density = prepared.log_prob(density_time)
+    survival = prepared.log_survival(survival_time)
+    # spec 3.3: custom overrides can return fixed lower-precision arrays even
+    # after their inputs are promoted; contributions still use the common dtype.
+    values = jnp.asarray(jnp.where(exact_rows, density, survival), dtype=common)
+    return jnp.where(bad, jnp.nan, values)
+
+
+def _log_likelihood(dist: SurvivalDistribution, data: SurvivalData) -> jax.Array:
+    """Validate rows, prepare parameters, then evaluate unsummed contributions.
+
+    Shapes use trailing-axis broadcasting; incompatible shapes raise TypeError.
+    Stored/current data issues, parameter issues and unsupported modes give NaN.
+    """
+    try:
+        shape = jnp.broadcast_shapes(data.lower.shape, dist.batch_shape)
+    except ValueError as exc:
+        raise TypeError("data and distribution batch shapes are incompatible") from exc
+
+    invalid_entries = dist.parameter_issues().invalid_entries
+    bad = (
+        _unusable_data_rows(data, shape)
+        | jnp.broadcast_to(invalid_entries, shape)
+        | ~_supported_rows(data, shape)
+    )
+    # spec 3.3: promote all own/nested leaves without normalizing or mutating inputs.
+    common = jnp.result_type(
+        data.lower,
+        data.upper,
+        data.left_trunc,
+        data.right_trunc,
+        *jax.tree.leaves(dist),
+    )
+    promoted = jax.tree.map(lambda leaf: leaf.astype(common), dist)
+    # spec 7.1: mask invalid entries before numerical methods, including reference_time.
+    prepared = stop_invalid_gradients(promoted, invalid_entries)
+    return _evaluate(prepared, data, bad, common)

@@ -153,6 +153,42 @@ def row_issues(
     return bits
 
 
+def current_field_issues(
+    exact: jax.Array,
+    lower: jax.Array,
+    upper: jax.Array,
+    left_trunc: jax.Array,
+    right_trunc: jax.Array,
+) -> jax.Array:
+    """Recheck normalized fields after tree operations (spec 6.2/7.1/12.1).
+
+    Reconstruction bypasses constructors, so current fields can violate rules
+    even when the stored construction bits are zero. These bits describe only
+    current fields; callers must also retain the original construction issues.
+    """
+    # spec 3.1/6.2: normalization loses raw status codes and conflicting flags.
+    # Their evidence survives only in the original construction issues.
+    no_fault = jnp.zeros_like(exact)
+    # spec 3.3: lower is finite, positive for events and nonnegative otherwise.
+    invalid_time = ~jnp.isfinite(lower) | (lower < 0) | (exact & (lower == 0))
+    # spec 3.2: exact stored upper=lower; unlike raw bounds, it is not optional.
+    invalid_time2 = (upper < 0) | jnp.isneginf(upper) | (exact & (upper != lower))
+    return row_issues(
+        exact,
+        lower,
+        upper,
+        left_trunc,
+        right_trunc,
+        invalid_indicator=no_fault,
+        conflicting_indicators=no_fault,
+        # spec 6.2: only censored normalized upper endpoints can be missing.
+        missing_time2=~exact & jnp.isnan(upper),
+        invalid_time=invalid_time,
+        invalid_time2=invalid_time2,
+        check_interval=~exact,
+    )
+
+
 def flag_fields(
     time: ArrayLike,
     event: ArrayLike | None,

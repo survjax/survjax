@@ -1,6 +1,6 @@
 # Test map
 
-Spec: revision 27 (see `.spec-seen`). Unchanged requirements keep their
+Spec: revision 32 (see `.spec-seen`). Unchanged requirements keep their
 earlier revision tags. Tests from the revision 10 decision (sections 6.2, 10.2,
 13) are tagged `rev 10`. Tests from the performance amendment (section 7.2),
 accepted in revision 11, are tagged `rev 11`. A4 tests derive from revision 11 and
@@ -33,7 +33,41 @@ that evaluated the generic `log_prob` default there. Revision 27 (4.5: for
 valid parameters the substituted input is a finite `t>0`; 12.2: Slice A
 includes the base's use of `log_survival_at_infinity()`) retags the
 `boundary_nan_hazard` boundary tests in `test_a4_base_boundaries.py` as
-`rev 27` and confirms the improper-family tests belong to A4. The mpmath references
+`rev 27` and confirms the improper-family tests belong to A4. Revision 28
+(decision 0042: parameter constraints, `ParameterIssues`,
+`parameter_conditions()`, the likelihood's `invalid_parameters`; 4.1, 4.2,
+4.4, 4.5, 4.7, 6.3, 7.1, 10.2, 12.1, 12.2) adds three A6 files tagged
+`rev 28` (step placement: Q-035); it leaves A1–A5 requirements unchanged
+(direct-method values are explicitly unaffected), so no earlier test was
+changed or retagged. Revision 29 (decision 0043: the base method
+`dist.log_likelihood`, identical to the function; `log_likelihood_with_info`
+and `LikelihoodIssues` removed; causes of NaN rows read from `data.issues` and
+`dist.parameter_issues()` by the 7.1 recipe; 4.1, 4.2, 6.1–6.3, 7.1, 11.4,
+12.1, 12.2) adds `test_a6_likelihood_method.py` and rewrites the A6
+likelihood tests that read `LikelihoodIssues` masks: they now assert the NaN
+rows against `data.issues.invalid_rows` and
+`parameter_issues().invalid_entries` (helper `nan_causes`, the recipe), and
+the `_with_info` variants of the tests become method variants. Tests whose
+assertion or quoted text changed are tagged `rev 29`; the rest keep `rev 28`.
+A1–A5 and the `ParameterIssues` tests are unaffected. Revision 30 (4.7:
+constraints compare with JAX's ordinary operators in the parameter dtype;
+subnormals may be classified either way) changes only
+`test_a6_constraints.py`: `test_unit_interval_includes_zero_and_one` now
+probes below 0 at `-finfo.tiny` instead of the negative subnormal
+`nextafter(0, -inf)`, and new `rev 30` tests pin the cases ordinary
+comparison still fixes (`±finfo.tiny`, `-0.0`). Revision 31 (decision
+0044: unsupported Slice A modes return NaN rows eagerly and under
+transformations, preserving supported rows, without adding data or parameter
+issues; the triage recipe checks mode support; 7.1, 12.2) rewrites
+`test_a6_unsupported_modes.py` (rev 31; Q-037 resolved) and adds the mode
+check to `helpers.nan_causes` (new `helpers.supported_mode`,
+`helpers.unsupported_nan`); callers' data are all supported, so their
+assertions are unchanged. Revision 32 (decision 0045: the likelihood stops
+gradients on parameter entries of rows with issues; isolation to second
+order, both modes, every violation class and family; 7.1, 7.2, 7.3, 12.1)
+adds `test_a6_likelihood_gradient_isolation.py` and retags the three
+gradient tests of `test_a6_likelihood_parameter_issues.py` whose quoted
+mechanism text was removed. The mpmath references
 need `mpmath` in the test environment. Tests are static acceptance tests and have never
 been executed against survjax. Test names below are relative to `tests/spec/`.
 
@@ -859,8 +893,8 @@ Families: `boundary_nan_hazard` (`log S = -r t (t/t)`, NaN at `0` and `+inf`),
 - **`log_interval_prob`, `log_conditional_interval_prob`,
   `inverse_cumulative_hazard`, `support()`, `parameter_issues()`, summaries,
   `sample`, `check_family`** (4.2 optional members): Slices B and D under
-  spec 12.2 (rev 14). `parameter_issues()` may be needed for likelihood
-  diagnostics at A6 (7.1); its return type is unspecified, to be raised then.
+  spec 12.2 (rev 14). `parameter_issues()` and `parameter_conditions()` were
+  specified by rev 28 (4.7) and are tested at A6 (section below).
 - **Gradients with respect to time, and of family-supplied boundary values
   for custom families:** 7.3 puts time gradients outside the guarantee; rev 26
   gives custom density and hazard limits "no such guarantee". Base-supplied
@@ -1067,3 +1101,218 @@ zero absolute tolerance, scale justified there (`S` has condition number `H`).
   12.1 relative tolerance alone (`helpers.assert_rel_close`), since the
   absolute tolerance would be vacuous or the absolute error scales with the
   magnitude.
+
+## A6: parameter constraints and diagnostics (spec 4.1, 4.2, 4.5, 4.7, 6.3, 7.1, 10.2; rev 28, 29)
+
+Step placement by maintainer decision (Q-035). The rest of A6 is in the
+next section.
+
+### `test_a6_constraints.py`: the `survjax.constraints` vocabulary
+
+Each constraint is checked eagerly, under `jit` and under `vmap` (helper
+`_check`), with a `bool` result; the suite runs in both dtypes.
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 10.2 | the `constraints` module is re-exported as `survjax.constraints`. | `test_constraints_module_is_exported_at_top_level` |
+| 4.7 | the nine vocabulary names exist. | `test_vocabulary_names_exist` |
+| 4.7 | callable; `event_dim` 0 (absent means 0) for scalar constraints, 1 for `ordered` and `simplex`. | `test_scalar_constraints_have_event_dim_zero`, `test_vector_constraints_have_event_dim_one` |
+| 4.7 | `real`: finite; NaN and `±inf` outside. | `test_real_accepts_finite_values`, `test_real_rejects_nan_and_infinities` |
+| 4.7 | `positive`: finite, `>0`; boundary `0` outside. | `test_positive_accepts_finite_positive_values`, `test_positive_rejects_zero`, `test_positive_rejects_negative_values`, `test_positive_rejects_nan_and_infinities` |
+| 4.7 (rev 30) | ordinary comparison in the parameter dtype: `-finfo.tiny` (normal) outside `positive` and `nonnegative`, `finfo.tiny` inside `nonnegative`; `-0.0` outside `positive`, inside `nonnegative`. | `test_positive_rejects_smallest_negative_normal`, `test_positive_rejects_negative_zero`, `test_nonnegative_accepts_smallest_positive_normal`, `test_nonnegative_rejects_smallest_negative_normal`, `test_nonnegative_accepts_negative_zero` |
+| 4.7 | `nonnegative`: finite, `>=0`; boundary `0` inside. | `test_nonnegative_accepts_zero_and_positive_values`, `test_nonnegative_rejects_negative_values`, `test_nonnegative_rejects_nan_and_infinities` |
+| 4.7 | `greater_than(a)`: finite, `>a`; `a` outside, its successor inside; `int` bounds. | `test_greater_than_is_strict_at_its_bound`, `test_greater_than_with_negative_bound`, `test_greater_than_accepts_python_int_bound`, `test_greater_than_rejects_nan_and_infinities` |
+| 4.7 | `interval(a, b)`: open at both ends. | `test_interval_is_open_at_both_ends`, `test_interval_rejects_nan_and_infinities` |
+| 4.7 | `closed_interval(a, b)`: closed at both ends. | `test_closed_interval_includes_both_ends`, `test_closed_interval_rejects_nan_and_infinities` |
+| 4.7 | `unit_interval`: `0<=x<=1` (below 0 probed at `-finfo.tiny`, rev 30). | `test_unit_interval_includes_zero_and_one`, `test_unit_interval_rejects_nan_and_infinities` |
+| 4.7/12.1 | bounds are finite Python numbers with `a<b`; anything else raises `TypeError`. | `test_greater_than_rejects_non_finite_bound`, `test_greater_than_rejects_array_bound`, `test_greater_than_rejects_string_bound`, `test_interval_constraints_reject_invalid_bounds`, `test_interval_constraints_reject_array_bounds` |
+| 4.7/12.1 | `ordered`: finite, strictly increasing along the last axis; fails ties; reduces one axis. | `test_ordered_accepts_strictly_increasing_vectors`, `test_ordered_rejects_ties`, `test_ordered_rejects_decreasing_steps`, `test_ordered_rejects_infinite_entries`, `test_ordered_rejects_nan_entries`, `test_ordered_reduces_only_the_last_axis` |
+| 4.7/12.1 | `simplex`: passes `softmax` output up to length 1000 in both dtypes; fails length 10 summing to `1+1e-3`; zero entries allowed; negative, NaN, infinite entries outside; reduces one axis. | `test_simplex_accepts_softmax_output`, `test_simplex_rejects_sum_off_by_1e_minus_3`, `test_simplex_accepts_zero_entries`, `test_simplex_rejects_negative_entries_even_when_sum_is_one`, `test_simplex_rejects_nan_and_infinite_entries`, `test_simplex_reduces_only_the_last_axis` |
+
+### `test_a6_parameter_issues.py`: declarations, `ParameterIssues`, host checkpoint, built-ins
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 4.2 | `survjax.param(constraint=...)`. | `test_param_accepts_constraint_keyword` |
+| 4.7 | constraints live in field metadata, not in the PyTree. | `test_constraints_are_not_pytree_leaves`, `test_constrained_and_unconstrained_twins_have_equal_leaves` |
+| 4.2/4.7 | `parameter_constraints`: own constrained fields, declaration order, undeclared and nested excluded, read-only. | `test_parameter_constraints_lists_own_constrained_fields_in_declaration_order`, `test_parameter_constraints_excludes_nested_distributions`, `test_parameter_constraints_is_empty_without_declarations`, `test_parameter_constraints_is_read_only` |
+| 4.7/12.1 | decoration-time `TypeError` for a non-callable constraint and for `event_dim > component_ndim`; `event_dim == component_ndim` accepted. | `test_register_family_rejects_non_callable_constraint`, `test_register_family_rejects_vector_constraint_on_scalar_field`, `test_register_family_rejects_event_dim_above_component_ndim`, `test_register_family_accepts_event_dim_equal_to_component_ndim` |
+| 4.7 | a plain callable is a constraint with `event_dim` 0. | `test_plain_function_is_a_constraint_with_event_dim_zero` |
+| 4.7/12.1 | a NumPyro constraint object is accepted (skipped without NumPyro). | `test_numpyro_constraint_object_is_accepted` |
+| 4.2 | the `parameter_conditions()` default is an empty mapping. | `test_default_parameter_conditions_is_empty` |
+| 4.7 | a family with nothing declared reports no issues; `fields`/`conditions` are `dict`s. | `test_family_with_nothing_declared_reports_no_issues`, `test_issue_fields_are_dicts` |
+| 4.7 | field masks: polarity, undeclared fields absent, `any` over remaining component axes, `event_dim` consuming the component axis, `batch_shape` masks, scalar batch. | `test_field_mask_marks_violations_true`, `test_undeclared_fields_are_absent_from_fields`, `test_remaining_component_axis_is_reduced_by_any`, `test_vector_constraint_consumes_the_component_axis`, `test_masks_have_batch_shape_for_two_dimensional_batch`, `test_scalar_distribution_has_scalar_masks` |
+| 4.7 | condition masks; `invalid_entries` union; scalar `ok`. | `test_condition_mask_marks_violations_true`, `test_invalid_entries_is_union_of_fields_and_conditions`, `test_ok_is_scalar_negated_any` |
+| 4.7 | nested keys dotted, own first; nested masks broadcast to the outer batch; nested violations join `invalid_entries`; keys fixed by the class. | `test_nested_field_keys_are_dotted_and_follow_own_fields`, `test_nested_condition_keys_are_dotted_and_follow_own_conditions`, `test_nested_masks_are_broadcast_to_outer_batch_shape`, `test_nested_violation_makes_outer_issues_not_ok`, `test_issue_keys_are_fixed_by_the_class` |
+| 4.7 | `dist[idx].parameter_issues()` equals the parent's masks indexed by `idx` (slice, int, int array). | `test_indexed_issues_equal_indexed_parent_masks` |
+| 4.7/6.3 | eager/`jit`/`vmap` agreement, traced construction, registered PyTree. | `test_parameter_issues_under_jit_matches_eager`, `test_parameter_issues_with_traced_construction_matches_eager`, `test_parameter_issues_under_vmap_matches_eager`, `test_parameter_issues_is_a_pytree_round_trip` |
+| 4.7/12.1 | malformed `parameter_conditions()` (non-mapping, empty/dotted/non-string key, non-bool or wrongly shaped value) raises `TypeError`, eagerly and under tracing; other mappings accepted. | `test_malformed_parameter_conditions_raise_type_error`, `test_malformed_parameter_conditions_raise_type_error_under_jit`, `test_other_mapping_types_are_accepted_from_parameter_conditions` |
+| 4.7/10.2 | `InvalidParameterError` is exported and subclasses `ValueError`. | `test_invalid_parameter_error_is_a_public_value_error` |
+| 4.7 | `raise_if_invalid()`: passes without violations (and with nothing declared); raises for field and condition violations; message names fields, conditions and dotted nested keys with counts and first indices; works on issues returned from `jit`; plain `ValueError` on traced diagnostics. | `test_raise_if_invalid_passes_without_violations`, `test_raise_if_invalid_passes_with_nothing_declared`, `test_raise_if_invalid_raises_invalid_parameter_error_for_field_violation`, `test_raise_if_invalid_raises_invalid_parameter_error_for_condition_violation`, `test_raise_if_invalid_message_names_field_with_count_and_first_index`, `test_raise_if_invalid_message_names_condition_and_nested_field`, `test_raise_if_invalid_works_on_issues_returned_from_jit`, `test_raise_if_invalid_on_traced_diagnostics_raises_plain_value_error` |
+| 4.1 | built-in declarations: Exponential `rate`, Weibull `shape`/`scale` are `positive`; `from_log` natural parameters are checked. | `test_exponential_declares_rate_positive`, `test_weibull_declares_shape_and_scale_positive`, `test_built_in_constraints_behave_as_positive`, `test_from_log_overflow_is_reported_as_parameter_issue`, `test_weibull_from_log_overflow_is_reported_as_parameter_issue` |
+| 4.5 | declared violations and conditions do not change direct-method values. | `test_declared_violation_does_not_change_direct_method_values`, `test_declared_violation_keeps_finite_formula_value`, `test_condition_violation_does_not_change_direct_method_values` |
+
+### `test_a6_likelihood_parameter_issues.py`: NaN likelihood rows for parameter issues (rev 29)
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 7.1 | rows marked by `parameter_issues().invalid_entries` are NaN even where the formula is finite (Exponential `rate=-1`, `0`; Weibull `scale=inf`, `shape=-1`; `from_log` overflow; a named condition; a nested violation; a custom declared family). | `test_declared_violation_is_nan_where_formula_is_finite`, `test_zero_rate_right_censored_row_is_nan`, `test_infinite_weibull_scale_right_censored_row_is_nan`, `test_negative_weibull_shape_right_censored_row_is_nan`, `test_from_log_overflow_row_is_nan`, `test_condition_violation_is_nan_on_exact_row`, `test_nested_violation_is_nan`, `test_declared_twin_of_finite_value_is_nan` |
+| 7.1/5 | with valid data the NaN rows are `invalid_entries` broadcast to the contribution shape (paired, scalar distribution, `(D,1)` draws); valid parameters give no NaN. | `test_nan_rows_are_parameter_issues_invalid_entries`, `test_scalar_invalid_distribution_marks_every_row`, `test_invalid_entries_broadcast_over_draws`, `test_valid_parameters_give_no_nan_rows` |
+| 7.1 | triage recipe: a row with invalid data and parameters is attributed to both; undeclared NaN is the remainder (`other`). | `test_invalid_parameters_and_invalid_data_overlap`, `test_undeclared_nan_is_the_recipe_remainder`, `test_undeclared_negative_rate_log_is_the_recipe_remainder` |
+| 7.1/12.1 | method equals function on violations; raw form in both. | `test_method_and_function_agree_on_parameter_violations`, `test_raw_form_forces_nan_on_parameter_violations` |
+| 7.1/12.1 | rows without issues keep their values and parameter gradients (per-row parameters; Jacobian in both modes, eager and `jit`; sum over valid rows). Rev 32 widening: `test_a6_likelihood_gradient_isolation.py`. | `test_rows_without_issues_keep_their_values`, `test_rows_without_issues_keep_their_gradients`, `test_rows_without_issues_keep_their_gradients_under_jit`, `test_sum_over_valid_rows_has_alone_gradient` |
+| 7.1/5 | `jit` and `vmap` agreement of values and `invalid_entries`. | `test_parameter_violations_under_jit_match_eager`, `test_parameter_violations_under_vmap_match_batched_call` |
+
+### A6 (section 4.7 part): deliberately not tested
+
+- **Values on rows with parameter issues beyond NaN, and their gradients**
+  (7.1, 7.3): "Gradients on rows with issues are unspecified". The gradient
+  of a valid row with respect to the invalid row's parameter is asserted
+  zero, because evaluated alone the valid row does not depend on it.
+- **Finite values from undeclared invalid parameters in the likelihood**:
+  4.5 gives "possibly finite" values and 7.2 leaves `reference_time()`
+  unspecified for invalid parameters, so neither the value nor the absence
+  of an issue is asserted.
+- **A shared (scalar) leaf that is itself invalid**: every row then has an
+  issue, so no row is left to isolate. A shared valid leaf beside a per-row
+  invalid one is tested (rev 32: leaves are broadcast to `batch_shape`).
+- **Undeclared invalidity** (7.1, rev 32): "is not masked and has no
+  isolation guarantee".
+- **The 7.2 `stop_gradient` exception as such** (rev 32): observable only as
+  the isolation, which is tested.
+- **Exact `raise_if_invalid()` message text**: only the presence of names,
+  counts and first indices.
+- **`simplex` exactly at the `4*n*eps` tolerance edge, `ordered` of length
+  one**: summation order is an implementation choice, and the other is a
+  corner case the table does not single out.
+- **Subnormal values and bounds, and values within rounding of a converted
+  bound** (4.7, rev 30): "may be classified either way" where the backend
+  flushes subnormals, so no expectation is asserted (for example
+  `nonnegative(nextafter(0, -inf))`). Every boundary neighbour in the tests
+  is a normal number and every bound is exact in both dtypes.
+- **Wrapper declarations** (4.4: linear predictor `real`, `baseline.` prefix):
+  the PH and AFT wrappers are Slice D; nesting is covered by a custom family.
+- **The 11.4 recipe** (a custom family with constraints and one condition):
+  documentation, A9 and later.
+- **`parameter_issues()` is not overridden by families**: a rule for family
+  authors with no observable outcome.
+
+## A6: exact and right-censored likelihood, method, unsupported modes (spec 4.2, 5, 6.1–6.3, 7.1–7.3, 12.2; rev 28, 29, 31, 32)
+
+Hand-derived exponential and Weibull contributions (`Z=1` without
+truncation). Tails, boundaries, mpmath and `jax_debug_nans` are A7; R
+fixtures A8; `check_grads` and Hessians A9 (except the method/function
+Hessian agreement, 12.1). Shared helpers `ll`, `ll_method` and `nan_causes`
+(the 7.1 triage recipe) are in `helpers.py`.
+
+### `test_a6_likelihood_values.py`: values
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 2/7.1 | exact row `log f(t)`, right-censored row `log S(c)`; exponential. | `test_exponential_exact_contribution`, `test_exponential_right_censored_contribution`, `test_exponential_mixed_rows_with_per_row_rates`, `test_exponential_shared_rate_over_rows`, `test_exponential_from_log_matches_ordinary_constructor` |
+| 4.1/7.1 | Weibull, `k>1` and `k<1`, exact and right; `k=1` equals exponential; mixed per-row parameters. | `test_weibull_exact_contribution_shape_above_one`, `test_weibull_right_censored_contribution_shape_above_one`, `test_weibull_exact_contribution_shape_below_one`, `test_weibull_right_censored_contribution_shape_below_one`, `test_weibull_shape_one_equals_exponential`, `test_weibull_mixed_rows_with_per_row_parameters` |
+| 4.2/7.1 | "The likelihood never dispatches on family type": custom family through generic defaults, equal to the built-in; `log_prob` override used for exact rows. | `test_custom_family_uses_generic_defaults`, `test_custom_family_matches_built_in`, `test_log_prob_override_is_used_for_exact_rows` |
+| 2/3.3/7.1 | right-censored at `c=L=0` (flag and bounds forms) is uninformative and exactly zero, with zero gradient. | `test_right_censored_at_zero_contributes_exactly_zero`, `test_bounds_form_zero_to_infinity_contributes_exactly_zero`, `test_uninformative_row_has_zero_gradient` |
+| 7.1 | true zero density or mass is `-inf`, not NaN, and the recipe finds no cause. | `test_zero_density_is_minus_infinity_not_nan`, `test_zero_survival_is_minus_infinity_not_nan` |
+| 12.1 | all-censored exponential data remain valid. | `test_all_censored_exponential_data_is_valid` |
+| 3.3 | likelihood dtype is the promoted data/parameter dtype. | `test_likelihood_dtype_is_default_float_in_32bit_mode`, `test_likelihood_promotes_float32_parameters_with_float64_data`, `test_likelihood_promotes_float32_data_with_float64_parameters` |
+
+### `test_a6_likelihood_shapes.py`: section 5 shapes
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 5 | scalar/scalar `()`; `(N,)` with scalar; paired `(N,)`; `(D,1)` and `(D,N)` give `(D,N)`; the documented Weibull regression pattern. | `test_scalar_data_scalar_distribution_gives_scalar`, `test_vector_data_scalar_distribution`, `test_vector_data_paired_distribution`, `test_draw_column_distribution_gives_draws_by_individuals`, `test_full_draw_matrix_distribution`, `test_weibull_draw_column_regression_pattern` |
+| 3.2/5 | multidimensional data keep every axis; trailing broadcasting of `(B,N)` data. | `test_multidimensional_data_keeps_its_axes`, `test_batched_datasets_against_trailing_distribution` |
+| 5 | bare `(D,)` against `(N,)`, `D != N`: `TypeError`, function and method. | `test_mismatched_bare_batch_raises_type_error`, `test_mismatched_bare_batch_raises_type_error_in_method` |
+| 5/7.1 | the method gives the function's `(D,N)` and scalar contribution shapes. | `test_method_follows_broadcast_contribution_shape`, `test_method_scalar_contribution_for_scalar_inputs` |
+
+### `test_a6_likelihood_invalid_data.py`: stored input issues
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 3.3/7.1 | invalid exact times (`0`, negative, `inf`, NaN) and right-censoring times (negative, `inf`, NaN): NaN rows equal `data.issues.invalid_rows`; the valid row keeps its value. | `test_invalid_exact_time_is_nan`, `test_invalid_right_censoring_time_is_nan` |
+| 7.1 | invalid indicator (code 2, NaN) is NaN although normalized fields look valid. | `test_invalid_event_code_is_nan_although_normalized_fields_look_valid`, `test_nan_event_indicator_is_nan` |
+| 3.1/7.1 | bounds form: mismatched exact upper is NaN; valid bounds rows equal the flag form. | `test_bounds_exact_row_with_mismatched_upper_is_nan`, `test_bounds_valid_exact_and_right_rows_match_flag_form` |
+| 7.1/12.1 | propagation after indexing, reconstruction, data returned from `jit`, traced construction under `jit`, `vmap` over data; method equals function. | `test_indexed_data_keeps_invalid_rows`, `test_rebuilt_data_keeps_invalid_rows`, `test_data_returned_from_jit_keeps_invalid_rows`, `test_traced_construction_and_likelihood_under_jit`, `test_vmap_over_data_keeps_invalid_rows`, `test_method_matches_function_on_invalid_data` |
+| 6.1/7.1 | raw form (function and method): event code 2 and invalid times give NaN eagerly and under `jit`, on the rows `SurvivalData(time, event).issues` marks. | `test_raw_form_invalid_event_code_returns_nan_eagerly`, `test_raw_form_invalid_time_returns_nan_eagerly`, `test_raw_form_method_invalid_event_code_returns_nan_eagerly`, `test_raw_form_invalid_event_code_under_jit` |
+| 7.1 | uninformative bits alone do not invalidate; the recipe attributes invalid-data rows to data only; broadcast over draws. | `test_uninformative_bits_alone_do_not_invalidate`, `test_invalid_data_rows_triage_to_data_only`, `test_invalid_data_broadcasts_over_draws` |
+
+### `test_a6_likelihood_entry_points.py`: function forms, transformations, compilation
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 10.2 | top-level entry point; `survjax.likelihood` module (Q-038). | `test_likelihood_entry_points_are_exported_at_top_level`, `test_likelihood_module_holds_the_entry_point` |
+| 6.2/6.3 | the likelihood "has no `_with_info` variant"; `LikelihoodIssues` removed (rev 29). | `test_likelihood_has_no_with_info_variant`, `test_likelihood_issues_container_is_removed` |
+| 6.1/7.1 | data form positional and by keyword; raw form equals data form; integer event codes. | `test_data_form_positional`, `test_data_form_by_keyword`, `test_raw_form_equals_data_form`, `test_raw_form_accepts_integer_event_codes` |
+| 6.1/6.2 | `TypeError` for a raw array as `data`, mixed forms, a missing `time` or `event`, no data, constructor keywords in the raw form, raw shape mismatch. | `test_raw_array_passed_as_data_raises_type_error`, `test_mixing_forms_raises_type_error`, `test_data_with_only_event_keyword_raises_type_error`, `test_raw_form_without_event_raises_type_error`, `test_raw_form_without_time_raises_type_error`, `test_no_data_at_all_raises_type_error`, `test_raw_form_rejects_constructor_keywords`, `test_raw_form_shape_mismatch_raises_type_error` |
+| 6.1/12.1 | eager/`jit`/`vmap` agreement, traced construction and raw form inside `jit`; summed-likelihood gradient. | `test_likelihood_under_jit_matches_eager`, `test_traced_construction_inside_jit_matches_eager`, `test_raw_form_inside_jit_matches_eager`, `test_vmap_over_data_matches_batched_call`, `test_vmap_over_parameter_draws_matches_batched_call`, `test_gradient_of_summed_likelihood_is_hand_derived` |
+| 7.2 | compilation reuse for new values (prepared data and traced construction); no host transfers on the compiled path (likelihood, `data.issues.ok`, `parameter_issues()`, gradient). | `test_new_values_reuse_compilation`, `test_traced_construction_reuses_compilation`, `test_compiled_path_makes_no_host_transfers` |
+
+### `test_a6_likelihood_method.py`: `dist.log_likelihood` (rev 29)
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 4.2/7.1 | a base method on every registered family: built-ins, a custom family that does not define it, a nested family; equal to the function. | `test_built_in_families_have_the_method`, `test_custom_family_has_the_method_without_defining_it`, `test_nested_family_method_equals_function` |
+| 6.1/7.1 | data form positional and by keyword `data=`; raw form; raw equals data form; integer event codes; Weibull hand-derived. All identical to the function. | `test_data_form_positional`, `test_data_form_by_keyword`, `test_raw_form_equals_function_raw_form`, `test_raw_form_equals_data_form`, `test_raw_form_accepts_integer_event_codes`, `test_weibull_method_equals_function` |
+| 6.1/6.2/7.1 | `TypeError` for a raw array as `data`, mixed forms, missing `time` or `event`, no data, positional `time`/`event` (keyword-only), constructor keywords. | `test_raw_array_passed_as_data_raises_type_error`, `test_mixing_forms_raises_type_error`, `test_raw_form_without_event_raises_type_error`, `test_raw_form_without_time_raises_type_error`, `test_no_data_at_all_raises_type_error`, `test_time_and_event_are_keyword_only`, `test_raw_form_rejects_constructor_keywords` |
+| 7.1/12.1 | equal to the function in values and first and second parameter derivatives, in both input forms (Weibull, summed); hand-derived exponential gradient. | `test_method_value_equals_function_value`, `test_method_gradient_equals_function_gradient`, `test_method_hessian_equals_function_hessian`, `test_method_gradient_is_hand_derived` |
+| 6.1/7.1/5 | `jit` (data and raw forms) and `vmap` over draws. | `test_method_under_jit_matches_eager`, `test_method_raw_form_under_jit_matches_eager`, `test_method_under_vmap_over_draws_matches_batched_call` |
+
+Invalid-data and parameter-issue NaN rows through the method are in
+`test_a6_likelihood_invalid_data.py` and
+`test_a6_likelihood_parameter_issues.py`; the method's static shape
+mismatch is in `test_a6_likelihood_shapes.py`.
+
+### `test_a6_unsupported_modes.py`: NaN rows for unsupported modes (rev 31)
+
+Cases: left, interval, bounds-left, bounds-interval, left-truncated exact and
+right, right-truncated exact; row 0 is a supported exact row.
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 3.2/7.1 | the rows are valid data and add no data or parameter issue. | `test_unsupported_row_is_valid_data`, `test_unsupported_row_adds_no_parameter_issue` |
+| 7.1/12.2 | NaN on the row without an exception, function and method; the supported row keeps its value; method equals function. | `test_unsupported_row_is_nan`, `test_unsupported_row_is_nan_in_method`, `test_supported_row_keeps_its_value`, `test_supported_row_keeps_its_value_in_method` |
+| 7.1/12.2 | the same under `jit` (prepared data, both entry points), traced construction and `vmap` over draws. | `test_unsupported_row_is_nan_under_jit`, `test_unsupported_mode_from_traced_construction_is_nan`, `test_unsupported_row_is_nan_under_vmap` |
+| 7.1/12.2 | the Slice A triage recipe attributes the row to mode support (`unsupported_nan`), not `other`. | `test_triage_recipe_attributes_row_to_mode_support` |
+| 7.1/7.3 | the supported row keeps its first and second rate derivatives, per-row (Jacobian both modes, Hessian, `jit`) and with a shared rate. | `test_supported_row_keeps_its_gradient_per_row`, `test_supported_row_keeps_its_hessian_per_row`, `test_supported_row_keeps_its_gradient_with_shared_rate`, `test_supported_row_keeps_its_gradient_under_jit` |
+
+### `test_a6_likelihood_gradient_isolation.py`: isolation of rows without parameter issues (rev 32)
+
+Each case: three rows, row 1 violates a declaration. "Alone" is the family
+built from the per-row leaves at rows 0 and 2 on those data rows, as a
+function of the same flat parameter vector.
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 7.1/12.1 | values of rows without issues equal alone; row 1 NaN. Violation classes zero, negative, NaN, `+inf`, `-inf` (and non-finite `real`), and named conditions; Exponential, Weibull (per-row scale with shared shape, per-row shape with shared scale), custom `constrained_rate`, `capped_rate` condition, `component_constrained` (batch leaf and component leaf), nested `scaled_capped` (base leaf, outer leaf, base and outer conditions). | `test_rows_without_issues_keep_values[*]` |
+| 7.1/7.3/12.1 | first and second derivatives equal alone, finite, in every leaf: `jacrev`, `jacfwd`, fwd-over-rev, rev-over-rev, fwd-over-fwd, rev-over-fwd. | `test_rows_without_issues_keep_derivatives[*]` |
+| 7.1/7.3 | the same under `jit`; through `dist.log_likelihood`. | `test_rows_without_issues_keep_derivatives_under_jit[*]`, `test_rows_without_issues_keep_derivatives_in_method[*]` |
+| 7.1/7.3 | hand-derived anchors: Exponential per-row Hessian; Weibull shared-shape gradient and Hessian with a negative per-row scale; nested shared `log_ratio` with a NaN base rate. | `test_exponential_isolated_hessian_is_hand_derived`, `test_weibull_shared_shape_derivatives_are_hand_derived`, `test_nested_shared_log_ratio_derivatives_are_hand_derived` |
+
+### A6 (likelihood part): deliberately not tested
+
+- **Unsupported-row derivatives** (7.1, rev 31): "unspecified".
+- **Families do not override `log_likelihood`** (4.2): a rule for family
+  authors; whether registration rejects an override is not specified.
+- **`Z=0` NaN rows** (the recipe's `other`): `Z=0` needs truncation, Slice B;
+  the bounded-support zero-numerator versus zero-denominator case of 12.1 is
+  Slice B for the same reason.
+- **Invalid rows whose normalized kind may be left or interval** (conflicting
+  flags, equal non-exact bounds): rev 31 makes them NaN either way, but the
+  triage of such rows (both invalid data and possibly unsupported) is left
+  to Slice B with the modes themselves.
+- **Inactive-input substitution** (7.2: own window for exact rows,
+  `reference_time()` for censored rows, `stop_gradient`): not observable on
+  valid exact/right data beyond finite values and gradients; A7
+  (`jax_debug_nans`) and A9 (`check_grads`) exercise it.
+- **Static-metadata pruning and "different metadata may compile
+  separately"**: pruning is optional and Slice B; separate compilation is
+  permitted, not required.
+- **No host callbacks or synchronisation** (7.2) beyond the transfer guard:
+  callbacks are not observable through the public API.
+- **Tails, narrow cases, boundaries, mpmath and R fixtures**: A7 and A8.
+- **Second derivatives, Hessians, `check_grads`**: A9 (7.3), except the
+  rev 31/32 isolation of supported rows and of rows without parameter
+  issues, which 12.1 lists with the parameter diagnostics.
+- **"Multiplying invalid rows by zero does not make them valid"**: guidance
+  for callers, not library behaviour.

@@ -5,10 +5,14 @@ can describe survival observations (`SurvivalData`), provides the exponential
 and Weibull distributions, and lets you write your own survival
 distributions, from which survjax derives survival, cumulative hazard,
 hazard, density and CDF. Every distribution can be evaluated pointwise or on
-a shared time grid. Likelihoods, other built-in families, summaries and
-evaluation metrics are planned; the Slice A completion gate has not yet been
+a shared time grid. Exact/right-censored likelihoods without truncation are
+available; other likelihood modes, families, summaries and evaluation metrics
+are planned; the Slice A completion gate has not yet been
 met.
 
+[Log likelihoods](likelihood.md) explains how survjax computes likelihood
+contributions and how to call it, illustrated by fitting exponential and
+Weibull models with JAX.
 The [SurvivalData guide](survival-data.md) walks a synthetic cohort through
 both constructors, diagnostics and R input conventions.
 [Exponential and Weibull](builtin-families.md) introduces the built-in
@@ -29,6 +33,7 @@ is built.
 playground
 survival-data
 builtin-families
+likelihood
 grids
 distributions
 api

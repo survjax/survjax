@@ -400,3 +400,121 @@ def mixture_cure():
             return jnp.broadcast_to(1.0 / self.rate, self._batch())
 
     return MixtureCure
+
+
+# ---------------------------------------------- declared constraints (spec 4.7, rev 28)
+
+
+def _rate_family(constrained):
+    """``S(t) = exp(-rate * t)`` as written (no guards); ``rate`` declared ``positive`` or undeclared."""
+    kw = {"constraint": survjax.constraints.positive} if constrained else {}
+
+    @survjax.register_family
+    @dataclasses.dataclass(frozen=True)
+    class RateFamily(survjax.SurvivalDistribution):
+        rate: jax.Array = survjax.param(**kw)
+
+        def log_survival(self, t):
+            return -self.rate * t
+
+        def reference_time(self):
+            return 1.0 / self.rate
+
+    return RateFamily
+
+
+@functools.cache
+def constrained_rate():
+    """Exponential-like with ``rate`` declared ``positive`` (spec 4.2 recipe, rev 28)."""
+    return _rate_family(True)
+
+
+@functools.cache
+def unconstrained_rate():
+    """The same formula as ``constrained_rate`` with no declaration, for value comparisons."""
+    return _rate_family(False)
+
+
+@functools.cache
+def component_constrained():
+    """Constraints on batch and component fields, with an undeclared field between them (spec 4.7, rev 28).
+
+    Declaration order ``rate`` (positive), ``free`` (none), ``w`` (positive,
+    ``component_ndim=1``: one remaining component axis, reduced by ``any``),
+    ``knots`` (ordered, ``component_ndim=1``: ``event_dim=1`` consumes it).
+    ``S(t) = exp(-rate * sum(w) * t)``; ``free`` and ``knots`` do not enter it.
+    """
+
+    @survjax.register_family
+    @dataclasses.dataclass(frozen=True)
+    class ComponentConstrained(survjax.SurvivalDistribution):
+        rate: jax.Array = survjax.param(constraint=survjax.constraints.positive)
+        free: jax.Array = survjax.param()
+        w: jax.Array = survjax.param(
+            component_ndim=1, constraint=survjax.constraints.positive
+        )
+        knots: jax.Array = survjax.param(
+            component_ndim=1, constraint=survjax.constraints.ordered
+        )
+
+        def log_survival(self, t):
+            return -self.rate * jnp.sum(self.w, axis=-1) * t
+
+        def reference_time(self):
+            return 1.0 / (self.rate * jnp.sum(self.w, axis=-1))
+
+    return ComponentConstrained
+
+
+@functools.cache
+def capped_rate():
+    """``rate`` and ``cap`` declared ``positive`` plus one named condition ``rate_above_cap`` (spec 4.7, rev 28).
+
+    ``S(t) = exp(-rate * t)``; the condition is violated where ``rate > cap``.
+    The formula is finite there, so only the declaration can flag it.
+    """
+
+    @survjax.register_family
+    @dataclasses.dataclass(frozen=True)
+    class CappedRate(survjax.SurvivalDistribution):
+        rate: jax.Array = survjax.param(constraint=survjax.constraints.positive)
+        cap: jax.Array = survjax.param(constraint=survjax.constraints.positive)
+
+        def log_survival(self, t):
+            return -self.rate * t
+
+        def reference_time(self):
+            return 1.0 / self.rate
+
+        def parameter_conditions(self):
+            return {"rate_above_cap": self.rate > self.cap}
+
+    return CappedRate
+
+
+@functools.cache
+def scaled_capped():
+    """A nested ``capped_rate`` baseline with an own constraint and condition (spec 4.7, rev 28).
+
+    ``log S = exp(log_ratio) * log S_base``; ``log_ratio`` declares ``real``;
+    own condition ``ratio_too_large`` where ``log_ratio > 2``. Expected keys:
+    fields ``log_ratio, base.rate, base.cap``; conditions
+    ``ratio_too_large, base.rate_above_cap``.
+    """
+
+    @survjax.register_family
+    @dataclasses.dataclass(frozen=True)
+    class ScaledCapped(survjax.SurvivalDistribution):
+        base: survjax.SurvivalDistribution = survjax.distribution()
+        log_ratio: jax.Array = survjax.param(constraint=survjax.constraints.real)
+
+        def log_survival(self, t):
+            return jnp.exp(self.log_ratio) * self.base.log_survival(t)
+
+        def reference_time(self):
+            return self.base.reference_time()
+
+        def parameter_conditions(self):
+            return {"ratio_too_large": self.log_ratio > 2.0}
+
+    return ScaledCapped

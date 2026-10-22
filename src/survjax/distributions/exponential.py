@@ -7,6 +7,7 @@ import jax
 import jax.numpy as jnp
 from jax.typing import ArrayLike
 
+from survjax import constraints
 from survjax._dtypes import normalize_parameters
 from survjax.distributions._survival_methods import log_cdf_from_log_cumulative_hazard
 from survjax.distributions.base import SurvivalDistribution, param, register_family
@@ -47,7 +48,7 @@ class Exponential(SurvivalDistribution):
     0.5488
     """
 
-    rate: jax.Array = param()
+    rate: jax.Array = param(constraint=constraints.positive)
 
     @classmethod
     def from_log(cls, *, log_rate: ArrayLike) -> Self:

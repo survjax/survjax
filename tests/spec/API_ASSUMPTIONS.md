@@ -288,8 +288,13 @@ on it. Guessed exception types and call shapes are centralised in
 - **Still outside Slice A:** `log_interval_prob`,
   `log_conditional_interval_prob` (Slice B); `inverse_cumulative_hazard`,
   `support()`, summaries, sampling and `check_family` (Slice D).
-- **Open for A6:** `parameter_issues()`, which 7.1 likelihood diagnostics may
-  need for invalid parameters; its return type is unspecified.
+- **`parameter_issues()` resolved by spec rev 28 (decision 0042):** a base
+  method returning `ParameterIssues` (4.7), built from declared constraints,
+  nested distributions and the new `parameter_conditions()` hook (which
+  replaces the `parameter_issues()` row of the 4.2 defaults table). Its
+  `invalid_entries` selects the likelihood's NaN rows (7.1; since rev 29
+  there is no `invalid_parameters` mask). Slice A
+  includes it (12.2); tests are at A6 (Q-035).
 - **Depends:** every test in `test_a4_generic_defaults.py` and
   `test_a4_hazard_at_zero_survival.py`, and the `survival`,
   `cumulative_hazard`, `log_cdf` and `hazard` tests in
@@ -410,3 +415,66 @@ on it. Guessed exception types and call shapes are centralised in
   `(k, Good-group scale, beta_Medium, beta_Poor)`, and the test's reading was
   correct. Section 4.5 now gives a self-contained example and points to 11.1.
 - **Depends:** `test_survival_grid_from_zero_with_weibull_shape_one`.
+
+## Q-034: read-only `parameter_constraints` (spec 4.7, rev 28)
+
+- **Checked:** 4.2, 4.7.
+- **Guess:** "a read-only mapping" rejects item assignment with `TypeError`,
+  as `types.MappingProxyType` and every `Mapping` without `__setitem__` do.
+- **Depends:** `test_parameter_constraints_is_read_only`.
+
+## Q-035: delivery step of the section 4.7 tests
+
+- **Checked:** 12.2 (rev 28 adds parameter constraints and `ParameterIssues`
+  to Slice A); the delivery schedule in `CLAUDE.md` names no step for 4.7.
+- **Resolved:** maintainer decision, 2026-10-19: mark them `A6`, with the
+  likelihood (7.1) and result containers (6.3), so they do not reopen A4/A5.
+  The schedule table in `CLAUDE.md` is not yet updated.
+- **Depends:** every test in `test_a6_constraints.py`,
+  `test_a6_parameter_issues.py` and `test_a6_likelihood_parameter_issues.py`.
+
+## Q-036: constraint declaration details the spec leaves open (spec 4.7, rev 28)
+
+- **Checked:** 4.2, 4.7, 11.3.
+- **Guesses:**
+  - `survjax.param(constraint=...)` stores any value; the `TypeError` for a
+    non-callable constraint or an excessive `event_dim` comes from
+    `register_family` ("At decoration"), so the tests call
+    `register_family` on an already defined class.
+  - `parameter_constraints` holds the declared object itself (`is`
+    comparison for custom families). For the built-ins the tests check keys
+    and `positive` behaviour, not identity with `survjax.constraints.positive`.
+  - The NumPyro constraint module is `numpyro.distributions.constraints`;
+    the test skips when NumPyro is not installed.
+  - `ordered` of a length-1 vector and `simplex` corner cases at the
+    tolerance edge are not tested.
+- **Depends:** `test_register_family_rejects_*`,
+  `test_parameter_constraints_*`, `test_numpyro_constraint_object_is_accepted`,
+  `test_built_in_constraints_behave_as_positive`.
+
+## Q-037: how Slice A fails explicitly for unimplemented modes (spec 12.2, rev 28) — resolved by rev 31
+
+- **Resolved by rev 31 (decision 0044):** unsupported rows return NaN in both
+  entry points, eagerly and under `jit`/`vmap`, without a value-dependent
+  exception; supported rows keep their values and derivatives; no data or
+  parameter issue is added, and the 7.1 recipe gains a mode-support check
+  (`helpers.supported_mode`, `helpers.unsupported_nan`). The
+  `NotImplementedError` alternative is withdrawn.
+- **Depends:** nothing guessed remains; `test_a6_unsupported_modes.py` follows
+  the spec text.
+
+## Q-038: likelihood module placement (spec 6.3, 10.2, rev 28; narrowed by rev 29)
+
+- **Checked:** 6.2, 6.3, 7.1, 10.2.
+- **Resolved by rev 29 (decision 0043):** `LikelihoodIssues` and
+  `log_likelihood_with_info` are removed, so the guess about the info class
+  name is withdrawn and `test_likelihood_issues_fields_by_name` deleted.
+  `test_likelihood_has_no_with_info_variant` and
+  `test_likelihood_issues_container_is_removed` assert that neither name is
+  exposed at top level or in `survjax.likelihood`.
+- **Still a guess:** `survjax.likelihood` (named in the 10.2 layout) holds the
+  same `log_likelihood` object as the top level.
+- **Depends:** `test_likelihood_module_holds_the_entry_point`,
+  `test_likelihood_has_no_with_info_variant`,
+  `test_likelihood_issues_container_is_removed`.
+

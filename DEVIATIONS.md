@@ -1,5 +1,121 @@
 # Deviations and spec questions
 
+## D-026 NaN triage after normalized fields are edited
+- Step: A6.4b2 review follow-up, SQ1
+- Spec: sections 6.2 and 7.1, revision 32
+- Spec says: data.issues decodes stored issue bits, while likelihood evaluation
+  also checks current normalized fields. The Slice A recipe labels supported
+  NaNs unexplained by stored data/parameter issues as zero normalization or
+  numerical failure.
+- Gap: a tree-rebuilt row with a newly invalid field can have issues.ok=True
+  and a NaN likelihood; the recipe then misattributes that NaN to its remainder.
+  The implementation follows both requirements; this is a wording question,
+  not a proposed change to diagnostic or likelihood behavior.
+- Did / propose: preserve current behavior in the readability refactor.
+  Proposed clarification: "For data whose normalized fields were edited after
+  construction, other may also include violations found by the likelihood's
+  field recheck. data.issues.invalid_rows only decodes stored construction issues."
+  Await the maintainer's decision before a separate spec/documentation change.
+- Status: resolved by maintainer, 2026-10-22; specification revision 33, section 7.1 (decision 0046) adopts the proposed clarification.
+
+## D-025 Plain comparisons versus subnormal acceptance expectations
+- Step: A6.1 plain-comparison follow-up planning (2026-10-19).
+- Spec: sections 4.7 and 12.1; independent
+  test_a6_constraints.py::test_unit_interval_includes_zero_and_one.
+- Spec says: nonnegative includes finite x>=0, unit_interval includes
+  0<=x<=1, and constraint tests cover eager/jit/vmap agreement. The independent
+  test requires nextafter(0,-inf) to fail unit_interval in every mode.
+- Did / propose: the maintainer requests removal of jnp.frexp and has chosen
+  JAX parameter-dtype/backend behavior. Propose plain comparisons, retaining
+  inclusive nonnegative pending clarification of "greater than 0". A CPU
+  probe in both dtypes shows finite x>=0 accepts the smallest negative
+  subnormal eagerly/vmap but rejects it under jit. Removing the workaround
+  therefore conflicts with the independent expectation and the stronger
+  transformation guarantee at subnormal boundaries. Report the acceptance
+  failure and preserve the independent test; ask the maintainer to approve
+  this explicit backend-semantic deviation with the implementation plan.
+- Revision-30 alignment note (2026-10-20): section 4.7 now explicitly allows
+  backend-dependent classification of subnormal values/bounds, including at
+  zero, and requires ordinary JAX comparisons with no added handling. The
+  nonnegative domain remains finite x>=0. The normative question is settled;
+  implementation and independent-test synchronization are pending. Formal
+  closure remains the maintainer's.
+- Implementation follow-up (2026-10-20): removed frexp and the own strict
+  subnormal-sign guarantee under revision 30. The updated tester module at
+  f527f75 uses normal neighbours around zero and passes alongside the focused
+  own tests in both dtypes (98 passed per process). No independent test was
+  changed here. Formal closure remains the maintainer's.
+- Status: resolved by maintainer, 2026-10-22; specification revision 30, section 4.7.
+
+## D-024 Precision and subnormal semantics of constraint bounds
+- Step: A6.1 review check (2026-10-19), reviewer Q1.
+- Spec: section 4.7, unchanged in revisions 28–29.
+- Spec says: bound factories take finite Python numbers and compare x>a,
+  a<x<b or a<=x<=b, without specifying the precision of the Python bound or
+  the required handling of nonzero subnormal bounds on a flushing backend.
+- Did / propose: preserve the A6.1 implementation pending maintainer decision.
+  Zero-bound comparisons use frexp for signed subnormals; nonzero bounds use
+  JAX's parameter-dtype comparisons. The reviewer reports float32 cases
+  greater_than(-1e-40)(0) and greater_than(0.1)(float32(0.1)) returning False,
+  and notes NumPyro agrees. Ask whether the contract adopts parameter-dtype
+  bound conversion and backend comparison behavior, or requires mathematical
+  comparison against the Python bound with subnormal guarantees. Do not
+  silently broaden the zero-bound workaround or change the spec.
+- Maintainer decision (2026-10-19, fix-up approval): follow JAX's parameter-
+  dtype/backend comparison behavior. Preserve the current comparisons and
+  existing zero-bound frexp handling. No spec edit is requested; formal
+  closure of this entry remains with the maintainer.
+- Revision-30 alignment note (2026-10-20): section 4.7 and decision 0042 now
+  record the maintainer's chosen parameter-dtype/backend behavior and specify
+  no extra handling even at zero bounds. This supersedes the earlier note
+  preserving zero-bound frexp handling. Removing it awaits the maintainer's
+  test sync and instruction; formal closure remains the maintainer's.
+- Implementation follow-up (2026-10-20): all constraints now use ordinary
+  JAX comparisons; bound factories explicitly cast bounds to the parameter
+  dtype. The zero-bound special cases have been removed. The focused
+  revision-30 constraint checks pass in both modes. Formal closure remains
+  the maintainer's.
+- Status: resolved by maintainer, 2026-10-22; specification revision 30, section 4.7 (decision 0042).
+
+## D-023 Explicit unsupported likelihood failures under tracing
+- Step: A6.4 planning against revision 30 (2026-10-20); first raised during
+  revision-28 A6 planning on 2026-10-19, independent Q-037.
+- Spec: sections 3.2, 6.1–6.3, 7.1, 12.2.
+- Spec says: Slice A implements exact/right likelihoods without truncation;
+  other modes fail explicitly. Traced construction has all-true may-contain
+  flags, while supported traced inputs must evaluate. Valid left/interval/
+  truncated observations are not invalid data. Since revision 29 there is no
+  LikelihoodIssues or likelihood _with_info variant: data and parameter
+  diagnostics explain NaNs, and section 7.1 labels the unexplained remainder
+  as zero normalization or numerical failure. Unsupported valid observations
+  fit neither diagnostic nor that remainder's stated meaning.
+- Did / propose: no evaluator implemented. Propose NaN only on unsupported
+  rows, eagerly and under transformations, preserving supported neighbors.
+  Keep data/parameter issue masks truthful and document unsupported modes as
+  an additional cause of unexplained NaN during Slice A. Add no diagnostic
+  container, issue bit or family-type dispatch. Never reject a traced exact/
+  right batch solely because conservative metadata permits unsupported modes.
+  This was proposed before A6.4b; the maintainer's subsequent approval and
+  specification clarification are recorded below.
+- Acceptance evidence: the synced unsupported-mode module permits eager
+  NotImplementedError or row NaN, requires row NaN from traced construction,
+  and explicitly leaves diagnostic attribution and supported-neighbor behavior
+  unspecified. Passing it would not settle the open contract question.
+- Discussion: the maintainer requested more explanation during A6.4 planning.
+  Explained the mixed exact/left-censored example, runtime-versus-Python
+  exception distinction, and why current section 7.1's triage explanation
+  would need an additional cause.
+- Maintainer decision (2026-10-20): approved row-wise NaN eagerly and under
+  transformations, preserving supported contributions and guaranteed
+  derivatives; no new diagnostic container or issue flag. Approved clarifying
+  the spec and triage recipe to check support after data/parameter issues.
+- Spec alignment: revision 31, design commit be7b253, sections 7.1/12.2,
+  decision 0044 (9cc2ab2). The normative policy is settled. The older f527f75
+  independent snapshot remains unchanged; it does not assert all newly settled
+  requirements. Implementation and stronger acceptance evidence remain future
+  work. Formal deviation closure remains the maintainer's responsibility.
+- Status: resolved by maintainer, 2026-10-22; specification revision 31, sections 7.1/12.2 (decision 0044), implemented in A6.4.
+
 ## D-022 Log-CDF upper tail rounds to zero before S underflows
 - Step: A5.4 review, 2026-10-14 (found after D-021)
 - Spec: sections 4.2, 4.3, 7.1 and 12.1 ("stable tails"), revision 24.
@@ -39,7 +155,7 @@
   two-branch helper and upper-tail relative-precision checks normative in
   sections 4.1–4.3, 7.2 and 12.1. No new tests were run during alignment;
   formal closure remains with the maintainer.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; specification revision 25, sections 4.1–4.3, 7.2 and 12.1.
 
 ## D-021 Built-in log-CDF lower-tail switch
 - Step: A5.4 review fix-up, 2026-10-14
@@ -57,7 +173,7 @@
   explicitly requires the built-ins' lower-tail calculation from `log H`;
   the switch point remains an implementation choice preserving relative
   precision. Formal closure remains with the maintainer.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; specification revision 25, section 4.1.
 
 ## D-020 Mixed-time Weibull density acceptance expectation omits log(shape)
 - Step: A5.4 implementation, 2026-10-13
@@ -83,7 +199,7 @@
   includes `log(shape)` in its expected Weibull density. The full A5 run no
   longer reports D-020; the non-grid A5 acceptance modules pass in both dtype
   modes. The maintainer retains closure; this entry remains open.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; the independent boundary test was corrected in revision-24 sync.
 
 ## D-019 Natural parameter leaves versus overflow-safe log constructors
 - Step: A5 planning
@@ -107,7 +223,7 @@
   claim. Independent Q-028 and `test_a5_from_log.py` at tester commit `7f1d6df`
   follow the new contract. The revised A5 plan implements that contract; no
   representation decision remains pending. Formal closure stays with the maintainer.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; specification revision 22, section 4.1 (`from_log` stores natural parameters).
 
 ## D-016 NaN parameter gradients of finite values at `t=+inf`
 - Step: A4.4 review; decision deferred to A5
@@ -168,7 +284,7 @@
   infinity hook. The full through-A5 gate passes in both dtype modes,
   including the updated independent boundary suite. See REVIEW.md for exact
   results and derivative coverage; maintainer closure remains pending.
-- Status: open (maintainer decision 2026-10-03: defer to A5)
+- Status: resolved by maintainer, 2026-10-22; specification revisions 22 and 26–27, sections 4.2/4.5, implemented in A5.2b and A5.6.
 
 ## D-017 Dtype policy for direct-method times
 - Step: A4.4 review
@@ -221,7 +337,7 @@ decision descriptions are retained as history.
   family and raise a field-named TypeError otherwise. Implement this before
   reading nested batch shapes, including rejecting unregistered subclasses
   of registered parents. No parameter-value validation or spec change.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; specification revision 33, section 4.2 (decision 0046).
 
 ## D-014 Unmarked family fields and inherited constructors
 - Step: A4.2 review fix-up
@@ -237,7 +353,7 @@ decision descriptions are retained as history.
   at registration, and rejection of classes without their own initializer.
   The maintainer approved both rejections on 2026-10-02; this fix-up
   implements them. The specification is unchanged; this entry remains open.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; specification revision 33, section 4.2 (decision 0046).
 
 ## D-013 Parameter diagnostic return contract
 - Step: A4 planning; deferred to A6 after acceptance-suite sync
@@ -254,7 +370,11 @@ decision descriptions are retained as history.
   maintainer to settle the return contract and ownership of nested diagnostics.
   The earlier boolean-invalid-mask proposal is an option only, not an accepted
   API. No spec change is made here, and this entry remains open.
-- Status: open
+- Revision-28 planning note (2026-10-19): section 4.7 now defines the
+  constraint/condition-based ParameterIssues contract and section 7.1 defines
+  likelihood attribution (decision 0042). A6.1–A6.5 in PLAN.md implement it;
+  this removes the planning blocker. Formal resolution remains the maintainer's.
+- Status: resolved by maintainer, 2026-10-22; specification revision 28, sections 4.7 and 7.1 (decision 0042), implemented in A6.
 
 ## D-012 Right precedence for the unbounded zero-lower observation
 - Step: A3 review fix-up
@@ -269,7 +389,7 @@ decision descriptions are retained as history.
   precedence, as approved in `A3-review-handoff.md`. Propose a later spec
   revision make the precedence explicit in section 3.2. Metadata still
   includes rows with issue bits; this classification is not a validity check.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; specification revision 33, section 3.2 (decision 0046).
 
 ## D-010 A3 vmap acceptance test indexes scalar `data.issues.ok`
 - Step: A2 constructor API migration; observed in an A3 acceptance test
@@ -282,7 +402,7 @@ decision descriptions are retained as history.
   indexes `batched.issues.ok[i]`, which raises `IndexError` for the scalar. To
   compare per-batch validity, the independent test author could vmap a function
   returning `data.issues` or compare `~jnp.any(invalid_rows, axis=1)`.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; the independent A3 tracing test no longer indexes scalar `issues.ok`.
 
 ## D-006 Legacy diagnostic compatibility after pure construction
 - Step: specification revision 8 (`spec-constructor`)
@@ -311,7 +431,7 @@ Entries are added by the implementer and resolved by the maintainer.
   is true. This allows one `time2` array to accompany mixed observation kinds
   without treating unused entries as endpoints. The maintainer approved this
   handling in conversation on 2026-09-25; the entry remains formally open.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; specification section 3.1 ignores `time2` on non-interval rows (approved 2026-09-25).
 
 ## D-002 JAX weak Python inputs and float64 warnings
 - Step: A1 review fix-up
@@ -329,7 +449,7 @@ Entries are added by the implementer and resolved by the maintainer.
   their weak contribution. Integer-only or scalar-only input uses the default
   floating dtype. The clarifying spec edit has landed as `3041ebd`; this
   entry awaits maintainer resolution.
-- Status: open
+- Status: resolved by maintainer, 2026-10-22; specification section 3.3 (`3041ebd`) states the weak-input and warning policy.
 
 ## D-003 Right censoring at entry
 - Step: A2
@@ -396,9 +516,7 @@ Entries are added by the implementer and resolved by the maintainer.
   `TypeError` in both paths in conversation on 2026-09-29, reserving the bit
   for row-wise conflicts between true flags. Implement this in the A2 review
   fix-up; the entry remains formally open for maintainer resolution.
-- Status: open; superseded by specification revision 9, which requires
-  `TypeError` when `event` is combined with any non-None censoring flag.
-  Awaiting maintainer closure.
+- Status: resolved by maintainer, 2026-10-22; superseded by specification revision 9.
 
 ## D-007 Concrete observation inputs captured inside `jit`
 - Step: A2 independent-review fix-up
@@ -412,9 +530,7 @@ Entries are added by the implementer and resolved by the maintainer.
   The reviewer recommends checking inputs for tracers and evaluating fully
   concrete construction under `jax.ensure_compile_time_eval()`. Await
   maintainer decision before changing this behavior.
-- Status: open; superseded by specification revision 9, which requires both
-  ordinary constructors to accept traced and concrete inputs inside `jit`.
-  Awaiting maintainer closure.
+- Status: resolved by maintainer, 2026-10-22; superseded by specification revision 9.
 
 ## D-008 Pure bounds constructor name and signature
 - Step: A2 independent-review fix-up
@@ -427,9 +543,7 @@ Entries are added by the implementer and resolved by the maintainer.
   need to be placed in the normative spec. A possible form is
   `SurvivalData.from_bounds_with_issues(...)`. The maintainer will update the
   spec before adding a public method (conversation, 2026-09-29).
-- Status: open; superseded by specification revision 9, which makes
-  `from_bounds` the pure bounds constructor and removes issue-returning
-  constructor methods. Awaiting maintainer closure.
+- Status: resolved by maintainer, 2026-10-22; superseded by specification revision 9.
 
 ## D-009 Unsupported outside-interval keyword in `from_bounds`
 - Step: A2 independent-review fix-up
@@ -441,6 +555,4 @@ Entries are added by the implementer and resolved by the maintainer.
 - Did / propose: `from_bounds(..., outside_interval_censored=...)` currently
   raises Python's `TypeError`. The maintainer will update the spec before a
   change to this behavior (conversation, 2026-09-29).
-- Status: open; superseded by specification revision 9, whose constructor
-  signatures reject the unsupported keyword with `TypeError`. Awaiting
-  maintainer closure.
+- Status: resolved by maintainer, 2026-10-22; superseded by specification revision 9.

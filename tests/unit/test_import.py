@@ -6,15 +6,22 @@ def test_public_package_imports() -> None:
     import survjax
 
     assert set(survjax.__all__) == {
+        "constraints",
         "Exponential",
         "Weibull",
         "SurvivalData",
         "InvalidDataError",
+        "InvalidParameterError",
         "SurvivalDistribution",
         "register_family",
         "param",
         "distribution",
         "static",
+        "log_likelihood",
     }
     assert survjax.SurvivalData is not None
     assert issubclass(survjax.InvalidDataError, ValueError)
+    from survjax.diagnostics import InvalidParameterError
+
+    assert survjax.InvalidParameterError is InvalidParameterError
+    assert issubclass(InvalidParameterError, ValueError)

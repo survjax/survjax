@@ -2,7 +2,9 @@
 
 import functools
 import inspect
+from collections.abc import Callable, Mapping
 from dataclasses import MISSING, field, fields, is_dataclass
+from types import MappingProxyType
 from typing import Any, ClassVar, Self
 
 import jax
@@ -10,10 +12,14 @@ import jax.numpy as jnp
 from jax.typing import ArrayLike
 
 from survjax._dtypes import normalize_parameters
-from survjax.distributions import _grid_methods, _survival_methods
+from survjax.data import SurvivalData
+from survjax.distributions import _grid_methods, _parameter_issues, _survival_methods
 
 
-def param(component_ndim: int = 0) -> Any:
+def param(
+    component_ndim: int = 0,
+    constraint: Callable[[jax.Array], jax.Array] | None = None,
+) -> Any:
     """Declare a required numerical parameter in a family dataclass.
 
     Use ``rate: jax.Array = survjax.param()`` for a scalar per batch entry.
@@ -24,12 +30,22 @@ def param(component_ndim: int = 0) -> Any:
     ``component_ndim`` must be a non-negative Python int. Other types,
     including bool, raise TypeError; negative values raise ValueError.
     The returned dataclass field has no default.
+
+    ``constraint`` is an optional pure callable returning True for valid
+    parameter values, reducing ``event_dim`` trailing axes (default 0).
+    Registration checks the declaration; construction never evaluates it.
     """
     if not isinstance(component_ndim, int) or isinstance(component_ndim, bool):
         raise TypeError("component_ndim must be a non-negative int, not bool")
     if component_ndim < 0:
         raise ValueError("component_ndim must be non-negative")
-    return field(metadata={"survjax_kind": "param", "component_ndim": component_ndim})
+    return field(
+        metadata={
+            "survjax_kind": "param",
+            "component_ndim": component_ndim,
+            "constraint": constraint,
+        }
+    )
 
 
 def static(*, default: Any = MISSING) -> Any:
@@ -127,6 +143,9 @@ class SurvivalDistribution:
     """
 
     _survjax_registered: ClassVar[bool] = False
+    parameter_constraints: ClassVar[Mapping[str, Callable[[jax.Array], jax.Array]]] = (
+        MappingProxyType({})
+    )
     survival = _survival_methods.survival
     log_cdf = _survival_methods.log_cdf
     cumulative_hazard = _survival_methods.cumulative_hazard
@@ -140,6 +159,50 @@ class SurvivalDistribution:
     cumulative_hazard_grid = _grid_methods.cumulative_hazard_grid
     log_hazard_grid = _grid_methods.log_hazard_grid
     hazard_grid = _grid_methods.hazard_grid
+    parameter_issues = _parameter_issues.parameter_issues
+
+    def log_likelihood(
+        self,
+        data: SurvivalData | None = None,
+        *,
+        time: ArrayLike | None = None,
+        event: ArrayLike | None = None,
+    ) -> jax.Array:
+        """Return the same contributions and derivatives as survjax.log_likelihood.
+
+        Args:
+            data: Prepared SurvivalData, instead of the raw keyword form.
+            time: Raw exact/right-censoring times; requires event.
+            event: 1/True for exact and 0/False for right censoring; requires time.
+
+        Returns:
+            Unsummed log contributions, broadcasting trailing data and parameter
+            batch axes with no time-grid axis. Slice A supports exact/right
+            observations without truncation. Invalid or unsupported rows give
+            NaN, and true zero likelihood gives -inf, eagerly and under jit/vmap.
+
+        Raises:
+            TypeError: Mixed/missing forms, positional raw arrays, invalid types
+                or incompatible shapes. Richer inputs require SurvivalData.
+        """
+        # spec 4.2/7.1: use the single evaluator; defer the import to avoid a cycle.
+        from survjax.likelihood import log_likelihood
+
+        return log_likelihood(self, data, time=time, event=event)
+
+    def parameter_conditions(self) -> Mapping[str, jax.Array]:
+        """Return named boolean masks of parameter-condition violations.
+
+        Families override this hook for checks across fields. Keys must be
+        fixed, nonempty strings without dots; values must be boolean arrays
+        of exactly ``batch_shape``, True where a condition is violated.
+
+        Returns:
+            A fresh empty mapping by default. ``parameter_issues`` validates
+            overrides, reporting malformed keys, dtypes or shapes as TypeError.
+            Conditions do not change construction or direct-method values.
+        """
+        return {}
 
     @property
     def batch_shape(self) -> tuple[int, ...]:
@@ -264,6 +327,9 @@ def register_family[Family: SurvivalDistribution](cls: type[Family]) -> type[Fam
     Nested distributions broadcast with own parameters, preserving their dtypes.
 
     Registration raises TypeError for invalid class or field declarations.
+    Declared constraints must be callable and reduce no more than the field's
+    component axes. ``parameter_constraints`` is their read-only mapping in
+    declaration order, excluding nested distributions (spec 4.7).
     Construction raises TypeError for nonreal parameters, insufficient axes,
     incompatible batch shapes, unregistered nested distributions or unhashable
     static configuration. JAX tree
@@ -294,6 +360,19 @@ def register_family[Family: SurvivalDistribution](cls: type[Family]) -> type[Fam
         for declared in declared_fields
         if declared.metadata.get("survjax_kind") == "param"
     )
+    constraints = {}
+    for declared in parameters:
+        constraint = declared.metadata.get("constraint")
+        if constraint is not None:
+            event_dim = getattr(constraint, "event_dim", 0)
+            if (
+                not callable(constraint)
+                or type(event_dim) is not int
+                or not 0 <= event_dim <= declared.metadata["component_ndim"]
+            ):
+                raise TypeError(f"{declared.name}: invalid constraint or event_dim")
+            constraints[declared.name] = constraint
+    cls.parameter_constraints = MappingProxyType(constraints)
     nested = tuple(
         declared
         for declared in declared_fields
