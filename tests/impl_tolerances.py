@@ -23,5 +23,8 @@ RTOL = {True: 1e-8, False: 1e-4}
 # D-022: absolute tolerances would accept zero for representable tiny tails.
 # For H<=600 (x64), H<=80 (x32), log-H reconstruction contributes roughly
 # H*log(H)*eps relative error, below these targets, including AD derivatives.
+# A7 likelihoods depend on H itself, not exp(-H): relative power error scales
+# as |log H|*eps, even at H=1e32. The selected values/gradients have |log H|<=74
+# and no severe term cancellation, within the same 1e-8/1e-4 targets.
 TAIL_ATOL = {True: 0.0, False: 0.0}
 TAIL_RTOL = {True: 1e-8, False: 1e-4}

@@ -1,3 +1,182 @@
+# A7 — Likelihood numerical verification (2026-10-23)
+
+Status: **A7.1 implemented and verified; ready for review**, authorized by
+"ok go do it". The maintainer created `A7` and synced the independent tests.
+Starting tree was clean at `2c030c5`;
+spec revision 34 is marked read at `d243a96`. No implementation changes have
+been made during planning. This entry supersedes the old A7 outline below;
+older entries remain history, including their now-stale deviation statuses.
+
+## Scope and evidence already present
+
+A7 verifies exact/right-censored likelihoods without truncation and the
+existing direct methods (spec 12.2). The synced A7 acceptance suite already
+passes in both dtypes, including revision 34's overflowing contributions.
+No source or public API change is currently needed. Add focused implementer
+tests with independent mathematical expectations; do not copy the independent
+suite or import its helpers, families or tolerances.
+
+- `test_likelihood_core.py` and `test_likelihood_entry_points.py` already
+  cover ordinary hand-derived contributions, shapes, input forms, invalid
+  data, true zero density/mass and unsupported modes.
+- `test_likelihood_transformations.py` already checks second-order parameter
+  derivatives by finite differences through both public entry points/forms.
+  The parameter suites cover declared-violation isolation. Retain this
+  evidence; do not repeat its full matrices in A7.
+- `test_log_cdf_tails.py`, `test_exponential.py`, `test_weibull.py`,
+  `test_family_boundaries.py`, `test_family_infinity.py` and
+  `test_family_mixed_infinity.py` already cover direct-method tails, mpmath
+  derivatives, branch splits, zero/infinity boundaries and proper/improper
+  limits. Rerun them through the gate and cite them in the A7 review.
+- New work concentrates on public likelihood values across scales, tiny and
+  underflowing probabilities, overflowing log contributions, and eager
+  mixed-batch safety including parameter gradients.
+
+Narrow intervals, interval cancellation, truncation, zero/tiny normalization
+and the bounded-support numerator/denominator distinction are Slice B.
+R fixtures are A8; installation, the final derivative/coverage audit, example
+and remaining Slice A gate evidence are later work. No dependencies, numerical
+helpers, benchmark framework or new public containers are introduced here.
+
+## A7.1 — Likelihood tails and overflow (first approval and review stop)
+
+Files: create `tests/unit/test_likelihood_tails.py`; update
+`tests/impl_tolerances.py` only to explain applicability of the existing tail
+tolerances; overwrite `REVIEW.md` with this step's evidence. Public API touched:
+none; exercise `survjax.log_likelihood` and `dist.log_likelihood` only.
+Target 220–270 test/comment lines, below 300 changed code/test lines. If the
+step needs a source fix or exceeds that budget, report and replan before it.
+
+Tests and expected-value origins:
+
+1. Compare Exponential exact/right contributions with the defining formulas
+   `log(r)-r*t` and `-r*t`, and Weibull with
+   `log(k)-log(b)+(k-1)*log(t/b)-(t/b)**k` and `-(t/b)**k`.
+   Use a small set of named, explicit scale/shape cases, including shapes
+   below, at and above one. Compute references locally with mpmath at 100
+   digits, from inputs rounded to the process dtype before conversion to
+   mpmath. Keep this helper local to the test module; never obtain an expected
+   value from a distribution method or a likelihood call.
+2. Include tiny normal cumulative hazards (for example `1e-20` and `1e-30`)
+   where survival rounds to one, and upper tails where density/survival
+   underflows but the log contribution is finite. Include a representable
+   cumulative hazard around `1e32` and early exact times with decreasing and
+   increasing Weibull hazard. Assert the appropriate sign/finiteness as well
+   as relative accuracy, so neither zero nor a floor can pass.
+3. Check first parameter derivatives at one tiny-hazard and one finite
+   upper-tail point, using hand derivatives: Exponential `event/r-t`;
+   Weibull shape `event/k+(event-H)*log(t/b)` and scale
+   `k*(H-event)/b`. Use forward and reverse mode on these valid smooth
+   cases; retain the existing interior Hessian/finite-difference suite.
+4. Separate probability underflow from log-contribution overflow: with
+   Weibull `k=50, b=1, t=1e10`, `H=1e500`, exact/right values must be
+   `-inf` with clear data/parameter diagnostics. A finite neighbour keeps its
+   hand-derived value. Check that neighbour's forward derivative for shared
+   parameters and reverse derivative for per-row parameters. Do not assert
+   derivatives of the infinite row or shared-parameter reverse derivatives
+   next to it (spec 7.3, revision 34).
+5. Exercise representative mixed exact/right vectors eagerly, under `jit`
+   and row-wise `vmap`, with both public entry points represented. Reuse A6's
+   exhaustive entry-point/input-form equivalence evidence instead of
+   multiplying every tail case by the entire call-form matrix.
+
+Use `TAIL_ATOL=0` and existing `TAIL_RTOL` (1e-8/1e-4) for normal nonzero
+tail values and derivatives. Explain in the tolerance file that the selected
+likelihood cases have bounded log/power error amplification within those
+targets. Use ordinary `ATOL`/`RTOL` for O(1) anchors and expected derivative
+zeros; use exact comparisons for infinities and structural zeros. No numeric
+tolerance changes are planned; report failures rather than loosening them.
+
+Spec covered: 2, 4.1, 5, 7.1–7.3, 12.1 and the Slice A boundary in 12.2.
+
+After approval: run the new own module and independent
+`test_a7_likelihood_mpmath.py` / `test_a7_likelihood_tails.py` in separate
+`JAX_ENABLE_X64=1` and `=0` processes (`SPEC_THROUGH=A7` for spec tests),
+then `UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A7`
+and `git diff --check`. Record exact commands, counts, skips and failures in
+`REVIEW.md`, with reading order, invariants, spec-to-test mapping and limits.
+Commit this step on `A7`, then stop; approval of A7.1 does not start A7.2.
+
+Implementation: 36 new cases in a 231-line module, plus three tolerance-comment
+lines. Focused own/independent tests pass in both dtypes (91 per process).
+No source or numeric tolerance changes were needed. The through-A7 gate passes:
+own suites 758/764 passed (7/1 skipped), independent suites 2123/2127 passed
+(28/24 skipped, 44 deselected each), and source doctests 4 passed per dtype.
+`REVIEW.md` records exact commands/results. A7.2 has not started.
+
+## A7.2 — Boundary and inactive-branch safety (later approval)
+
+After A7.1 review, refine this outline against its final tests and stop for
+approval before implementation. Create
+`tests/unit/test_likelihood_boundaries.py` and
+`tests/unit/test_likelihood_debug_nans.py`, approximately 200–270 lines
+combined, plus `REVIEW.md`. No source/public API changes are planned.
+
+- At the smallest positive normal time, check exact/right values and finite
+  parameter gradients against hand algebra; avoid a subnormal ratio by
+  evaluating `log(t)-log(b)` in the independent reference. Include Weibull
+  shapes below/at/above one. Do not assert backend-specific subnormal behavior.
+- At right censoring `c=0`, require exactly zero contribution and parameter
+  derivatives, including Weibull with infinite density at zero. Confirm a
+  neighbouring event retains its analytical derivative. Distinguish this from
+  an invalid exact time at zero, already covered by A6.
+- Run public likelihood values and first parameter derivatives eagerly inside
+  `jax.debug_nans(True)` on valid batches mixing interior events, early events,
+  finite log tails, zero censoring and tiny positive censoring. Cover both
+  built-ins with shared/per-row parameters, a `from_log` example, flag/bounds
+  data and both public entry points without a full Cartesian product.
+- Include small local custom-family probes: a constant-hazard family using
+  the generic density default, and a cure mixture using
+  `S(t)=p+(1-p)*exp(-r*t)`. For the latter, right censoring uses `log S(c)`
+  including the cure mass; exact events have `log((1-p)*r)-r*t`. Keep exact
+  rows where the generic density's hazard is representable. These are test
+  probes of the existing extension interface, not new library families.
+- Check mathematical values alongside finite gradients; debug mode alone is
+  not correctness evidence. Keep invalid/unsupported NaNs and infinite-row
+  derivative probes outside debug mode. Reuse A7.1 tail references and existing
+  direct-method boundary coverage by citation, without importing test modules.
+
+Spec covered: 2, 3.3, 4.2, 4.5, 7.1–7.3, 12.1–12.2. Run the new own modules,
+the independent boundary/debug modules in both dtypes, the full through-A7
+gate and `git diff --check`. One commit and updated `REVIEW.md`, then stop.
+
+## A7 Docs to-do and separate docs step
+
+After the code/test steps merge, plan one numerical-behaviour topic under
+spec 10.5: a short executable `docs/numerical-behaviour.md` and navigation in
+`docs/index.md`, at most 300 changed lines. Explain log-space tail behavior,
+finite log values versus underflowed probabilities, true zero versus overflow
+(`-inf`) versus invalidity (`NaN`), and the derivative limits at infinite
+likelihoods and upstream of parameter leaves. Use mathematics followed by a
+small synthetic example and interpretation, following the maintainer's
+tutorial style. Show checking a finite loss during fitting without adding an
+optimizer. Keep the existing likelihood guide's construction-only triage
+qualification; D-026 is resolved by revision 33.
+
+Refine that page plan after seeing the final evidence. Build with
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/build_docs.sh`, executing
+both dtype modes with warnings fatal; inspect rendered pages, record exact
+results and limitations in `REVIEW.md`, commit, then stop. A7 completion still
+does not claim Slice A completion or R-reference agreement.
+
+## Planning checks actually run
+
+- `../scripts/spec-since.sh dev`: unchanged since `d243a96` (revision 34).
+- `JAX_ENABLE_X64=1 SPEC_THROUGH=A7 .venv/bin/python -m pytest -q
+  tests/spec/test_a7_likelihood_mpmath.py tests/spec/test_a7_likelihood_tails.py
+  tests/spec/test_a7_likelihood_boundaries.py tests/spec/test_a7_debug_nans.py`:
+  **89 passed in 8.48s**. Same command with `JAX_ENABLE_X64=0`:
+  **89 passed in 8.52s**.
+- `JAX_ENABLE_X64=1 SPEC_THROUGH=A7 .venv/bin/python -m pytest -q
+  tests/spec/test_a3_static_metadata.py tests/spec/test_a4_registration.py
+  tests/spec/test_a4_nested.py`: **77 passed in 2.83s**. Same command with
+  `JAX_ENABLE_X64=0`: **76 passed, 1 skipped in 2.82s**. These include the
+  synced revision-33 requirements checked before planning A7.
+- Full through-A7 gate, own suites, Ruff, mypy and docs build have not been
+  run during planning. The targeted baseline is not a full-gate result.
+
+---
+
 # A6 docs rewrite — tutorial likelihood guide (2026-10-22)
 
 Status: **implemented, ready for review**. Requested directly by the maintainer
