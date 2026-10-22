@@ -10,8 +10,9 @@ available; other likelihood modes, families, summaries and evaluation metrics
 are planned; the Slice A completion gate has not yet been
 met.
 
-[Fitting a model to censored data](likelihood.md) derives the censored-data
-likelihood and fits exponential and Weibull models with JAX.
+[Log likelihoods](likelihood.md) explains how survjax computes likelihood
+contributions and how to call it, illustrated by fitting exponential and
+Weibull models with JAX.
 The [SurvivalData guide](survival-data.md) walks a synthetic cohort through
 both constructors, diagnostics and R input conventions.
 [Exponential and Weibull](builtin-families.md) introduces the built-in

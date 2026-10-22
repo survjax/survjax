@@ -7,7 +7,15 @@ kernelspec:
   name: python3
 ---
 
-# Fitting a model to censored data
+# Log likelihoods
+
+This page explains how survjax computes log likelihoods for survival data:
+which quantity each observation contributes, and how to call the likelihood
+with prepared `SurvivalData` or with plain time and event arrays. To show the
+contributions at work, we use them to fit [exponential and
+Weibull](builtin-families.md) models to a small synthetic cohort by maximum
+likelihood. survjax supplies the contributions; the fitting loop is ordinary
+JAX code that you write yourself.
 
 ```{note}
 survjax currently evaluates likelihoods for exact events and right
@@ -15,10 +23,6 @@ censoring, without truncation. Interval and left censoring and truncation
 can already be described with `SurvivalData`, but their likelihood
 contributions are NaN for now (see the last section).
 ```
-
-This page fits the [exponential and Weibull](builtin-families.md) families to
-a small synthetic cohort by maximum likelihood. We start from the
-mathematics, then let survjax and JAX do the work.
 
 ## The cohort
 
@@ -74,8 +78,9 @@ where $D = \sum_i d_i$ is the number of events.
 
 ## Contributions in survjax
 
-`log_likelihood` returns the contributions $\ell_i$, one per patient. Here is
-the exponential with rate 0.05 per month:
+`log_likelihood` returns the contributions $\ell_i$, one per patient. Each
+event row uses the distribution's log density and each censored row its log
+survival. Here is the exponential with rate 0.05 per month:
 
 ```{code-cell} ipython3
 model = survjax.Exponential(rate=0.05)
@@ -86,20 +91,58 @@ contributions
 Patient 1 progressed at month 4: $\log 0.05 - 0.05 \cdot 4 \approx -3.196$.
 Patient 2 was censored at month 12: $-0.05 \cdot 12 = -0.6$.
 
-survjax does not sum for you. The log likelihood is the sum, and how you
-reduce (a sum, a mean, a weighted sum) is your choice:
+The result has one entry per observation; survjax does not sum for you. The
+log likelihood is the sum, and how you reduce (a sum, a mean, a weighted
+sum) is your choice:
 
 ```{code-cell} ipython3
 contributions.sum()
 ```
 
-For plain time/status data you can skip `SurvivalData` and pass the arrays as
-keywords. The function `survjax.log_likelihood(model, cohort)` is the same as
-the method:
+## Two entry points, two input forms
+
+The likelihood is available both as a method of every distribution and as a
+top-level function. They compute the same thing, including derivatives:
+
+```python
+model.log_likelihood(cohort)               # method
+survjax.log_likelihood(model, cohort)      # function: distribution first
+```
+
+Use whichever reads better in your code. The function form is convenient
+when the distribution is one argument among several, for example in a
+generic objective `objective(dist, data)`.
+
+Either entry point accepts the data in one of two forms. The first is a
+`SurvivalData`, passed positionally as above. It is the general form: it
+holds every kind of observation that survjax can describe, and it records
+[data diagnostics](survival-data.md) at construction.
+
+The second form is for plain time/status data, the common case of exact
+events and right censoring. Pass the two arrays as the keywords `time` and
+`event`, with `event` 1 (or `True`) for an event and 0 (or `False`) for
+censoring, as in R's `Surv(time, status)`. survjax builds the `SurvivalData`
+internally:
 
 ```{code-cell} ipython3
-model.log_likelihood(time=months, event=progressed).sum(), survjax.log_likelihood(model, cohort).sum()
+from_arrays = model.log_likelihood(time=months, event=progressed)
+from_function = survjax.log_likelihood(model, time=months, event=progressed)
+from_arrays.sum(), from_function.sum(), contributions.sum()
 ```
+
+All three agree. `time` and `event` are keyword-only and must be given
+together, and they cannot be combined with a `SurvivalData`. A raw array in
+the data position is a mistake in the call, so it raises `TypeError`
+immediately, also while JAX traces a function:
+
+```{code-cell} ipython3
+:tags: [raises-exception]
+
+model.log_likelihood(months)
+```
+
+Constructor options, such as a dtype or a richer censoring type, are not
+accepted by the likelihood; build a `SurvivalData` for those.
 
 ## The exponential in closed form
 
@@ -132,7 +175,7 @@ fig.tight_layout()
 
 The maximum sits at $\hat\lambda = 6/103$ (dotted line).
 
-## Fitting with JAX
+## Using the likelihood to fit a model
 
 Most models have no closed-form maximum, so we fit numerically. Rates must
 be positive; optimising the log rate $\eta = \log\lambda$ removes that

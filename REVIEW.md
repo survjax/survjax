@@ -1,5 +1,15 @@
 # Review: A6 docs rewrite — tutorial likelihood guide
 
+## Follow-up (second commit)
+
+Reframed per review: the page is now "Log likelihoods" and is about how survjax
+computes contributions; fitting is the illustration. New section "Two entry
+points, two input forms": `dist.log_likelihood` vs `survjax.log_likelihood`,
+positional `SurvivalData` vs keyword-only `time=`/`event=`, the call-form
+rules, and a `raises-exception` cell for a raw positional array (`TypeError`).
+"Fitting with JAX" is renamed "Using the likelihood to fit a model". Both
+dtype builds pass again (`build succeeded.` twice).
+
 ## What to read, in order
 
 1. `docs/likelihood.md` (rewritten). Read the rendered page:
