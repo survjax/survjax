@@ -1,7 +1,11 @@
 # A7 — Likelihood numerical verification (2026-10-23)
 
-Status: **A7.1 implemented and verified; ready for review**, authorized by
-"ok go do it". The maintainer created `A7` and synced the independent tests.
+Status: **A7.1 merged; A7.2 implemented and verified, ready for review**,
+authorized by "yeah do it".
+The maintainer requested the next subslice and review follow-up on 2026-10-23.
+The existing maintainer-created `A7` branch is reused; it and `main` were both
+at merged A7.1 commit `3930115` when this planning step began.
+The maintainer created `A7` and synced the independent tests.
 Starting tree was clean at `2c030c5`;
 spec revision 34 is marked read at `d243a96`. No implementation changes have
 been made during planning. This entry supersedes the old A7 outline below;
@@ -102,43 +106,128 @@ lines. Focused own/independent tests pass in both dtypes (91 per process).
 No source or numeric tolerance changes were needed. The through-A7 gate passes:
 own suites 758/764 passed (7/1 skipped), independent suites 2123/2127 passed
 (28/24 skipped, 44 deselected each), and source doctests 4 passed per dtype.
-`REVIEW.md` records exact commands/results. A7.2 has not started.
+The A7.1 `REVIEW.md` records exact commands/results. A7.2 implementation has
+not started. The reviewer approved A7.1 with no blocker or should-fix; S1 is
+incorporated into the A7.2 plan below.
 
-## A7.2 — Boundary and inactive-branch safety (later approval)
+## A7.2 — Boundary and inactive-branch safety (current plan)
 
-After A7.1 review, refine this outline against its final tests and stop for
-approval before implementation. Create
+Status: **implemented and verified; ready for review** ("yeah do it"). Read all of
+`../review/slices/A7.md`, including S1 and its mutation evidence. Spec revision
+34 remains unchanged. This is one test-only step, followed by one commit and
+review stop on `A7`. No source/public API, numeric tolerance, dependency,
+independent-test or narrative-doc changes are planned.
+
+### Files and test budget
+
+Create
 `tests/unit/test_likelihood_boundaries.py` and
-`tests/unit/test_likelihood_debug_nans.py`, approximately 200–270 lines
-combined, plus `REVIEW.md`. No source/public API changes are planned.
+`tests/unit/test_likelihood_debug_nans.py`, targeting approximately 240–280
+lines combined, below 300 changed code/test lines. Overwrite `REVIEW.md` with
+reading order, invariants, requirement mapping, mutation results and exact
+check outputs; update this plan's status. If a source change is needed or the
+tests exceed the budget, report and replan before expanding the step.
+
+### Boundary values and derivatives
 
 - At the smallest positive normal time, check exact/right values and finite
   parameter gradients against hand algebra; avoid a subnormal ratio by
   evaluating `log(t)-log(b)` in the independent reference. Include Weibull
-  shapes below/at/above one. Do not assert backend-specific subnormal behavior.
+  exact rows at shapes below/at/above one. For right rows require relative
+  precision only where H stays normal (Exponential rate 1, Weibull shape 0.5).
+  Use ordinary tolerances for the finite exact values/derivatives, relative-only
+  tail tolerances for normal tiny right contributions. No new tolerance scales
+  or backend-specific subnormal assertions.
 - At right censoring `c=0`, require exactly zero contribution and parameter
   derivatives, including Weibull with infinite density at zero. Confirm a
   neighbouring event retains its analytical derivative. Distinguish this from
   an invalid exact time at zero, already covered by A6.
+- Expected values and gradients come from the same defining algebra as A7.1,
+  evaluated independently on dtype-rounded inputs with NumPy/mpmath as needed.
+  Keep reference work local and host-side; do not import another test module.
+  Do not repeat A7.1's scale/tail matrix or A6's call-form/Hessian matrix.
+
+### Mixed batches under eager NaN debugging
+
 - Run public likelihood values and first parameter derivatives eagerly inside
   `jax.debug_nans(True)` on valid batches mixing interior events, early events,
   finite log tails, zero censoring and tiny positive censoring. Cover both
   built-ins with shared/per-row parameters, a `from_log` example, flag/bounds
   data and both public entry points without a full Cartesian product.
-- Include small local custom-family probes: a constant-hazard family using
-  the generic density default, and a cure mixture using
+- Include small local custom-family probes: the square-root-hazard family
+  specified below, and a cure mixture using
   `S(t)=p+(1-p)*exp(-r*t)`. For the latter, right censoring uses `log S(c)`
   including the cure mass; exact events have `log((1-p)*r)-r*t`. Keep exact
-  rows where the generic density's hazard is representable. These are test
-  probes of the existing extension interface, not new library families.
+  rows where the generic density's hazard is representable, and check a far
+  right-censoring row tending to `log(p)`. The square-root probe replaces the
+  earlier constant-hazard probe, keeping the step small while adding S1's
+  missing sensitivity. These are local test families, not public additions.
 - Check mathematical values alongside finite gradients; debug mode alone is
   not correctness evidence. Keep invalid/unsupported NaNs and infinite-row
   derivative probes outside debug mode. Reuse A7.1 tail references and existing
   direct-method boundary coverage by citation, without importing test modules.
 
-Spec covered: 2, 3.3, 4.2, 4.5, 7.1–7.3, 12.1–12.2. Run the new own modules,
-the independent boundary/debug modules in both dtypes, the full through-A7
-gate and `git diff --check`. One commit and updated `REVIEW.md`, then stop.
+### Reviewer S1 — enforce inactive density-time substitution
+
+The reviewer showed that the existing own and independent suites survive
+replacing the density-time substitution with the actual censoring time.
+Built-in boundary handling and the old constant-hazard/cure probes therefore
+do not demonstrate this safeguard. Test the observable value/gradient failure
+using a frozen, registered `RootHazard` with one positive rate parameter,
+`log_survival(t)=-rate*sqrt(t)`, and `reference_time()=ones_like(rate)`.
+Leave its density to the generic autodiff default; do not guard its primitive
+at zero, which would hide the regression under test.
+
+On `[right at 0, exact at 1]`, the first contribution and its rate derivative
+are exactly zero; the event contributes `log(rate/2)-rate`. At rate 2 the
+summed value is -2 and the rate derivative is -0.5. Assert these mathematical
+anchors without NaN debugging and under `jax.debug_nans(True)`, with both
+public entry points represented. Include eager/jit/vmap agreement on this
+finite, valid regression case without differentiating observation times.
+
+After the tests pass on the real checkout, copy `src/` to an isolated
+temporary directory under `/private/tmp` and change only the copied
+`density_time = jnp.where(~bad & exact_rows, time, reference)` to
+`density_time = time`. In separate x64/x32 processes, verify `survjax.__file__`
+points into that copy, then run only the new S1 cases against it (ordinary
+and debug modes). Require the mutant to fail: a wrong/nonfinite gradient
+outside debug mode, and a NaN debug exception in debug mode. Record actual
+failure names/reasons; the reviewer results are motivation, not our evidence.
+Keep the repository source and independent tests untouched throughout.
+No persistent mutation framework, Git worktree or broad mutant suite is needed.
+
+### Verification, docs to-do and stop
+
+Spec covered: 2, 3.3, 4.2, 4.5, 7.1–7.3, 12.1–12.2. Run the two new own
+modules and independent `test_a7_likelihood_boundaries.py` /
+`test_a7_debug_nans.py` in separate x64/x32 processes, with `SPEC_THROUGH=A7`
+for the independent tests. Verify S1's mutation is caught in both modes as
+above. Then run
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A7`
+and `git diff --check`. Use the unchanged project tolerances. Record failures
+rather than loosening them; log any spec question as a deviation and ask.
+One commit on `A7`, then stop; no A7 docs implementation in this step.
+
+Docs to-do: retain the numerical-behaviour topic below. Add the custom-family
+inactive-input guarantee and its boundary limits to the later page's evidence
+map if useful; keep low-level mutation details in `REVIEW.md`.
+
+Planning checks for this refinement: clean tree and merged commit verified;
+full reviewer report, relevant own/independent tests, existing substitution
+and spec derivative limits read; `../scripts/spec-since.sh dev` reports no
+change since `d243a96`. No new tests, mutation check, full gate or docs build
+were run during planning. S1's empirical results above remain reviewer evidence
+until implementation verifies the new test's sensitivity.
+
+Implementation evidence (A7.2): 19 new cases in two modules, 299 test lines
+combined. The focused own/independent boundary/debug run passes in both dtypes
+(53 per process). S1 is verified against an isolated temporary source copy:
+each dtype reports four expected failures, two NaN gradient mismatches and
+two NaN debug exceptions. No repository source or tolerance change was needed.
+The full through-A7 gate passes: own 777/783 passed (7/1 skipped), source
+doctests 4 passed per dtype, independent 2123/2127 passed (28/24 skipped,
+44 deselected each). `REVIEW.md` records exact commands and mutation evidence.
+The numerical docs step has not started.
 
 ## A7 Docs to-do and separate docs step
 

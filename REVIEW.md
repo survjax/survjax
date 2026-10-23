@@ -1,88 +1,127 @@
-# Review: A7.1 — Likelihood tails and overflow
+# Review: A7.2 — Boundary and inactive-branch safety
 
 ## What to read, in order
 
-1. `tests/unit/test_likelihood_tails.py`: local reference formulas, then
-   scalar tail cases, mixed transformations, analytical gradients and overflow.
-2. `tests/impl_tolerances.py`: three added comment lines explaining why the
-   existing relative-only tail targets also apply to these likelihood cases.
-3. The A7 entry at the top of `PLAN.md`: approved scope and later review stops.
+1. `tests/unit/test_likelihood_debug_nans.py`: RootHazard and the S1 regression
+   `test_custom_density_at_zero_is_inactive`, then mixed-batch built-in/cure checks.
+2. `tests/unit/test_likelihood_boundaries.py`: smallest normal time, nonzero
+   right contributions and zero censoring beside an event.
+3. The current A7.2 section in `PLAN.md`, then the mutation evidence below.
 
-This step adds 36 test cases in 231 lines, plus three tolerance-comment lines.
-There are no source, API, numerical tolerance, dependency, docs or spec-test
-changes. No spec ambiguity or new deviation was found.
+This step adds 19 cases in 299 test lines (113 boundary, 186 debug). There are
+no repository source, API, numeric tolerance, dependency, narrative-doc or
+independent-test changes. The small custom families are local test probes.
 
-## Invariants and expected-value origins
+## Invariants and expected values
 
-- Tests exercise only the supported exact/right subset without truncation.
-  Exponential uses the public function with raw inputs; Weibull uses the public
-  method with prepared data. A6 already covers their full equivalence matrix.
-- mpmath uses 100 decimal digits and the concrete inputs after JAX dtype
-  rounding. Expected values come from `log(r)-r*t`, `-r*t`, and Weibull
-  `event*(log(k)-log(b)+(k-1)*log(t/b))-(t/b)**k`, not library outputs.
-- Parameter derivatives use the hand derivatives written in the tests,
-  evaluated with mpmath for the small terms. Both AD modes are checked.
-- `TAIL_ATOL=0` and the unchanged `TAIL_RTOL` prevent tiny normal nonzero
-  values or derivatives from passing as zero. O(1) anchors and analytical
-  derivative zeros use the unchanged ordinary tolerances. Infinite values are
-  compared exactly. References do not depend on subnormal behavior.
-- When probabilities underflow but log contributions are representable,
-  contributions must remain finite. At Weibull `k=50,b=1,t=1e10`, the true
-  log contribution is about `-1e500`: revision 34 requires `-inf` with clear
-  data/parameter diagnostics. Overflow tests run outside NaN debug mode.
-- The finite neighbour's shared-parameter forward derivative and per-row
-  reverse derivative are checked. Derivatives of the infinite row and shared
-  reverse derivatives next to it are outside spec 7.3 and are not asserted.
-- JAX's process dtype mode is supplied by the runner; tests never change it.
-  NumPy and mpmath conversions are host-side reference work on concrete inputs.
+- Supported exact/right rows only, without truncation. JAX dtype mode is
+  supplied by separate runner processes and is never changed in the tests.
+- At the smallest positive normal time, 100-digit mpmath evaluates the defining
+  exponential/Weibull density and its hand-derived parameter derivatives on
+  dtype-rounded inputs. The reference uses log(t)-log(b), not a subnormal ratio.
+  Only right contributions whose cumulative hazard is normal get relative-only
+  tiny-value comparisons. No backend-specific subnormal assertion is added.
+- Zero censoring contributes exactly zero and has exactly zero parameter
+  derivatives. A neighbouring event retains its analytical value/derivatives,
+  in both AD modes, for Weibull shapes below/at/above one.
+- Mixed built-in references use log L=event*log h-H and the hand derivatives.
+  NumPy evaluates the independent algebra on concrete inputs; from_log uses
+  exp of the dtype-rounded log parameters and the chain rule. Reference
+  rounding differences must fit the unchanged tolerances.
+- The NaN-debug batches cover shared/per-row parameters, early/interior/late
+  events, zero/tiny/interior censoring, both observation constructors and public
+  entry points, plus from_log. They check values and first derivatives of the
+  summed contributions eagerly; debugging alone is not correctness evidence.
+- RootHazard supplies only log S(t)=-rate*sqrt(t) and reference_time=1. Its
+  generic density is deliberately unsafe at zero. At rate 2, [right at 0,
+  exact at 1] gives [0,-2], sum derivative -0.5 and zero derivative on row 0.
+  These anchors are checked ordinarily and under NaN debugging, through the
+  function/method, eager/jit/vmap, with forward/reverse zero-row checks.
+- Cure uses S(t)=p+(1-p)*exp(-r*t), f(t)=(1-p)*r*exp(-r*t). Right censoring
+  includes the cure mass, including the far-tail log(p) limit; exact density
+  comes from the generic default where the hazard is representable. Its
+  reference derivatives come from differentiating these identities.
+- Ordinary and relative-only tolerances come exclusively from
+  tests/impl_tolerances.py and are unchanged. NumPy/mpmath conversions run only
+  on concrete reference inputs or completed results, never tracers.
 
-## Requirement-to-test map
+## Spec-to-test map
 
-| Spec | Tests in the new module | Evidence |
+| Spec | New tests | Evidence |
 | --- | --- | --- |
-| 2, 4.1, 7.1, 12.1 | `test_exponential_tail_contribution_matches_mpmath`, `test_weibull_tail_contribution_matches_mpmath` | 26 named exact/right cases: scale changes, shapes below/at/above one, early events, tiny normal H, probability underflow and finite H around 1e32 |
-| 5, 7.2–7.3 | `test_mixed_tail_rows_match_mpmath_under_transformations` | Mixed tiny/interior/upper-tail vectors match independent references eagerly, under jit and row-wise vmap; both public entry points represented |
-| 7.3, 12.1 | `test_exponential_tail_rate_derivative_matches_algebra`, `test_weibull_tail_parameter_derivatives_match_algebra` | Hand-derived first derivatives at tiny-H and finite upper-tail points, forward and reverse mode, zero absolute tolerance |
-| 7.1, revision 34 | `test_overflowing_log_contribution_is_negative_infinity` | Overflowing exact/right contributions are -inf eagerly/jit/vmap, without diagnostic issues; a finite neighbour keeps its mathematical value |
-| 7.3, revision 34 | `test_finite_neighbour_forward_derivative_survives_overflow`, `test_finite_neighbour_reverse_derivative_survives_per_row_overflow` | Only the derivatives still guaranteed next to an infinite row |
+| 3.3, 4.1, 7.1, 7.3 | `test_exponential_exact_at_smallest_normal_time`, `test_weibull_exact_at_smallest_normal_time` | Finite smallest-normal-time values and first parameter derivatives, with independent references, both AD modes |
+| 7.1, 12.1 | `test_tiny_right_censoring_keeps_nonzero_mass` | Normal tiny log survival is negative/nonzero with zero absolute tolerance |
+| 4.5, 7.2 | `test_zero_censoring_keeps_zero_derivatives_beside_an_event` | Structural zero value/derivatives and preserved event derivatives |
+| 4.1, 7.2, 12.1–12.2 | `test_exponential_mixed_values_and_gradients_under_debug_nans`, `test_weibull_mixed_values_and_gradients_under_debug_nans` | Five shared/per-row/from-log cases with independent values and gradients under eager debug mode |
+| 4.2, 7.2, reviewer S1 | `test_custom_density_at_zero_is_inactive` | Four function/method and ordinary/debug cases detect missing inactive-density substitution |
+| 2, 4.2, 7.2 | `test_cure_mixed_values_and_gradients_under_debug_nans` | Improper-family right/zero/exact rows preserve cure mass and mathematical derivatives |
 
-Existing direct-method evidence remains in `test_log_cdf_tails.py`,
-`test_exponential.py`, `test_weibull.py`, `test_family_boundaries.py`,
-`test_family_infinity.py` and `test_family_mixed_infinity.py`. The existing
-`test_likelihood_transformations.py` supplies second-order interior finite
-differences; the A6 parameter suites supply declared-violation isolation.
+A7.1 tail/overflow tests and existing direct-method boundary tests remain
+unchanged. Existing likelihood transformation and parameter-isolation suites
+retain their second-order/interior and invalid-parameter coverage.
 
 ## Checks run
 
-Environment: Python 3.12.9, JAX 0.11.2, NumPy 2.5.3, mpmath 1.4.1,
-pytest 9.1.1; device `[CpuDevice(id=0)]`.
+Python 3.12.9; JAX 0.11.2; NumPy 2.5.3; mpmath 1.4.1; pytest 9.1.1;
+`[CpuDevice(id=0)]`. Verified the ordinary environment imports
+`/Users/wamster3/dev/survjax/dev/src/survjax/__init__.py`.
 
-- `.venv/bin/ruff format tests/unit/test_likelihood_tails.py`: one file
-  reformatted; `.venv/bin/ruff check tests/unit/test_likelihood_tails.py`:
+- Ruff initially reported B023 on the loop's gradient lambda; binding run as a
+  default argument fixes it. Final command `.venv/bin/ruff format
+  tests/unit/test_likelihood_boundaries.py tests/unit/test_likelihood_debug_nans.py`
+  reports `2 files left unchanged`; `ruff check` on those two files reports
   `All checks passed!`.
 - `JAX_ENABLE_X64=1 SPEC_THROUGH=A7 .venv/bin/python -m pytest -q -ra
-  tests/unit/test_likelihood_tails.py tests/spec/test_a7_likelihood_mpmath.py
-  tests/spec/test_a7_likelihood_tails.py`: **91 passed in 7.93s**.
-  Same command with `JAX_ENABLE_X64=0`: **91 passed in 7.94s**. These include
-  all 36 new cases; neither process skipped a focused test.
+  tests/unit/test_likelihood_boundaries.py tests/unit/test_likelihood_debug_nans.py
+  tests/spec/test_a7_likelihood_boundaries.py tests/spec/test_a7_debug_nans.py`:
+  **53 passed in 11.77s**. Same with `JAX_ENABLE_X64=0`:
+  **53 passed in 11.81s**. Includes all 19 new cases; no focused skips.
 - `UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A7`
-  passed. Protected-path guard `ok (A7)`; Ruff
-  `68 files already formatted` and `All checks passed!`; mypy
+  passed. Guard `ok (A7)`; Ruff
+  `70 files already formatted` / `All checks passed!`; mypy
   `Success: no issues found in 17 source files`; own float64 suite
-  **758 passed, 7 skipped in 140.27s**, own float32 suite
-  **764 passed, 1 skipped in 141.61s**; source doctests **4 passed in 0.87s**
-  (float64) and **4 passed in 0.88s** (float32). Independent suites through A7:
-  **2123 passed, 28 skipped, 44 deselected in 94.88s** (float64),
-  **2127 passed, 24 skipped, 44 deselected in 94.29s** (float32).
-  Final output: `check: all gates passed through A7`. The 44 later-step tests
-  were deselected by the maintainer's gate. No skips or exclusions were added.
-- `git diff --check`: clean.
+  **777 passed, 7 skipped in 141.67s**, own float32 suite
+  **783 passed, 1 skipped in 140.21s**; source doctests **4 passed in 0.86s**
+  (float64) and **4 passed in 0.83s** (float32). Independent suites through A7:
+  **2123 passed, 28 skipped, 44 deselected in 93.45s** (float64),
+  **2127 passed, 24 skipped, 44 deselected in 92.71s** (float32).
+  Final output: `check: all gates passed through A7`. No skips or exclusions
+  were added; the gate deselects later-step tests.
+- `git diff --check`: clean; `git diff -- src tests/spec`: empty.
 
-## Remaining work and limits
+## S1 mutation check — expected failures
 
-A7.2 boundary/inactive-branch tests and the separate A7 numerical documentation
-step have not started. The gate also runs the independent boundary/debug tests,
-but the planned implementer tests remain A7.2 work. No R fixture generation,
-docs build, GPU check, installation smoke test or performance measurement was
-run for this test-only step. No claim of A7 or Slice A completion is made.
-Stop after this commit for maintainer review.
+Copied src/ into `/private/tmp/survjax-a72-mut-ta0ge86q`, changing exactly one
+statement in the copy: density_time selects the actual time on every row,
+instead of substituting reference_time on inactive rows. Repository source
+was never modified. Each process asserted that survjax.__file__ is exactly
+`/private/tmp/survjax-a72-mut-ta0ge86q/src/survjax/__init__.py` before pytest.
+
+Commands used separate `JAX_ENABLE_X64=1` and `=0` processes,
+`PYTHONPATH=/private/tmp/survjax-a72-mut-ta0ge86q/src`,
+`PYTHONDONTWRITEBYTECODE=1`, and `.venv/bin/python -`. After the import
+assertion, the stdin wrapper called:
+
+```python
+pytest.main(['-q', '-p', 'no:cacheprovider',
+             'tests/unit/test_likelihood_debug_nans.py',
+             '-k', 'custom_density_at_zero_is_inactive', '--tb=short'])
+```
+
+Both processes exited 1: **4 failed, 6 deselected in 1.14s** each, as required.
+Function and method ordinary cases fail the gradient assertion: actual NaN,
+expected -0.5. Their debug cases raise
+`FloatingPointError: invalid value (nan) encountered in mul`.
+The same four cases pass on the repository source in each focused run above.
+Thus the new regression catches the missing substitution in both dtypes;
+this is selected mutation evidence, not exhaustive mutation coverage.
+`git diff -- src tests/spec` is empty.
+
+## Limits and next review stop
+
+No new deviation or unresolved numerical failure was found. This step does
+not test data-time derivatives, arbitrary custom families or the derivatives
+of invalid/infinite likelihoods. No tolerance was loosened or exclusion added.
+The separate numerical-documentation step is still pending; no docs build,
+R fixture, installation check, GPU run or performance measurement was run.
+A7 and Slice A are not declared complete. Commit this step, then stop for review.
