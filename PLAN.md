@@ -1,3 +1,22 @@
+# A7.d1 follow-up — Zero-censoring diagnostics (2026-10-23)
+
+Status: **implemented and verified; ready for review**, approved directly
+by the maintainer's requested correction.
+On isolated A7 at `f7236c4`, add the valid/uninformative diagnostic result
+to the zero-censoring section of docs/numerical-behaviour.md, with one
+executable output. Spec 2, 3.3 and 6.2: invalid_rows=False, ok=True,
+uninformative=True; the last flag is non-fatal. No source/API/test changes.
+Rebuild in both dtypes, inspect the new HTML output locally, update REVIEW.md,
+run final Ruff/diff checks, commit on isolated A7, then stop for review.
+The existing browser visual-inspection limitation remains.
+
+Evidence: diagnostics and host checkpoint verified in separate x64/x32
+processes; both docs builds pass (page execution 2.90s / 2.82s). HTML checks
+pass with the new valid/uninformative display among 8 outputs per mode.
+Final Ruff formatting/lint and diff checks pass after the review edit.
+
+---
+
 # A7.d1 — Numerical behaviour tutorial (2026-10-23)
 
 Status: **implemented; build and HTML checks pass, ready for review**.

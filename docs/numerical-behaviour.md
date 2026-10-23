@@ -136,6 +136,18 @@ def no_follow_up(shape):
 no_follow_up(0.5), jax.grad(no_follow_up)(0.5)
 ```
 
+The data diagnostics report this observation as valid: `ok` is `True` and
+`invalid_rows` is `False`. They also set `uninformative=True`, because the
+observation adds no information about the distribution parameters:
+
+```{code-cell} ipython3
+zero_censored = survjax.SurvivalData(0.0, event=False)
+zero_censored.issues
+```
+
+`uninformative` is a non-fatal flag and does not contribute to `invalid_rows`.
+This observation passes an explicit `issues.raise_if_invalid()` checkpoint.
+
 The likelihood substitutes a safe reference time for the inactive density
 evaluation. Computing an unsafe density at zero and multiplying it by zero
 would not protect gradients. This also matters for
