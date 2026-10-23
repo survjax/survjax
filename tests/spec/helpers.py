@@ -357,3 +357,83 @@ def mp_weibull_contribution(shape, scale, t, exact):
                 ((k - 1) * log_z, 1 + abs(log_z)),
             ]
         return _reference(terms)
+
+
+# ------------------------------------------------------ concordance (A10, rev 34)
+
+# Q-043: field names of ConcordanceInfo (spec 9.2: "concordant, discordant,
+# tied-score and comparable counts plus invalid, unsupported and
+# no-comparable-pair masks").
+CONCORDANCE_COUNTS = ("concordant", "discordant", "tied_score", "comparable")
+CONCORDANCE_MASKS = ("invalid", "unsupported", "no_comparable_pairs")
+
+
+def concordance_info_class():
+    """Q-042: ``ConcordanceInfo`` is discoverable in ``survjax.metrics`` (10.2)."""
+    import survjax.metrics
+
+    return survjax.metrics.ConcordanceInfo
+
+
+def count(info, name):
+    """Exact integer count(s) of a ``ConcordanceInfo`` field as a NumPy ``object`` array of Python ints (Q-044).
+
+    Spec 9.1: totals use "a two-word (hi/lo) accumulator". Guess: a field is
+    either an integer array, or carries ``hi`` and ``lo`` integer arrays with
+    value ``hi * 2**32 + (lo mod 2**32)``.
+    """
+    value = getattr(info, name)
+    if hasattr(value, "hi") and hasattr(value, "lo"):
+        hi = np.asarray(value.hi).astype(np.int64).astype(object)
+        lo = (np.asarray(value.lo).astype(np.int64) % (2**32)).astype(object)
+        return hi * (2**32) + lo
+    arr = np.asarray(value)
+    assert np.issubdtype(arr.dtype, np.integer), (name, arr.dtype)
+    return arr.astype(np.int64).astype(object)
+
+
+def result_mask(info, name, result_shape):
+    """A ``ConcordanceInfo`` mask reduced to one flag per concordance value (Q-045).
+
+    The spec does not say whether ``invalid`` and ``unsupported`` are per-row
+    or per-result masks. A mask of the result shape is used as is; a mask with
+    a trailing observation axis is reduced with ``any`` over it, then
+    broadcast to the result shape.
+    """
+    arr = np.asarray(getattr(info, name)).astype(bool)
+    if arr.ndim > len(result_shape):
+        arr = arr.any(axis=-1)
+    return np.broadcast_to(arr, result_shape)
+
+
+def harrell_reference(time, event, scores):
+    """Pair counts of spec 9.2 by direct enumeration, for valid exact/right-censored rows.
+
+    A transcription of the spec's rules, independent of survjax: each unordered
+    pair once; unequal times comparable when the earlier one is exact; equal
+    times comparable only for an event/censor pair, the event earlier; a larger
+    score on the earlier row is concordant, smaller discordant, equal tied.
+    Returns ``(concordant, discordant, tied_score, comparable)`` as ints.
+    """
+    time = np.asarray(time, dtype=np.float64)
+    event = np.asarray(event).astype(bool)
+    scores = np.asarray(scores, dtype=np.float64)
+    conc = disc = tied = 0
+    n = time.shape[0]
+    for i in range(n):
+        for j in range(i + 1, n):
+            if time[i] == time[j]:
+                if event[i] == event[j]:
+                    continue
+                first, second = (i, j) if event[i] else (j, i)
+            else:
+                first, second = (i, j) if time[i] < time[j] else (j, i)
+                if not event[first]:
+                    continue
+            if scores[first] > scores[second]:
+                conc += 1
+            elif scores[first] < scores[second]:
+                disc += 1
+            else:
+                tied += 1
+    return conc, disc, tied, conc + disc + tied

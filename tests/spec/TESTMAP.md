@@ -84,8 +84,10 @@ forward mode and per-row parameters unaffected; the fixture's survival at
 each row's own time, schema defined by the spec tester; 7.1, 7.3, 11.1, 12.1)
 adds five `rev 34` overflow tests to `test_a7_likelihood_tails.py`, retags
 the A8 survival and grid tests `rev 34`, and resolves Q-039. No existing test
-asserted reverse-mode derivatives next to an infinite row. The mpmath references
-need `mpmath` in the test environment. Tests are static acceptance tests and have never
+asserted reverse-mode derivatives next to an infinite row. A9 and A10 (the
+maintainer's 2026-10-23 replan adding Harrell's C to Slice A; Q-047) were
+written against revision 34. The mpmath references
+need `mpmath`, and the A10 property tests `hypothesis`, in the test environment. Tests are static acceptance tests and have never
 been executed against survjax. Test names below are relative to `tests/spec/`.
 
 ## A1: representation and dtype policy (`test_a1_representation.py`, `test_a1_dtype.py`)
@@ -1456,3 +1458,167 @@ dtype, which in float64 are the 11.1 targets (`atol=1e-10`, `rtol=1e-8`).
   beyond sizes, groups and kinds.
 - **Generating fixtures:** the spec tester never runs R or derives
   reference values from survjax; the maintainer commits them (10.4).
+
+## A9: derivative and transformation suite, compiled composition, install checks (spec 7.2, 7.3, 10.1–10.3, 12.1, 12.2; rev 34)
+
+Tests carry the revision of the requirement they quote (most `rev 28`; the
+12.1 compiled-composition row `rev 33`; the 12.2 wheel gate `rev 34`).
+`check_grads` runs in 64-bit mode only; float32 runs the hand-derived first
+and second derivatives (as at A4/A5). Hand-derived Weibull gradients and
+Hessians are in the docstring of `test_a9_likelihood_derivatives.py`.
+
+### `test_a9_likelihood_derivatives.py`
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 7.3 | hand-derived Hessians of the summed likelihood: exponential shared and per-row (diagonal) rates; Weibull `(k,b)` gradient and full Hessian at `k<1`, `k=1`, `k>1`; per-row shapes (diagonal); `from_log` by the chain rule. | `test_exponential_shared_rate_hessian_is_hand_derived`, `test_exponential_per_row_rate_hessian_is_diagonal_and_hand_derived`, `test_weibull_shared_parameter_gradient_is_hand_derived`, `test_weibull_shared_parameter_hessian_is_hand_derived[k]`, `test_weibull_per_row_shape_hessian_is_diagonal_and_hand_derived`, `test_weibull_from_log_hessian_follows_the_chain_rule` |
+| 2/7.2/7.3 | right-censored at `0`: zero Hessian, including `k<1` (inactive density piece does not leak). | `test_right_censored_at_zero_has_zero_hessian[k]` |
+| 7.3 | "forward and reverse modes, including Hessians": four `jac*` compositions agree; per-row Jacobian in both modes. | `test_forward_and_reverse_hessians_agree`, `test_per_row_jacobian_in_both_modes` |
+| 7.3/12.1 | composed with `jit` and `vmap` (draws, datasets); method and raw form give the function's Hessian. | `test_hessian_under_jit_matches_eager`, `test_hessian_under_vmap_over_parameter_draws`, `test_gradient_under_vmap_over_datasets`, `test_method_hessian_under_jit_and_vmap_equals_function`, `test_raw_form_hessian_equals_data_form` |
+| 7.3/12.1 | `check_grads(order=2, modes=("fwd","rev"))`: exponential shared and per-row; Weibull shared (`k` 0.6, 1, 1.4, 3), per-row, `(D,1)` draws, `from_log`; method; under `jit`, `vmap`, and with construction inside `jit`. | `test_check_grads_exponential_shared_rate`, `test_check_grads_exponential_per_row_contributions`, `test_check_grads_weibull_shared_parameters[k]`, `test_check_grads_weibull_per_row_contributions`, `test_check_grads_weibull_draw_by_individual_contributions`, `test_check_grads_weibull_from_log`, `test_check_grads_method_form`, `test_check_grads_under_jit`, `test_check_grads_under_vmap_over_draws`, `test_check_grads_with_traced_construction` |
+| 4.2/7.3 | "The custom-family recipe is verified where its primitives are twice differentiable"; autodiff `log_prob` default "adds one derivative order". | `test_check_grads_custom_family_on_generic_defaults`, `test_custom_family_hessian_matches_built_in` |
+| 7.2/12.1 | "reference-input gradient isolation": a `reference_time()` with infinite parameter derivative leaves right-censored and mixed gradients and Hessians hand-derived and finite (`stop_gradient` on substituted values). | `test_reference_input_does_not_reach_right_censored_gradients`, `test_reference_input_does_not_reach_mixed_batch_gradients` |
+
+### `test_a9_compiled_composition.py`
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 12.1 | "ordinary construction, diagnostic access and likelihood evaluation compose inside `jit`; first and second parameter derivatives agree with direct evaluation". | `test_construction_diagnostics_and_derivatives_inside_jit_match_direct_evaluation` |
+| 6.2/12.1 | `data.issues.ok` "usable in compiled control flow" (`lax.cond` selecting loss and gradient). | `test_diagnostics_select_the_loss_in_compiled_control_flow` |
+| 7.3/12.1 | second-order derivatives in a compiled loop (test-written Newton, no external solver) reach the closed-form exponential MLE; `vmap` over replicates with one invalid replicate isolated. | `test_newton_iterations_inside_jit_reach_the_closed_form_exponential_mle`, `test_vmapped_compiled_fits_over_replicate_datasets` |
+| 7.2/12.3 | compilation reuse for the Hessian with new values, and for gradients over same-shaped minibatches of one parent. | `test_compiled_hessian_reuses_compilation_for_new_values`, `test_minibatch_gradients_reuse_compilation` |
+
+### `test_a9_package.py`
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 10.2 | top-level re-exports of the Slice A data object, distributions, likelihood and error classes. | `test_slice_a_names_are_exported_at_top_level[name]` |
+| 10.2/10.3 | `py.typed`; metadata `Name`, `Requires-Python >=3.12`, initial version, Apache license (Q-041). | `test_package_has_type_marker`, `test_distribution_name_is_survjax`, `test_distribution_requires_python_312`, `test_distribution_version_is_initial_development_version`, `test_distribution_license_metadata_is_apache` |
+| 10.3/12.1 | "core code imports and runs without NumPyro, Equinox, Optax, Optimistix ... or plotting libraries" (fresh interpreter, imports blocked). | `test_core_imports_and_runs_without_demo_dependencies` |
+
+### `test_a9_wheel_smoke.py`
+
+Wheel path from `SURVJAX_WHEEL` (Q-040); missing means fail.
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 10.2 | pure `py3-none-any` wheel with `survjax/__init__.py` and `survjax/py.typed`; metadata name and Python; no demo dependency in `Requires-Dist`. | `test_wheel_is_pure_python`, `test_wheel_contains_package_and_type_marker`, `test_wheel_metadata_names_survjax_and_python_312`, `test_wheel_requires_no_demo_dependencies` |
+| 10.3/12.2 | "Smoke-test wheel installation and imports outside the source tree": unpacked wheel imported from an empty working directory evaluates a likelihood. | `test_installed_wheel_imports_and_evaluates_outside_the_source_tree` |
+
+Already covered earlier and not repeated: `TracedInputError` not exported
+(A3), `survjax.constraints` (A6), error classes as `ValueError` subclasses
+(A3, A6), compile counts for static metadata (A3), compilation reuse and no
+host transfers on the compiled likelihood path (A6), `jax_debug_nans` (A7).
+
+### A9: deliberately not tested
+
+- **Wrappers** (`check_grads` "for families and wrappers"): Slice D.
+- **The tiny synthetic example, executable documentation, Jupyter playground
+  and rendered-page review** (12.2): documentation work, executed by the docs
+  build (10.5); the compiled-composition tests check the capabilities such an
+  example uses.
+- **Recorded CPU performance baseline** (12.3): a recorded benchmark, not a
+  pass/fail test ("no timing gate in ordinary CI").
+- **mypy on core source and on an installed out-of-tree custom-family
+  example** (10.3): a type-checking run, not a pytest; the out-of-tree family
+  itself runs throughout (`spec_families.py`).
+- **Source archive** (10.3): "check wheel and source archive before release",
+  not Slice A.
+- **Pre-commit, Ruff and CI configuration, `uv.lock`, `.python-version`,
+  LICENSE file contents** (10.1–10.3): repository files, not observable from
+  the installed package except the metadata tested.
+- **Derivatives with respect to data times, at support-change boundaries, at
+  invalid or infinite likelihoods, and above second order** (7.3): outside
+  the guarantee.
+- **Custom JAX derivative rules** (7.3): "must be documented and tested" by
+  the implementation; not observable as such through the public API beyond
+  the derivative values tested here.
+- **Linux CI job and GPU verification** (10.3): infrastructure, not tests.
+
+## A10: Harrell's concordance (spec 6.1–6.3, 9.1, 9.2, 10.2, 12.1; rev 34)
+
+Step A10 is the maintainer's replan of 2026-10-23 (Q-047); assertions come
+only from spec rev 34, all tagged `rev 34`. Hand-enumerated pairs are in
+each test's docstring; `helpers.harrell_reference` transcribes the 9.2
+rules for the property tests and the fixture-integrity check. Info field
+names, count representation and mask shape: Q-043 to Q-045.
+
+### `test_a10_concordance_api.py`
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 9.2/10.2 | both entry points at top level and in `survjax.metrics`; `ConcordanceInfo` in its module (Q-042). | `test_concordance_entry_points_are_exported_at_top_level`, `test_metrics_module_holds_the_entry_points`, `test_concordance_info_is_discoverable_in_its_module` |
+| 6.3/9.2 | `_with_info` returns exactly `(value, info)`; same value; the four counts and three masks (reference case `C=0.75`). | `test_with_info_returns_exactly_value_and_info`, `test_with_info_value_equals_plain_value`, `test_info_holds_hand_enumerated_counts[name]`, `test_info_masks_are_false_for_valid_comparable_data[name]` |
+| 6.3 | the info is a PyTree returned from `jit` and `vmap`; flatten/unflatten. | `test_info_is_a_pytree_returned_from_jit`, `test_info_is_returned_from_vmap`, `test_info_leaves_rebuild_an_equal_info` |
+| 6.1 | data form positional and by keyword; raw form (also `_with_info`, integer codes); `TypeError` for raw array as `data`, mixing, missing `time`/`event`, no data, constructor keywords, an `eval_times` keyword (not in the 9.2 signature). | `test_data_form_positional`, `test_data_form_by_keyword`, `test_raw_form_equals_data_form`, `test_raw_form_accepts_integer_event_codes`, `test_raw_form_with_info`, `test_raw_array_passed_as_data_raises_type_error`, `test_mixing_forms_raises_type_error`, `test_raw_form_without_event_raises_type_error`, `test_raw_form_without_time_raises_type_error`, `test_no_data_at_all_raises_type_error`, `test_raw_form_rejects_constructor_keywords`, `test_time_grid_keyword_is_not_accepted` |
+| 6.1 | eager raw-form event code 2 returns NaN, not an exception; raw form under `jit`. | `test_raw_form_invalid_event_code_returns_nan_eagerly`, `test_raw_form_under_jit_matches_eager` |
+| 9.1 | "ratios are computed in the data's floating dtype", including float32 data with float64 scores (64-bit mode). | `test_result_dtype_is_data_float_dtype`, `test_result_dtype_follows_float32_data_with_float64_scores` |
+
+### `test_a10_concordance_values.py`
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 9.2 | concordant (`C=1`), reversed (`0`), all tied scores (`0.5`); mixed case; seven-row case with every tie kind; `comparable = concordant + discordant + tied`. | `test_perfectly_concordant_scores_give_one`, `test_reversed_scores_give_zero`, `test_all_tied_scores_give_one_half`, `test_mixed_case_with_censoring_and_ties`, `test_counts_partition_comparable_pairs` |
+| 9.1/9.2 | pair rules: earlier exact comparable, earlier censored not; equal-time event/event and censor/censor excluded; equal-time event/censor comparable with the event earlier (concordant, discordant, row-order independent, tied half credit); each unordered pair once. | `test_earlier_exact_later_censored_is_comparable`, `test_earlier_censored_is_not_comparable`, `test_equal_time_event_pair_is_excluded`, `test_equal_time_censor_pair_is_excluded`, `test_equal_time_event_censor_pair_with_larger_event_score_is_concordant`, `test_equal_time_event_censor_pair_with_smaller_event_score_is_discordant`, `test_equal_time_event_censor_pair_does_not_depend_on_row_order`, `test_equal_time_event_censor_pair_with_tied_scores_gets_half_credit`, `test_each_unordered_pair_is_counted_once` |
+| 9.2 | "No comparable pairs gives NaN": all censored, singleton, events at one time; mask set only then. | `test_all_censored_gives_nan`, `test_single_observation_gives_nan`, `test_events_all_at_one_time_give_nan`, `test_no_comparable_pair_mask_is_false_when_pairs_exist` |
+| 9.2 | row permutation, negated scores (`1-C`), increasing transformation; uninformative `(0,+inf]` row adds nothing; bounds form equals flag form. | `test_row_permutation_leaves_value_and_counts_unchanged`, `test_negated_scores_swap_concordant_and_discordant`, `test_increasing_transformation_of_scores_leaves_value_unchanged`, `test_uninformative_row_adds_no_pair_and_no_issue`, `test_bounds_form_data_give_the_flag_form_value` |
+| 6.1/12.1 | `jit` (values and counts) and traced construction inside `jit`. | `test_value_under_jit_matches_eager`, `test_traced_construction_inside_jit` |
+
+### `test_a10_concordance_diagnostics.py`
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 9.2/6.1 | "Scores are finite": NaN, `+inf`, `-inf` give NaN plus `invalid`, eagerly and under `jit`; only the affected draw. | `test_non_finite_score_gives_nan_and_invalid[bad]`, `test_non_finite_score_does_not_raise_under_jit`, `test_non_finite_score_affects_only_its_draw` |
+| 6.2/9.1 | stored data issues (event code 2; exact time negative, zero, `inf`, NaN) give NaN plus `invalid`; traced construction; after indexing; only the affected dataset. | `test_invalid_event_code_gives_nan_and_invalid`, `test_invalid_exact_time_gives_nan_and_invalid[bad]`, `test_invalid_data_under_jit_with_traced_construction`, `test_invalid_indexed_data_keeps_its_issue`, `test_invalid_data_in_one_dataset_leaves_the_other_dataset` |
+| 9.1 | left, interval (flag and bounds), left- and right-truncated rows are valid data and give NaN plus `unsupported`, eagerly, under `jit`, from traced construction; supported rows under traced metadata stay supported; only the affected dataset; explicit `0`/`+inf` truncation is supported. | `test_unsupported_row_is_valid_data[case]`, `test_unsupported_row_gives_nan_and_unsupported[case]`, `test_unsupported_row_gives_nan_under_jit[case]`, `test_unsupported_row_from_traced_construction_gives_nan`, `test_traced_construction_of_supported_rows_is_not_unsupported`, `test_unsupported_row_in_one_dataset_leaves_the_other_dataset`, `test_explicit_zero_left_and_infinite_right_truncation_are_supported` |
+
+### `test_a10_concordance_shapes.py`
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 9.2 | the five rows of the shape table, data and raw forms; info counts per draw. | `test_vector_data_and_vector_scores_give_a_scalar`, `test_score_draws_give_one_value_per_draw`, `test_batched_datasets_with_matching_scores`, `test_dataset_column_against_score_draws`, `test_two_leading_score_axes`, `test_raw_form_follows_the_shape_table`, `test_with_info_counts_follow_the_result_shape`, `test_dataset_q_hand_values[name]` |
+| 9.1/6.2 | last axis must match and is "never broadcast" (`(N±1,)`, `(1,)` scores, `(N,1)` scores, `(1,)` data); incompatible leading axes; under `jit`: `TypeError`. | `test_mismatched_observation_length_raises_type_error`, `test_single_score_is_not_broadcast_across_the_cohort`, `test_column_of_scores_is_not_broadcast_across_the_cohort`, `test_single_observation_data_is_not_broadcast_across_scores`, `test_incompatible_leading_axes_raise_type_error`, `test_mismatched_observation_length_raises_under_jit` |
+| 12.1/7.2 | `vmap` over draws and datasets, `jit(vmap)` with masks; compilation reuse for new values. | `test_vmap_over_score_draws_matches_batched_call`, `test_vmap_over_datasets_matches_batched_call`, `test_jit_of_vmap_matches_eager`, `test_new_scores_reuse_compilation` |
+
+### `test_a10_concordance_properties.py` (hypothesis, `derandomize=True`)
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 9.2 | counts, value and NaN/mask equal direct enumeration of the pair rules on tie-heavy cohorts. | `test_counts_and_value_equal_direct_enumeration` |
+| 9.2 | permutation invariance; `C(-s) = 1 - C(s)` with swapped counts. | `test_row_permutation_invariance`, `test_negated_scores_give_one_minus_c` |
+| 9.1 | `(B,N)` equals `B` separate calls (never pooled). | `test_batched_datasets_equal_separate_calls` |
+
+### `test_a10_concordance_fixtures.py`
+
+Fixture `fixtures/concordance_synthetic.json`, schema in
+`fixtures/README.md` (Q-046). Not committed yet, so these tests fail at
+load time by design.
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 9.2/10.4 | fixture integrity: recorded R call (`reverse=TRUE`, `timewt="n"`); every tie pattern present; supported rows; R counts equal the 9.2 rules. | `test_fixture_records_the_r_call`, `test_fixture_covers_the_required_tie_patterns`, `test_fixture_rows_are_exact_or_right_censored_with_positive_finite_times`, `test_fixture_counts_agree_with_the_spec_pair_rules` |
+| 9.2/12.1 | "Cross-check against `survival::concordance(..., reverse = TRUE, timewt = "n")`": values, counts, `(D,N)` in one call, raw form. | `test_concordance_matches_r`, `test_counts_match_r`, `test_score_draws_match_r_in_one_call`, `test_raw_form_matches_r` |
+
+### A10: deliberately not tested
+
+- **Count overflow beyond `int32`** (9.1 hi/lo accumulator): needs more
+  than `2**31` comparable pairs (about 65,000 rows, `O(N**2)` work); the
+  accumulator is private, so its overflow handling is implementation unit
+  testing (the draft outline says so too). Only the exposed counts are read
+  (Q-044).
+- **"do not allocate an N-by-N pair matrix", O(N) workspace, documented
+  complexity** (9.2): not observable through results; peak memory is not
+  measured by tests (12.3).
+- **No score gradient** (9.1: "No useful gradient is promised"): nothing
+  to assert.
+- **Counts of NaN results** caused by invalid or unsupported rows, and
+  whether `no_comparable_pairs` is set together with `invalid` or
+  `unsupported`: unspecified.
+- **Boolean or integer scores, scores of a different floating dtype in
+  32-bit mode**: the spec says only "finite, caller-supplied".
+- **Random subsets** (9.2): caller practice; "No automatic subsampling or new
+  approximation API is required".
+- **Documentation, playground, held-out synthetic example** (draft A10
+  outline): documentation steps, not tests (Q-047).
+- **Kaplan–Meier, Brier, IBS, AUC, distribution-versus-array prediction
+  inputs, `G=0`, delayed entry**: Slice E.

@@ -4686,3 +4686,11 @@ the following documentation step, including edits to the specification.
   Add no runtime tests; check whitespace, local links, moved example code and
   preservation of unrelated contracts. Record results in `REVIEW.md`.
 - Commit this single documentation step on `spec-speed` and stop.
+## Spec-test sync default (2026-10-23)
+
+The maintainer requests defaulting the tester path to `../spectest`.
+Update `scripts/sync_spec_tests.sh` and its usage text; retain explicit path
+overrides and all existing sync guards. No public API or spec requirements
+change. Verify Bash syntax and default/explicit-path syncs in temporary repos,
+then record results in `REVIEW.md` and commit this step.
+

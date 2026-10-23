@@ -504,3 +504,117 @@ on it. Guessed exception types and call shapes are centralised in
 - **Formerly guessed, now in 11.1:** the per-row `survival` value is
   `S_i(t_i)` at the row's own time; the grid is the 11.1 demo grid.
 - **Depends:** every test in `test_a8_bc_fixtures.py`.
+
+## Q-040: how the wheel smoke test receives the wheel (spec 10.2, 10.3, 12.2; rev 34)
+
+- **Checked:** 10.2, 10.3, 12.1 (Extension and install), 12.2. The spec
+  requires a Slice A wheel smoke test "outside the source tree" and forbids
+  network in regular tests, but does not say who builds the wheel or how a
+  test finds it.
+- **Guess:** the runner builds the wheel (for example `uv build --wheel`) and
+  passes its path in the environment variable `SURVJAX_WHEEL`. Without it the
+  tests **fail** (as a missing fixture does), so the gate cannot pass without
+  a wheel. "Installation" is unpacking the pure-Python wheel into a temporary
+  directory put first on `sys.path` of a fresh interpreter whose working
+  directory is empty; runtime dependencies come from the test environment.
+  The wheel is expected to be `py3-none-any` (10.2: no compiled extensions).
+- **Depends:** every test in `test_a9_wheel_smoke.py`.
+
+## Q-041: version and license metadata (spec 10.1, 10.2; rev 4)
+
+- **Checked:** 10.1 ("matching metadata"), 10.2 ("Initial version
+  `0.0.1.dev0`", compatibility policy).
+- **Guess:** until the first release, the installed distribution's version is
+  exactly `0.0.1.dev0`; a release bump updates this one test. The license
+  metadata contains "Apache" in `License-Expression`, `License` or a
+  classifier (the field is not fixed by the spec).
+- **Depends:** `test_distribution_version_is_initial_development_version`,
+  `test_distribution_license_metadata_is_apache`.
+
+## Q-042: module placement of the concordance API (spec 9.2, 10.2; rev 34)
+
+- **Checked:** 6.3, 9.2, 10.2 (layout: `metrics.py  # concordance, Brier,
+  IBS, AUC`; "Re-export ... KM and metric entry points"; "result and
+  configuration types stay discoverable in their modules").
+- **Guess:** `survjax.concordance_index` and
+  `survjax.concordance_index_with_info` are the same objects as
+  `survjax.metrics.concordance_index(_with_info)`; the info class is
+  `survjax.metrics.ConcordanceInfo` (helper `concordance_info_class`). Not
+  asserted: whether `ConcordanceInfo` is also exported at top level.
+- **Depends:** `test_metrics_module_holds_the_entry_points`,
+  `test_concordance_info_is_discoverable_in_its_module`, every
+  `isinstance(..., concordance_info_class())` check in
+  `test_a10_concordance_api.py`.
+
+## Q-043: field names of `ConcordanceInfo` (spec 9.2; rev 34)
+
+- **Checked:** 6.3 ("Containers are accessed by field name"), 9.1, 9.2
+  ("concordant, discordant, tied-score and comparable counts plus invalid,
+  unsupported and no-comparable-pair masks").
+- **Guess:** counts `concordant`, `discordant`, `tied_score`, `comparable`;
+  masks `invalid`, `unsupported`, `no_comparable_pairs`
+  (`helpers.CONCORDANCE_COUNTS`, `helpers.CONCORDANCE_MASKS`).
+- **Depends:** every A10 test that reads the info.
+
+## Q-044: how an exact count is read from `ConcordanceInfo` (spec 9.1; rev 34)
+
+- **Checked:** 9.1 ("Integer counts use exact arithmetic without a capacity
+  cap: per-row counts in `int32`, totals in a two-word (hi/lo)
+  accumulator"), 9.2, 6.3. The spec fixes the accumulator but not how a
+  total is exposed in the container.
+- **Guess (one helper, `helpers.count`):** a count field is either an
+  integer array, or an object with integer arrays `hi` and `lo` whose
+  value is `hi * 2**32 + (lo mod 2**32)`. Counts have the result shape
+  (one entry per concordance value). Counts of results that are NaN because
+  of invalid or unsupported rows are not asserted.
+- **Depends:** every A10 test that calls `count`.
+
+## Q-045: shape of the `invalid` and `unsupported` masks (spec 9.1, 9.2; rev 34)
+
+- **Checked:** 6.1, 6.2, 9.1 ("Other rows give NaN plus an `unsupported`
+  diagnostic"), 9.2. The masks may be per result or per row; the spec does
+  not say.
+- **Guess (minimal):** `helpers.result_mask` accepts either: a mask of the
+  result shape is used as is; one with a trailing observation axis is
+  reduced with `any` over it. Tests assert only the per-result reduction,
+  and that a NaN result is explained by `invalid` or `unsupported` and a
+  valid one by neither. `no_comparable_pairs` is per result.
+- **Also assumed:** an invalid or unsupported row makes the whole
+  concordance value that contains it NaN (rows "are never dropped", 9.1;
+  "invalid runtime values give NaN plus issues", 6.1); non-finite scores
+  (`NaN`, `±inf`) are invalid runtime values ("Scores are finite", 9.2) and
+  set `invalid`.
+- **Depends:** `test_a10_concordance_diagnostics.py`, the mask checks in
+  `test_a10_concordance_api.py`, `test_a10_concordance_values.py`,
+  `test_a10_concordance_shapes.py` and `test_a10_concordance_properties.py`.
+
+## Q-046: name and schema of the concordance R fixture (spec 9.2, 10.4, 12.1; rev 34)
+
+- **Checked:** 9.2 (cross-check against `survival::concordance(...,
+  reverse = TRUE, timewt = "n")`), 10.3 (survival 3.7-0), 10.4, 12.1
+  ("committed R fixtures (... concordance ...)"). The spec fixes no file
+  name or layout; 11.1 lets the spec tester define the `bc` fixture schema,
+  and the same approach is taken here.
+- **Guess:** one JSON file `tests/spec/fixtures/concordance_synthetic.json`,
+  laid out as in `tests/spec/fixtures/README.md`: `meta.call` and versions;
+  `cases[]` with `time`, `event` (0/1), `scores` (`D` vectors) and `r[]`
+  (`concordance`, `concordant`, `discordant`, `tied_x`, `tied_y`,
+  `tied_xy` per vector). The call adds `timefix = FALSE`, from the
+  maintainer's draft A10 outline (not in the spec text). Mapping:
+  `tied_score = tied.x`, `comparable = concordant + discordant + tied.x`.
+  A missing fixture fails the tests.
+- **Depends:** every test in `test_a10_concordance_fixtures.py`.
+
+## Q-047: step A10 and its source (maintainer replan, 2026-10-23)
+
+- **Checked:** the role file's delivery table (A0–A9, no A10); spec 12.2
+  (rev 34) lists concordance under Slice E; `design/proposals/concordance-at-end-of-slice-a.md`
+  (draft, 2026-10-23, not yet accepted into the spec).
+- **Instruction:** the maintainer asked for A10 tests "with concordance
+  index" now. The tests mark `step("A10")` and assert only sections 9.1–9.2
+  (and 6.1–6.3, 10.2) of rev 34, which the draft says it does not change.
+  Not assumed from the draft: anything about documentation, the held-out
+  example, or the 12.1/12.2 wording it proposes. When the amendment is
+  accepted, the role file's table should gain the A10 row; the tests'
+  revision tags will be updated only if 9.1–9.2 change.
+- **Depends:** every `test_a10_*.py`.
