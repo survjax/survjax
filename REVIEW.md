@@ -1,91 +1,93 @@
-# Review: A7.2 follow-up — F1 formatting and F2 tiny derivatives
+# Review: A10.1 — Private concordance pair counts
 
 ## What to read, in order
 
-1. `tests/unit/test_likelihood_debug_nans.py`: `_check_eager`, then the two
-   per-row built-in callers identifying the tiny-right observation column.
-2. Mutation evidence below, especially the float32 zero-derivative failures.
-3. The follow-up entry at the top of `PLAN.md` and the final gate log.
+1. `src/survjax/_concordance.py`: `_add_count`, then `_pair_counts` and its
+   event-time ordering, partner-index mask and four reductions.
+2. `tests/unit/test_concordance_counts.py`: hand-enumerated mixed cohorts,
+   tie cases, permutations, transformations and word-carry arithmetic.
+3. The A10 plan at the top of `PLAN.md`; D-027 in `DEVIATIONS.md` describes
+   public integration questions left for a later step.
 
-Authorized by "immediately implement the required fixes" after the updated
-review of `8f903d7`. This is a small fix-up on A7. No source, public API,
-constraint, numerical tolerance, dependency, independent-test or docs change.
+Authorized by "Approved go for it" on maintainer branch `A10-cindex`.
+This step adds a private core and tests only: no public metric entry point,
+ratio, result container or export yet. Source plus tests total 230 lines.
+Existing A7 docs edits remain uncommitted and are excluded from this commit.
+The A10 plan is staged separately from the existing A7 docs plan insertion.
 
-## Required fixes
+## Invariants and spec coverage
 
-F2: the helper still checks ordinary gradients with ATOL/RTOL. It additionally
-asserts known structural zero components exactly and checks observation column
-4 of each per-row built-in gradient with TAIL_ATOL=0 and the unchanged
-TAIL_RTOL. These components are the normal nonzero derivatives of tiny right
-censoring: exponential about -1e-10, Weibull about 1.19e-9 and 2.5e-11.
-The column is selected explicitly by the callers; no threshold or tolerance
-number was introduced. Values/references and the 19-case test matrix are
-unchanged. Spec 12.1 requires this relative-only comparison, so complete loss
-of these derivatives must fail in float32 as well as float64.
+- Inputs to the private core are aligned one-dimensional finite scores/times
+  and boolean exact/right status. Validation and unsupported-mode handling
+  are integration work; callers must not pass unchecked cohorts here.
+- Spec 9.2: each unordered pair is visited only with partner index greater
+  than row index. The earlier time must be an event; at equal times, only
+  event/censor pairs qualify and the event precedes censoring. Higher earlier
+  event score is concordant. Equal scores are counted separately for later
+  half-credit calculation. No tie tolerance, time repair or clipping.
+- Spec 9.1: each row's reduction explicitly uses int32. Totals are uint32
+  `(hi, lo)` scalar arrays, representing `hi * 2**32 + lo`, with low-word
+  wrap detected by unsigned comparison and carried to the high word. No
+  int64 availability or floating count approximation is assumed. With cohort
+  length representable by int32, the pair total fits comfortably in two words.
+- Spec 9.2: a JAX loop holds only cohort-sized masks and four scalar word
+  pairs. Work is O(N squared), pair workspace O(N). This is established by
+  reading the implementation; no memory benchmark or scaling claim was run.
+- The static empty-shape return avoids tracing invalid indexing into an empty
+  array. It defines private count behavior only, not the public empty-input API.
+- No NumPy conversion occurs inside the core or transformed functions. Host
+  conversions in tests inspect completed counts. JAX configuration is unchanged.
 
-F1: the earlier full gate ran before the last Python-fence edit in REVIEW.md.
-Its passing result did not validate the committed `8f903d7` formatting, and
-that final-snapshot passing-gate claim was wrong. Reproduced the failure:
-`ruff format --check .` reported `1 file would be reformatted, 69 files
-already formatted`, at the pytest.main snippet. Formatted that snippet and
-replaced the old review with this follow-up record, using plain command text.
-This review is completed before the final full gate and is not edited after it.
+The mixed-cohort test explicitly lists C/T/D/D pairs; the permutation test
+lists all six pairs, including the excluded one. The three two-row score/tie
+cases in both orders cover event/censor time ties; separate same-status tests
+exclude event/event and censor/censor ties. Earlier censoring is excluded in
+both orders. Complete-event cases demonstrate perfect, reversed and all-tied
+scores. Adjacent representable floats demonstrate exact time/score comparison.
+Empty, singleton and all-censored cases have zero counts. These cover spec 9.2.
 
-## Invariants and evidence
+All 24 permutations of a mixed-time/score-tie cohort preserve its hand-counted
+totals. Eager, jit, vmap and jit-of-vmap results match independent pair lists
+for two separate cohorts (spec 9.1/12.1). Carry tests compare against Python
+integer arithmetic beyond signed-int32 capacity, across low-word wrap,
+repeated carries and existing high words (spec 9.1). All comparisons are exact;
+no numerical tolerance or expensive quadratic large-cohort test is needed.
 
-- Expectations remain independent NumPy/mathematical algebra on concrete,
-  dtype-rounded inputs. No expected value comes from code under test.
-- All selected tiny derivative components are normal in both dtype modes;
-  zero absolute tolerance prevents an erroneous zero from passing. Known
-  zero components also require exact equality. Other gradient components
-  retain the existing ordinary tolerances.
-- RootHazard, its S1 checks, boundary tests and all independent tests remain
-  unchanged. No data-time or infinite-likelihood derivative guarantee is added.
-- NumPy conversion in the helper happens on completed gradients/reference
-  arrays, outside transformations. Separate processes select the dtype mode.
+## Checks actually run before the full gate
 
-## Focused checks and mutation results
+- Initial uv invocation failed before executing checks because its default
+  cache was sandbox-blocked. Subsequent commands use
+  `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`.
+- Initial focused Ruff check found B023 on a loop-index lambda; bound the
+  index explicitly and reran successfully. No numerical test failure occurred.
+- Focused Ruff format/check passed; mypy reported
+  `Success: no issues found in 18 source files`.
+- After adding the adjacent-float case, ran
+  `JAX_ENABLE_X64=1 UV_CACHE_DIR=/private/tmp/survjax-uv-cache uv run --group test pytest -q tests/unit/test_concordance_counts.py`:
+  **24 passed in 1.37s**. Same command with `JAX_ENABLE_X64=0`:
+  **24 passed in 1.34s**. No skips.
 
-- `.venv/bin/ruff format tests/unit/test_likelihood_debug_nans.py REVIEW.md`:
-  `2 files reformatted`; `.venv/bin/ruff check
-  tests/unit/test_likelihood_debug_nans.py`: `All checks passed!`.
-- `JAX_ENABLE_X64=1 SPEC_THROUGH=A7 .venv/bin/python -m pytest -q -ra
-  tests/unit/test_likelihood_boundaries.py tests/unit/test_likelihood_debug_nans.py
-  tests/spec/test_a7_likelihood_boundaries.py tests/spec/test_a7_debug_nans.py`:
-  **53 passed in 10.73s**. Same with `JAX_ENABLE_X64=0`:
-  **53 passed in 10.81s**. No focused skips or runtime failures.
-- Copied src/ to `/private/tmp/survjax-a72-f2-mut-b02w0jch`. Only the copy
-  stops gradients on survival at `0 < survival_time < 1e-8`, exactly the
-  reviewer's F2 mutation. Repository source remains unchanged. Each process
-  asserted that survjax.__file__ points to the copied package before pytest.
-- Mutation command used separate `JAX_ENABLE_X64=1/0` processes,
-  `PYTHONPATH=/private/tmp/survjax-a72-f2-mut-b02w0jch/src`,
-  `PYTHONDONTWRITEBYTECODE=1`, and `.venv/bin/python -`; the import-asserting
-  stdin wrapper called pytest.main with `-q -p no:cacheprovider --tb=short`
-  and the exact per-row exponential and Weibull nodes in the debug module.
-  Both runs exited 1: **2 failed in 1.35s** each, as required.
-- Float32 now rejects both zeroed gradients with `atol=0, rtol=1e-4`.
-  Exponential actual 0 versus about -1e-10; Weibull actual [0,0] versus about
-  [1.19e-9,2.5e-11]. In float64 the exponential fails the new relative check;
-  the Weibull fails its existing ordinary check first. This closes F2's
-  specific float32 gap. These are selected mutation checks, not a general proof.
+## Final gate record
 
-## Final-snapshot validation record
-
-Run after this review and the test changes are finalized/formatted:
+The full gate runs against the finalized source/tests:
 `UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A7`.
-The complete output, including exit status via the final gate message,
-counts and timings, is saved in
-[the final gate log](/private/tmp/survjax-a72-fixes-final-gate.log).
-The shell uses pipefail while tee writes that log. The follow-up evidence in
-PLAN.md and the final response record the observed result after completion;
-this review is left unchanged. Final Ruff formatting and git diff checks
-also run after the plan-only result update.
+Its full output is saved in
+[the A10.1 gate log](/private/tmp/survjax-a101-final-gate.log).
+The observed exit status, counts and timings are recorded in PLAN.md after
+completion. The line-count note in this review was corrected while the gate ran;
+REVIEW.md is left unchanged after completion. Final formatting and both
+working-tree/staged diff checks validate all review/plan metadata edits.
 
-## Remaining work
+## Remaining work and uncertainties
 
-No new spec ambiguity or deviation was found. This follow-up changes assertion
-strength and formatting only. Numerical docs are still a separate pending
-step; no docs build, R reference generation, install, GPU or performance check
-was run here. Stop after this fix-up commit for review. A7/Slice A completion
-is not claimed.
+D-027 remains open: public exact-count representation, field names, masks and
+undefined input behavior need maintainer resolution before A10.2. This private
+core does not settle those public choices. Existing acceptance tests stop at
+A8; no independent A10 tests are synced and this through-A7 run is regression
+evidence, not a full A10 or Slice A completion gate. No spec edits or edits to
+independent tests/gate scripts. No score derivatives promised or tested.
+
+No R generation/comparison, installed-artifact check, docs build, performance
+benchmark or accelerator check was run. The remaining public metric, ratio,
+validation/broadcasting, diagnostics, R fixtures and executable docs belong to
+later individually approved steps. Stop after this commit for review.

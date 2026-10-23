@@ -1,3 +1,152 @@
+# A10 — Harrell's concordance (2026-10-23)
+
+Status: **A10.1 implemented and verified; ready for review**, authorized by
+"Approved go for it". The maintainer requested checking the updated roadmap
+and starting A10. The existing branch is `A10-cindex`, starting at `9a034f4`.
+The request authorizes bringing concordance forward now, ahead of the draft's proposed after-A9 sequence; it does not
+authorize spec edits or publication. Statistical requirements remain accepted
+spec revision 34, sections 3.3, 6.1–6.2, 9.1–9.2, 10.2 and 12.1.
+
+Implementation evidence: a 61-line private counting module and 169-line test
+module (230 source/test lines). Exact comparisons, event-first equal-time
+pairs and two-word totals; no public API change. Focused checks pass, 24
+per dtype (1.37s x64 / 1.34s x32), without skips. Final through-A7 regression
+gate exited 0 and ended `check: all gates passed through A7`:
+
+| Gate stage | Float64 | Float32 |
+| --- | --- | --- |
+| Own tests | 801 passed, 7 skipped, 141.70s | 807 passed, 1 skipped, 143.20s |
+| Source doctests | 4 passed, 0.82s | 4 passed, 0.81s |
+| Independent through A7 | 2123 passed, 28 skipped, 44 deselected, 94.06s | 2127 passed, 24 skipped, 44 deselected, 90.73s |
+
+Ruff: 73 files already formatted / All checks passed. Mypy: no issues in
+18 source files. Full output: `/private/tmp/survjax-a101-final-gate.log`.
+REVIEW.md records the focused commands, initial cache/lint failures and limits;
+its metadata was finalized during the gate, with final static checks afterward.
+No new skips or exclusions. No A10 independent suite, R fixture, docs build,
+installation or performance evidence claimed. D-027 remains open. Stop after
+this step's commit; A10.2 has not started.
+
+Read `../design/ROADMAP.md` and its linked
+`../design/proposals/concordance-at-end-of-slice-a.md`. Both describe a draft
+delivery amendment: accepted section 12.2 still assigns concordance to E.
+Do not modify the design repo or treat its proposed completion gate as adopted.
+Do not claim A8, A9, the A7 docs or Slice A completion through this work.
+
+Starting working-tree changes belong to the unfinished A7 docs step:
+`PLAN.md`, `docs/index.md`, `docs/likelihood.md` and untracked
+`docs/numerical-behaviour.md`. Preserve them. Prepend this plan without
+rewriting its existing content; stage only A10 changes when committing.
+No docs edits in A10 code steps. No dependencies, fitting helpers, KM, IPCW,
+Brier, IBS, AUC, approximate metric API or score-gradient guarantee.
+
+## A10.1 — Private comparable-pair counting (first approval and review stop)
+
+One concept: exact counts for one valid, supported cohort, without public
+entry points. Target approximately 230–280 changed source/test lines, plus
+the plan and review. Split and replan if implementation exceeds 300 lines.
+
+Files to create:
+
+- `src/survjax/_concordance.py`: a private typed counting function for
+  one-dimensional finite scores, finite times and exact/right status.
+  Return concordant, discordant and tied-score totals as private `(hi, lo)`
+  tuples of `uint32` scalar arrays. Each total denotes `hi * 2**32 + lo`.
+  Keep this representation private pending D-027. Comparable totals are
+  accumulated during the same loop. No public API or export changes.
+- `tests/unit/test_concordance_counts.py`: hand-enumerated pair counts and
+  eager/jit/vmap checks; private accumulator carry checks using synthetic
+  word values. Test expectations come from Python integer arithmetic and
+  explicit pair lists, never from the implementation being tested.
+
+Update this plan's status and overwrite `REVIEW.md` only at the implementation
+review stop, recording reading order, invariants, requirement-to-test mapping,
+actual check output and remaining limitations.
+
+Implementation invariants (spec 9.1–9.2):
+
+- A JAX loop compares one row with the cohort and counts only partners with
+  larger indices. Work is O(N squared), pair workspace O(N); never form an
+  N-by-N array. Later leading-axis batching calls this core with `vmap`.
+- For unequal times the earlier row must be an event. At equal times only
+  event/censor pairs are comparable, with the event earlier. Compare scores
+  exactly; higher score on the earlier event wins. No near-tie tolerance.
+- Sum each loop's boolean counts as `int32`, then add the nonnegative count
+  into two unsigned words with explicit carry. No int64 requirement and no
+  total-count cap imposed to avoid int32 overflow. The cohort length must fit
+  the per-row int32 counting contract; no quadratic large-cohort test needed.
+- This core accepts already validated cohorts. Invalid scores, unsupported
+  modes, stored data issues and floating ratios belong to the integration
+  step; no public function returns partial or placeholder results meanwhile.
+
+Own tests accompanying this step:
+
+1. A small cohort with explicitly listed concordant, discordant and score-tied
+   pairs; all counts sum to the hand-counted comparable total.
+2. Separate equal-time event/event, event/censor and censor/censor cases,
+   plus censoring earlier than an event. Include reversed array order to
+   ensure array position never substitutes for event-time order.
+3. Perfect, reversed and all-tied scores; singleton, empty and all-censored
+   inputs produce zero counts in the private core. Public acceptance of empty
+   inputs remains a D-027 question; do not infer it from core behavior.
+4. Row permutations preserve all totals; eager, jit and cohort-wise vmap
+   agree. Counts remain exact in separate x64/x32 processes.
+5. Carry across `2**32`, repeated carries and high-word totals, checked
+   against arbitrary-precision Python integers. Exercise totals beyond signed
+   int32 capacity directly without allocating an enormous cohort.
+
+Verification after approval:
+
+- Run `tests/unit/test_concordance_counts.py` in separate
+  `JAX_ENABLE_X64=1` and `=0` processes via `uv run --group test pytest`.
+- Run `UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A7`
+  for the established implementation baseline. The existing A8 acceptance
+  tests require unfinished fixture work; do not label this an A10 full gate.
+  No independent A10 suite is currently synced; request maintainer coordination
+  before declaring A10 complete. Never edit `tests/spec/` or the gate script.
+- Run `git diff --check`; record pre-existing failures separately without
+  repairing unrelated docs. Check staged diff excludes the A7 docs changes.
+- Commit only this approved step on `A10-cindex`, with imperative subject and
+  a body explaining why, then stop for review. No automatic A10.2 start.
+
+Docs to-do: after public integration and review, a separate concordance topic
+with score direction, pair/tie conventions, support, batching, masks,
+undefined results, complexity and held-out synthetic evaluation. Update the
+API reference and playground in the separately approved docs integration.
+
+## Later A10 steps — outline only; each needs its own approved plan
+
+- A10.2: resolve D-027, then introduce `metrics.py`, frozen registered
+  `ConcordanceInfo` and both public entry points. Move `_resolve_data` from
+  `likelihood.py` to a small shared private module and use it from both callers
+  (spec 6.1). Validate last-axis lengths before broadcasting leading axes;
+  reduce invalid/unsupported evidence per cohort, without dropping rows.
+  Honor stored raw-input issues; compute the ratio in the data float dtype,
+  casting words before floating arithmetic and using a safe denominator for
+  undefined cohorts. Add input-form, masks, dtype and shape tests with code;
+  split integration if its source/test budget exceeds 300 lines. Resolve the
+  current export-reference test's docs requirement before adding top-level
+  exports: code steps cannot silently edit docs or weaken that test.
+- A10.3: finish public transformation/broadcast and permutation evidence in
+  both dtypes; independent acceptance tests arrive only from the maintainer.
+  No score derivatives are promised. Maintain one concept per small commit.
+- A10.4: synthetic R generator, fixture README and reference tests, following
+  section 10.4's pinned R/package requirements. Use `reverse=TRUE`,
+  `timewt="n"`, `timefix=FALSE`. If the pinned environment is unavailable,
+  hand off the generator and stop; never invent reference output.
+- A10 docs and final audit: executable topic/playground, held-out synthetic
+  example, installed wheel/source-archive exports and evidence map. Coordinate
+  with unfinished A8/A9 work; a concordance step alone cannot close Slice A.
+
+Planning checks actually run: branch/status/history inspection; accepted
+sections above, roadmap and draft amendment read; existing input resolver,
+dtype policy, data/diagnostic containers, export-reference test and gate read.
+`../scripts/spec-since.sh dev` prints
+`dev: spec unchanged since d243a96`. No implementation, tests, build, R
+environment check, spec edit, spec-seen update or commit during planning.
+
+---
+
 # A7.2 review fixes — F1 and F2 (2026-10-23)
 
 Status: **implemented and verified; ready for review**, authorized by

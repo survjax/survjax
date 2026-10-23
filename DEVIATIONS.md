@@ -1,5 +1,34 @@
 # Deviations and spec questions
 
+## D-027 Concordance result representation and undefined diagnostics
+
+- Step: A10 planning (2026-10-23), before public integration.
+- Spec section: 9.1–9.2, with public placement governed by 10.2.
+- What the spec says: totals use a two-word hi/lo accumulator;
+  `ConcordanceInfo` holds concordant, discordant, tied-score and comparable
+  counts plus invalid, unsupported and no-comparable-pair masks. The last
+  observation axis must match and is reduced. No comparable pairs gives NaN.
+- What remains unspecified: public field spellings, how exact two-word counts
+  are exposed, mask shapes/overlap, count meaning for invalid/unsupported
+  cohorts, and whether scalar or empty observation inputs are admitted.
+- Proposal for maintainer decision before A10.2: define `ConcordanceInfo` in
+  `survjax.metrics`, as a frozen registered pytree; fields `concordant`,
+  `discordant`, `tied_score`, `comparable`, `invalid`, `unsupported` and
+  `no_comparable_pairs`. Each count is a `(hi, lo)` tuple of `uint32` arrays
+  with the broadcast leading shape; each mask has that same leading shape.
+  Invalid means any nonfinite score or invalid data row; unsupported means
+  any row outside exact/right without truncation. Preserve both masks when
+  they overlap; return NaN and zero counts for either condition, with
+  `no_comparable_pairs=False` because the cohort was not evaluated. Otherwise
+  set `no_comparable_pairs` exactly when the comparable count is zero. Reject
+  scalar scores/data as missing an observation axis; admit empty last axes as
+  undefined zero-pair cohorts. No new public count wrapper is proposed.
+- What was done: recorded the proposal only. A10.1 can test private counting
+  independently of this public contract; no public API choice implemented.
+  The maintainer's current request authorizes starting A10 ahead of the draft
+  delivery sequence; accepted section 12.2 remains unchanged.
+- Status: open.
+
 ## D-026 NaN triage after normalized fields are edited
 - Step: A6.4b2 review follow-up, SQ1
 - Spec: sections 6.2 and 7.1, revision 32
