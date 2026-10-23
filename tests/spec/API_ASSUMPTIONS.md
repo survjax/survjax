@@ -478,3 +478,29 @@ on it. Guessed exception types and call shapes are centralised in
   `test_likelihood_has_no_with_info_variant`,
   `test_likelihood_issues_container_is_removed`.
 
+
+## Q-039: name and schema of the committed `bc`-like R fixture (spec 10.4, 11.1, 12.2; rev 33) — resolved by rev 34
+
+- **Resolved by rev 34 (decision 0047):** 11.1 now says "The spec tester
+  defines the file name and schema; the generator writes that schema", fixes
+  the per-row survival values at "each row's own time" and adds the
+  flexsurv demo-grid curves (141 times, three groups). The schema below and in
+  `tests/spec/fixtures/README.md` is therefore the definition, not a guess.
+
+- **Checked:** 10.3, 10.4, 11.1, 12.1, 12.2. The spec requires the fixture
+  (synthetic `bc`-like data; per-row log likelihoods and survival values from
+  flexsurv and survreg at the three 11.1 vectors; float64 `atol=1e-10`,
+  `rtol=1e-8`) but fixes no file name, format or layout.
+- **Guess (maintainer-approved approach, 2026-10-22: the spec tester defines
+  the schema):** one JSON file `tests/spec/fixtures/bc_synthetic_weibull.json`,
+  laid out as in `tests/spec/fixtures/README.md`: `data` (`time` in years,
+  `event` 0/1, `group` Good/Medium/Poor), `parameters` (`fixed_a`, `fixed_b`,
+  `r_optimum` as `shape`, `good_scale`, `beta_medium`, `beta_poor`),
+  `results.<vector>.<flexsurv|survreg>.<loglik|survival>` (686 per-row
+  values, contributions on the time scale), and `grid` (141 times, `(141, 3)`
+  flexsurv survival per vector). The spec tester has not seen any generator
+  or fixture; if the committed one differs, only `_load` in
+  `test_a8_bc_fixtures.py` and the README need to change.
+- **Formerly guessed, now in 11.1:** the per-row `survival` value is
+  `S_i(t_i)` at the row's own time; the grid is the 11.1 demo grid.
+- **Depends:** every test in `test_a8_bc_fixtures.py`.

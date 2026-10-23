@@ -1,6 +1,6 @@
 # Test map
 
-Spec: revision 32 (see `.spec-seen`). Unchanged requirements keep their
+Spec: revision 34 (see `.spec-seen`). Unchanged requirements keep their
 earlier revision tags. Tests from the revision 10 decision (sections 6.2, 10.2,
 13) are tagged `rev 10`. Tests from the performance amendment (section 7.2),
 accepted in revision 11, are tagged `rev 11`. A4 tests derive from revision 11 and
@@ -67,7 +67,24 @@ gradients on parameter entries of rows with issues; isolation to second
 order, both modes, every violation class and family; 7.1, 7.2, 7.3, 12.1)
 adds `test_a6_likelihood_gradient_isolation.py` and retags the three
 gradient tests of `test_a6_likelihood_parameter_issues.py` whose quoted
-mechanism text was removed. The mpmath references
+mechanism text was removed. Revision 33 (decision 0046: right takes
+precedence over left for a non-exact `(0, +inf]` row, also on rows with
+issues; registration rejects unmarked fields and inherited initializers;
+nested fields require registered instances; isolation stops at the
+parameter leaves; triage after edited fields; Slice A numerical scope;
+3.2, 4.2, 7.1, 12.2) adds three `test_a3_static_metadata.py` tests, four
+`test_a4_registration.py` tests and four `test_a4_nested.py` tests, all
+tagged `rev 33`. It states no behaviour change, so no existing test was
+changed or retagged; no existing test relied on the claims rev 33 withdrew
+(isolation upstream of the parameter leaves, exact triage of edited data).
+Revision 34 (decision 0047: a valid row whose
+log contribution overflows gives `-inf`; with shared parameters an infinite
+row leaves the other rows' reverse-mode derivatives outside the guarantee,
+forward mode and per-row parameters unaffected; the fixture's survival at
+each row's own time, schema defined by the spec tester; 7.1, 7.3, 11.1, 12.1)
+adds five `rev 34` overflow tests to `test_a7_likelihood_tails.py`, retags
+the A8 survival and grid tests `rev 34`, and resolves Q-039. No existing test
+asserted reverse-mode derivatives next to an infinite row. The mpmath references
 need `mpmath` in the test environment. Tests are static acceptance tests and have never
 been executed against survjax. Test names below are relative to `tests/spec/`.
 
@@ -439,6 +456,8 @@ been executed against survjax. Test names below are relative to `tests/spec/`.
 | 3.2 | with no traced observation input, flags are computed from the normalized fields, by either route. | `test_eager_flag_constructor_computes_flags_from_values` |
 | 3.2 | the bounds constructor with non-traced inputs computes flags from values. | `test_eager_bounds_constructor_computes_flags_from_values` |
 | 3.2 | flags are computed from the normalized fields of all rows, including rows with issue bits. | `test_flags_include_rows_with_issue_bits` |
+| 3.2 | "Right takes precedence": a non-exact row with `upper=+inf` is right-censored even when `lower=0` (`from_bounds(0, inf)`); valid left rows have `upper<+inf` (rev 33). | `test_zero_to_inf_row_is_classified_as_right_censored`, `test_zero_to_inf_row_is_not_classified_as_left_censored` |
+| 3.2 | "This classification is not a validity check; rows with issue bits are still classified" (rev 33). | `test_zero_to_inf_row_with_issue_is_still_classified_as_right_censored` |
 | 3.2 | with no traced observation input, flags are computed from values even inside a transformed function. | `test_ordinary_construction_inside_jit_computes_flags_from_values` |
 | 3.2 | constructors classify inputs as in 6.2; non-traced inputs inside jit give value-based flags. | `test_construction_from_concrete_inputs_inside_jit_computes_flags_from_values` |
 | 3.2 | traced arguments that are not observation inputs do not force all flags true. | `test_ordinary_construction_inside_jit_with_other_traced_args_computes_flags_from_values` |
@@ -545,6 +564,8 @@ public extension interface; built-in families start at A5.
 | 4.2 | static configuration is not data; equal configuration and shapes share a structure. | `test_equal_static_values_give_equal_tree_structures` |
 | 4.2 | static configuration is part of the tree structure. | `test_different_static_values_give_different_tree_structures` |
 | 4.2 | "There is no automatic subclass registration": an undecorated subclass is a PyTree leaf. | `test_no_automatic_subclass_registration` |
+| 4.2 | "Every dataclass field must use one of these helpers; registration raises a `TypeError` naming an unmarked field" (rev 33). | `test_unmarked_field_is_rejected_at_registration`, `test_unmarked_field_error_names_the_field`, `test_unmarked_field_without_default_is_rejected_at_registration` |
+| 4.2 | "a subclass that only inherits a registered initializer raises `TypeError` at registration" (rev 33). | `test_subclass_inheriting_registered_initializer_is_rejected` |
 | 4.1/4.2 | distributions are immutable frozen dataclasses. | `test_distribution_is_immutable` |
 | 4.1 | methods are pure (no mutation or caches): leaves are unchanged after calls. | `test_methods_do_not_mutate_parameters` |
 | 4.1 | a distribution is a PyTree that can be passed into and returned from jit. | `test_distribution_passes_through_jit` |
@@ -838,6 +859,7 @@ parametrization over `H`: upper tail `20, 33, 55` and `70` (float32) or `600`
 | 3.3/4.2 | broadcasting keeps the nested distribution's dtype (rev 15: nested dtypes are kept). | `test_broadcast_nested_distribution_keeps_its_dtype` |
 | 4.2 | "nested static fields are part of its structure". | `test_nested_static_fields_are_part_of_outer_structure` |
 | 4.2 | "`survjax.distribution()` takes no arguments in v0". | `test_distribution_helper_takes_no_arguments` |
+| 4.2 | a `distribution()` field must hold an instance of a registered class; an unregistered subclass of a registered family, an array or another object raises a `TypeError` naming the field, before nested batch shapes are read (rev 33). | `test_nested_field_rejects_unregistered_subclass_instance`, `test_nested_field_error_names_the_field`, `test_nested_field_rejects_non_distribution_before_reading_batch_shape`, `test_nested_field_rejects_array_value` |
 | 4.2 | `dist[idx]` indexes nested leaves too. | `test_indexing_applies_to_nested_leaves` |
 | 4.2 | a base that was scalar before broadcasting is indexed like any batch leaf. | `test_indexing_a_broadcast_scalar_base` |
 | 4.2 | `jax.tree.map` slicing reaches nested leaves. | `test_tree_map_slicing_applies_to_nested_leaves` |
@@ -1316,3 +1338,121 @@ function of the same flat parameter vector.
   issues, which 12.1 lists with the parameter diagnostics.
 - **"Multiplying invalid rows by zero does not make them valid"**: guidance
   for callers, not library behaviour.
+- **Reach of isolation upstream of the parameter leaves** (7.1, rev 33):
+  overflow in a caller's `exp(X @ beta)` or in `from_log` "can still give
+  NaN gradients" for shared upstream parameters. This is a permission, not a
+  requirement, so neither NaN nor finite gradients are asserted there.
+- **NaN loss with a finite gradient** (7.1, rev 33): "can have"; gradients on
+  rows with issues stay unspecified, so a finite summed gradient is not
+  required.
+- **Triage after edited fields** (7.1, rev 33): `other` "may also include"
+  rows the likelihood finds invalid in current fields. Permissive; the
+  recipe's exactness is tested only for data as constructed (unchanged).
+
+## A7: likelihood numerics, tails, boundaries, mpmath, `jax_debug_nans` (spec 2, 4.5, 7.1–7.3, 12.1, 12.2; rev 33)
+
+Slice A scope per 12.2 (rev 33): exact and right-censored rows without
+truncation, and the direct methods. The direct-method tails, boundaries and
+`log_cdf` mpmath checks are already in A4/A5 (`test_a4_log_cdf_upper_tail.py`,
+`test_a5_closed_forms.py`, `test_a5_log_cdf_tails.py`,
+`test_a5_boundaries.py`, `test_a4_base_boundaries.py`); A7 adds the
+likelihood. References: `helpers.mp_exponential_contribution` and
+`helpers.mp_weibull_contribution` (mpmath, 50 digits, at dtype-rounded
+inputs), compared with zero absolute tolerance and a relative tolerance that
+is the 12.1 `rtol` widened only by the documented term-cancellation bound
+(`helpers._reference`).
+
+### `test_a7_likelihood_mpmath.py`: contributions across scales
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 2/7.1/12.1 | exponential exact `log r - r t` and right `-r c`, rates `1e-6` to `1e3`, against mpmath. | `test_exponential_exact_contribution_matches_mpmath[*]`, `test_exponential_right_censored_contribution_matches_mpmath[*]` |
+| 2/4.1/7.1/12.1 | Weibull exact and right, `k` 0.3 to 8, `b` `1e-3` to `1e4`, the `bc`-like vector, against mpmath. | `test_weibull_exact_contribution_matches_mpmath[*]`, `test_weibull_right_censored_contribution_matches_mpmath[*]` |
+| 5/7.1/12.1 | per-row parameters and alternating kinds in one batch. | `test_weibull_mixed_batch_matches_mpmath_row_by_row` |
+| 7.3/12.1 | the same under `jit` and `vmap` over rows. | `test_exponential_mixed_batch_matches_mpmath_under_jit_and_vmap` |
+
+### `test_a7_likelihood_tails.py`: tiny masses, both tails, no floors
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 7.1/12.1 | "tiny nonzero masses": right-censored `-H` with `H=1e-20`, `1e-30` keeps relative precision and never rounds to zero. | `test_exponential_right_censored_tiny_hazard_keeps_relative_precision`, `test_weibull_right_censored_tiny_hazard_keeps_relative_precision` |
+| 7.3/12.1 | tiny derivatives compared with zero `atol`: `-c`; `-H log z`, `kH/b`. | `test_exponential_right_censored_tiny_hazard_rate_gradient`, `test_weibull_right_censored_tiny_hazard_parameter_gradients` |
+| 7.1/12.1 | upper tail where `S` or `f` underflows: finite log values, not `-inf`, below `log(tiny)` (no floor); `H=1e32`. | `test_exponential_right_censored_where_survival_underflows`, `test_exponential_exact_where_density_underflows`, `test_weibull_right_censored_where_survival_underflows`, `test_weibull_exact_where_density_underflows`, `test_weibull_exact_with_shape_below_one_where_density_underflows`, `test_weibull_exact_with_huge_cumulative_hazard_is_finite`, `test_weibull_right_censored_with_huge_cumulative_hazard_is_finite` |
+| 7.3/12.1 | hand-derived parameter gradients in the upper tail. | `test_exponential_upper_tail_rate_gradients`, `test_weibull_upper_tail_exact_parameter_gradients` |
+| 4.1/7.1/12.1 | lower tail of exact rows (`t=1e-30`, `1e-12`; tiny rate). | `test_weibull_exact_near_zero_with_decreasing_hazard_is_large_and_finite`, `test_weibull_exact_near_zero_with_increasing_hazard_is_finite`, `test_exponential_exact_near_zero_is_log_rate`, `test_exponential_exact_with_tiny_rate` |
+| 7.1/7.2 | tail rows leave an interior row's value unchanged. | `test_tail_rows_do_not_change_interior_rows` |
+| 7.1/12.1 | rev 34: a valid row whose log contribution overflows (Weibull `k=50`, `b=1`, `t=1e10`, `H=1e500`) gives `-inf`, not NaN, exact and right; no NaN cause; other rows unchanged. | `test_right_censored_row_whose_contribution_overflows_is_minus_infinity`, `test_exact_row_whose_contribution_overflows_is_minus_infinity`, `test_overflowing_row_has_no_nan_cause_and_leaves_other_rows_unchanged` |
+| 7.3 | rev 34: next to an infinite row, "Forward-mode derivatives and per-row parameters are unaffected". | `test_forward_mode_derivatives_of_other_rows_survive_an_overflowing_row`, `test_reverse_mode_derivatives_with_per_row_parameters_survive_an_overflowing_row` |
+
+### `test_a7_likelihood_boundaries.py`: boundaries
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 3.3/7.1/12.1 | exact and right rows at the smallest normal time `tiny`, against mpmath; finite exact-row gradients there. | `test_exponential_exact_at_smallest_normal_time`, `test_weibull_exact_at_smallest_normal_time[k]`, `test_exponential_right_censored_at_smallest_normal_time`, `test_weibull_right_censored_at_smallest_normal_time_with_shape_below_one`, `test_weibull_exact_at_smallest_normal_time_has_finite_gradients[k]` |
+| 2/4.5/7.1/7.2 | right-censored at `0`: exactly zero and zero gradients for Weibull `k` in `0.5, 1, 2.5` (infinite `f(0)` at `k<1`: inactive density piece must not leak); next to exact rows sharing a rate. | `test_weibull_right_censored_at_zero_is_exactly_zero[k]`, `test_weibull_right_censored_at_zero_has_zero_gradients[k]`, `test_exponential_right_censored_at_zero_has_zero_gradient_in_mixed_batch` |
+| 2/7.1 | improper family: "`P(c<T<=+inf)=S(c)`", so a right row is `log S(c)`, tending to `log cure`; exact row through the generic default; `c=0` exactly zero; no NaN cause. | `test_improper_family_right_censored_contribution_is_log_survival`, `test_improper_family_right_censored_far_tail_tends_to_log_cure`, `test_improper_family_exact_contribution`, `test_improper_family_right_censored_at_zero_is_exactly_zero`, `test_improper_family_mixed_rows_have_no_nan_cause` |
+
+### `test_a7_debug_nans.py`: eager `jax_debug_nans` run
+
+Seven-row valid batch: exact interior, tiny, upper tail; right at `0`, tiny
+`H`, interior, upper tail. Values and gradients of the summed contributions.
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 7.2/12.1/12.2 | "the likelihood suite run eagerly under `jax_debug_nans` on valid mixed batches": Exponential (shared and per-row rates, hand values), Weibull `k` in `0.3, 0.5, 1, 2.5, 8` and per-row, `from_log`, the method form, a custom family on generic defaults, an improper family, bounds-form data with a `(0, +inf]` row. | `test_exponential_mixed_batch_under_debug_nans`, `test_exponential_per_row_rates_under_debug_nans`, `test_weibull_mixed_batch_under_debug_nans[k]`, `test_weibull_per_row_parameters_under_debug_nans`, `test_weibull_from_log_under_debug_nans`, `test_weibull_method_form_under_debug_nans`, `test_custom_family_with_generic_defaults_under_debug_nans`, `test_improper_family_under_debug_nans`, `test_bounds_form_batch_under_debug_nans` |
+
+### A7: deliberately not tested
+
+- **Narrow intervals, interval cancellation, `Z=0`, tiny `Z`, bounded-support
+  zero numerator versus zero denominator** (12.1): Slice B evidence (12.2,
+  rev 33).
+- **Values below the normal range** (subnormal `t/b`, `H` or contributions):
+  the spec's relative-precision clauses are stated for normal numbers, and
+  backends may flush subnormals.
+- **Reverse-mode derivatives with shared parameters next to an infinite
+  row, and the infinite row's own derivatives** (7.3, rev 34): outside the
+  guarantee.
+- **Generic `log_prob` default in the far upper tail** (custom families):
+  no tail guarantee is specified for it; the improper family's exact rows
+  stay where `f` is representable.
+- **`check_grads` and Hessians**: A9.
+- **Bitwise equality across batch layouts**: not specified; compared at
+  12.1 tolerances.
+
+## A8: committed synthetic `bc`-like R fixtures (spec 10.4, 11.1, 12.1, 12.2; rev 33)
+
+Fixture `fixtures/bc_synthetic_weibull.json`, schema in `fixtures/README.md`
+(Q-039, resolved by rev 34: "The spec tester defines the file name and
+schema"). No fixture is committed yet, so every A8 test currently fails at
+load time by design (a reference test must never pass without its values).
+`[name]` runs over the three 11.1 vectors (`fixed_a`, `fixed_b`,
+`r_optimum`); `[source]` over flexsurv and survreg. Tolerances: 12.1 in each
+dtype, which in float64 are the 11.1 targets (`atol=1e-10`, `rtol=1e-8`).
+
+### `test_a8_bc_fixtures.py`
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 11.1 | fixture integrity: 686 rows, groups 229/229/228; exact and right rows with positive finite times; vectors equal to 11.1; flexsurv and survreg agree; 141×3 grid from 0 to 7. | `test_fixture_has_bc_size_and_group_sizes`, `test_fixture_rows_are_exact_or_right_censored_with_positive_finite_times`, `test_fixture_parameter_vectors_are_those_of_section_11_1[name]`, `test_fixture_sources_agree_with_each_other[name]`, `test_fixture_grid_has_shape_141_by_3[name]` |
+| 11.1/12.1/12.2 | "per-row log likelihoods ... from flexsurv and survreg at the three parameter vectors", float64 `atol=1e-10, rtol=1e-8`. | `test_per_row_log_likelihood_matches_r[name-source]` |
+| 6.1/7.1/11.1 | the method form and the raw `time=`/`event=` form give the same per-row values. | `test_method_log_likelihood_matches_r[name]`, `test_raw_form_log_likelihood_matches_r[name]` |
+| 4.1/11.1 | the 11.1 objective's construction `k=exp(theta[0])`, `b_i=exp(X_i beta)` through `Weibull.from_log` under `jit`. | `test_design_matrix_construction_with_from_log_matches_r[name]` |
+| 7.1/11.1 | the summed per-row values match R's sum. | `test_summed_log_likelihood_matches_r[name]` |
+| 8.1/11.1/12.1 | rev 34: "survival values `S_i(t_i)` at each row's own time"; `log_survival` on censored rows and `log_prob` on exact rows equal the R contributions. | `test_per_row_survival_matches_r[name-source]`, `test_per_row_log_survival_matches_right_censored_contributions[name]`, `test_per_row_log_prob_matches_exact_contributions[name]` |
+| 5/11.1 | rev 34: group curves on the demo grid via `survival_grid`, shape `(141, 3)`, `S(0)=1`. | `test_group_survival_curves_match_r[name]` |
+
+### A8: deliberately not tested
+
+- **The 11.1 audit totals** (`-840.82...`, `-815.98...`, `-811.94...`):
+  they are for the real `bc` rows, which are local-only (10.4) and never in
+  regular tests; the classical demo (Slice C) checks them.
+- **Fixtures for left, interval and truncated rows** (12.1 "all observation
+  kinds and truncation"), survfit, concordance, timeROC, riskRegression:
+  Slices B and E.
+- **The fit, Hessian and independent optimum check** (11.1 checks 3–5):
+  Slice C, never in CI.
+- **How the fixture was simulated** (seed, censoring pattern "similar" to
+  `bc`): recorded in `meta` and the generator, not testable as a property
+  beyond sizes, groups and kinds.
+- **Generating fixtures:** the spec tester never runs R or derives
+  reference values from survjax; the maintainer commits them (10.4).

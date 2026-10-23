@@ -102,6 +102,55 @@ def test_distribution_helper_takes_no_arguments():
         survjax.distribution(fam.const_hazard()(rate=f(1.0)))
 
 
+def _unregistered_subclass_instance(rate):
+    """An instance of an unregistered subclass of the registered ConstHazard.
+
+    Built with ``object.__new__`` so that only the nested-field check is
+    observed, not whatever the inherited initializer does with an unregistered
+    class.
+    """
+
+    class NotRegistered(fam.const_hazard()):
+        pass
+
+    obj = object.__new__(NotRegistered)
+    object.__setattr__(obj, "rate", rate)
+    return obj
+
+
+@pytest.mark.step("A4")
+def test_nested_field_rejects_unregistered_subclass_instance():
+    """spec 4.2, rev 33: a `distribution()` field holding an instance of an unregistered subclass of a registered family raises `TypeError`."""
+    with pytest.raises(TypeError):
+        fam.scaled_hazard()(base=_unregistered_subclass_instance(f(1.0)), log_ratio=f(0.0))
+
+
+@pytest.mark.step("A4")
+def test_nested_field_error_names_the_field():
+    """spec 4.2, rev 33: the `TypeError` for an unregistered nested value names the field."""
+    with pytest.raises(TypeError) as info:
+        fam.scaled_hazard()(base=_unregistered_subclass_instance(f(1.0)), log_ratio=f(0.0))
+    assert "base" in str(info.value)
+
+
+@pytest.mark.step("A4")
+def test_nested_field_rejects_non_distribution_before_reading_batch_shape():
+    """spec 4.2, rev 33: a non-distribution value raises `TypeError` "before nested batch shapes are read".
+
+    A plain ``object()`` has no batch shape, so reading one first would raise
+    ``AttributeError`` instead.
+    """
+    with pytest.raises(TypeError):
+        fam.scaled_hazard()(base=object(), log_ratio=f(0.0))
+
+
+@pytest.mark.step("A4")
+def test_nested_field_rejects_array_value():
+    """spec 4.2, rev 33: an array is not an instance of a registered class; a `distribution()` field rejects it with `TypeError`."""
+    with pytest.raises(TypeError):
+        fam.scaled_hazard()(base=f([1.0, 2.0]), log_ratio=f(0.0))
+
+
 # --------------------------------------------------------------- indexing, slicing, vmap
 
 

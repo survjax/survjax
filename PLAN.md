@@ -1,6 +1,7 @@
 # A8 R fixtures and reference tests
 
-Status: main through A6 is integrated into this checkout (2026-10-23).
+Status: main through `2c030c5`, including the independent A7/A8 tests and
+revision-34 spec marker, is integrated into this checkout (2026-10-23).
 A8.1/A8.2 are accepted; A8.3 fixtures were generated and validated on
 2026-10-21, with review nits addressed in `15b0a16`. The generated-data size
 exception was explicitly approved. A8 remains on `a8-1-r-generator`;
@@ -23,10 +24,29 @@ the workspace helper's target is `dev-a8`, not `dev`
 A8 supplies committed, synthetic R references for exponential and Weibull
 exact/right-censored likelihoods without truncation. The required larger
 fixture is a 686-row synthetic `bc`-like dataset, evaluated at the three
-parameter vectors in specification 11.1. Planned contract: specification revision 32,
+parameter vectors in specification 11.1. Current contract: specification revision 34,
 sections 4.6, 6.3, 10.3–10.5, 11.1 and 12.1–12.2.
 
 ## Coordination with A6 and A7
+
+Acceptance-test integration (2026-10-23), authorized by the maintainer's
+request to include the new main commits: merge `5d105ab` and `2c030c5`,
+retaining the incoming spec marker and all independent tests unchanged.
+Update only this plan and REVIEW.md; run the gate through A6, and probe the
+A8 fixture test separately without claiming A7/A8 completion.
+
+The imported `tests/spec/fixtures/README.md` defines a different fixture
+schema/path: `tests/spec/fixtures/bc_synthetic_weibull.json`, with vectors
+`fixed_a`, `fixed_b`, `r_optimum`, embedded data, per-source `loglik` and
+`survival`, and flexsurv grid curves. The existing A8.3 files remain valid R
+references but do not supply that file. Before claiming A8 completion, plan
+a separate generator/export adaptation to this schema, with byte/numeric
+validation against the existing R outputs. No values may be synthesized by
+Python or copied by hand. The destination is under read-only `tests/spec/`;
+its delivery must be coordinated with the maintainer under the protected-path
+rules rather than silently writing there. Do not edit the independent loader
+or assertions to accept our current schema. This integration does not
+authorize that generator change or the A8.4/A8.5 implementation.
 
 Integration (2026-10-23), authorized by the maintainer's request to resolve
 the in-progress merge: retain the A8 plan as active and the incoming A6 plan
