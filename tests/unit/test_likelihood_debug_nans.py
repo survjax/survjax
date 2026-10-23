@@ -42,7 +42,15 @@ class Cure(survjax.SurvivalDistribution):
         return jnp.ones_like(self.rate)
 
 
-def _check_eager(rows, parameters, expected_values, expected_gradient, x64_enabled):
+def _check_eager(
+    rows,
+    parameters,
+    expected_values,
+    expected_gradient,
+    x64_enabled,
+    *,
+    tiny_column=None,
+):
     with jax.debug_nans(True):
         values = rows(parameters)
         gradient = jax.grad(lambda p: rows(p).sum())(parameters)
@@ -56,6 +64,16 @@ def _check_eager(rows, parameters, expected_values, expected_gradient, x64_enabl
     np.testing.assert_allclose(
         gradient, expected_gradient, atol=ATOL[x64_enabled], rtol=RTOL[x64_enabled]
     )
+    gradient, reference = np.asarray(gradient), np.asarray(expected_gradient)
+    np.testing.assert_array_equal(gradient[reference == 0], 0)
+    if tiny_column is not None:
+        # Spec 12.1: an absolute tolerance must not accept lost tiny derivatives.
+        np.testing.assert_allclose(
+            gradient[..., tiny_column],
+            reference[..., tiny_column],
+            atol=TAIL_ATOL[x64_enabled],
+            rtol=TAIL_RTOL[x64_enabled],
+        )
     assert values[0] == 0
 
 
@@ -80,7 +98,12 @@ def test_exponential_mixed_values_and_gradients_under_debug_nans(per_row, x64_en
     expected = e * np.log(r) - r * t
     derivative = e / r - t
     _check_eager(
-        rows, rates, expected, derivative if per_row else derivative.sum(), x64_enabled
+        rows,
+        rates,
+        expected,
+        derivative if per_row else derivative.sum(),
+        x64_enabled,
+        tiny_column=4 if per_row else None,
     )
 
 
@@ -125,7 +148,14 @@ def test_weibull_mixed_values_and_gradients_under_debug_nans(mode, x64_enabled):
         derivative = derivative.sum(axis=1)
     if mode == "from-log":
         derivative = derivative * natural
-    _check_eager(rows, parameters, expected, derivative, x64_enabled)
+    _check_eager(
+        rows,
+        parameters,
+        expected,
+        derivative,
+        x64_enabled,
+        tiny_column=4 if mode == "per-row" else None,
+    )
 
 
 @pytest.mark.parametrize("debug", [False, True], ids=["ordinary", "debug"])

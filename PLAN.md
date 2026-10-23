@@ -1,3 +1,55 @@
+# A7.2 review fixes — F1 and F2 (2026-10-23)
+
+Status: **implemented and verified; ready for review**, authorized by
+"immediately implement the required fixes". Read the updated
+`../review/slices/A7.md` for `8f903d7`.
+One small follow-up commit on the existing `A7` branch, then review and stop.
+
+- F2: in `tests/unit/test_likelihood_debug_nans.py`, retain ordinary gradient
+  comparisons, add exact assertions for the reference's structural zeros,
+  and use the unchanged relative-only tail tolerances on the explicitly
+  identified tiny-right column in each per-row built-in case. No new tolerance
+  numbers, source changes or test-case matrix are needed. Spec 12.1.
+- Verify sensitivity in an isolated temporary source copy: stop gradients on
+  survival only where `0<t<1e-8`, as in the reviewer mutation. Both per-row
+  cases must fail in each dtype, especially float32. Run the ordinary focused
+  boundary/debug suites in both dtypes, with no new exclusions.
+- F1: overwrite `REVIEW.md` for this follow-up, including the correction to
+  the previous final-snapshot gate claim. Format its Python snippet (or use
+  plain command text) with Ruff. Finish editing/formatting this review before
+  running `scripts/check.sh --through A7`; save the complete final gate output
+  in a temporary log referenced by the review. Record the final counts here
+  and in the final response without changing REVIEW.md after that gate.
+- Files: that test module, PLAN.md and REVIEW.md only; public API, numeric
+  tolerances, dependencies, protected paths and docs remain unchanged. Target
+  under 50 changed test lines. Run the full through-A7 gate with the existing
+  tmp uv cache, then final Ruff formatting and `git diff --check` after any
+  plan-only result update. Record actual commands and results. Commit on A7,
+  then stop. The separate numerical docs step remains pending.
+
+Final evidence: focused own/independent tests pass, 53 per dtype (10.73s /
+10.81s). The F2 mutation is rejected by both per-row tests in each dtype:
+2 expected failures in 1.35s per process, including relative-only float32
+failures for the exponential and both Weibull tiny-gradient components.
+No source or numeric tolerance changes were needed.
+
+The complete through-A7 gate ran after the final REVIEW.md edit, exited 0
+and ended `check: all gates passed through A7`. Ruff: 70 files already
+formatted / All checks passed; mypy: no issues in 17 source files.
+
+| Gate stage | Float64 | Float32 |
+| --- | --- | --- |
+| Own tests | 777 passed, 7 skipped, 141.39s | 783 passed, 1 skipped, 149.10s |
+| Source doctests | 4 passed, 0.99s | 4 passed, 0.90s |
+| Independent through A7 | 2123 passed, 28 skipped, 44 deselected, 96.82s | 2127 passed, 24 skipped, 44 deselected, 91.00s |
+
+Full output: `/private/tmp/survjax-a72-fixes-final-gate.log`, linked from
+REVIEW.md. REVIEW.md was left unchanged after the gate. Only this plan's
+result record was updated afterward; final Ruff formatting and diff checks
+also passed. No new skips/exclusions; stop after this follow-up commit.
+
+---
+
 # A7 — Likelihood numerical verification (2026-10-23)
 
 Status: **A7.1 merged; A7.2 implemented and verified, ready for review**,
