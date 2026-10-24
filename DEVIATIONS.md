@@ -27,6 +27,15 @@
   independently of this public contract; no public API choice implemented.
   The maintainer's current request authorizes starting A10 ahead of the draft
   delivery sequence; accepted section 12.2 remains unchanged.
+- Discussion update (2026-10-25): the maintainer requests explanation and
+  discussion before adopting a public contract. Newly synced independent
+  Q-042–Q-045 label these details assumptions, rather than spec requirements.
+  Q-044's reader accepts an integer array or a count object with `hi` and `lo`
+  attributes, not the proposed plain tuple. A small frozen registered count
+  object is a candidate for clearer public access; the private core can retain
+  tuples. Failed-cohort counts (guaranteed zero versus unspecified) and mask
+  semantics also remain for decision. No public choice has been adopted, and
+  no independent test has been changed to accommodate either proposal.
 - Status: open.
 
 ## D-026 NaN triage after normalized fields are edited

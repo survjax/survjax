@@ -1,3 +1,79 @@
+# A10.2a — Share observation input normalization (2026-10-25)
+
+Status: **implemented and verified; ready for review**, authorized by
+"ok no issues here on to the next bit, which is approved by me". A10.1 is accepted. Split the next integration
+step: first relocate its existing data-input resolver, then add public metrics
+once D-027 is settled. This preparatory part introduces no public contract.
+
+Starting branch: `A10-cindex`, HEAD `67bac4d`. The maintainer's merge is still
+in progress, with all conflicts resolved and 21 paths staged. Preserve that
+index exactly; leave this step's work unstaged until the maintainer completes
+the merge. Never create its merge commit. The incoming protected spec tests
+and sync script belong to that merge and remain read-only.
+
+The maintainer completed the merge as `34a7657` during this step. Verified
+no merge remains and its index is empty; all new work stayed unstaged. The
+shared resolver is independent of D-027, which the maintainer wants to discuss
+before public integration; no proposed public choice has been adopted.
+
+
+Implementation evidence: the resolver AST is identical to the original function
+in the merged HEAD. The helper is 21 lines; new shared-input tests are 78 lines.
+Together with its import/relocation, 116 source/test lines changed. Focused
+shared-input/public-likelihood tests: 68 passed per dtype (4.35s / 3.79s),
+without skips. The full through-A7 regression gate exited 0:
+
+| Gate stage | Float64 | Float32 |
+| --- | --- | --- |
+| Own tests | 811 passed, 7 skipped, 153.02s | 817 passed, 1 skipped, 169.74s |
+| Source doctests | 4 passed, 1.13s | 4 passed, 1.05s |
+| Independent through A7 | 2123 passed, 28 skipped, 223 deselected, 115.04s | 2127 passed, 24 skipped, 223 deselected, 107.53s |
+
+Ruff: 75 files already formatted / All checks passed. Mypy: no issues in
+19 source files. Full output: `/private/tmp/survjax-a102a-final-gate.log`;
+last line `check: all gates passed through A7`. No new skips, test exclusions,
+public API or numerical changes. The larger deselection count reflects incoming
+later-step independent tests. REVIEW.md was finalized before the gate and is
+unchanged afterward. Final static/diff checks follow this plan-only result edit.
+D-027 records discussion only. The maintainer's merged docs/protected files
+remain unchanged. No R, docs build, installation or performance check was run.
+
+Files and public API:
+
+- Create `src/survjax/_observation_inputs.py` and move `_resolve_data` there
+  verbatim from `likelihood.py`; import it back at its existing call site.
+  Preserve all checks, error messages and pure SurvivalData normalization.
+  No public API, dtype, numerical, dependency or docs change.
+- Create `tests/unit/test_observation_inputs.py` for shared-normalizer behavior
+  needed by both callers: raw invalid-indicator evidence through eager/jit/vmap,
+  missing/mixed input rejection, and prepared rich observations preserving
+  every pytree leaf (including issue bits). Reuse the existing public likelihood
+  suite for the unchanged values/first/second derivatives and input contract.
+- Update this plan and REVIEW.md with this step's actual checks and limitations.
+  Preserve the staged merge versions of those files until merge completion.
+  Target under 150 changed source/test lines; one concept and one commit.
+- Record the newly synced count-reader assumption and the maintainer's request
+  for discussion in D-027, retaining its open status; adopt no public contract.
+
+Spec: 6.1–6.2 (single shared checked normalizer), 3.2–3.3 (prepared leaves and
+raw issues), 7.1/12.1 (likelihood regression evidence). No score contract or
+ConcordanceInfo field/representation choice is made here. D-027 remains open;
+new independent Q-042–Q-045 explicitly label their public choices assumptions.
+
+After editing, run focused new/likelihood entry-point tests in separate x64/x32
+processes, Ruff format/lint and mypy. Run the unmodified through-A7 gate for
+regression evidence; A8 fixtures/A9 completion and the public A10 API remain
+unimplemented, so do not claim a through-A10 pass. Record failures honestly.
+Check whitespace, source diff and preservation of the incoming staged index.
+Commit only this step after the maintainer finishes the merge, then stop.
+If the merge is still pending, leave a checked, reviewable diff and report
+that the step cannot yet be committed under the no-merge rule.
+
+Docs to-do: the separately approved concordance docs topic/API reference after
+public integration. No documentation is needed for moving a private resolver.
+
+---
+
 # Merge-conflict resolution (2026-10-24)
 
 The maintainer requests resolving the in-progress merge on `A10-cindex`.

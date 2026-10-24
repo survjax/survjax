@@ -1,136 +1,78 @@
-# Review: merge-conflict resolution (2026-10-24)
+# Review: A10.2a — Share observation input normalization
 
-Read the resolution entry in `PLAN.md`, then the historical reviews below.
-Both sides' plan and review records are retained. The A10.1 review describes
-its original checkout; incoming docs and independent acceptance tests now
-belong to the in-progress merge. No source, API, spec or test edits were made
-for this resolution. The other staged merge changes are left untouched.
+## Reading order
 
-Checks: `git diff --check` exited 0. A Python preservation check passed for
-both files: no conflict markers and every nonblank line from both Git stages
-retained. Prior results below are historical, not reruns against the merged tree.
-No library tests or docs build are needed for these two Markdown resolutions.
-The merge commit remains for the maintainer, per the repository's no-merge rule.
+1. `src/survjax/_observation_inputs.py`: the relocated `_resolve_data`.
+2. `src/survjax/likelihood.py`: import the shared resolver at the same call site.
+3. `tests/unit/test_observation_inputs.py`, then the unchanged public likelihood
+   entry-point suite for value, derivative and input-form regression coverage.
+4. The A10.2a entry in PLAN.md and the gate log linked below.
 
----
+Authorized by "ok no issues here on to the next bit, which is approved by me".
+The next integration step is split so shared normalization can be reviewed
+before public concordance choices. No public API, numerical, dtype, dependency,
+docs, spec or independent-test changes. D-027 remains open for discussion.
 
-## Historical branch review
+## Invariants and requirement mapping
 
-# Review: A10.1 — Private concordance pair counts
+Spec 6.1 requires one resolver for prepared data or raw time/event inputs.
+The function was moved verbatim; an AST comparison against the original HEAD
+function passed before the maintainer completed the merge. No exception type,
+message, argument rule or normalization behavior changed. Prepared data are
+returned with their existing leaf dtypes, metadata and raw issue evidence.
+Raw observations still use the ordinary pure checked SurvivalData constructor.
+Static misuse raises TypeError; invalid runtime codes return data with issues.
 
-## What to read, in order
+New own tests map to these requirements:
 
-1. `src/survjax/_concordance.py`: `_add_count`, then `_pair_counts` and its
-   event-time ordering, partner-index mask and four reductions.
-2. `tests/unit/test_concordance_counts.py`: hand-enumerated mixed cohorts,
-   tie cases, permutations, transformations and word-carry arithmetic.
-3. The A10 plan at the top of `PLAN.md`; D-027 in `DEVIATIONS.md` describes
-   public integration questions left for a later step.
+- `test_shared_raw_form_preserves_invalid_indicator_evidence`: spec 6.1–6.2;
+  event code 2 retains its invalid-indicator bit and invalid-row union, even
+  though normalized lower times are finite. Eager, jit and cohort-wise vmap
+  agree with explicit expected masks.
+- `test_prepared_rich_observations_keep_every_leaf`: spec 3.2/6.1; left/interval
+  modes, truncation, dtypes and stored invalid-indicator evidence survive the
+  prepared form eagerly and under jit. This is an identity assertion, not a
+  new numerical reference.
+- `test_shared_normalizer_rejects_static_input_misuse`: spec 6.1; six missing,
+  mixed and positional-raw combinations raise TypeError.
 
-Authorized by "Approved go for it" on maintainer branch `A10-cindex`.
-This step adds a private core and tests only: no public metric entry point,
-ratio, result container or export yet. Source plus tests total 230 lines.
-Existing A7 docs edits remain uncommitted and are excluded from this commit.
-The A10 plan is staged separately from the existing A7 docs plan insertion.
+The unchanged `test_likelihood_entry_points.py` exercises both public function
+and distribution method, prepared/raw forms, analytical values, eager/jit/vmap
+issue propagation, structural misuse and first/second parameter derivatives.
+No tolerance changes or additional gradient guarantee.
 
-## Invariants and spec coverage
+## Checks before the regression gate
 
-- Inputs to the private core are aligned one-dimensional finite scores/times
-  and boolean exact/right status. Validation and unsupported-mode handling
-  are integration work; callers must not pass unchecked cohorts here.
-- Spec 9.2: each unordered pair is visited only with partner index greater
-  than row index. The earlier time must be an event; at equal times, only
-  event/censor pairs qualify and the event precedes censoring. Higher earlier
-  event score is concordant. Equal scores are counted separately for later
-  half-credit calculation. No tie tolerance, time repair or clipping.
-- Spec 9.1: each row's reduction explicitly uses int32. Totals are uint32
-  `(hi, lo)` scalar arrays, representing `hi * 2**32 + lo`, with low-word
-  wrap detected by unsigned comparison and carried to the high word. No
-  int64 availability or floating count approximation is assumed. With cohort
-  length representable by int32, the pair total fits comfortably in two words.
-- Spec 9.2: a JAX loop holds only cohort-sized masks and four scalar word
-  pairs. Work is O(N squared), pair workspace O(N). This is established by
-  reading the implementation; no memory benchmark or scaling claim was run.
-- The static empty-shape return avoids tracing invalid indexing into an empty
-  array. It defines private count behavior only, not the public empty-input API.
-- No NumPy conversion occurs inside the core or transformed functions. Host
-  conversions in tests inspect completed counts. JAX configuration is unchanged.
+Commands use `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`.
+Ruff format changed only the new test's layout; Ruff lint passed. Mypy:
+`Success: no issues found in 19 source files`.
 
-The mixed-cohort test explicitly lists C/T/D/D pairs; the permutation test
-lists all six pairs, including the excluded one. The three two-row score/tie
-cases in both orders cover event/censor time ties; separate same-status tests
-exclude event/event and censor/censor ties. Earlier censoring is excluded in
-both orders. Complete-event cases demonstrate perfect, reversed and all-tied
-scores. Adjacent representable floats demonstrate exact time/score comparison.
-Empty, singleton and all-censored cases have zero counts. These cover spec 9.2.
+`JAX_ENABLE_X64=1 UV_CACHE_DIR=/private/tmp/survjax-uv-cache uv run --group test pytest -q tests/unit/test_observation_inputs.py tests/unit/test_likelihood_entry_points.py`:
+**68 passed in 4.35s**. Same command with `JAX_ENABLE_X64=0`:
+**68 passed in 3.79s**. No failures or skips.
 
-All 24 permutations of a mixed-time/score-tie cohort preserve its hand-counted
-totals. Eager, jit, vmap and jit-of-vmap results match independent pair lists
-for two separate cohorts (spec 9.1/12.1). Carry tests compare against Python
-integer arithmetic beyond signed-int32 capacity, across low-word wrap,
-repeated carries and existing high words (spec 9.1). All comparisons are exact;
-no numerical tolerance or expensive quadratic large-cohort test is needed.
+The resolver AST comparison and exact staged-index snapshot comparison passed.
+The maintainer then completed the merge as `34a7657`; git status showed no merge,
+no staged changes, and only this step's new/modified files. Incoming docs,
+protected spec tests and sync-script changes were preserved in that merge.
 
-## Checks actually run before the full gate
+## Final regression gate and remaining work
 
-- Initial uv invocation failed before executing checks because its default
-  cache was sandbox-blocked. Subsequent commands use
-  `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`.
-- Initial focused Ruff check found B023 on a loop-index lambda; bound the
-  index explicitly and reran successfully. No numerical test failure occurred.
-- Focused Ruff format/check passed; mypy reported
-  `Success: no issues found in 18 source files`.
-- After adding the adjacent-float case, ran
-  `JAX_ENABLE_X64=1 UV_CACHE_DIR=/private/tmp/survjax-uv-cache uv run --group test pytest -q tests/unit/test_concordance_counts.py`:
-  **24 passed in 1.37s**. Same command with `JAX_ENABLE_X64=0`:
-  **24 passed in 1.34s**. No skips.
-
-## Final gate record
-
-The full gate runs against the finalized source/tests:
+Run the unchanged gate against finalized source/tests and this review:
 `UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A7`.
-Its full output is saved in
-[the A10.1 gate log](/private/tmp/survjax-a101-final-gate.log).
-The observed exit status, counts and timings are recorded in PLAN.md after
-completion. The line-count note in this review was corrected while the gate ran;
-REVIEW.md is left unchanged after completion. Final formatting and both
-working-tree/staged diff checks validate all review/plan metadata edits.
+Full output is saved in
+[the A10.2a regression gate log](/private/tmp/survjax-a102a-final-gate.log).
+PLAN.md records its observed exit status, counts and timings after completion;
+this review is left unchanged afterward. Final Ruff and diff checks validate
+any plan-only result edit before committing.
 
-## Remaining work and uncertainties
+This is through-A7 regression evidence for a resolver relocation, not a complete
+A10 gate. A10 now has independent tests, but its public API remains unimplemented.
+No score representation, ConcordanceInfo contract or ratio is introduced here.
+D-027's original tuple proposal differs from independent Q-044's current guessed
+count-reader representation; report and discuss that before implementing either.
+No acceptance test is adapted, skipped or xfailed.
 
-D-027 remains open: public exact-count representation, field names, masks and
-undefined input behavior need maintainer resolution before A10.2. This private
-core does not settle those public choices. Existing acceptance tests stop at
-A8; no independent A10 tests are synced and this through-A7 run is regression
-evidence, not a full A10 or Slice A completion gate. No spec edits or edits to
-independent tests/gate scripts. No score derivatives promised or tested.
-
-No R generation/comparison, installed-artifact check, docs build, performance
-benchmark or accelerator check was run. The remaining public metric, ratio,
-validation/broadcasting, diagnostics, R fixtures and executable docs belong to
-later individually approved steps. Stop after this commit for review.
-
----
-
-## Historical incoming review
-
-# Review: default spec-test sync path
-
-Read `scripts/sync_spec_tests.sh` first, then the 2026-10-23 entry in `PLAN.md`.
-
-The source defaults to `../spectest`; callers can still supply a path.
-Usage text documents the optional argument. Existing branch, clean-tree and
-spec-version guards are unchanged. No public API or spec requirements change.
-
-Checks actually run:
-
-- `bash -n scripts/sync_spec_tests.sh`: exit 0.
-- Temporary Git repo smoke checks: default and explicit paths both copied the
-  fixture, removed an obsolete file and recorded the tester commit. A missing
-  explicit path returned exit 1 with the updated usage text. All passed.
-- `git diff --check`: exit 0 after removing an extra blank line in the plan.
-
-No permanent tests were added for this small shell default change. No library
-suite was run. The real tester repo was not read or synced. No open concerns.
-The script change was already captured by concurrent commit `1db22c4` during
-verification; the follow-up commit records this review and plan whitespace fix.
+No R fixture generation, docs build, installed-artifact check, benchmark or
+accelerator test was run. Public concordance integration is a later step after
+the maintainer decides the open contract. Commit A10.2a on A10-cindex, then stop.
