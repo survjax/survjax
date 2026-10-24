@@ -17,8 +17,10 @@ if (length(args) && !check_only) {
 }
 
 script <- "scripts/fixtures/generate_bc_like.R"
+exporter <- "scripts/fixtures/bc_spec_export.R"
 versions <- c(flexsurv = "2.3.2", survival = "3.7.0")
-stopifnot(file.exists(script), getRversion() == "4.4.2")
+stopifnot(file.exists(script), file.exists(exporter), getRversion() == "4.4.2")
+source(exporter)
 
 for (name in names(versions)) {
   stopifnot(as.character(utils::packageVersion(name)) == versions[[name]])
@@ -259,11 +261,6 @@ stopifnot(identical(names(references), names(cases)))
 for (label in names(cases)) {
   stopifnot(identical(unlist(references[[label]][names(cases[[label]])]), cases[[label]]))
 }
-message("Checks passed: 686 synthetic rows, 3 fixed vectors, 141-by-3 grids, both R paths")
-if (check_only) {
-  quit(save = "no", status = 0L)
-}
-
 # Fixture export (the reviewed A8.1 format, plus time-first matrix rows) -----
 
 to_json <- function(value) {
@@ -295,6 +292,13 @@ to_json <- function(value) {
   paste0("[", paste(encoded, collapse = ","), "]")
 }
 
+spec_fixture <- bc_spec_fixture(data, references, eval_times, seed, script, versions)
+spec_payload <- to_json(spec_fixture)
+message("Checks passed: 686 synthetic rows, 3 fixed vectors, both R paths and acceptance schema")
+if (check_only) {
+  quit(save = "no", status = 0L)
+}
+
 dir.create(output, recursive = TRUE, showWarnings = FALSE)
 csv <- file.path(output, "data.csv")
 csv_rows <- sprintf("%d,%.17g,%d,%s", data$row_id, data$time, data$event, as.character(data$group))
@@ -313,7 +317,8 @@ header <- list(
   generating_script = script,
   checksums = list(
     algorithm = "md5", data.csv = unname(tools::md5sum(csv)),
-    generator = unname(tools::md5sum(script))
+    generator = unname(tools::md5sum(script)),
+    exporter = unname(tools::md5sum(exporter))
   ),
   units = "years",
   event_coding = list(exact = 1, right = 0),
@@ -340,4 +345,7 @@ payload <- to_json(list(header = header, row_id = data$row_id, grid = grid, case
 json <- file.path(output, "expected.json")
 writeLines(payload, json, useBytes = TRUE)
 stopifnot(identical(readLines(json), payload))
-message("Wrote data.csv and expected.json to ", output)
+spec_json <- file.path(output, "bc_synthetic_weibull.json")
+writeLines(spec_payload, spec_json, useBytes = TRUE)
+stopifnot(identical(readLines(spec_json), spec_payload))
+message("Wrote data.csv, expected.json and bc_synthetic_weibull.json to ", output)

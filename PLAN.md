@@ -5,8 +5,9 @@ commit `3389ee0`. This resolves only PLAN.md and REVIEW.md. All cleanly merged
 files, including independent tests and the sync script, remain unchanged.
 A8.1/A8.2 generators are accepted; A8.3 committed references and review nits
 are complete. A8's acceptance-schema export, automatic loading, Python/R
-comparisons and narrative docs remain. No implementation starts under this
-planning request. Historical plans below retain their original status wording.
+comparisons and narrative docs remain. The maintainer approved A8.3a with
+"implement the next step"; its export is now implemented and validated through A7, ready for review. A8.3b and later steps remain unstarted. Historical plans below
+retain their original status wording.
 
 Work on the existing maintainer-created `a8-1-r-generator` branch, in this
 checkout only. Keep one concept and roughly 300 changed code/test lines per
@@ -39,6 +40,16 @@ against original R hexadecimal doubles. Python never generates expected values.
 The two R package paths are not fully independent numerical oracles.
 
 ## A8.3a — Export the independent acceptance schema
+
+Execution (2026-10-25): the approved export mapping is isolated in
+scripts/fixtures/bc_spec_export.R, sourced by the existing generator. Its
+checks also run under check-only; full generation writes the additional JSON
+in the chosen output directory. The old JSON header now records the exporter
+checksum. README documents the interim provenance difference until A8.3b.
+Scratch two-run, exact R-double and mutation checks pass. The final through-A7
+gate exits 0; counts and limits are recorded in REVIEW.md. No payload/manifests,
+independent tests, public API, dependencies or tolerances are changed.
+Code/README diff stays below 300 changed lines; do not start A8.3b.
 
 Files: `scripts/fixtures/generate_bc_like.R`, optionally one small R export
 file in `scripts/fixtures/` if needed for readability, and
@@ -170,9 +181,10 @@ Normal tests must require no R, network or external data. Each REVIEW.md names
 actual commands/results, reading order, invariants, spec-to-test mapping and
 limits. Do not start the next step without approval.
 
-This turn resolves merge records and plans only. Focused A7 baseline checks
-are recorded in REVIEW.md; no new A8 code or fixture values are implemented.
-Approval requested next: A8.3a only. Later steps retain their own review stops.
+The planning turn resolved merge records without implementation. The
+maintainer subsequently approved A8.3a, now implemented as recorded above.
+Stop after its review and commit; A8.3b and later steps retain their own
+approval and review stops.
 
 ---
 

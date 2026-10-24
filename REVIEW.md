@@ -1,67 +1,98 @@
-# A7 merge reconciliation and remaining A8 plan — 2026-10-23
+# A8.3a — R export for the independent acceptance schema (2026-10-25)
 
-Requested: review PLAN.md/REVIEW.md merge conflicts and plan the rest of A8.
-A8 parent: `5d46899`; incoming main: `3389ee0`.
+Approved by the maintainer's instruction to implement the next planned step.
+Branch: a8-1-r-generator; parent: d1f1f1a. One code step, then stop.
 
 ## Read in this order
 
-1. PLAN.md, active remaining-A8 section: ordered steps and approval stops.
-2. tests/spec/fixtures/README.md: independent schema and protected handoff.
-3. Historical sections of PLAN.md: prior A8 and incoming main history retained.
-   Earlier review records remain at `5d46899:REVIEW.md` and
-   `3389ee0:REVIEW.md`; this file replaces their competing active status.
+1. scripts/fixtures/bc_spec_export.R: explicit case/field mappings from the
+   evaluated R objects, with independent fixed-vector label and grid checks.
+2. scripts/fixtures/generate_bc_like.R: source the exporter; build/serialize
+   its payload before the check-only exit; write its JSON alongside the old
+   files; record exporter checksum in the original provenance header.
+3. tests/fixtures/bc_like/README.md: the additional output, overwrite warning,
+   interim provenance drift, and durable acceptance-fixture handoff.
+4. PLAN.md: completed A8.3a scope and the separate A8.3b payload step.
 
-## Resolution and invariants
+## Invariants
 
-- Only PLAN.md and REVIEW.md conflicted. A8 is active; A7 is merged history.
-- All cleanly merged files remain exactly as Git merged them, including the
-  incoming docs, A7 tests/tolerances, independent A9/A10 tests and sync script.
-- No library implementation, R generator, fixture payload, spec source,
-  independent test or protected script is edited during this resolution.
-- Existing synthetic R references are retained. The next code step exports
-  the independent schema from evaluated R objects, without patient data or
-  Python-generated reference values.
-- A verified candidate stays under tests/fixtures until the maintainer's
-  authoritative tester-repo handoff and spec-test sync. No protected-path bypass.
-- A8.3a only is proposed for the next implementation approval. A8.4 is split
-  into loader/integrity and exponential comparisons to keep review diffs small.
+- No numerical values are fitted or computed by this exporter. It maps the
+  same R evaluations used by the reviewed A8.3 reference files. Fixed cases
+  map unit_shape/alternative/fitted to fixed_a/fixed_b/r_optimum.
+- Seed 8201, 686 synthetic rows and block order Good/Medium/Poor remain.
+  No patient data, real-cohort totals or Python-generated references.
+- Each source retains its own observed-time likelihood and survival. Grid
+  curves are flexsurv values, time first, columns Good/Medium/Poor.
+- Check-only validates and serializes the additional schema without writing.
+  Unknown flags fail before package loading or output. Full output stays
+  under the supplied directory; no write under tests/spec.
+- Generator runtime remains R-only. Exact text/17-digit formatting is checked
+  in R; separate Python validation compares parsed doubles to original R %a.
+- Committed data, JSON payloads and manifests remain unchanged. On future
+  regeneration, old expected.json changes only generator/exporter checksum
+  provenance. The README marks that interim committed-file comparison drift.
 
-## Spec-to-test plan and remaining work
+## Checks and spec mapping
 
-- Sections 10.4/11.1: R export shape/case/precision checks and deterministic
-  regeneration; byte identity between generated and synced spec fixture.
-- Sections 3.3/10.4/12.1: shared loader, manifest and corruption tests.
-- Sections 4.6–4.7/5/6/12.1: per-row exponential and Weibull comparisons in
-  both dtypes, two likelihood entry points, diagnostics and transformations.
-- Sections 10.5/12.2: separate R-evidence docs step after reviewed code merges.
-  Through-A8 evidence waits for durable fixture delivery; later Slice A gates
-  are not claimed by this plan.
+Spec 10.4/11.1/12.1: the generator's R assertions exercise finite dimensions,
+case/parameter identities, row/group order, grid preservation and precision.
+The additional exporter is 85 lines; the generator grows from 343 to 351
+lines, keeping the new responsibility in a separate file. No public API,
+dependency, tolerance, library source or independent-test changes.
 
-## Checks actually run
+Actual scratch validation command:
+`python3 /private/tmp/survjax-a83a-validate.py`
+(exit 0; run outside sandbox because flexsurv's OpenMP cannot open shared
+memory in the sandbox). Log: /private/tmp/survjax-a83a-validation.log;
+summary: /private/tmp/survjax-a83a-summary.json. Pinned R 4.4.2,
+flexsurv 2.3.2, survival 3.7.0 (spec spelling 3.7-0).
 
-- Focused baseline: `uv run pytest -q` with JAX_ENABLE_X64=1 and then 0,
-  SPEC_THROUGH=A7 and UV_CACHE_DIR=/private/tmp/survjax-uv-cache, selecting:
-  tests/unit/test_likelihood_boundaries.py,
-  tests/unit/test_likelihood_debug_nans.py,
-  tests/unit/test_likelihood_tails.py,
-  tests/spec/test_a7_likelihood_mpmath.py,
-  tests/spec/test_a7_likelihood_tails.py,
-  tests/spec/test_a7_likelihood_boundaries.py,
-  tests/spec/test_a7_debug_nans.py.
-  Float64: 144 passed in 13.19s; float32: 144 passed in 14.58s.
-  Logs: /private/tmp/survjax-a8-plan-a7-x64.log and
-  /private/tmp/survjax-a8-plan-a7-x32.log. This is targeted baseline evidence,
-  not a full through-A7 gate.
-- `UV_CACHE_DIR=/private/tmp/survjax-uv-cache uv run ruff format --check .`:
-  exit 0, 73 files already formatted.
-- `UV_CACHE_DIR=/private/tmp/survjax-uv-cache uv run ruff check .`:
-  exit 0, All checks passed!
-- `git diff --check -- PLAN.md REVIEW.md` and `git diff --cached --check`:
-  exit 0, no output. No conflict markers remain in either resolved file.
-- Scripted comparisons confirm both prior plan histories are preserved;
-  incoming docs, tests, tolerances and sync script match MERGE_HEAD; library,
-  generators, fixtures and spec marker match the A8 parent.
+- Check-only exits 0, and a before/after snapshot of all tests/fixtures bytes
+  is unchanged. Misspelled --check-onyl exits 1 with Unknown option and
+  also leaves every committed fixture unchanged.
+- Two full exports into temporary directories: all three files byte-identical.
+  CSV equals committed CSV exactly. Original JSON matches every committed
+  value/field apart from generator/exporter checksum provenance.
+- Independent Python validation checks the exact schema, metadata, embedded
+  observations, all fixed parameters, every source/row quantity and every
+  flexsurv grid cell against the original R output.
+- An instrumented R wrapper emits %a sidecars without changing the real
+  output bytes. Python numeric round-trip equality: 11,027 additional-schema
+  numbers, 15,770 original-JSON numbers and 686 CSV times; all pass exactly.
+- Mutation: swap fixed_a/fixed_b mappings. Check-only and export both fail
+  the independent fixed-vector assertion before creating an output directory.
+- Mutation: reverse exported grid columns. Shape and S(0) still hold, but
+  check-only and export both fail exact grid-preservation assertion.
+- Mutation: serialize with six digits. R fails the independent formatC
+  17-digit check before creating an output directory.
+- Scratch outputs are uncommitted; they are validation evidence only. The
+  new acceptance JSON is 214,860 bytes, SHA-256
+  4edbdee917ae335da11911b39ec60442e21998687d27c62494f54e7eb1d0e450.
 
-No full gate, R regeneration, docs build or new A8 implementation in this
-planning turn. The plan requires a maintainer-coordinated fixture handoff;
-no numerical or API choice needed maintainer arbitration to resolve conflicts.
+## Final gate
+
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A7`:
+exit 0, check: all gates passed through A7.
+Complete log: /private/tmp/survjax-a83a-gate.log.
+
+- Guard: OK; Ruff: 73 files already formatted, All checks passed!
+- mypy: Success: no issues found in 17 source files.
+- Own float64: 777 passed, 7 skipped in 148.16s.
+- Own float32: 783 passed, 1 skipped in 151.72s.
+- Source doctests: 4 passed per mode, 0.91s / 0.96s.
+- Independent float64: 2123 passed, 28 skipped, 223 deselected in 107.74s.
+- Independent float32: 2127 passed, 24 skipped, 223 deselected in 99.24s.
+
+The review was prepared before the full gate; only this result section and
+plan status are updated afterward. Final Ruff/diff checks accompany the
+finished review. No through-A8 claim.
+
+## Remaining work and limits
+
+A8.3b separately regenerates/commits payloads and updates manifests. The
+maintainer then supplies the verified JSON to the authoritative tester repo
+and syncs it; the real acceptance fixture is still absent. No A8 acceptance
+comparison was run or claimed in this step. A8.4/A8.5 loaders and Python/R
+comparisons remain unimplemented; narrative docs stay in A8.d1.
+No docs build, publication or spec edit. No new deviation or unresolved
+numerical/API decision. Stop after this commit for review.
