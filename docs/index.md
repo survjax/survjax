@@ -13,6 +13,8 @@ met.
 [Log likelihoods](likelihood.md) explains how survjax computes likelihood
 contributions and how to call it, illustrated by fitting exponential and
 Weibull models with JAX.
+[Likelihoods in the tails](numerical-behaviour.md) explains underflow, overflow,
+boundary gradients and checking that a fitting loss is finite.
 The [SurvivalData guide](survival-data.md) walks a synthetic cohort through
 both constructors, diagnostics and R input conventions.
 [Exponential and Weibull](builtin-families.md) introduces the built-in
@@ -34,6 +36,7 @@ playground
 survival-data
 builtin-families
 likelihood
+numerical-behaviour
 grids
 distributions
 api

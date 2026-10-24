@@ -301,9 +301,10 @@ Outside JIT, at a point where you want to stop on bad input, call
 typo.issues.raise_if_invalid()
 ```
 
-A NaN is different from $-\infty$. A contribution of $-\infty$ means the
-model gives the observation zero probability: the data are valid, the model
-just rules them out. NaN means the contribution could not be computed. Since
+A NaN is different from $-\infty$. A contribution of $-\infty$ can mean true
+zero model density or mass, or a log contribution below the dtype's finite
+range. The [numerical guide](numerical-behaviour.md) explains that distinction
+and its derivative limits. NaN means the contribution could not be computed. Since
 $0 \times \text{NaN}$ is still NaN, a NaN cannot be masked away by a zero
 weight; fix or drop the row first.
 

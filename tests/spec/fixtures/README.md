@@ -83,3 +83,60 @@ Field meanings:
   `grid.survival.<vector>`: shape `(141, 3)`, columns Good, Medium, Poor,
   from flexsurv (`summary(..., type = "survival", t = grid.time)` at fixed
   parameters).
+
+## `concordance_synthetic.json` (spec 9.2, 10.4, 12.1; step A10)
+
+Synthetic cohorts with Harrell's C and pair counts from
+`survival::concordance` (Q-046). Used by `test_a10_concordance_fixtures.py`.
+
+```json
+{
+  "meta": {
+    "seed": 20261023,
+    "generator": "path/to/generator.R",
+    "R": "4.4.2",
+    "survival": "3.7-0",
+    "call": "concordance(Surv(time, event) ~ score, reverse = TRUE, timewt = \"n\", timefix = FALSE)"
+  },
+  "cases": [
+    {
+      "name": "time_and_score_ties",
+      "time":  [3.0, 1.0, 3.0, ...],
+      "event": [1, 0, 1, ...],
+      "scores": [[0.25, -1.5, ...], [1.0, 1.0, ...]],
+      "r": [
+        {"concordance": 0.6123, "concordant": 812, "discordant": 501,
+         "tied_x": 17, "tied_y": 40, "tied_xy": 3},
+        {"...": "one object per score vector, in order"}
+      ]
+    }
+  ]
+}
+```
+
+Field meanings:
+
+- `meta.call`: the exact R call, with `reverse = TRUE` (higher score means
+  earlier event, spec 9.2), `timewt = "n"` (Harrell's C) and
+  `timefix = FALSE` (no merging of nearly equal times).
+- `cases[].time`, `cases[].event`: one cohort of `N` rows, exact (`1`) or
+  right-censored (`0`) only, finite positive times, no truncation, no
+  weights, no strata. Write times with at most two decimals and scores
+  with at most four significant digits, so float32 keeps every tie and
+  every order.
+- `cases[].scores`: `D` score vectors of length `N` for that cohort
+  (`D >= 1`). `cases[].r[d]` is R's result for `scores[d]`: `concordance`
+  is `fit$concordance`; the counts are `fit$count` columns `concordant`,
+  `discordant`, `tied.x`, `tied.y`, `tied.xy` written as JSON integers.
+
+Required coverage across the cases (checked by the integrity tests):
+event/event, event/censor and censor/censor time ties; score ties;
+including at least one cohort of 100–500 rows with heavy ties (for example
+integer times from 1 to 20 and scores rounded to one decimal), one with
+continuous times and no ties, one with more than 50% censoring, and one
+with a score vector perfectly concordant and one perfectly reversed.
+
+R's counts must agree with the spec 9.2 pair rules
+(`test_fixture_counts_agree_with_the_spec_pair_rules`); if R treats a tie
+differently, document the difference in the generator and in `meta`, and
+keep that case out of the file.

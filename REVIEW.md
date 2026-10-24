@@ -1,3 +1,21 @@
+# Review: merge-conflict resolution (2026-10-24)
+
+Read the resolution entry in `PLAN.md`, then the historical reviews below.
+Both sides' plan and review records are retained. The A10.1 review describes
+its original checkout; incoming docs and independent acceptance tests now
+belong to the in-progress merge. No source, API, spec or test edits were made
+for this resolution. The other staged merge changes are left untouched.
+
+Checks: `git diff --check` exited 0. A Python preservation check passed for
+both files: no conflict markers and every nonblank line from both Git stages
+retained. Prior results below are historical, not reruns against the merged tree.
+No library tests or docs build are needed for these two Markdown resolutions.
+The merge commit remains for the maintainer, per the repository's no-merge rule.
+
+---
+
+## Historical branch review
+
 # Review: A10.1 — Private concordance pair counts
 
 ## What to read, in order
@@ -91,3 +109,28 @@ No R generation/comparison, installed-artifact check, docs build, performance
 benchmark or accelerator check was run. The remaining public metric, ratio,
 validation/broadcasting, diagnostics, R fixtures and executable docs belong to
 later individually approved steps. Stop after this commit for review.
+
+---
+
+## Historical incoming review
+
+# Review: default spec-test sync path
+
+Read `scripts/sync_spec_tests.sh` first, then the 2026-10-23 entry in `PLAN.md`.
+
+The source defaults to `../spectest`; callers can still supply a path.
+Usage text documents the optional argument. Existing branch, clean-tree and
+spec-version guards are unchanged. No public API or spec requirements change.
+
+Checks actually run:
+
+- `bash -n scripts/sync_spec_tests.sh`: exit 0.
+- Temporary Git repo smoke checks: default and explicit paths both copied the
+  fixture, removed an obsolete file and recorded the tester commit. A missing
+  explicit path returned exit 1 with the updated usage text. All passed.
+- `git diff --check`: exit 0 after removing an extra blank line in the plan.
+
+No permanent tests were added for this small shell default change. No library
+suite was run. The real tester repo was not read or synced. No open concerns.
+The script change was already captured by concurrent commit `1db22c4` during
+verification; the follow-up commit records this review and plan whitespace fix.

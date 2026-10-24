@@ -1,3 +1,15 @@
+# Merge-conflict resolution (2026-10-24)
+
+The maintainer requests resolving the in-progress merge on `A10-cindex`.
+Resolve only `PLAN.md` and `REVIEW.md`, preserving the A10.1 records and the
+incoming A7 docs and spec-test sync records. Keep prior reviews as historical
+evidence; their statements describe their original checkouts. No public API,
+source, spec, independent test or requirement changes; no new tests needed.
+Check conflict markers, whitespace, preservation of both sides and the Git
+unmerged-file list. Stage the two resolutions without creating a merge commit.
+
+---
+
 # A10 — Harrell's concordance (2026-10-23)
 
 Status: **A10.1 implemented and verified; ready for review**, authorized by
@@ -144,6 +156,71 @@ dtype policy, data/diagnostic containers, export-reference test and gate read.
 `../scripts/spec-since.sh dev` prints
 `dev: spec unchanged since d243a96`. No implementation, tests, build, R
 environment check, spec edit, spec-seen update or commit during planning.
+
+---
+
+# A7.d1 follow-up — Zero-censoring diagnostics (2026-10-23)
+
+Status: **implemented and verified; ready for review**, approved directly
+by the maintainer's requested correction.
+On isolated A7 at `f7236c4`, add the valid/uninformative diagnostic result
+to the zero-censoring section of docs/numerical-behaviour.md, with one
+executable output. Spec 2, 3.3 and 6.2: invalid_rows=False, ok=True,
+uninformative=True; the last flag is non-fatal. No source/API/test changes.
+Rebuild in both dtypes, inspect the new HTML output locally, update REVIEW.md,
+run final Ruff/diff checks, commit on isolated A7, then stop for review.
+The existing browser visual-inspection limitation remains.
+
+Evidence: diagnostics and host checkpoint verified in separate x64/x32
+processes; both docs builds pass (page execution 2.90s / 2.82s). HTML checks
+pass with the new valid/uninformative display among 8 outputs per mode.
+Final Ruff formatting/lint and diff checks pass after the review edit.
+
+---
+
+# A7.d1 — Numerical behaviour tutorial (2026-10-23)
+
+Status: **implemented; build and HTML checks pass, ready for review**.
+Authorized by "ok merged, implement the next bit; plan is approved".
+A7.1/A7.2 and their review fixes are merged at `9a034f4`;
+the existing `A7` branch is reused in `/private/tmp/survjax-a7-docs`.
+The shared checkout switched to A10-cindex during the work; only this step's
+docs/plan changes were transferred, and the shared checkout was left clean
+on A10-cindex. Final verification and the commit use this isolated A7 tree.
+Spec revision 34 is unchanged. This implements the approved A7 docs topic below, one docs commit
+and review stop; it does not start A8 or claim Slice A completion.
+
+- Create executable `docs/numerical-behaviour.md`: mathematics, small synthetic
+  exact/right examples, then interpretation. Cover finite log tails when
+  probabilities round to zero/one, log-contribution overflow, true zero versus
+  invalid/unsupported NaNs, zero censoring and parameter derivative limits.
+  Show why a finite gradient does not certify a finite loss and how to check
+  that at a host checkpoint, without introducing an optimizer or fit helper.
+- Link the page from `docs/index.md`. Correct only the obsolete paragraph in
+  `docs/likelihood.md` that identifies every -inf as true zero likelihood;
+  link to the new explanation. Retain its construction-only triage wording.
+  Target at most 300 changed narrative/code-cell lines across these pages.
+- Use current public APIs, existing dependencies and synthetic data only.
+  No source, docstring, test, spec, dependency or protected-path edits.
+  No assert-cell matrix or repeated fitting tutorial. Broader custom-family
+  authoring and stable log-CDF details remain in their existing guides.
+- Run `UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/build_docs.sh`
+  (fresh execution, warnings fatal, separate float32/float64 builds). Inspect
+  rendered navigation, mathematics, output and layout in both modes. Check
+  examples against hand algebra and the merged A7 evidence, including overflow
+  -inf with clear diagnostics and NaN loss with finite gradient. Make no R
+  agreement claim. Record exact build/check results and remaining limits in
+  REVIEW.md; format final Markdown before final Ruff/diff checks and commit.
+  A full code/test gate is not planned for this docs-only change.
+
+Evidence: final isolated-A7 docs build exits 0 with build succeeded in both
+dtype modes; new-page execution 2.95s float32 / 2.77s float64. Local HTML/output
+inspection passes (7 outputs, 6 headings, 2 display equations, 5 table rows,
+30 local links/anchors per mode). Narrative/code-cell diff: 222 lines.
+REVIEW.md records exact commands, branch isolation and environment retries.
+Browser visual inspection was blocked by the file-URL policy and remains a
+review limitation; no A7/Slice A completion claim. Final formatting/lint and
+diff checks pass after the review edit. Commit only from isolated A7, then stop.
 
 ---
 
@@ -4770,3 +4847,11 @@ the following documentation step, including edits to the specification.
   Add no runtime tests; check whitespace, local links, moved example code and
   preservation of unrelated contracts. Record results in `REVIEW.md`.
 - Commit this single documentation step on `spec-speed` and stop.
+
+## Spec-test sync default (2026-10-23)
+
+The maintainer requests defaulting the tester path to `../spectest`.
+Update `scripts/sync_spec_tests.sh` and its usage text; retain explicit path
+overrides and all existing sync guards. No public API or spec requirements
+change. Verify Bash syntax and default/explicit-path syncs in temporary repos,
+then record results in `REVIEW.md` and commit this step.
