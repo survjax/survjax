@@ -37,7 +37,6 @@ bc_spec_fixture <- function(data, references, times, seed, script, versions) {
 
     curves[[name]] <- reference$flexsurv$survival_grid
     stopifnot(
-      identical(curves[[name]], reference$flexsurv$survival_grid),
       identical(dim(curves[[name]]), c(length(times), 3L)),
       all(is.finite(curves[[name]])),
       all(curves[[name]][1L, ] == 1)
@@ -65,7 +64,7 @@ bc_spec_fixture <- function(data, references, times, seed, script, versions) {
     identical(names(parameters), c("fixed_a", "fixed_b", "r_optimum"))
   )
 
-  list(
+  fixture <- list(
     meta = list(
       seed = seed,
       generator = script,
@@ -82,4 +81,37 @@ bc_spec_fixture <- function(data, references, times, seed, script, versions) {
     results = results,
     grid = list(time = times, survival = curves)
   )
+
+  # spec 11.1: the assembled export must preserve the checked R values.
+  # Independent grid-column orientation is checked in generate_bc_like.R.
+  stopifnot(
+    identical(fixture$data$time, data$time),
+    identical(fixture$data$event, data$event),
+    identical(fixture$data$group, as.character(data$group)),
+    identical(fixture$grid$time, times)
+  )
+
+  for (name in names(case_names)) {
+    reference <- references[[case_names[[name]]]]
+    reference_parameters <- reference[c(
+      "shape", "scale_Good", "beta_Medium", "beta_Poor"
+    )]
+    stopifnot(
+      identical(
+        unname(unlist(fixture$parameters[[name]])),
+        unname(unlist(reference_parameters))
+      ),
+      identical(fixture$grid$survival[[name]], reference$flexsurv$survival_grid)
+    )
+
+    for (source in c("flexsurv", "survreg")) {
+      values <- fixture$results[[name]][[source]]
+      stopifnot(
+        identical(values$loglik, reference[[source]]$log_likelihood),
+        identical(values$survival, reference[[source]]$survival)
+      )
+    }
+  }
+
+  fixture
 }

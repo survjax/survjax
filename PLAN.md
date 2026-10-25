@@ -41,6 +41,21 @@ The two R package paths are not fully independent numerical oracles.
 
 ## A8.3a — Export the independent acceptance schema
 
+Review fix-up (2026-10-25), authorized by "check the review, address the nits":
+read ../review/slices/A8.3a.md. N-1 checks the assembled export against the
+original R observations and per-source references. N-2 moves grid identity
+into that output validation and distinguishes preservation from the upstream
+independent orientation check. N-3 remains an A8.3b handoff: restore a fully
+passing regeneration recipe, including comparison of the new committed JSON.
+N-4 retains the shared-oracle limitation; exact source-field checks protect
+mapping labels without claiming independent numerical evidence.
+Files: bc_spec_export.R, bc_like README, PLAN.md and REVIEW.md. No payload,
+manifest, generator main-script, library, dependency or protected-test edits.
+Re-run pinned R two-run/hex validation, E2/E4 mutations in check-only/export,
+final Ruff/diff checks and the through-A7 gate. All pass; the gate exits 0
+and REVIEW.md records exact counts and mutation results. One fix-up commit,
+then stop.
+
 Execution (2026-10-25): the approved export mapping is isolated in
 scripts/fixtures/bc_spec_export.R, sourced by the existing generator. Its
 checks also run under check-only; full generation writes the additional JSON
@@ -94,6 +109,9 @@ hexadecimal values. Check every additional-schema field against the reviewed
 R output, including all three cases/sources and every grid cell. Update the
 manifest to cover all three payloads, then verify all entries. Keep regeneration
 commands comparing fresh outputs both to each other and to committed files.
+A8.3a review N-3 is closed only when the full documented recipe exits 0,
+including cmp of the additional JSON against its committed candidate; remove
+the interim provenance-drift notice then.
 This generated-data step is separate from the generator code; no new large
 CSV diff is expected. Ask about a size exception only if a new large diff occurs.
 

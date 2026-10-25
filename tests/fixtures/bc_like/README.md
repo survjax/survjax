@@ -78,6 +78,12 @@ fixed-vector labels independently of the mapping. Check-only also builds and
 checks the acceptance payload without writing files. The original header's
 checksums now include the exporter as well as the generating script.
 
+Before serialization, R checks the assembled export's observations, parameter
+vectors, source fields and grids against the original evaluated objects.
+These are exact preservation checks; the independent check of grid-column
+orientation remains in the main generator's per-group predictions. The two
+package routes still do not provide fully independent numerical evidence.
+
 After A8.3b verifies and commits the candidate under this directory, the
 maintainer supplies that exact file to the authoritative tester repo for the
 normal spec-test sync. The generator never writes into `tests/spec/`; the
