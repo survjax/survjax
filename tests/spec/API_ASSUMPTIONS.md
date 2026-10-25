@@ -463,20 +463,22 @@ on it. Guessed exception types and call shapes are centralised in
 - **Depends:** nothing guessed remains; `test_a6_unsupported_modes.py` follows
   the spec text.
 
-## Q-038: likelihood module placement (spec 6.3, 10.2, rev 28; narrowed by rev 29)
+## Q-038: likelihood module placement (spec 6.3, 10.2, rev 28; narrowed by rev 29) — resolved by rev 35
 
 - **Checked:** 6.2, 6.3, 7.1, 10.2.
 - **Resolved by rev 29 (decision 0043):** `LikelihoodIssues` and
   `log_likelihood_with_info` are removed, so the guess about the info class
   name is withdrawn and `test_likelihood_issues_fields_by_name` deleted.
+- **Resolved by rev 35 (decision 0048):** there is no top-level
+  `survjax.log_likelihood`; `dist.log_likelihood` is the only public entry
+  point and `likelihood.py` "holds the private evaluator". The guess that
+  `survjax.likelihood.log_likelihood` is the top-level object is withdrawn
+  and `test_likelihood_module_holds_the_entry_point` deleted. Since the module
+  is private, the tests no longer import it: `test_no_top_level_log_likelihood`,
   `test_likelihood_has_no_with_info_variant` and
-  `test_likelihood_issues_container_is_removed` assert that neither name is
-  exposed at top level or in `survjax.likelihood`.
-- **Still a guess:** `survjax.likelihood` (named in the 10.2 layout) holds the
-  same `log_likelihood` object as the top level.
-- **Depends:** `test_likelihood_module_holds_the_entry_point`,
-  `test_likelihood_has_no_with_info_variant`,
-  `test_likelihood_issues_container_is_removed`.
+  `test_likelihood_issues_container_is_removed` check only `survjax` (and the
+  method's receiver).
+- **Depends:** nothing guessed remains.
 
 
 ## Q-039: name and schema of the committed `bc`-like R fixture (spec 10.4, 11.1, 12.2; rev 33) — resolved by rev 34

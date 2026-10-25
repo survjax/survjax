@@ -88,7 +88,7 @@ def test_exponential_right_censored_tiny_hazard_rate_gradient():
     """
     (c,) = _rounded(1e-10)
     data = survjax.SurvivalData(f(c), b(RIGHT))
-    grad = jax.grad(lambda r: survjax.log_likelihood(survjax.Exponential(rate=r), data))
+    grad = jax.grad(lambda r: survjax.Exponential(rate=r).log_likelihood(data))
     assert_tail_close(grad(jnp.asarray(f(1e-10))), -c, RTOL)
 
 
@@ -105,7 +105,7 @@ def test_weibull_right_censored_tiny_hazard_parameter_gradients():
     h = np.exp(k * log_z)
     data = survjax.SurvivalData(f(c), b(RIGHT))
     grad = jax.grad(
-        lambda kk, ss: survjax.log_likelihood(survjax.Weibull(shape=kk, scale=ss), data),
+        lambda kk, ss: survjax.Weibull(shape=kk, scale=ss).log_likelihood(data),
         argnums=(0, 1),
     )
     dk, db = grad(jnp.asarray(f(k)), jnp.asarray(f(s)))
@@ -188,7 +188,7 @@ def test_exponential_upper_tail_rate_gradients():
     data = survjax.SurvivalData(f([500.0, 1e6]), b([EXACT, RIGHT]))
 
     def total(r, i):
-        return survjax.log_likelihood(survjax.Exponential(rate=r), data)[i]
+        return survjax.Exponential(rate=r).log_likelihood(data)[i]
 
     r = jnp.asarray(f(2.0))
     assert_tail_close(jax.grad(total)(r, 0), 0.5 - 500.0, RTOL)
@@ -208,7 +208,7 @@ def test_weibull_upper_tail_exact_parameter_gradients():
     h = (t / s) ** k
     data = survjax.SurvivalData(f(t), b(EXACT))
     grad = jax.grad(
-        lambda kk, ss: survjax.log_likelihood(survjax.Weibull(shape=kk, scale=ss), data),
+        lambda kk, ss: survjax.Weibull(shape=kk, scale=ss).log_likelihood(data),
         argnums=(0, 1),
     )
     dk, db = grad(jnp.asarray(f(k)), jnp.asarray(f(s)))
@@ -273,7 +273,7 @@ def test_forward_mode_derivatives_of_other_rows_survive_an_overflowing_row():
     data = survjax.SurvivalData(f([1.0, 1e10]), b([EXACT, RIGHT]))
 
     def rows(kk, ss):
-        return survjax.log_likelihood(survjax.Weibull(shape=kk, scale=ss), data)
+        return survjax.Weibull(shape=kk, scale=ss).log_likelihood(data)
 
     dk, db = jax.jacfwd(rows, argnums=(0, 1))(jnp.asarray(f(k)), jnp.asarray(f(s)))
     assert_close(np.asarray(dk)[0], 1.0 / k)
@@ -294,7 +294,7 @@ def test_reverse_mode_derivatives_with_per_row_parameters_survive_an_overflowing
     data = survjax.SurvivalData(f([0.5, 1e10]), b([EXACT, RIGHT]))
 
     def row0(kk, ss):
-        return survjax.log_likelihood(survjax.Weibull(shape=kk, scale=ss), data)[0]
+        return survjax.Weibull(shape=kk, scale=ss).log_likelihood(data)[0]
 
     dk, db = jax.grad(row0, argnums=(0, 1))(jnp.asarray(f([2.0, 50.0])), jnp.asarray(f([1.0, 1.0])))
     log_z = np.log(0.5)

@@ -30,7 +30,7 @@ MLE_LOG_RATE = np.log(4.0 / 10.6)
 def _loss_on(data):
     def loss(params):
         dist = survjax.Weibull(shape=params[0], scale=params[1])
-        return jnp.sum(survjax.log_likelihood(dist, data))
+        return jnp.sum(dist.log_likelihood(data))
 
     return loss
 
@@ -63,7 +63,7 @@ def test_diagnostics_select_the_loss_in_compiled_control_flow():
         data = survjax.SurvivalData(time, event)
 
         def loss(r):
-            return jnp.sum(survjax.log_likelihood(survjax.Exponential(rate=r), data))
+            return jnp.sum(survjax.Exponential(rate=r).log_likelihood(data))
 
         return jax.lax.cond(
             data.issues.ok,
@@ -93,7 +93,7 @@ def test_newton_iterations_inside_jit_reach_the_closed_form_exponential_mle():
 
         def loss(u):
             dist = survjax.Exponential.from_log(log_rate=u)
-            return jnp.sum(survjax.log_likelihood(dist, data))
+            return jnp.sum(dist.log_likelihood(data))
 
         def step(_, u):
             return u - jax.grad(loss)(u) / jax.hessian(loss)(u)
@@ -120,7 +120,7 @@ def test_vmapped_compiled_fits_over_replicate_datasets():
 
         def loss(u):
             dist = survjax.Exponential.from_log(log_rate=u)
-            return jnp.sum(survjax.log_likelihood(dist, data))
+            return jnp.sum(dist.log_likelihood(data))
 
         def step(_, u):
             return u - jax.grad(loss)(u) / jax.hessian(loss)(u)

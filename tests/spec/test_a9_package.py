@@ -31,13 +31,12 @@ DEMO_DEPENDENCIES = ("numpyro", "equinox", "optax", "optimistix", "matplotlib")
         "SurvivalData",
         "Exponential",
         "Weibull",
-        "log_likelihood",
         "InvalidDataError",
         "InvalidParameterError",
     ],
 )
 def test_slice_a_names_are_exported_at_top_level(name):
-    """spec 10.2, rev 28: "Re-export the data object, distributions, ... likelihood, ... `InvalidParameterError` beside `InvalidDataError`" at top level."""
+    """spec 10.2, rev 35: "Re-export the data object, distributions, ... `InvalidParameterError` beside `InvalidDataError`" at top level (no likelihood function since rev 35)."""
     assert hasattr(survjax, name)
 
 
@@ -100,11 +99,10 @@ def test_core_imports_and_runs_without_demo_dependencies():
         import numpy as np
         import survjax
         import survjax.constraints
-        import survjax.likelihood
         import survjax.distributions
 
         data = survjax.SurvivalData(np.array([1.0, 2.0]), np.array([True, False]))
-        value = survjax.log_likelihood(survjax.Exponential(rate=np.array(0.5)), data)
+        value = survjax.Exponential(rate=np.array(0.5)).log_likelihood(data)
         assert np.all(np.isfinite(np.asarray(value)))
         loaded = sorted(m for m in sys.modules if m.split(".")[0] in BLOCKED)
         assert not loaded, loaded

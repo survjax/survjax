@@ -99,7 +99,7 @@ def test_weibull_exact_at_smallest_normal_time_has_finite_gradients(k):
     log_z = np.log(t) - np.log(s)
     data = survjax.SurvivalData(f(t), b(EXACT))
     grad = jax.grad(
-        lambda kk, ss: survjax.log_likelihood(survjax.Weibull(shape=kk, scale=ss), data),
+        lambda kk, ss: survjax.Weibull(shape=kk, scale=ss).log_likelihood(data),
         argnums=(0, 1),
     )
     dk, db = grad(jnp.asarray(f(k_)), jnp.asarray(f(s)))
@@ -132,7 +132,7 @@ def test_weibull_right_censored_at_zero_has_zero_gradients(k):
     """
     data = survjax.SurvivalData(f(0.0), b(RIGHT))
     grad = jax.grad(
-        lambda kk, ss: survjax.log_likelihood(survjax.Weibull(shape=kk, scale=ss), data),
+        lambda kk, ss: survjax.Weibull(shape=kk, scale=ss).log_likelihood(data),
         argnums=(0, 1),
     )
     for g in grad(jnp.asarray(f(k)), jnp.asarray(f(2.0))):
@@ -149,7 +149,7 @@ def test_exponential_right_censored_at_zero_has_zero_gradient_in_mixed_batch():
     data = survjax.SurvivalData(f([0.0, 1.0]), b([RIGHT, EXACT]))
 
     def row(r, i):
-        return survjax.log_likelihood(survjax.Exponential(rate=r), data)[i]
+        return survjax.Exponential(rate=r).log_likelihood(data)[i]
 
     r = jnp.asarray(f(0.5))
     np.testing.assert_array_equal(np.asarray(row(r, 0)), 0.0)

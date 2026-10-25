@@ -176,7 +176,7 @@ def _setup(case):
     keep = jnp.asarray(OK)
 
     def full(flat):
-        return survjax.log_likelihood(case.build(unravel(flat)), data)
+        return case.build(unravel(flat)).log_likelihood(data)
 
     def together(flat):
         return full(flat)[keep]
@@ -184,7 +184,7 @@ def _setup(case):
     def alone(flat):
         p = unravel(flat)
         p = {k: (v[keep] if k in case.per_row else v) for k, v in p.items()}
-        return survjax.log_likelihood(case.build(p), data_ok)
+        return case.build(p).log_likelihood(data_ok)
 
     return x, full, together, alone
 
@@ -239,25 +239,6 @@ def test_rows_without_issues_keep_derivatives_under_jit(case, deriv):
     assert_close(got, want)
 
 
-@pytest.mark.step("A6")
-@pytest.mark.parametrize("case", ["exponential-rate-nan", "nested-base-rate-negative"])
-def test_rows_without_issues_keep_derivatives_in_method(case):
-    """spec 7.1, rev 32: `dist.log_likelihood` gives the function's isolated first and second derivatives."""
-    c = CASES[case]
-    x, _, together, _ = _setup(c)
-    _, unravel = ravel_pytree({k: jnp.asarray(f(v)) for k, v in c.params.items()})
-    data = _data(c.time, c.event)
-    keep = jnp.asarray(OK)
-
-    def method(flat):
-        return c.build(unravel(flat)).log_likelihood(data)[keep]
-
-    for d in (jax.jacrev, jax.hessian):
-        got = np.asarray(d(method)(x))
-        assert np.isfinite(got).all()
-        assert_close(got, d(together)(x))
-
-
 # ------------------------------------------------------------ hand-derived anchors
 
 
@@ -273,7 +254,7 @@ def test_exponential_isolated_hessian_is_hand_derived(mode):
     keep = jnp.asarray(OK)
 
     def ll_ok(r):
-        return survjax.log_likelihood(survjax.Exponential(rate=r), data)[keep]
+        return survjax.Exponential(rate=r).log_likelihood(data)[keep]
 
     outer = jax.jacrev if mode == "rev" else jax.jacfwd
     h = np.asarray(outer(outer(ll_ok))(jnp.asarray(f([0.5, NAN, 2.0]))))
@@ -301,7 +282,7 @@ def test_weibull_shared_shape_derivatives_are_hand_derived(mode):
 
     def loss(k):
         dist = survjax.Weibull(shape=k, scale=scale)
-        return jnp.sum(survjax.log_likelihood(dist, data)[keep])
+        return jnp.sum(dist.log_likelihood(data)[keep])
 
     if mode == "rev":
         grad, hess = jax.grad(loss), jax.grad(jax.grad(loss))
@@ -331,7 +312,7 @@ def test_nested_shared_log_ratio_derivatives_are_hand_derived(mode):
     def loss(a):
         base = fam.capped_rate()(rate=rate, cap=jnp.asarray(f(4.0)))
         dist = fam.scaled_capped()(base=base, log_ratio=a)
-        return jnp.sum(survjax.log_likelihood(dist, data)[keep])
+        return jnp.sum(dist.log_likelihood(data)[keep])
 
     if mode == "rev":
         grad, hess = jax.grad(loss), jax.grad(jax.grad(loss))

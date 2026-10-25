@@ -204,7 +204,7 @@ def test_uninformative_row_has_zero_gradient():
     data = survjax.SurvivalData(f(0.0), b(RIGHT))
 
     def value(k, s):
-        return survjax.log_likelihood(survjax.Weibull(shape=k, scale=s), data)
+        return survjax.Weibull(shape=k, scale=s).log_likelihood(data)
 
     grads = jax.grad(value, argnums=(0, 1))(jnp.asarray(f(1.5)), jnp.asarray(f(2.0)))
     for g in grads:
@@ -255,8 +255,7 @@ def test_likelihood_dtype_is_default_float_in_32bit_mode():
     """spec 3.3, rev 28: calculations "use the common promoted data/parameter dtype"; float32 in 32-bit mode."""
     if X64:
         pytest.skip("32-bit mode only")
-    value = survjax.log_likelihood(
-        survjax.Exponential(rate=f([0.5])), survjax.SurvivalData(f([2.0]), b([EXACT]))
+    value = survjax.Exponential(rate=f([0.5])).log_likelihood(survjax.SurvivalData(f([2.0]), b([EXACT]))
     )
     assert value.dtype == jnp.float32
 
@@ -268,7 +267,7 @@ def test_likelihood_promotes_float32_parameters_with_float64_data():
         pytest.skip("64-bit mode only")
     dist = survjax.Exponential(rate=np.asarray([0.5], dtype=np.float32))
     data = survjax.SurvivalData(np.asarray([2.0], dtype=np.float64), b([EXACT]))
-    value = survjax.log_likelihood(dist, data)
+    value = dist.log_likelihood(data)
     assert value.dtype == jnp.float64
     assert_close(np.asarray(value), [-LOG2 - 1.0])
 
@@ -280,6 +279,6 @@ def test_likelihood_promotes_float32_data_with_float64_parameters():
         pytest.skip("64-bit mode only")
     dist = survjax.Exponential(rate=np.asarray([0.5], dtype=np.float64))
     data = survjax.SurvivalData(np.asarray([2.0], dtype=np.float32), b([RIGHT]))
-    value = survjax.log_likelihood(dist, data)
+    value = dist.log_likelihood(data)
     assert value.dtype == jnp.float64
     assert_close(np.asarray(value), [-1.0])

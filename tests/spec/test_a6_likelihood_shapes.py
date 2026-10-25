@@ -6,7 +6,7 @@ Exponential contributions, hand-derived: exact ``log r - r t``, right-censored
 
 import numpy as np
 import pytest
-from helpers import assert_close, b, f, ll, ll_method
+from helpers import assert_close, b, f, ll
 
 import survjax
 
@@ -117,28 +117,6 @@ def test_batched_datasets_against_trailing_distribution():
 def test_mismatched_bare_batch_raises_type_error():
     """spec 5, rev 28: a bare batch `(D,)` against data `(N,)` with `D != N`, neither 1, raises `TypeError`."""
     with pytest.raises(TypeError):
-        survjax.log_likelihood(survjax.Exponential(rate=f([0.5, 1.0])), _data())
-
-
-@pytest.mark.step("A6")
-def test_mismatched_bare_batch_raises_type_error_in_method():
-    """spec 5 and 7.1, rev 29: the method, identical to the function, raises the same `TypeError` for a static shape mismatch."""
-    with pytest.raises(TypeError):
         survjax.Exponential(rate=f([0.5, 1.0])).log_likelihood(_data())
 
 
-@pytest.mark.step("A6")
-def test_method_follows_broadcast_contribution_shape():
-    """spec 5 and 7.1, rev 29: `dist.log_likelihood` gives the function's `(D,N)` contribution shape and values."""
-    dist = survjax.Exponential(rate=f([[0.5], [1.0]]))
-    value = ll_method(dist, _data())
-    assert value.shape == (2, 3)
-    np.testing.assert_array_equal(value, ll(dist, _data()))
-
-
-@pytest.mark.step("A6")
-def test_method_scalar_contribution_for_scalar_inputs():
-    """spec 5 and 7.1, rev 29: scalar data and distribution give a scalar contribution through the method."""
-    value = ll_method(survjax.Exponential(rate=f(0.5)), survjax.SurvivalData(f(2.0), b(EXACT)))
-    assert value.shape == ()
-    assert_close(value, np.log(0.5) - 1.0)
