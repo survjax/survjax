@@ -1,3 +1,75 @@
+# A10.2b1 — Concordance result containers and ratio (2026-10-25)
+
+Status: **implemented and verified; ready for review**, authorized by
+"review approved ... get on with next subslice". Work only in dev-a10 on A10-cindex, starting clean at
+`10b8877`. Do not merge, rebase or touch the separately owned spec alignment,
+test sync, .spec-seen, likelihood API or protected paths. The checkout retains
+revision-34 API alignment while accepted spec revision 35 is visible through
+the shared read-only link. This step is independent of the likelihood change.
+
+
+Implementation evidence: a 100-line result module and 172-line test module
+(272 source/test lines). Focused result/count suites pass, 39 per dtype
+(2.71s x64 / 2.15s x32), including all 14 new result cases. No failures/skips.
+The unmodified through-A7 gate exited 0, ending
+`check: all gates passed through A7`:
+
+| Gate stage | Float64 | Float32 |
+| --- | --- | --- |
+| Own tests | 826 passed, 7 skipped, 145.51s | 832 passed, 1 skipped, 145.95s |
+| Source doctests | 4 passed, 0.87s | 4 passed, 0.81s |
+| Independent through A7 | 2123 passed, 28 skipped, 223 deselected, 96.59s | 2127 passed, 24 skipped, 223 deselected, 90.68s |
+
+Ruff: 77 files already formatted / All checks passed. Mypy: no issues in
+20 source files. No new skips or exclusions. Optional raw output:
+`/private/tmp/survjax-a102b1-final-gate.log`; this table is the durable summary.
+REVIEW.md was finalized before the gate and is unchanged afterward. Final
+format/lint/mypy and working/staged whitespace/protected-path checks follow
+this plan-only result edit. Both package/module imports resolve to dev-a10.
+No spec, .spec-seen, independent tests, likelihood API, docs, dependencies,
+lockfile, top-level exports or other branches changed. No merges or full
+through-A10 completion claim. Stop after this step's commit for review.
+
+One concept: turn already-counted pairs into transformable diagnostics and a
+floating C-index. The full public integration exceeds one review-sized step;
+implement this result layer first, with source/tests under 280 changed lines.
+
+- Create `src/survjax/metrics.py`: frozen registered `ConcordanceCount` (hi/lo
+  uint32 array fields) and `ConcordanceInfo` (the four accepted count fields,
+  invalid, unsupported and no_comparable_pairs arrays). Result types stay in
+  their module (spec 6.3/10.2); no top-level export or metric entry point yet.
+- Add private `_concordance_result(counts, invalid, unsupported, dtype)` in
+  that module. Inputs are aligned count words and per-result masks. Preserve
+  exact uint32 words; zero all counts on failed cohorts, retaining both masks.
+  Cast words into the data float dtype before reconstructing totals and
+  dividing. Award half credit to tied scores. Substitute a safe denominator
+  for zero-pair cohorts before division; return NaN with no_comparable_pairs
+  only on evaluated zero-pair cohorts. No floors, epsilons or score gradients.
+- Create `tests/unit/test_concordance_results.py`: hand-counted fractions,
+  high-word totals, undefined/failed/overlapping-mask cases, per-result array
+  shapes, preserved data dtype, frozen fields and pytree reconstruction;
+  eager/jit/vmap agreement in both dtype processes. Expected counts/fractions
+  come from explicit integer arithmetic, not code under test. Use existing
+  central tolerances; do not add numeric tolerance constants.
+- Update this plan, the implementation note in D-027 (retain formal open
+  status), and overwrite REVIEW.md with reading order, invariants, requirement
+  mapping, exact commands/results and limits. No docs or dependency changes.
+
+Spec: 3.3 (floating division), 6.3 (result pytrees), 7.2 (safe operands),
+9.1–9.2 (counts/ratio), 10.2 (result placement), 12.1; accepted D-027 contract.
+Validate focused result/count suites in separate float64/float32 processes,
+Ruff format/lint, mypy, and the unmodified through-A7 regression gate. Verify
+imports use dev-a10. No through-A10 completion claim or independent-test edits.
+Record actual results, inspect staged/protected diffs, commit and stop.
+
+Docs to-do: retain the later concordance topic/API reference, adding named
+hi/lo counts and result-mask interpretation once public integration is reviewed.
+Next step: public observation/score validation, cohort-safe inputs, leading-axis
+broadcasting and entry points, after coordinating pending alignment and the
+code-step/API-reference documentation constraint. No automatic next step.
+
+---
+
 # A10 review follow-up — N-1 through N-4 (2026-10-25)
 
 Status: **implemented and verified; ready for review**, authorized by

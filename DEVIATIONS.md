@@ -47,6 +47,11 @@
   value and `no_comparable_pairs=True`. No public implementation exists yet.
   Formal specification alignment and sync belong to another agent/branch,
   as explicitly instructed by the maintainer; neither is performed here.
+- A10.2b1 implementation note (2026-10-25): `survjax.metrics` now contains
+  frozen registered `ConcordanceCount` and `ConcordanceInfo` types and a private
+  count-to-result helper. Exact words, result-shaped masks and failed-cohort
+  zeroing follow the accepted decision. Public metric entry points and input
+  validation remain for a later step. Formal status remains maintainer-owned.
 - Status: open.
 
 ## D-026 NaN triage after normalized fields are edited
