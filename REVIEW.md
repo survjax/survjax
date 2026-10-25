@@ -1,86 +1,93 @@
-# A8.3b — Verified payloads and acceptance-fixture handoff (2026-10-25)
+# A8.4a.1 — Manifest-first R fixture loading (2026-10-25)
 
-Authorized by "all good; next bit of A8" after the A8.3a review fix-up.
-Parent/source commit: ef4a038d9b272c0fbd576cc891bc159cfcfe24d8.
-One generated-data step on a8-1-r-generator, then stop for review/handoff.
+Approved as the next A8 step after 1c82bba. The approved plan permits splitting
+additional schema coverage to keep code/tests below 300 changed lines.
+This implements the common part; A8.4a.2 remains a separate review stop.
 
 ## Read in this order
 
-1. tests/fixtures/bc_like/SHA256SUMS: three verified payloads.
-2. tests/fixtures/bc_like/README.md: passing regeneration recipe, provenance,
-   acceptance-schema mapping and pending protected-fixture handoff.
-3. bc_synthetic_weibull.json: the added tester-schema candidate. Its values
-   map exactly to the original data/R references; review via the checks below.
-4. expected.json: checksum provenance only changes; all prior values remain.
-5. PLAN.md: A8.3b result and the four remaining implementation/docs steps.
+1. tests/unit/test_reference_fixtures.py: valid committed sets, exact precision
+   anchors, missing/malformed manifests/files, tampering before any parse,
+   and correctly rehashed malformed/misaligned primary JSON.
+2. tests/conftest.py: private manifest verifier, common loader, r_fixture
+   callback. All implementation reference tests will use that one entry point.
+3. PLAN.md: A8.4a.1/A8.4a.2 split and the deferred bc-specific checks.
 
-## Invariants and spec mapping
+## Invariants and interface
 
-Spec 10.4/11.1: synthetic data only, seed 8201, 686 rows, group blocks
-229/229/228, 293 exact and 393 right. No patient data or real-cohort totals.
-Data.csv is unchanged. All existing expected.json values are unchanged except
-checksums.generator and the added checksums.exporter. No R generator, library,
-public API, dependency, tolerance, spec or independent-test changes.
+r_fixture(name, root=...) returns primary header/cases/grid plus data arrays;
+root is a fixtures directory, optionally a temporary copy for negative tests.
+Supported names are exponential and bc_like. All required payloads (two or
+three respectively) must be listed exactly once and must pass SHA-256 before
+any JSON or CSV parsing. Missing files fail; nothing skips or silently falls
+back to unchecked parsing.
 
-The additional JSON embeds the observations and three fixed vectors, with
-separate flexsurv/survreg likelihood and survival arrays and flexsurv grids.
-Its values come directly from the approved R evaluations. Python checks and
-copies those values; it does not generate or approximate expected numbers.
-The two R routes remain related numerical evidence, as documented.
+CSV time and per-row reference quantities are NumPy float64 independently of
+JAX mode. Row IDs/events are integer host arrays. No JAX configuration changes,
+R, network access, extra dependencies or library API changes are introduced.
+Results are freshly loaded per call, without cached mutable parsed fixtures.
 
-## Checks actually run
+Common schema checks cover pinned seed/package/R provenance, generating path,
+units/event coding, CSV provenance hash, row count/ID alignment, valid positive
+finite times, event counts, case labels, scalar parameters/totals and finite
+per-row arrays of the expected shape. Historical generator hashes are not
+compared to current source bytes: committed references may come from older
+reviewed generator revisions.
 
-- `python3 /private/tmp/survjax-a83b-validate.py`: exit 0, run outside the
-  sandbox for flexsurv's OpenMP shared memory. Actual pinned environment:
-  R 4.4.2, flexsurv 2.3.2, survival 3.7.0 (spec spelling 3.7-0),
-  aarch64-apple-darwin20. Log: /private/tmp/survjax-a83b-validation.log;
-  summary: /private/tmp/survjax-a83b-summary.json.
-- Two fresh R generations: all three files byte-identical. CSV matches the
-  committed A8.3 CSV. Structured comparison against the parent JSON proves
-  every other field/value unchanged. Generator/exporter checksum fields match
-  the exact source bytes; CSV checksum and algorithm remain unchanged.
-- Exact schema/metadata/row/parameter/source/grid validation passes. An R
-  wrapper emits original %a doubles without changing real export bytes.
-  Exact Python numeric read-back: 11,027 acceptance-JSON numbers,
-  15,770 original-JSON numbers and 686 CSV times; all pass.
-- Installed the verified candidate only into an unchanged temporary copy of
-  tests/spec, with every source file compared byte-for-byte to the real suite.
-  Ran `uv run pytest -q` on that copy's test_a8_bc_fixtures.py with
-  SPEC_THROUGH=A8 and UV_CACHE_DIR=/private/tmp/survjax-uv-cache:
-  JAX_ENABLE_X64=1: 44 passed in 1.84s;
-  JAX_ENABLE_X64=0: 44 passed in 1.85s.
-  Logs: /private/tmp/survjax-a83b-spec-x64.log and
-  /private/tmp/survjax-a83b-spec-x32.log. This covers spec 11.1/12.1 comparisons
-  and transformations with the unchanged acceptance assertions.
-- Extracted the exact final README shell block; sh -n exits 0. Ran the full
-  block with sh (set -eu): exit 0. Check-only and both R generations succeed,
-  all six cmp commands succeed, all three SHA256SUMS entries report OK.
-  Log: /private/tmp/survjax-a83b-readme-recipe.log. This closes review N-3.
+## Scope split and remaining checks
 
-- Final Ruff format check: exit 0, 73 files already formatted.
-- Final Ruff lint: exit 0, All checks passed!
-- git diff --check: exit 0, no output. Preservation checks confirm no change
-  to generators, library, independent tests, tolerances or data.csv.
-No full through-A7/A8 gate, mypy, own suites or docs build rerun for this
-payload/manifest/README-only step. The last through-A7 gate at ef4a038 passed;
-the targeted acceptance tests above are this step's numerical evidence.
+Code/test delta is 286 added lines (141 loader/shared-fixture lines plus
+145 test lines). The complete bc group/grid/acceptance comparison would push
+this beyond the review budget, so A8.4a.2 will add those checks and their
+negative cases. This step hashes the additional acceptance JSON but does not
+parse it; bc grid values remain in their original JSON form until A8.4a.2.
+Do not use this partial milestone to claim completed bc schema validation.
 
-## Handoff ready for the maintainer
+No payloads, manifests, generators, tolerances, src/, tests/spec/ or docs/
+are changed. Protected fixture handoff remains pending as recorded in A8.3b.
+No distribution comparisons, documentation step or later-slice work starts.
 
-Source: tests/fixtures/bc_like/bc_synthetic_weibull.json (214,860 bytes).
-SHA-256: 4edbdee917ae335da11911b39ec60442e21998687d27c62494f54e7eb1d0e450.
-This agrees with the reviewed A8.3a candidate exactly.
+## Checks and spec mapping
 
-Supply that exact file to tests/spec/fixtures/bc_synthetic_weibull.json in the
-authoritative tester repo, commit there, then use the normal spectests-* sync
-and maintainer merge. Do not install it only into this worktree's tests/spec:
-the next wholesale sync would remove it. No protected-path write was performed.
-After sync, compare its bytes/hash to this candidate and run the actual A8
-module in both dtypes. A full through-A8 claim waits for the integrated gate.
+Spec 10.4/12.1: focused loader tests in separate JAX_ENABLE_X64=1 and 0
+processes, using UV_CACHE_DIR=/private/tmp/survjax-uv-cache:
+`uv run pytest -q tests/unit/test_reference_fixtures.py`:
+20 passed in 0.20s per mode. Every known payload is independently modified;
+a patched JSON parser fails if called before hash verification, so these tests
+also guard the ordering of integrity checks.
 
-## Remaining work
+Spec 3.3/10.4: exact expected anchors are original R %a values from the
+A8.3/A8.3b numeric audits, for row 1's time and likelihood in each fixture.
+Tests check exact equality as well as host dtype. In a temporary source/test
+copy, force a float32 intermediate and cast back to float64; selecting the
+precision tests yields 2 expected assertion failures / 18 deselected per mode
+(0.08s x64 / 0.07s x32). No committed source/fixture is mutated.
+Logs: /private/tmp/survjax-a84a1-mutation-x64.log and
+/private/tmp/survjax-a84a1-mutation-x32.log.
 
-A8.4a shared loader and integrity/corruption tests; A8.4b exponential reference
-comparisons; A8.5 Weibull comparisons and full through-A8 gate after handoff;
-A8.d1 reference-evidence docs after reviewed code merges. Stop for this step's
-review and the maintainer handoff. No new deviation or numerical/API decision.
+Test JSON parsing outside the loader occurs only to construct deliberately
+malformed temporary inputs and rehash them, never to obtain reference
+expectations. All committed reference consumption uses r_fixture.
+
+## Final gate
+
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A7`:
+exit 0, check: all gates passed through A7.
+Complete log: /private/tmp/survjax-a84a1-gate.log.
+
+- Guard OK; Ruff: 74 files already formatted / All checks passed!
+- mypy: no issues in 17 source files.
+- Own float64: 797 passed, 7 skipped, 158.10s.
+- Own float32: 803 passed, 1 skipped, 157.89s.
+- Source doctests: 4 passed per mode, 0.96s / 0.90s.
+- Independent float64: 2123 passed, 28 skipped, 223 deselected, 119.00s.
+- Independent float32: 2127 passed, 24 skipped, 223 deselected, 117.34s.
+
+Only result records and plan status are updated after the gate. Final Ruff
+formatting/lint and git diff --check pass on the completed records.
+
+## Limits and stop
+
+No through-A8 claim; no R execution or docs build. A8.4a.2 must finish the bc
+schema before A8.4b/A8.5 comparisons. No new spec ambiguity or deviation.
+One implementation commit on a8-1-r-generator, then stop for review.

@@ -1,10 +1,11 @@
 # Remaining Slice A8 work — plan for approval (2026-10-23)
 
 Status: main through A7 is integrated at incoming commit 3389ee0. The
-maintainer accepted the A8.3a review fix-up ef4a038 and approved A8.3b.
-A8.3b's verified payloads and three-file manifest are now prepared; the
-protected tester-repo handoff is pending. A8.4a/A8.4b, A8.5 and A8.d1 remain
-unimplemented. Historical plans below retain their original status wording.
+maintainer accepted the A8.3b payload step 1c82bba; the protected tester-repo
+handoff remains pending. A8.4a.1 implements manifest-first loading and common
+schema checks, validated through A7 and ready for review. A8.4a.2, A8.4b,
+A8.5 and A8.d1 remain unimplemented. Historical plans below retain their
+original status wording.
 
 Work on the existing maintainer-created `a8-1-r-generator` branch, in this
 checkout only. Keep one concept and roughly 300 changed code/test lines per
@@ -141,6 +142,24 @@ is pending, report it explicitly; do not claim a through-A8 pass.
 Spec: 10.4, 11.1. Docs to-do: durable handoff/regeneration provenance.
 
 ## A8.4a — Shared fixture loader and integrity checks
+
+Execution (2026-10-25), approved by "go on with next bit; plan approved":
+implement in tests/conftest.py and tests/unit/test_reference_fixtures.py only,
+plus PLAN.md/REVIEW.md. Expose r_fixture(name, root=...) as a pytest callback;
+return the checked header/cases/grid plus host data arrays. Float arrays remain
+NumPy float64 regardless of JAX mode. Verify all known manifest payloads before
+any parsing; validate common schema/provenance and the bc acceptance mapping.
+Tests use temporary copies for damage/rehash cases; no R, dependencies, payload,
+public API, numerical tolerance or protected-test edits. Keep code/tests under
+300 changed lines. The full loader/negative tests plus bc consistency exceed
+that budget, so use the permitted split: A8.4a.1 implements all-payload hash
+verification, common provenance/rows/arrays and corruption tests; A8.4a.2 adds
+bc group/grid and acceptance-schema mapping checks with their negative tests.
+Stop for review after each commit; neither part alone completes A8.4a.
+Focused tests pass 20 per dtype; the full through-A7 gate exits 0. REVIEW.md
+records exact counts and the precision-control mutation. Commit and stop.
+The current implementation is A8.4a.1 only; additional bc schema checks are
+explicitly deferred to A8.4a.2 before any reference comparison tests.
 
 Files: `tests/conftest.py`, `tests/unit/test_reference_fixtures.py`.
 No public API changes. All implementation reference tests use one loader,
