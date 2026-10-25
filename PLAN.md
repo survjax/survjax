@@ -143,6 +143,18 @@ Spec: 10.4, 11.1. Docs to-do: durable handoff/regeneration provenance.
 
 ## A8.4a — Shared fixture loader and integrity checks
 
+A8.4a.1 review fix-up (2026-10-25), explicitly authorized by "check the
+review and fix": read ../review/slices/A8.4a.1.md. SF-1 adds rehashed bad
+CSV/JSON tests that kill L6–L11 (nonfinite arrays, event counts, CSV MD5,
+positive times/parameters, and log_survival validation). N-1 gives each damage
+its exact expected rejection message. N-2's KeyError behavior is retained as
+accepted test infrastructure; no loader behavior change is needed. Files:
+unit test module and PLAN.md/REVIEW.md only. Demonstrate each formerly
+surviving mutation is rejected in both dtypes, run the focused suite and full
+through-A7 gate, then commit one fix-up and stop. Validation is complete:
+28 focused tests pass per dtype, L6–L11 are rejected per dtype, and the full
+gate exits 0. REVIEW.md records counts and mutation evidence. No A8.4a.2 work starts.
+
 Execution (2026-10-25), approved by "go on with next bit; plan approved":
 implement in tests/conftest.py and tests/unit/test_reference_fixtures.py only,
 plus PLAN.md/REVIEW.md. Expose r_fixture(name, root=...) as a pytest callback;
@@ -156,7 +168,8 @@ that budget, so use the permitted split: A8.4a.1 implements all-payload hash
 verification, common provenance/rows/arrays and corruption tests; A8.4a.2 adds
 bc group/grid and acceptance-schema mapping checks with their negative tests.
 Stop for review after each commit; neither part alone completes A8.4a.
-Focused tests pass 20 per dtype; the full through-A7 gate exits 0. REVIEW.md
+Focused tests now pass 28 per dtype after the review fix-up; the full
+through-A7 gate exits 0. REVIEW.md
 records exact counts and the precision-control mutation. Commit and stop.
 The current implementation is A8.4a.1 only; additional bc schema checks are
 explicitly deferred to A8.4a.2 before any reference comparison tests.

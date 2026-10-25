@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 import shutil
 from pathlib import Path
 
@@ -37,8 +38,11 @@ def test_committed_sets_load_without_losing_stored_precision(r_fixture, name, co
     # Both generators serialize original R doubles (A8.3b numeric audit).
     for case in fixture["cases"].values():
         for source in ("flexsurv", "survreg"):
-            assert case[source]["log_likelihood"].dtype == np.float64
-            assert case[source]["survival"].shape == (count,)
+            for quantity in ("log_likelihood", "log_survival", "survival"):
+                values = case[source][quantity]
+                assert isinstance(values, np.ndarray)
+                assert values.dtype == np.float64
+                assert values.shape == (count,)
 
 
 @pytest.mark.parametrize(
@@ -120,13 +124,25 @@ def test_each_payload_is_verified_before_any_json_parsing(
 
 
 @pytest.mark.parametrize(
-    "damage", ["schema", "rows", "provenance", "shape", "nonfinite"]
+    "name,damage,message",
+    [
+        ("exponential", "schema", "invalid fixture schema version or units"),
+        ("exponential", "rows", "invalid row count or row alignment"),
+        ("exponential", "provenance", "invalid fixture provenance"),
+        ("exponential", "shape", "invalid reference array: survival"),
+        ("exponential", "nonfinite", "nonfinite JSON constant: NaN"),
+        ("exponential", "overflow", "invalid reference array: survival"),
+        ("exponential", "rate", "invalid reference parameters"),
+        ("bc_like", "scale", "invalid reference parameters"),
+        ("exponential", "log_survival_shape", "invalid reference array: log_survival"),
+        ("exponential", "csv_md5", "CSV provenance checksum mismatch"),
+    ],
 )
 def test_rehashed_json_still_has_to_satisfy_common_schema(
-    r_fixture, fixture_root, damage
+    r_fixture, fixture_root, name, damage, message
 ):
     """Spec 10.4/12.1: a fresh hash cannot hide malformed or misaligned values."""
-    path = fixture_root / "exponential/expected.json"
+    path = fixture_root / name / "expected.json"
     # Parsing here creates malformed test inputs, never reference expectations.
     payload = json.loads(path.read_text())
     if damage == "schema":
@@ -137,9 +153,52 @@ def test_rehashed_json_still_has_to_satisfy_common_schema(
         payload["header"]["packages"]["flexsurv"] = "wrong"
     elif damage == "shape":
         payload["cases"]["slow"]["flexsurv"]["survival"].pop()
-    else:
+    elif damage == "nonfinite":
         payload["cases"]["slow"]["survreg"]["log_survival"][0] = float("nan")
-    path.write_text(json.dumps(payload))
+    elif damage == "overflow":
+        # A valid JSON number overflowing float64 bypasses parse_constant.
+        payload["cases"]["slow"]["flexsurv"]["survival"][0] = "1e999"
+    elif damage == "rate":
+        payload["cases"]["slow"]["rate"] = 0
+    elif damage == "scale":
+        payload["cases"]["fitted"]["scale_Good"] = 0
+    elif damage == "log_survival_shape":
+        payload["cases"]["slow"]["survreg"]["log_survival"].pop()
+    else:
+        payload["header"]["checksums"]["data.csv"] = "0" * 32
+    path.write_text(json.dumps(payload).replace('"1e999"', "1e999"))
     _rehash(path)
-    with pytest.raises(ValueError, match="schema|alignment|provenance|array|nonfinite"):
+    with pytest.raises(ValueError, match=f"^{re.escape(message)}$"):
+        r_fixture(name, root=fixture_root)
+
+
+@pytest.mark.parametrize(
+    "damage,message",
+    [
+        ("zero_time", "invalid observation times or events"),
+        ("nonfinite_time", "invalid observation times or events"),
+        ("event_flip", "event counts disagree with CSV"),
+    ],
+)
+def test_rehashed_csv_reaches_the_observation_checks(
+    r_fixture, fixture_root, damage, message
+):
+    """Spec 10.4/12.1: refresh both integrity links to test CSV semantics."""
+    path = fixture_root / "exponential/data.csv"
+    lines = path.read_text().splitlines()
+    row = lines[1].split(",")
+    if damage == "event_flip":
+        row[2] = str(1 - int(row[2]))
+    else:
+        row[1] = "0" if damage == "zero_time" else "inf"
+    lines[1] = ",".join(row)
+    path.write_text("\n".join(lines) + "\n")
+    expected_path = path.with_name("expected.json")
+    payload = json.loads(expected_path.read_text())
+    payload["header"]["checksums"]["data.csv"] = hashlib.md5(
+        path.read_bytes()
+    ).hexdigest()
+    expected_path.write_text(json.dumps(payload))
+    _rehash(path)
+    with pytest.raises(ValueError, match=f"^{re.escape(message)}$"):
         r_fixture("exponential", root=fixture_root)
