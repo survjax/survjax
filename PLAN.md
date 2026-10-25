@@ -1,8 +1,9 @@
 # Revision 35 — Remove the public likelihood function (2026-10-25)
 
-Status: **LL.1 implemented and verified; ready for review** ("ok approved get to work"). Work on
-the maintainer-created `remove-ll` branch, starting from `744fb55` with only
-this approved plan pending. LL.2 remains planned and awaits separate approval.
+Status: **LL.1 merged; LL.2 implemented and verified; ready for review** ("ok merged; now up to
+next bit"). Reuse the maintainer-created `remove-ll` branch at `fab100f`,
+which is also the merged main tip. The starting tree is clean. No further
+plan approval is needed for the LL.2 scope below.
 This entry supersedes earlier plans that require two public likelihood entry
 points; their implementation/review records below remain historical evidence.
 Two small steps, each with its own commit, REVIEW.md and approval stop.
@@ -120,6 +121,10 @@ LL.1 is not completion of the whole migration or of Slice A.
 
 ## LL.2 — Likelihood API documentation (separate approval stop)
 
+Status: **implemented and verified; ready for review**. Followed the existing
+docs plan below; write REVIEW.md, commit on `remove-ll` and stop. The spec is still
+revision 35; `.spec-seen` already matches. No source/test changes are needed.
+
 One topic: migrate documentation to the distribution method, below 300 changed
 lines. Files: `docs/likelihood.md`, `docs/api.md`,
 `docs/simulation-guide.md`, PLAN.md and REVIEW.md. Public API touched: none.
@@ -143,6 +148,24 @@ Spec: 6.1, 7.1, 10.2, 10.5 and 12.1.
 - Repeat the obsolete-call audit, Ruff formatting/lint and `git diff --check`.
   Update PLAN.md and overwrite REVIEW.md with exact checks and reading order;
   commit this docs topic on `remove-ll`, then stop for review.
+
+LL.2 evidence: 36 changed lines across the three docs pages. The docs build
+exits 0 with `build succeeded` in float32 and float64; likelihood-page execution
+takes 4.01s / 3.35s. Log: `/private/tmp/survjax-ll2-docs-build.log`.
+The initial sandbox run could not open Jupyter kernel sockets; the permitted
+rerun passed. Existing kernel TCP transport notices appear in the log; there
+are no Sphinx documentation warnings. Chrome screenshot inspection passes for
+the tutorial's two-form section and API method reference in both dtype builds.
+Both forms show -23.124392 / -23.12439364 respectively. The HTML audit checks
+273 local page/anchor links per build and the method's reference anchor.
+The simulation guide is excluded from Sphinx; a temporary check extracts only
+its revised objective and verifies value/gradient/Hessian = 6/4/6 at log-rate
+zero on synthetic data, in both dtypes. Its optional solver was not run.
+Tracked docs/notebook audit finds no obsolete package-function references.
+REVIEW.md records commands, evidence and scope. Final Ruff formatting/lint
+passes after the review edit: 71 files already formatted / All checks passed.
+`git diff --check` exits 0. The full library gate and R were not run for this
+docs-only step. Generated HTML and temporary checks remain untracked.
 
 ---
 

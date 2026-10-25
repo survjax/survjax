@@ -78,7 +78,7 @@ where $D = \sum_i d_i$ is the number of events.
 
 ## Contributions in survjax
 
-`log_likelihood` returns the contributions $\ell_i$, one per patient. Each
+`dist.log_likelihood(...)` returns the contributions $\ell_i$, one per patient. Each
 event row uses the distribution's log density and each censored row its log
 survival. Here is the exponential with rate 0.05 per month:
 
@@ -99,21 +99,10 @@ sum) is your choice:
 contributions.sum()
 ```
 
-## Two entry points, two input forms
+## Two input forms
 
-The likelihood is available both as a method of every distribution and as a
-top-level function. They compute the same thing, including derivatives:
-
-```python
-model.log_likelihood(cohort)  # method
-survjax.log_likelihood(model, cohort)  # function: distribution first
-```
-
-Use whichever reads better in your code. The function form is convenient
-when the distribution is one argument among several, for example in a
-generic objective `objective(dist, data)`.
-
-Either entry point accepts the data in one of two forms. The first is a
+Call the `log_likelihood` method on a distribution with data in one of two
+forms. The first is a
 `SurvivalData`, passed positionally as above. It is the general form: it
 holds every kind of observation that survjax can describe, and it records
 [data diagnostics](survival-data.md) at construction.
@@ -126,11 +115,10 @@ internally:
 
 ```{code-cell} ipython3
 from_arrays = model.log_likelihood(time=months, event=progressed)
-from_function = survjax.log_likelihood(model, time=months, event=progressed)
-from_arrays.sum(), from_function.sum(), contributions.sum()
+from_arrays.sum(), contributions.sum()
 ```
 
-All three agree. `time` and `event` are keyword-only and must be given
+Both forms agree. `time` and `event` are keyword-only and must be given
 together, and they cannot be combined with a `SurvivalData`. `event`
 broadcasts against `time`, so `event=1` marks every observation as an event. A raw array in
 the data position is a mistake in the call, so it raises `TypeError`
