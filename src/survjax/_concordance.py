@@ -19,10 +19,11 @@ def _add_count(total: _Count, increment: jax.Array) -> _Count:
 def _pair_counts(scores: jax.Array, time: jax.Array, exact: jax.Array) -> _Counts:
     """Count concordant, discordant, score-tied and comparable pairs.
 
-    Inputs are aligned (N,) arrays for one already validated, finite,
-    exact/right-censored cohort. Each returned count is a pair of uint32
-    scalar arrays (hi, lo), representing hi * 2**32 + lo. Empty cohorts give
-    zero counts. Work is O(N squared), with O(N) pair workspace; no pair
+    Scores and times are finite (N,) arrays; exact is an aligned boolean
+    (N,) mask for one already validated exact/right-censored cohort.
+    Each returned count is a pair of uint32 scalar arrays (hi, lo),
+    representing hi * 2**32 + lo. Empty cohorts give zero counts. Work is
+    O(N squared), with O(N) pair workspace; no pair
     matrix is allocated. Leading-axis batching belongs to the caller.
     """
     zero = (jnp.zeros((), dtype=jnp.uint32), jnp.zeros((), dtype=jnp.uint32))

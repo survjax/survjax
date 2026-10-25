@@ -4,8 +4,8 @@ from itertools import permutations
 
 import jax
 import jax.numpy as jnp
-import numpy as np
 import pytest
+from jax.extend import core
 
 from survjax._concordance import _add_count, _pair_counts
 
@@ -145,6 +145,35 @@ def test_eager_jit_and_vmap_agree_on_separate_cohorts():
         _assert_counts(_pair_counts(scores[row], time[row], exact[row]), expected[row])
 
 
+def test_pair_workspace_has_no_cohort_square():
+    """Spec 9.2: the traced program, including loop bodies, has no N-by-N array."""
+    size = 7
+
+    def shapes_in(value):
+        if isinstance(value, core.Jaxpr):
+            for var in (*value.constvars, *value.invars, *value.outvars):
+                yield getattr(var.aval, "shape", ())
+            for equation in value.eqns:
+                for var in (*equation.invars, *equation.outvars):
+                    yield getattr(var.aval, "shape", ())
+                yield from shapes_in(equation.params)
+        elif isinstance(value, dict):
+            for item in value.values():
+                yield from shapes_in(item)
+        elif isinstance(value, (tuple, list)):
+            for item in value:
+                yield from shapes_in(item)
+
+    program = jax.make_jaxpr(_pair_counts)(
+        jnp.arange(1, size + 1, dtype=float),
+        jnp.arange(1, size + 1, dtype=float),
+        jnp.ones(size, dtype=bool),
+    )
+    shapes = set(shapes_in(program))
+    assert (size,) in shapes
+    assert (size, size) not in shapes
+
+
 @pytest.mark.parametrize(
     ("high", "low", "increments"),
     [
@@ -166,4 +195,3 @@ def test_accumulator_matches_python_integer_arithmetic(high, low, increments):
             total = add(total, jnp.int32(increment))
             reference += increment
             _assert_counts((total,), (reference,))
-        np.testing.assert_equal(int(total[0]), reference // 2**32)

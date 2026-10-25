@@ -1,3 +1,47 @@
+# A10 review follow-up — N-1 through N-4 (2026-10-25)
+
+Status: **implemented and verified; ready for review**, authorized by
+"check the review and address". Read all of `../review/slices/A10.md` for
+`04bc1a7`: merge verdict, no blockers or should-fix findings. One follow-up
+commit on `A10-cindex`, then stop; starting tree was clean at `04bc1a7`.
+
+Files: `src/survjax/_concordance.py`, its own test module, PLAN.md,
+DEVIATIONS.md and REVIEW.md. Public API: none. Source/test budget: under 60
+changed lines. Spec: 9.1–9.2 workspace/preconditions and 12.1 verification.
+No numerical, dependency or docs changes; the shared resolver is unchanged.
+
+- N-1: document the boolean (N,) exact-mask precondition.
+- N-2: inspect the traced JAX program recursively, including loop bodies, for
+  an N-by-N intermediate at N=7. Verify sensitivity in a temporary source
+  copy using an equivalent N-by-N comparison inside the loop; require the
+  shape test to fail and the hand-counted value test to pass in both dtypes.
+- N-3: require finite safe substitutes for entire invalid/unsupported cohorts
+  before public counting. Retain cohort length/masks and zero failed counts;
+  never drop rows. Record this in the later public integration outline.
+- N-4: remove the redundant high-word assertion/import, make stale merge text
+  historical, and commit complete check commands/results in REVIEW.md.
+  Temporary logs supplement that durable evidence; no logging infrastructure.
+- Record the maintainer's accepted D-027 decision, retaining its formal open
+  status for maintainer disposition. No public result type implemented here.
+- S-1: revision 35 alignment, spec-test sync and `.spec-seen` belong to another
+  agent/branch. Do not edit, mark, merge or sync them here. S-2's early A10
+  authorization is recorded; no delivery/role edits. Reconcile dependencies
+  after those changes land, before starting public integration.
+
+Verification: focused counter/shared-input/likelihood entry-point suites pass,
+93 tests per dtype (5.90s x64 / 5.40s x32), no skips. The N-by-N mutant is
+rejected while its hand-counted value test passes: 1 expected failure / 1 pass
+in 0.21s per dtype. REVIEW.md records commands and sensitivity details.
+Final Ruff: 75 files already formatted / All checks passed. Mypy: no issues
+in 19 source files. Working/staged whitespace checks pass. An AST comparison
+confirms production code is unchanged except docstrings; protected paths,
+`.spec-seen`, docs and exports are unchanged. No full numerical gate rerun for
+this docstring/test follow-up; the reviewer's passing through-A7 gate is
+historical evidence only. No through-A10 completion claim. Docs to-do: retain
+the separate public concordance documentation step. Stop after this commit.
+
+---
+
 # A10.2a — Share observation input normalization (2026-10-25)
 
 Status: **implemented and verified; ready for review**, authorized by
@@ -5,11 +49,10 @@ Status: **implemented and verified; ready for review**, authorized by
 step: first relocate its existing data-input resolver, then add public metrics
 once D-027 is settled. This preparatory part introduces no public contract.
 
-Starting branch: `A10-cindex`, HEAD `67bac4d`. The maintainer's merge is still
-in progress, with all conflicts resolved and 21 paths staged. Preserve that
-index exactly; leave this step's work unstaged until the maintainer completes
-the merge. Never create its merge commit. The incoming protected spec tests
-and sync script belong to that merge and remain read-only.
+At planning start, `A10-cindex` was at `67bac4d` with the maintainer's merge
+in progress and 21 resolved paths staged. This step preserved that index and
+kept its own work unstaged until the maintainer completed the merge. Incoming
+protected spec tests and the sync script were not edited.
 
 The maintainer completed the merge as `34a7657` during this step. Verified
 no merge remains and its index is empty; all new work stayed unstaged. The
@@ -204,12 +247,18 @@ API reference and playground in the separately approved docs integration.
 
 ## Later A10 steps — outline only; each needs its own approved plan
 
-- A10.2: resolve D-027, then introduce `metrics.py`, frozen registered
-  `ConcordanceInfo` and both public entry points. Move `_resolve_data` from
-  `likelihood.py` to a small shared private module and use it from both callers
-  (spec 6.1). Validate last-axis lengths before broadcasting leading axes;
-  reduce invalid/unsupported evidence per cohort, without dropping rows.
-  Honor stored raw-input issues; compute the ratio in the data float dtype,
+- A10.2b: after the separately owned spec alignment and test sync land, refine
+  the public integration plan around the maintainer's accepted D-027 decision.
+  Introduce `metrics.py`, frozen registered count and `ConcordanceInfo` types,
+  and both public entry points. `_resolve_data` is now shared by A10.2a; use
+  that same helper. Validate last-axis lengths before broadcasting leading
+  axes; reduce invalid/unsupported evidence per cohort. Before calling
+  `_pair_counts`, substitute finite safe scores/times and a boolean exact mask
+  for each entire invalid/unsupported cohort, preserving observation count and
+  failure masks. Never drop rows or count a partially valid cohort. Force all
+  returned count words to zero for those failed cohorts, and set
+  `no_comparable_pairs` only for evaluated cohorts. Honor stored raw-input
+  issues; compute the ratio in the data float dtype,
   casting words before floating arithmetic and using a safe denominator for
   undefined cohorts. Add input-form, masks, dtype and shape tests with code;
   split integration if its source/test budget exceeds 300 lines. Resolve the

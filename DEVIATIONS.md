@@ -11,7 +11,7 @@
 - What remains unspecified: public field spellings, how exact two-word counts
   are exposed, mask shapes/overlap, count meaning for invalid/unsupported
   cohorts, and whether scalar or empty observation inputs are admitted.
-- Proposal for maintainer decision before A10.2: define `ConcordanceInfo` in
+- Original proposal (superseded by the accepted decision below): define `ConcordanceInfo` in
   `survjax.metrics`, as a frozen registered pytree; fields `concordant`,
   `discordant`, `tied_score`, `comparable`, `invalid`, `unsupported` and
   `no_comparable_pairs`. Each count is a `(hi, lo)` tuple of `uint32` arrays
@@ -36,6 +36,17 @@
   tuples. Failed-cohort counts (guaranteed zero versus unspecified) and mask
   semantics also remain for decision. No public choice has been adopted, and
   no independent test has been changed to accommodate either proposal.
+- Maintainer decision (2026-10-25): after the detailed explanation and the
+  hi/lo range clarification, the maintainer said "ok proposal accepted".
+  Adopt a small frozen registered count pytree with `hi` and `lo` uint32
+  fields, the same in both dtype modes; the private core may retain tuples.
+  Adopt the named count and mask fields above, with result-shaped arrays;
+  counts are guaranteed zero for invalid/unsupported cohorts, whose
+  `no_comparable_pairs` mask is false. Invalid and unsupported may overlap.
+  Scalar inputs are rejected; a valid empty cohort has zero counts, a NaN
+  value and `no_comparable_pairs=True`. No public implementation exists yet.
+  Formal specification alignment and sync belong to another agent/branch,
+  as explicitly instructed by the maintainer; neither is performed here.
 - Status: open.
 
 ## D-026 NaN triage after normalized fields are edited
