@@ -1,21 +1,19 @@
 # Synthetic bc-like Weibull R reference
 
-The committed `data.csv`/`expected.json` were generated and verified in A8.3.
-No patient rows or `flexsurv::bc` are loaded. No survjax agreement is claimed;
-that comparison is A8.5.
+The synthetic R references were generated and verified in A8.3, then re-exported
+in A8.3b with the independent acceptance schema. No patient rows or
+`flexsurv::bc` are loaded. The candidate passes the independent A8 module in
+both dtypes in isolated validation; the shared loader and implementation
+reference tests remain A8.4/A8.5.
+
 From the repository root, use R 4.4.2, flexsurv 2.3.2 and survival 3.7-0
 (R reports `3.7.0`), with no extra export dependencies:
 
 Running the generator without arguments overwrites `data.csv`, `expected.json`
 and `bc_synthetic_weibull.json` in this directory.
 
-The A8.3a generator now also writes the acceptance-schema JSON. Its committed
-payload and updated provenance/hashes are deferred to A8.3b. Until then,
-`expected.json` below differs in generator/exporter provenance; the observations
-and reference numbers are preserved. The current manifest still verifies the
-two original committed payloads.
-
 ```sh
+set -eu
 Rscript --vanilla scripts/fixtures/generate_bc_like.R --check-only
 Rscript --vanilla scripts/fixtures/generate_bc_like.R /tmp/bc-like-run1
 Rscript --vanilla scripts/fixtures/generate_bc_like.R /tmp/bc-like-run2
@@ -24,6 +22,7 @@ cmp /tmp/bc-like-run1/expected.json /tmp/bc-like-run2/expected.json
 cmp /tmp/bc-like-run1/bc_synthetic_weibull.json /tmp/bc-like-run2/bc_synthetic_weibull.json
 cmp /tmp/bc-like-run1/data.csv tests/fixtures/bc_like/data.csv
 cmp /tmp/bc-like-run1/expected.json tests/fixtures/bc_like/expected.json
+cmp /tmp/bc-like-run1/bc_synthetic_weibull.json tests/fixtures/bc_like/bc_synthetic_weibull.json
 (cd tests/fixtures/bc_like && shasum -a 256 -c SHA256SUMS)
 ```
 
@@ -49,7 +48,7 @@ CSV: `row_id,time,event,group`, years, event 1 exact/0 right. Schema 1 JSON:
 log-likelihood, log-survival and survival vectors (686), a total, and a nested
 `survival_grid` array (141 time rows, three Good/Medium/Poor columns).
 `grid` records times 0–7 by 0.05, groups and shape. Provenance includes RNG,
-versions/platform, generator/CSV MD5 hashes, simulation and realized counts.
+versions/platform, generator/exporter/CSV MD5 hashes, simulation and realized counts.
 Each column is checked against a separate prediction for its exported label.
 Use the stored `grid.time` values in reference tests: rebuilding R's `seq`
 grid with JAX arange/linspace can change some times by one ULP.
@@ -62,8 +61,8 @@ Unknown flags fail before writing. Check-only validates references and labels;
 full export also validates exact CSV/JSON text and 17-digit numeric formatting.
 As in A8.1, the pinned R decimal parser can lose one ULP: exact binary numeric
 read-back is verified separately with Python during validation, never required
-at generator runtime. Both payload files were byte-identical across two runs
-on the recorded platform. Repeat the commands above for regeneration. Normal
+at generator runtime. All three payload files were byte-identical across two
+runs on the recorded platform. Repeat the commands above for regeneration. Normal
 tests only read committed files.
 
 ## Independent acceptance export
@@ -84,19 +83,26 @@ These are exact preservation checks; the independent check of grid-column
 orientation remains in the main generator's per-group predictions. The two
 package routes still do not provide fully independent numerical evidence.
 
-After A8.3b verifies and commits the candidate under this directory, the
-maintainer supplies that exact file to the authoritative tester repo for the
-normal spec-test sync. The generator never writes into `tests/spec/`; the
-independent loader and tests remain unchanged. Neither this export addition
-nor its R-side checks claim survjax agreement.
+The committed candidate is `bc_synthetic_weibull.json` in this directory.
+The maintainer supplies that exact file and its SHA-256 checksum to the
+authoritative tester repo as `tests/spec/fixtures/bc_synthetic_weibull.json`,
+then uses the normal spec-test sync. This durable handoff is still pending.
+The generator never writes into `tests/spec/`; the independent loader and
+tests remain unchanged. The R-side checks establish export integrity; the
+isolated A8 tests provide the comparisons described above.
 
 ## Generation provenance
 
-Generated on 2026-10-21 from the unchanged generators at commit
-`8e8a96a8302f5706ce3434152ddabab146b9881a` on `aarch64-apple-darwin20`.
+Re-exported and checked on 2026-10-25 from the reviewed generator/exporter
+at commit `ef4a038d9b272c0fbd576cc891bc159cfcfe24d8` on
+`aarch64-apple-darwin20`, with R 4.4.2, flexsurv 2.3.2 and survival 3.7.0.
+The CSV and all prior numeric values are exactly those generated on
+2026-10-21 at `8e8a96a8302f5706ce3434152ddabab146b9881a`; only checksum
+provenance changes in the original JSON. The additional JSON maps those
+values into the acceptance schema without numerical reevaluation.
 Rows: 686; exact: 293; right-censored: 393.
 Good/Medium/Poor events: 52/91/150, simulated counts rather than cohort counts.
-R/package versions and generator/CSV MD5 hashes are also stored in the JSON
-header. SHA-256 hashes of both committed payloads are recorded in
-[SHA256SUMS](SHA256SUMS). The command above verifies both files. The A8.4
-loader will verify this manifest before parsing either payload.
+R/package versions and generator/exporter/CSV MD5 hashes are also stored in
+the JSON header. SHA-256 hashes of all three committed payloads are recorded in
+[SHA256SUMS](SHA256SUMS). The command above verifies all three files. The A8.4
+loader will verify this manifest before parsing any payload.

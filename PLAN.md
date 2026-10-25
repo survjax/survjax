@@ -1,13 +1,10 @@
 # Remaining Slice A8 work — plan for approval (2026-10-23)
 
-Status: the maintainer has merged main through A7 into this checkout; incoming
-commit `3389ee0`. This resolves only PLAN.md and REVIEW.md. All cleanly merged
-files, including independent tests and the sync script, remain unchanged.
-A8.1/A8.2 generators are accepted; A8.3 committed references and review nits
-are complete. A8's acceptance-schema export, automatic loading, Python/R
-comparisons and narrative docs remain. The maintainer approved A8.3a with
-"implement the next step"; its export is now implemented and validated through A7, ready for review. A8.3b and later steps remain unstarted. Historical plans below
-retain their original status wording.
+Status: main through A7 is integrated at incoming commit 3389ee0. The
+maintainer accepted the A8.3a review fix-up ef4a038 and approved A8.3b.
+A8.3b's verified payloads and three-file manifest are now prepared; the
+protected tester-repo handoff is pending. A8.4a/A8.4b, A8.5 and A8.d1 remain
+unimplemented. Historical plans below retain their original status wording.
 
 Work on the existing maintainer-created `a8-1-r-generator` branch, in this
 checkout only. Keep one concept and roughly 300 changed code/test lines per
@@ -97,6 +94,16 @@ Spec: 10.4, 11.1, 12.1. Docs to-do: export path and evidence limits in A8.d1.
 
 ## A8.3b — Commit regenerated outputs and hand off the spec fixture
 
+Execution (2026-10-25): authorized by "all good; next bit of A8" after the
+A8.3a review fix-up ef4a038. Regenerate using that unchanged generator/exporter,
+validate two-run byte identity, preservation of reviewed values and exact
+R-double read-back, then import only the refreshed expected.json and additional
+JSON. Update the three-entry manifest and passing README recipe; CSV remains
+byte-identical. Validate the candidate against an untouched temporary copy of
+the A8 acceptance module in both dtypes, without writing in the real tests/spec.
+Finish with REVIEW.md, one data-only commit and a maintainer handoff; do not
+start A8.4. No generator, library, dependency, tolerance or protected-path edits.
+
 Files: bc_like data.csv/expected.json, the additional acceptance-schema JSON,
 SHA256SUMS and README under `tests/fixtures/bc_like/`. Change only generated
 provenance where needed in existing outputs; CSV and all prior numeric values
@@ -112,6 +119,13 @@ commands comparing fresh outputs both to each other and to committed files.
 A8.3a review N-3 is closed only when the full documented recipe exits 0,
 including cmp of the additional JSON against its committed candidate; remove
 the interim provenance-drift notice then.
+Completed local validation: fresh two-run generation and exact R-double
+read-back pass; all existing observations and numbers are preserved. The
+unchanged A8 acceptance module passes 44 tests per dtype in a temporary copy
+with the candidate installed. The full README recipe now exits 0, with all
+six cmp checks and all three manifest entries passing; N-3 is closed.
+The real tests/spec fixture remains absent until the maintainer handoff.
+
 This generated-data step is separate from the generator code; no new large
 CSV diff is expected. Ask about a size exception only if a new large diff occurs.
 
@@ -199,10 +213,9 @@ Normal tests must require no R, network or external data. Each REVIEW.md names
 actual commands/results, reading order, invariants, spec-to-test mapping and
 limits. Do not start the next step without approval.
 
-The planning turn resolved merge records without implementation. The
-maintainer subsequently approved A8.3a, now implemented as recorded above.
-Stop after its review and commit; A8.3b and later steps retain their own
-approval and review stops.
+A8.3a is accepted. A8.3b is locally validated and ready for its commit and
+review, with protected fixture delivery pending. Stop here; A8.4a and later
+steps retain their separate approval and review stops.
 
 ---
 
