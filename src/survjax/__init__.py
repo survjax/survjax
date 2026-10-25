@@ -12,7 +12,6 @@ from survjax.distributions import (
     register_family,
     static,
 )
-from survjax.likelihood import log_likelihood
 
 __all__ = [
     "constraints",
@@ -26,5 +25,4 @@ __all__ = [
     "param",
     "distribution",
     "static",
-    "log_likelihood",
 ]

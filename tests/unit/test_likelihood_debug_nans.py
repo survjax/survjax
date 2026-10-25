@@ -87,9 +87,7 @@ def test_exponential_mixed_values_and_gradients_under_debug_nans(per_row, x64_en
     rates = jnp.array([1.0, 0.5, 2.0, 1.5, 3.0, 1.0] if per_row else 2.0)
 
     def rows(r):
-        return survjax.log_likelihood(
-            survjax.Exponential(rate=r), time=time, event=event
-        )
+        return survjax.Exponential(rate=r).log_likelihood(time=time, event=event)
 
     # log L=event*log r-r*t; d/dr=event/r-t, exactly zero at c=0.
     t = np.asarray(time, dtype=float)
@@ -159,8 +157,7 @@ def test_weibull_mixed_values_and_gradients_under_debug_nans(mode, x64_enabled):
 
 
 @pytest.mark.parametrize("debug", [False, True], ids=["ordinary", "debug"])
-@pytest.mark.parametrize("method", [False, True], ids=["function", "method"])
-def test_custom_density_at_zero_is_inactive(debug, method, x64_enabled):
+def test_custom_density_at_zero_is_inactive(debug, x64_enabled):
     """Spec 4.2/7.2: reviewer S1, singular generic density must use the reference."""
     time = jnp.array([0.0, 1.0])
     event = jnp.array([False, True])
@@ -168,11 +165,7 @@ def test_custom_density_at_zero_is_inactive(debug, method, x64_enabled):
 
     def rows(r, t, e):
         dist = RootHazard(rate=r)
-        return (
-            dist.log_likelihood(time=t, event=e)
-            if method
-            else survjax.log_likelihood(dist, time=t, event=e)
-        )
+        return dist.log_likelihood(time=t, event=e)
 
     # f(1)=r/2*exp(-r): at r=2, rows=[0,-2], d/dr sum=1/r-1=-.5.
     with jax.debug_nans(debug):
