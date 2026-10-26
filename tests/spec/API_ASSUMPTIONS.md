@@ -620,3 +620,25 @@ on it. Guessed exception types and call shapes are centralised in
   accepted, the role file's table should gain the A10 row; the tests'
   revision tags will be updated only if 9.1–9.2 change.
 - **Depends:** every `test_a10_*.py`.
+
+## Q-048: step for `data.shape`, `len(data)` and `bool(data)` (spec 3.2, rev 36)
+
+- **Checked:** 3.2 (rev 36, "Size"), 12.1 (Construction row), 12.2 (Slice A
+  lists "`shape` and `len`"); the role file's delivery table names no step
+  for them.
+- **Guess:** marked `step("A3")`, with indexing and static metadata, because
+  the 12.1 evidence requires them after indexing and under `jit`/`vmap`.
+  Missing attributes are tested with `hasattr` (that is, `AttributeError`),
+  as for Q-021.
+- **Depends:** every test in `test_a3_shape_and_len.py`.
+
+## Q-049: steps for the rev 37 first-release items (spec 4.4, 8.7, 12.2)
+
+- **Checked:** 12.2 (rev 37, "First public release" items 2 and 3), the role
+  file's delivery table (A0–A9) and Q-047 (A10).
+- **Open:** the `ProportionalHazards` wrapper with PH closure and the staged
+  RMST have no step. No tests were written; the maintainer should assign
+  steps (for example A11 PH wrapper, A12 staged RMST). Rev 37 item 1 now
+  brings Harrell's C into the first release, which bears on Q-047.
+- **Depends:** none yet.
+

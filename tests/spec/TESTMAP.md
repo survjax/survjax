@@ -1,6 +1,6 @@
 # Test map
 
-Spec: revision 35 (see `.spec-seen`). Unchanged requirements keep their
+Spec: revision 37 (see `.spec-seen`). Unchanged requirements keep their
 earlier revision tags. Tests from the revision 10 decision (sections 6.2, 10.2,
 13) are tagged `rev 10`. Tests from the performance amendment (section 7.2),
 accepted in revision 11, are tagged `rev 11`. A4 tests derive from revision 11 and
@@ -95,7 +95,15 @@ module tests with `test_no_top_level_log_likelihood`, resolves Q-038,
 replaces the function-versus-method equality tests with raw-form versus
 `SurvivalData`-form agreement in values, gradients and Hessians, and deletes
 tests that became exact duplicates once both sides were the method. Tests
-whose assertion or quoted text changed are tagged `rev 35`. The mpmath references
+whose assertion or quoted text changed are tagged `rev 35`. Revision 36
+(decision 0049: `data.shape`, `len(data)`, undefined truth value; 3.2, 12.1,
+12.2) adds `test_a3_shape_and_len.py`, tagged `rev 36` and marked A3 (Q-048).
+Revision 37 (decision 0050: first-public-release milestone with
+`ProportionalHazards`, its private PH closure and staged RMST, section 8.7;
+1, 4.2, 4.4, 4.5, 8.1, 8.4, 8.7, 10.4, 11.2, 11.3, 12.1, 12.2, 13) changes no
+requirement that an existing test asserts: no test used PH wrappers or
+summaries, and the A10 sections 9.1–9.2 are unchanged. Its new requirements
+are not yet tested (see "Not covered" below and Q-049). The mpmath references
 need `mpmath`, and the A10 property tests `hypothesis`, in the test environment. Tests are static acceptance tests and have never
 been executed against survjax. Test names below are relative to `tests/spec/`.
 
@@ -431,6 +439,30 @@ been executed against survjax. Test names below are relative to `tests/spec/`.
 | 3.2 | slicing works on data passed through jit (minibatches inside compiled code). | `test_slicing_inside_jit` |
 | 3.2 | for any integer-array index, \`data[idx].field == data.field[idx]\`. | `test_indexing_commutes_with_fields_property` |
 
+### `test_a3_shape_and_len.py`
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 3.2 | "`data.shape` is the observation shape as a tuple of Python ints" (`(N,)`). | `test_shape_of_vector_data_is_a_tuple_of_python_ints` |
+| 3.2 | the same for scalar data, `()`. | `test_shape_of_scalar_data_is_empty_tuple` |
+| 3.2 | "Empty data `(0,)` are allowed". | `test_shape_of_empty_data` |
+| 3.2/12.1 | two-dimensional data. | `test_shape_of_two_dimensional_data` |
+| 3.2 | the bounds form has the same `shape`. | `test_shape_from_bounds_constructor` |
+| 3.2 | `shape` is the observation shape that every field has. | `test_shape_equals_field_shape` |
+| 3.2/12.1 | `shape` after indexing (slice, integer, integer array, 2-D, empty slice). | `test_shape_after_slicing`, `test_shape_after_integer_index_is_scalar`, `test_shape_after_integer_array_index`, `test_shape_after_indexing_two_dimensional_data`, `test_shape_after_empty_slice` |
+| 3.2 | "read from the stored leaves rather than kept in the auxiliary data". | `test_shape_is_read_from_stored_leaves`, `test_shape_is_not_in_the_tree_structure` |
+| 3.2/12.1 | "static under `jit`" (static ints). | `test_shape_is_static_under_jit` |
+| 3.2/12.1 | "per-example under `vmap`". | `test_shape_is_per_example_under_vmap`, `test_shape_is_per_example_under_vmap_of_two_dimensional_data` |
+| 3.2 | "There is no `size` or `ndim`". | `test_no_size_attribute`, `test_no_ndim_attribute` |
+| 3.2 | "`len(data)` is `data.shape[0]`". | `test_len_of_vector_data_is_number_of_observations` |
+| 3.2/12.1 | "on scalar data it raises `TypeError`". | `test_len_of_scalar_data_raises_type_error`, `test_len_of_integer_indexed_data_raises_type_error` |
+| 3.2 | empty data "have length 0". | `test_len_of_empty_data_is_zero`, `test_len_of_empty_slice_is_zero` |
+| 3.2 | "`len` counts only the leading axis; the total is `math.prod(data.shape)`". | `test_len_of_two_dimensional_data_counts_leading_axis` |
+| 3.2/12.1 | `len` after indexing. | `test_len_after_slicing` |
+| 3.2/12.1 | `len` under `jit` is a static int. | `test_len_under_jit_is_static` |
+| 3.2/12.1 | `len` under `vmap` follows the per-example shape. | `test_len_under_vmap_of_vector_data_raises_type_error`, `test_len_under_vmap_of_two_dimensional_data_is_per_example` |
+| 3.2/12.1 | "`bool(data)` (and so `if data:`) raises `TypeError` instead of testing emptiness". | `test_bool_of_nonempty_data_raises_type_error`, `test_bool_of_empty_data_raises_type_error`, `test_bool_of_scalar_data_raises_type_error`, `test_if_data_raises_type_error` |
+
 ### `test_a3_issue_decoding.py`
 
 | Spec section | Requirement covered | Test |
@@ -525,6 +557,9 @@ been executed against survjax. Test names below are relative to `tests/spec/`.
 
 ## A2–A3: deliberately not tested
 
+- `data.shape` and `len(data)` on traced construction inside `jit` (rev 36):
+  covered for data passed into `jit`; construction inside `jit` gives the same
+  leaves, so no separate test was added.
 - Exact punctuation and wording in `InvalidDataError` messages: section 6.2
   requires counts and first offending indices, tested as decimal integers
   (Q-017), while formatting remains open.
@@ -1634,3 +1669,25 @@ load time by design.
   outline): documentation steps, not tests (Q-047).
 - **Kaplan–Meier, Brier, IBS, AUC, distribution-versus-array prediction
   inputs, `G=0`, delayed entry**: Slice E.
+
+## Revision 37 (first public release): not yet tested
+
+Revision 37 adds requirements that no step in the role file's schedule covers
+(Q-049). Nothing is tested yet for:
+
+- **`ProportionalHazards` with the PH closure (4.4; 12.1 "PH closure" row):**
+  construction, parameter issues, direct methods and grids, likelihood, the
+  PH-Weibull and PH-Exponential identities in values and first derivatives,
+  the `(S, 1)` x `(S, 2)` broadcasting case, `rmst` on a PH wrapper of a
+  custom baseline raising `NotImplementedError`.
+- **Staged RMST (8.7; 4.5 `tau` rows; 12.1 "Staged RMST" row):** mpmath
+  quadrature values and first derivatives over `k` in [0.2, 50] and `tau/b`
+  in [1e-2, 1e5] with both tails, `tau=0`, invalid `tau` and parameter issues
+  giving NaN with isolated derivatives, `tau` broadcasting, eager/`jit`/`vmap`,
+  `NotImplementedError` from Weibull Hessians in `k`, finite Hessians
+  elsewhere, `NotImplementedError` from `mean`, `median`, `quantile` and from
+  `rmst` on a custom family. The 12.1 derivative tolerance factors are an
+  implementation measurement (13); tests would need those factors or a
+  justified scale of their own.
+- **Release demos (11.2, 11.3) and the simulation study:** end-to-end
+  evidence owned by the use-case design notes, not spec tests.
