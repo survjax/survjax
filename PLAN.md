@@ -2,8 +2,9 @@
 
 Status: main through A7 is integrated at incoming commit 3389ee0. The
 maintainer accepted A8.4a.1 and approved A8.4a.2. The bc group/grid/export
-checks are implemented, validated through A7 and ready for review. Protected tester-repo
-fixture delivery remains pending. A8.4b, A8.5 and A8.d1 remain unimplemented.
+checks are accepted after review. A8.4b exponential reference comparisons
+are implemented, validated through A7 and ready for review. Protected tester-repo
+fixture delivery remains pending. A8.5 and A8.d1 remain unimplemented.
 Historical plans below retain their original status wording.
 
 Work on the existing maintainer-created `a8-1-r-generator` branch, in this
@@ -211,6 +212,21 @@ Spec: 3.3, 10.4, 12.1. Keep loader plus tests within the step budget; split
 additional schema assertions if necessary rather than compressing them.
 
 ## A8.4b — Exponential reference comparisons
+
+Execution (2026-10-26), approved by "review passed; implement next subslice":
+create tests/reference/test_exponential_r.py using r_fixture only. Explicitly
+cast CSV inputs and rates to the active JAX dtype while preserving R outputs
+as NumPy float64. For all three rates and both sources compare every row for
+function/method and raw/prepared likelihood, direct survival/log survival,
+and eager/jit/row-vmap execution; check valid diagnostics and scalar R totals
+separately. Update only the exponential fixture README's obsolete evidence
+and loader wording, plus PLAN.md/REVIEW.md. No payload, tolerance, library,
+dependency, docs/ or protected-path edits. Stay below 300 changed code/test
+lines; run focused tests per dtype and the through-A7 gate, commit and stop.
+Final evidence: 45 focused tests pass per dtype; a row-permutation control
+fails all 24 likelihood row cases while scalar totals still pass; the full
+through-A7 gate exits 0. REVIEW.md records exact counts and limits.
+A8.5 remains separate; protected acceptance-fixture handoff is still pending.
 
 File: `tests/reference/test_exponential_r.py`. No public API changes.
 For all rates and both R sources, compare every row's likelihood, survival

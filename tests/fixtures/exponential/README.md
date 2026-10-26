@@ -1,8 +1,9 @@
 # Synthetic exponential R reference
 
 The committed `data.csv` and `expected.json` were generated and verified in
-A8.3. No numerical agreement with survjax is claimed yet; that comparison is
-A8.4. No patient data are loaded.
+A8.3. `tests/reference/test_exponential_r.py` compares every row with both R
+sources at all three rates, in float64 and float32, through eager/JIT/vmap
+execution. Likelihood totals are checked separately. No patient data are loaded.
 
 From the repository root, use R 4.4.2, flexsurv 2.3.2 and survival 3.7-0
 (reported by R as `3.7.0`). No additional R packages are needed for export:
@@ -66,5 +67,5 @@ Generated on 2026-10-21 from the unchanged generators at commit
 Rows: 16; exact: 11; right-censored: 5.
 R/package versions and generator/CSV MD5 hashes are also stored in the JSON
 header. SHA-256 hashes of both committed payloads are recorded in
-[SHA256SUMS](SHA256SUMS). The command above verifies both files. The A8.4
-loader will verify this manifest before parsing either payload.
+[SHA256SUMS](SHA256SUMS). The command above verifies both files. The shared
+loader verifies this manifest before parsing either payload.
