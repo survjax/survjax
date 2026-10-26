@@ -45,6 +45,8 @@ class SurvivalData:
     The five public fields are ``exact``, ``lower``, ``upper``, ``left_trunc``,
     and ``right_trunc``. Each has the shape of the first time argument. A
     private issue-bitfield array is a sixth PyTree leaf with the same shape.
+    ``shape`` gives the observation axes; ``len(data)`` counts the leading
+    axis and raises TypeError for scalar data. Truth testing raises TypeError.
     There is no time-grid axis.
     """
 
@@ -232,6 +234,38 @@ class SurvivalData:
             may_contain=flags,
         )
         return result
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        """Return the observation shape as Python ints (spec 3.2).
+
+        Read from the stored lower-bound array, so the shape is static under
+        jit and describes each example inside vmap. Scalar data have shape ().
+        """
+        return self.lower.shape
+
+    def __len__(self) -> int:
+        """Return the leading observation-axis length (spec 3.2).
+
+        Returns:
+            A Python int, including 0 for shape (0,). For multidimensional
+            data this counts the leading axis, not all array elements.
+
+        Raises:
+            TypeError: If the observation shape is scalar ().
+        """
+        if not self.shape:
+            raise TypeError("len() of scalar SurvivalData")
+        return self.shape[0]
+
+    def __bool__(self) -> bool:
+        """Reject truth testing for every observation shape (spec 3.2).
+
+        Raises:
+            TypeError: Always; the truth value of SurvivalData is undefined.
+        """
+        # spec 3.2: prevent Python's fallback from truth testing to __len__.
+        raise TypeError("the truth value of SurvivalData is undefined")
 
     def __getitem__(self, idx: object) -> "SurvivalData":
         """Index observation axes, preserving issue bits and parent flags (spec 3.2).
