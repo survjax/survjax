@@ -137,8 +137,103 @@ def _load_r_fixture(name: str, root: Path = _R_FIXTURES) -> dict:
                 if values.shape != (count,) or not np.isfinite(values).all():
                     raise ValueError(f"invalid reference array: {quantity}")
                 quantities[quantity] = values
+    if is_bc:
+        _check_bc_fixture(expected, data, payloads["bc_synthetic_weibull.json"])
     expected["data"] = data
     return expected
+
+
+def _check_bc_fixture(expected: dict, data: dict, payload: bytes) -> None:
+    groups, sizes = ["Good", "Medium", "Poor"], [229, 229, 228]
+    header = expected["header"]
+    if not np.array_equal(data["group"], np.repeat(groups, sizes)) or header[
+        "group_sizes"
+    ] != dict(zip(groups, sizes, strict=True)):
+        raise ValueError("invalid bc group order or sizes")
+    events = {
+        group: int(data["event"][data["group"] == group].sum()) for group in groups
+    }
+    if header["events_by_group"] != events:
+        raise ValueError("bc event counts disagree with CSV")
+
+    grid = expected["grid"]
+    times = np.asarray(grid["time"], dtype=np.float64)
+    if grid["groups"] != groups or grid["shape"] != [141, 3]:
+        raise ValueError("invalid bc grid metadata")
+    if (
+        times.shape != (141,)
+        or not np.isfinite(times).all()
+        or not (np.diff(times) > 0).all()
+        or times[0] != 0
+        or times[-1] != 7
+    ):
+        raise ValueError("invalid bc grid times")
+    grid["time"] = times
+    for case in expected["cases"].values():
+        for source in ("flexsurv", "survreg"):
+            curves = np.asarray(case[source]["survival_grid"], dtype=np.float64)
+            if curves.shape != (141, 3) or not np.isfinite(curves).all():
+                raise ValueError("invalid bc reference grid")
+            if not (curves[0] == 1).all():
+                raise ValueError("invalid bc survival at zero")
+            case[source]["survival_grid"] = curves
+
+    exported = json.loads(payload, parse_constant=_reject_json_constant)
+    if set(exported) != {"meta", "data", "parameters", "results", "grid"}:
+        raise ValueError("invalid acceptance export schema")
+    meta = {
+        "seed": header["seed"],
+        "generator": header["generating_script"],
+        "R": header["r_version"],
+        "flexsurv": "2.3.2",
+        "survival": "3.7-0",
+    }
+    if exported["meta"] != meta:
+        raise ValueError("acceptance export provenance mismatch")
+    if exported["data"] != {
+        key: data[key].tolist() for key in ("time", "event", "group")
+    }:
+        raise ValueError("acceptance export rows mismatch")
+    if (
+        set(exported["grid"]) != {"time", "survival"}
+        or exported["grid"]["time"] != times.tolist()
+    ):
+        raise ValueError("acceptance export grid times mismatch")
+    mapping = {"fixed_a": "unit_shape", "fixed_b": "alternative", "r_optimum": "fitted"}
+    parameter_names = {
+        "shape": "shape",
+        "good_scale": "scale_Good",
+        "beta_medium": "beta_Medium",
+        "beta_poor": "beta_Poor",
+    }
+    labels = set(mapping)
+    if (
+        set(exported["parameters"]) != labels
+        or set(exported["results"]) != labels
+        or set(exported["grid"]["survival"]) != labels
+    ):
+        raise ValueError("acceptance export case labels mismatch")
+    for label, original in mapping.items():
+        case = expected["cases"][original]
+        if exported["parameters"][label] != {
+            key: case[value] for key, value in parameter_names.items()
+        }:
+            raise ValueError("acceptance export parameters mismatch")
+        sources = exported["results"][label]
+        if set(sources) != {"flexsurv", "survreg"}:
+            raise ValueError("acceptance export source labels mismatch")
+        for source in ("flexsurv", "survreg"):
+            values = case[source]
+            if sources[source] != {
+                "loglik": values["log_likelihood"].tolist(),
+                "survival": values["survival"].tolist(),
+            }:
+                raise ValueError("acceptance export source values mismatch")
+        if (
+            exported["grid"]["survival"][label]
+            != case["flexsurv"]["survival_grid"].tolist()
+        ):
+            raise ValueError("acceptance export curves mismatch")
 
 
 @pytest.fixture
@@ -147,6 +242,6 @@ def r_fixture() -> Callable[..., dict]:
 
     Returns header/cases/grid plus data arrays; all floating arrays retain
     NumPy float64 precision independently of the process's JAX dtype mode.
-    The additional bc group/grid/export consistency checks follow in A8.4a.2.
+    The bc acceptance export must match the primary rows, vectors and grids.
     """
     return _load_r_fixture

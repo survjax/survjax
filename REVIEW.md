@@ -1,86 +1,91 @@
-# A8.4a.1 review fix-up — SF-1/N-1 (2026-10-25)
+# A8.4a.2 — BC groups, grids and acceptance-export consistency (2026-10-26)
 
-Authorized explicitly by the request to check the review and fix without
-another approval stop. Parent: affaff6; branch: a8-1-r-generator.
-Review source: ../review/slices/A8.4a.1.md. One fix-up commit, then stop.
+Approved by "good on A8.4a.1; get to the next bit". Parent: 92e54d6;
+branch: a8-1-r-generator. One code step, then stop for review.
 
 ## Read in this order
 
-1. tests/unit/test_reference_fixtures.py: rehashed JSON and CSV damages with
-   exact rejection messages; all three quantities checked on valid fixtures.
-2. The mutation table below: each L6–L11 guard now has a sensitive test.
-3. PLAN.md: review fix-up scope; A8.4a.2 is still separate and unstarted.
+1. tests/unit/test_bc_reference_fixtures.py: positive shape/precision checks
+   and rehashed group, grid and export corruption cases with exact errors.
+2. tests/conftest.py: _check_bc_fixture, called only after every required
+   payload is hashed and the existing common schema checks have passed.
+3. PLAN.md: completed A8.4a loader scope; distribution comparisons are next.
 
-## Findings addressed
+## Invariants and interface
 
-- SF-1: valid loads now require ndarray/float64/row-shape for log_likelihood,
-  log_survival and survival from both sources. Rehashed bad JSON exercises
-  finite-array rejection using the valid numeric token 1e999 (which bypasses
-  parse_constant), non-positive exponential rate and bc scale_Good, stale CSV
-  MD5 provenance, and short log_survival. Rehashed CSV tests exercise zero and
-  infinite times and an event flip with stale event counts.
-- CSV test inputs update the header's MD5 to the changed CSV bytes and then
-  update SHA256SUMS for both files. They cannot pass by accidentally hitting
-  the earlier provenance check; each must reach its exact semantic error.
-- N-1: every JSON/CSV damage carries its own expected error message, escaped
-  and anchored. A wrong validation failure no longer satisfies a shared regex.
-- N-2: retain KeyError for missing header keys, explicitly accepted by the
-  reviewer for this infrastructure. Missing data still fails and never skips.
+The existing r_fixture callback and primary header/cases/grid/data structure
+remain. BC grid times and each source/case grid are now NumPy float64 arrays;
+no reconstruction of R seq or change to JAX configuration occurs.
 
-## Invariants and scope
+Spec 10.4/11.1/12.1: require Good/Medium/Poor blocks of 229/229/228 and
+matching group-size/event-count metadata. Grids have declared group order,
+shape (141, 3), finite values, S(0)=1, and 141 strictly increasing finite
+times with endpoints 0 and 7. Keep the actual stored time coordinates; the
+independent A8 acceptance tests enforce canonical 0.05 spacing separately.
 
-The loader itself is unchanged, as are all committed fixtures/manifests,
-R generators, library source, tolerances, dependencies, independent tests,
-spec marker and docs. All damage and rehash operations target temporary
-copies; JSON/CSV parsing in those builders creates malformed test inputs,
-not reference expectations. R-origin precision anchors remain unchanged.
-No A8.4a.2 bc group/grid/export checks or distribution comparisons are added.
-Spec mapping: 3.3 stored precision; 10.4 integrity/provenance/row alignment;
-12.1 finite reference values and valid fixed parameters.
+Parse the additional acceptance JSON only after integrity verification.
+Require its exact top-level schema, pinned provenance, CSV observations,
+grid times, three case labels, natural parameter vectors, both named sources'
+per-row likelihood/survival arrays, and flexsurv grid curves to match the
+primary R outputs. These are exact representation checks, not tolerant
+numerical comparisons or independent recomputations of expected values.
 
-## Focused checks
+All existing data/manifests, R generators, library API/source, dependencies,
+tolerances, docs and independent tests remain unchanged. Temporary JSON/CSV
+parsing is used only to build malformed test inputs. The protected independent
+fixture is still absent; the maintainer handoff remains pending.
 
-With UV_CACHE_DIR=/private/tmp/survjax-uv-cache:
-`uv run pytest -q tests/unit/test_reference_fixtures.py` in separate
-JAX_ENABLE_X64=1 and 0 processes: 28 passed in 0.24s per mode.
+## Checks and spec mapping
 
-`python3 /private/tmp/survjax-a84a1-review-mutations.py`: exit 0. It copies the
-loader, tests and fixtures to a temporary tree and runs each mutant's full
-focused suite in both dtypes. Child exit 1 and assertion failures are expected;
-the driver verifies those counts and rejects setup errors.
+With UV_CACHE_DIR=/private/tmp/survjax-uv-cache, ran
+`uv run pytest -q tests/unit/test_reference_fixtures.py
+ tests/unit/test_bc_reference_fixtures.py` in separate JAX_ENABLE_X64=1 and 0
+processes: 58 passed in 0.58s per mode (28 common plus 30 BC tests).
 
-| Mutant | Float64 | Float32 |
-| --- | --- | --- |
-| L6 drop per-row isfinite | 1 failed / 27 passed | 1 failed / 27 passed |
-| L7 drop event-count check | 1 failed / 27 passed | 1 failed / 27 passed |
-| L8 drop CSV MD5 check | 1 failed / 27 passed | 1 failed / 27 passed |
-| L9 drop positive-time check | 1 failed / 27 passed | 1 failed / 27 passed |
-| L10 drop parameter positivity | 2 failed / 26 passed | 2 failed / 26 passed |
-| L11 omit log_survival validation | 3 failed / 25 passed | 3 failed / 25 passed |
+- Spec 3.3/11.1: every case/source returns a (141, 3) float64 grid. Original
+  R %a anchors for time index 51 and the fitted Medium curve match exactly
+  in both modes (A8.3b audit). Time coordinates are never regenerated.
+- Spec 10.4/11.1: validly rehashed inputs separately damage CSV group order,
+  group sizes/event counts, grid labels/dimensions/times/finiteness/S(0),
+  acceptance schema/meta/observations, all three case-label maps, parameters,
+  source labels, each source's two row quantities and curve columns.
+  Expected errors are escaped/anchored per case; CSV damage refreshes its
+  header MD5 too, so it reaches the group check instead of earlier provenance.
+- `python3 /private/tmp/survjax-a84a2-mutations.py`: exit 0. In temporary
+  copies, remove each of the new helper's 15 rejection guards individually;
+  run the full 30-case BC module in both dtypes. Every mutation yields
+  assertion failures, never setup errors. Failure counts per mode: group
+  order/sizes 2; group event counts 1; grid metadata 2; grid times 5; reference
+  grid shape/finiteness 2; S(0) 1; export schema 1; export provenance 1;
+  export rows 3; export grid times 1; case labels 3; parameters 1; source
+  labels 1; source values 4; curve values 1. All remaining tests pass.
+  Log: /private/tmp/survjax-a84a2-mutations.log; per-mutant logs/root:
+  /private/tmp/survjax-a84a2-mutations.json.
 
-Log: /private/tmp/survjax-a84a1-review-mutations.log; per-mutant logs and tree
-location: /private/tmp/survjax-a84a1-review-mutations.json.
-All six formerly surviving mutants are rejected in both dtypes.
+The code/test diff is 276 lines (96 additions/1 deletion in conftest plus
+179 new test lines). Module sizes: conftest 247, BC test module 179. Existing
+common tests are unchanged. No new abstraction or dependency is introduced.
 
 ## Final gate
 
 `UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A7`:
 exit 0, check: all gates passed through A7.
-Log: /private/tmp/survjax-a84a1-fix-gate.log.
+Complete log: /private/tmp/survjax-a84a2-gate.log.
 
-- Guard OK; Ruff: 74 files formatted / All checks passed!
+- Guard OK; Ruff: 75 files formatted / All checks passed!
 - mypy: no issues in 17 source files.
-- Own float64: 805 passed, 7 skipped, 149.54s.
-- Own float32: 811 passed, 1 skipped, 148.92s.
-- Source doctests: 4 passed per mode, 0.95s / 0.88s.
-- Independent float64: 2123 passed, 28 skipped, 223 deselected, 100.04s.
-- Independent float32: 2127 passed, 24 skipped, 223 deselected, 98.66s.
+- Own float64: 835 passed, 7 skipped, 145.91s.
+- Own float32: 841 passed, 1 skipped, 140.52s.
+- Source doctests: 4 passed per mode, 0.81s / 0.84s.
+- Independent float64: 2123 passed, 28 skipped, 223 deselected, 111.61s.
+- Independent float32: 2127 passed, 24 skipped, 223 deselected, 106.64s.
 
-Only result records are updated after the gate. Final Ruff formatting/lint
-and git diff --check pass; loader and protected/data paths are unchanged.
+Only result records and plan status are updated after the gate. Final Ruff
+formatting/lint and git diff --check pass on the finished records.
 
-## Remaining work and stop
+## Limits and next step
 
-No through-A8 claim, R run, docs build or new deviation. The protected fixture
-handoff and A8.4a.2 remain as previously recorded. Commit this test-only fix-up
-and stop for review; do not start the next implementation step.
+No through-A8 claim, R run, docs build or new deviation. This completes the
+planned A8.4a loader work, subject to review. A8.4b adds exponential comparisons;
+A8.5 adds Weibull comparisons and the through-A8 gate after protected fixture
+handoff; A8.d1 documents the evidence. Do not start those in this commit.
