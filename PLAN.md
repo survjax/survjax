@@ -239,6 +239,14 @@ Docs to-do: describe which exponential quantities are verified, in A8.d1.
 
 ## A8.5 — Weibull reference comparisons and the A8 code gate
 
+Execution (2026-10-27), authorized by "implement A8.5, plan is approved":
+implement the approved reference tests on a8-1-r-generator. Protected fixture
+delivery remains pending; run the through-A7 gate and report that limitation.
+No loader, library, payload, docs/, dependency or tolerance changes.
+Completed: 102 focused tests pass per dtype; all 36 row/grid sensitivity
+controls fail as intended per dtype. The through-A7 gate exits 0; exact counts
+and evidence limits are recorded in REVIEW.md. Commit and stop for review.
+
 File: `tests/reference/test_weibull_bc_like_r.py`. No public API changes.
 For all vectors and both sources compare per-row log likelihood, survival,
 log survival and the (141, 3) grid. Derive row scales from recorded group

@@ -1,82 +1,80 @@
-# A8.4b — Exponential R reference comparisons (2026-10-26)
+# A8.5 — Synthetic Weibull R reference comparisons
 
-Approved by "review passed; implement next subslice" after a942479.
-Branch: a8-1-r-generator. One test step, then stop for review.
+Approved by "implement A8.5, plan is approved"; branch a8-1-r-generator.
+One reference-test step, then stop for review.
 
-## Read in this order
+## Reading order
 
-1. tests/reference/test_exponential_r.py: shared-loader fixtures, active-dtype
-   inputs and unchanged float64 R expectations; explicit API/input-form tests.
-2. Its direct survival/log-survival tests and separate scalar-total test.
-3. tests/fixtures/exponential/README.md: updated comparison/loader evidence.
-4. PLAN.md: A8.5 and the separate docs topic remain future work.
+1. tests/reference/test_weibull_bc_like_r.py: AFT parameter construction,
+   per-row comparisons, then the time-first grid and supplemental totals.
+2. PLAN.md: approved A8.5 scope and separate A8.d1 docs topic.
 
-## Invariants and spec mapping
+## Invariants and requirement coverage
 
-- Spec 3.3: read through r_fixture only. Cast times and rate to the process's
-  JAX dtype; keep expected R doubles untouched. Assert output shape and active
-  dtype for every numerical result. No JAX global configuration changes.
-- Spec 4.6/12.1: compare all 16 observed-time survival and log-survival values
-  for rates slow=0.1, generating=0.35, fast=1.2 against both R sources.
-- Spec 6.1/12.1: compare every likelihood contribution for function/method
-  entry points and raw/prepared inputs. Each numerical row test runs eagerly,
-  under jax.jit, and row-wise jax.vmap against the same committed R expectation.
-  The distribution is a dynamic argument to those transformed functions.
-- Spec 4.7/6.2: valid fixture data and positive rates have clear data/parameter
-  diagnostics in all three cases.
-- Spec 12.1: scalar sums compare to separately recorded R package totals.
-  They supplement, never replace, per-row assertions. Only existing
-  ATOL/RTOL in tests/impl_tolerances.py are used; no thresholds change.
+- Spec 3.3/10.4: all fixture access uses r_fixture. R expectations stay host
+  float64; inputs and parameters use the process's active JAX dtype.
+  Every numerical output has explicit shape and dtype assertions.
+- Spec 4.6/11.1: for fitted, unit_shape and alternative, derive scales from
+  baseline times exp(group coefficient), ordered Good/Medium/Poor. Both
+  natural and from_log constructors are checked against the same R values.
+  Scalar common shape is supplied to constructors, which broadcast it to
+  match scales; vmap then slices both stored parameter arrays.
+- Spec 4.7/6.2: fixture data and all row/group distributions have clear
+  diagnostics. No library behavior, public API or tolerance changes.
+- Spec 6.1/12.1: all 686 ordered likelihood contributions are compared with
+  each R source, through function/method and raw/prepared entry points.
+  Each runs eagerly, under jit with dynamic distributions, and row-wise vmap.
+  Separate R package totals supplement the per-row comparisons.
+- Spec 4.6/12.1: observed-time survival and log survival compare every row
+  against both R sources under eager/jit/vmap, for both constructors.
+- Spec 5/11.1: all (141, 3) survival-grid entries compare with both stored
+  sources under eager/jit and vmap over time. Use stored R grid times to
+  preserve their rounding. Grid labels come from the checked shared loader.
 
-Every numerical expectation comes from the committed flexsurv/survreg fixture,
-not from running survjax. The two R paths remain related numerical evidence;
-this step covers finite interior exponential cases, not A7's delicate tails
-or A9's broader derivative suite. No fixture parsing outside the shared loader.
+Numerical expectations are committed flexsurv/survreg outputs, never generated
+by survjax. These related package paths are not fully independent oracles.
+This step covers finite synthetic reference cases; A7/A9 own broader tail and
+transformation/derivative evidence. No R regeneration, docs build, source,
+loader, payload, protected-path, dependency or tolerance edits.
 
-No loader, payload, generator, library API/source, dependency, tolerance,
-protected test or docs/ changes. The fixture README removes its obsolete
-claim that comparisons/automatic loading remain future work. Docs to-do:
-describe the scope and limits of this R evidence in A8.d1.
-
-## Focused verification
+## Focused checks
 
 With UV_CACHE_DIR=/private/tmp/survjax-uv-cache,
-`uv run pytest -q tests/reference/test_exponential_r.py`:
-JAX_ENABLE_X64=1: 45 passed in 3.61s;
-JAX_ENABLE_X64=0: 45 passed in 3.37s.
-Logs: /private/tmp/survjax-a84b-focused-x64.log and
-/private/tmp/survjax-a84b-focused-x32.log.
+`uv run pytest -q tests/reference/test_weibull_bc_like_r.py`:
 
-Sensitivity control in a temporary test/fixture copy: monkeypatch both
-likelihood entry points to roll their row output by one. No committed source
-or fixture is edited. The scalar total is preserved, but the ordered per-row
-R comparisons fail for every case/source/API/input combination:
-24 assertion failures / 21 passed per dtype (1.68s x64 / 1.60s x32).
-All failed IDs are row tests; all six scalar-total checks still pass.
-Logs: /private/tmp/survjax-a84b-control-x64.log and
-/private/tmp/survjax-a84b-control-x32.log. These expected child exit-1 results
-are mutation evidence, not failures of the unchanged implementation.
+- JAX_ENABLE_X64=1: 102 passed in 8.34s.
+- JAX_ENABLE_X64=0: 102 passed in 8.44s.
 
-## Final gate
+Logs: /private/tmp/survjax-a85-focused-x64.log and
+/private/tmp/survjax-a85-focused-x32.log. An initial setup assertion expected
+stored scalar shape; it was corrected to the constructor's broadcast shape
+before these successful runs. No numerical assertion or tolerance changed.
 
-`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A7`:
-exit 0, check: all gates passed through A7.
-Log: /private/tmp/survjax-a84b-gate.log.
+Sensitivity control: temporary pytest plugin /private/tmp/survjax_a85_control.py
+rolls public-function likelihood rows (preserving their sum) and reverses
+survival-grid columns. No committed implementation or fixture is edited.
+Both dtypes reject all 24 function-row and 12 grid cases: 36 expected failures,
+66 passes (6.44s x64 / 6.42s x32). The remaining tests, including scalar totals,
+pass. Logs: /private/tmp/survjax-a85-control-x64.log and
+/private/tmp/survjax-a85-control-x32.log. These expected exit-1 mutation runs
+are distinct from the passing unmodified suite.
 
-- Guard OK; Ruff: 76 files formatted / All checks passed!
+## Gate and limits
+
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A7`
+exited 0: check: all gates passed through A7.
+Full output: /private/tmp/survjax-a85-gate.log.
+
+- Guard OK; Ruff: 77 files already formatted / All checks passed.
 - mypy: no issues in 17 source files.
-- Own float64: 880 passed, 7 skipped, 161.90s.
-- Own float32: 886 passed, 1 skipped, 190.08s.
-- Source doctests: 4 passed per mode, 1.10s / 1.01s.
-- Independent float64: 2123 passed, 28 skipped, 223 deselected, 114.53s.
-- Independent float32: 2127 passed, 24 skipped, 223 deselected, 111.26s.
+- Own float64: 982 passed, 7 skipped in 181.75s.
+- Own float32: 988 passed, 1 skipped in 181.70s.
+- Source doctests: 4 passed per dtype in 1.11s / 1.08s.
+- Independent float64: 2123 passed, 28 skipped, 223 deselected in 122.71s.
+- Independent float32: 2127 passed, 24 skipped, 223 deselected in 113.45s.
 
-Only result records and plan status are updated after the gate. Final Ruff
-formatting/lint and git diff --check pass on the completed records.
-
-## Limits and stop
-
-The real independent bc acceptance fixture remains absent pending maintainer
-handoff. No full through-A8 claim, R regeneration, docs build or new deviation.
-Stop after this commit. Next: A8.5 Weibull row/grid comparisons, then A8.d1
-reference-evidence docs after reviewed code merges.
+Final Ruff formatting/lint and git diff --check also pass after result recording.
+The protected tests/spec/fixtures/bc_synthetic_weibull.json is still absent,
+so the through-A8 gate is pending durable maintainer delivery and sync.
+No full A8 or Slice A completion claim. No new deviation.
+Stop after this commit; A8.d1 remains a separate docs step.
