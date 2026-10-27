@@ -1,99 +1,113 @@
-# A9.1 — Derivative and compiled-composition evidence
+# A9.2 — Installed wheel and out-of-tree extension
 
-Read `tests/unit/test_likelihood_composition.py` first, then
-`tests/unit/test_likelihood_custom_derivatives.py`, then the active A9.1
-entry in PLAN.md. Approved branch: `A9`; starting commit: `030314b`.
-This is a verification-only step. No library code, public API, dependencies,
-shared tolerances, spec, independent tests or narrative docs changed.
-The two new test modules total 299 lines.
+Read `scripts/check_wheel.sh`, then `tests/install/test_wheel.py`, then
+`tests/install/custom_family.py`, then the active A9.2 entry in PLAN.md.
+Approval: "review passed, plan approved, on to A9.2". Branch `A9`, starting
+commit `8e7a7f4`. New script/test/example content totals 281 lines. Library
+code, exports, dependencies, lockfile, shared tolerances, spec, independent
+tests and protected scripts are unchanged.
 
 Invariants and spec-to-test mapping:
 
-- `test_traced_construction_diagnostics_and_derivatives` (6.2, 7.3, 12.1):
-  Exponential and Weibull with flag/bounds data constructed from traced
-  arguments; data and parameter diagnostic `ok` values are returned together
-  with the objective, forward/reverse gradients and three Hessian routes.
-  Prepared, eager construction and jit construction each match independently
-  differentiated exact/right formulas, including Weibull's mixed derivative.
-- `test_mapped_likelihood_derivatives_are_analytical` (7.3, 12.1):
-  different parameter vectors and datasets have analytical values, gradients
-  and Hessians under vmap and jit-of-vmap. Replicates remain independent.
-- `test_diagnostics_guard_invalid_replicate_under_jit_vmap` (6.2, 12.1):
-  data/parameter diagnostics guard the objective via lax.cond; one invalid
-  raw indicator selects an explicit zero fallback. Its valid neighbors keep
-  their hand-derived values, gradients and Hessians. The fallback belongs to
-  the test's caller workflow, not the library's NaN-likelihood contract.
-- `test_derivative_compilation_reused_for_changed_values` (7.2, 12.3):
-  changing parameter values, times and event indicators with unchanged
-  shapes/dtypes/tree structure reuses one trace. Equal-sized slices retain
-  their parent's tree structure/static metadata. Every call is synchronized
-  and its values and derivatives checked analytically, including after reuse.
-- `test_generic_density_parameter_derivatives` (4.2, 7.3, 12.1):
-  a custom family supplies only log survival and a reference, using the
-  generic autodiff density. Analytical values, gradients and Hessians agree
-  eagerly and under jit; mapped Hessians agree too. Order-two check_grads
-  covers forward/reverse modes in both process dtype modes with the existing
-  justified unit-scale mean-likelihood tolerances and finite-difference steps.
-- `test_substituted_reference_derivatives_are_isolated` (7.2, 12.1):
-  the custom exponential reference remains positive finite, but has a
-  singular derivative at the tested rate. Right-only and mixed batches
-  retain the active formula's gradient and Hessian in all four nested
-  forward/reverse combinations, eagerly and through jit.
+- `scripts/check_wheel.sh` (10.3, 12.1–12.2) builds one wheel into a fresh
+  temporary directory, retains it for inspection and supplies its absolute
+  path through SURVJAX_WHEEL to the unchanged gate. Default is through A9;
+  explicit arguments permit the available A7 cumulative gate while A8 is
+  absent. Offline execution, disabled Python downloads and a locked project
+  are inherited by child processes. Gate errors propagate unchanged.
+- `test_wheel_contains_pure_python_package_and_type_marker` (10.2) checks
+  the py3-none-any wheel, import package and py.typed marker. Own tests build
+  a wheel once per test session when SURVJAX_WHEEL is absent, so the standard
+  tests runner needs no manual artifact setup. An explicitly supplied invalid
+  path fails instead of silently building another artifact.
+- The installed fixture (10.3) exports the existing lock's runtime closure as
+  pylock.toml, preserving pinned versions, artifact URLs and hashes. It
+  creates an unseeded virtual environment outside the checkout, syncs cached
+  binary runtime artifacts offline, installs the wheel without dependency
+  resolution and runs uv pip check. Test/docs/demo groups are excluded.
+- `test_installed_core_uses_wheel_without_demo_dependencies` (10.1–10.3,
+  12.2) starts isolated Python (-I) from the external directory. It verifies
+  the package comes from that virtual environment, exact public exports,
+  absence of the removed likelihood function, type marker, distribution
+  name/version/Python/license metadata and exactly JAX/NumPy runtime
+  requirements. It checks demo, test and docs packages are unavailable and
+  unimported, then evaluates the current likelihood with hand-derived values
+  and the runner-selected dtype. No source path or editable install is used.
+- `test_installed_custom_family_is_typed_and_differentiable` (4.2, 7.3,
+  10.3) copies the annotated custom family outside the checkout, runs it in
+  the fresh environment, and checks generic-density values and jitted
+  parameter gradient/Hessian against explicit algebra. Existing mypy runs
+  in strict mode outside the checkout with the installed Python as its
+  package-discovery target. The external example uses only public API.
 
-All numerical expected values come from explicit formulas in the tests.
-NumPy inspection runs outside traced functions. Parameters are finite smooth
-interior cases; no derivative claim extends to data times or unsupported,
-invalid or infinite objectives. Existing tests retain responsibility for
-parameter-issue isolation, boundaries, tails and built-in finite differences.
-Both dtype processes are selected externally; tests never change JAX config.
+Expected values are independent formulas stated beside assertions. All
+comparison tolerances come from tests/impl_tolerances.py. Tests never change
+JAX dtype mode; each process inherits JAX_ENABLE_X64. No network, R, optional
+solver, plotting or demo dependency is used. A prepopulated locked runtime
+cache remains an environment-setup prerequisite; a missing cache fails.
+The build uses uv's native compatible uv_build implementation; the build
+requirement in pyproject.toml is unchanged.
 
-Checks completed so far (CPU, Python 3.12.9, JAX 0.11.2, NumPy 2.5.3):
+Verification results:
 
-- Focused own tests: `JAX_ENABLE_X64=<1|0>
-  UV_CACHE_DIR=/private/tmp/survjax-uv-cache uv run pytest
-  tests/unit/test_likelihood_composition.py
-  tests/unit/test_likelihood_custom_derivatives.py -q`:
-  15 passed in 22.61s (float64), 15 passed in 21.95s (float32), no skips.
-- Independent A9 tests: `JAX_ENABLE_X64=<1|0> SPEC_THROUGH=A9
-  UV_CACHE_DIR=/private/tmp/survjax-uv-cache uv run pytest
-  tests/spec/test_a9_likelihood_derivatives.py
-  tests/spec/test_a9_compiled_composition.py -q`:
-  40 passed in 37.28s (float64); 27 passed, 13 skipped in 18.37s (float32).
-  The 13 skips are the independent suite's existing float64-only finite
-  difference checks. No independent tests were edited, skipped or xfailed
-  by this step.
-- Focused logs: `/private/tmp/survjax-a91-focused-final-x1.log`,
-  `/private/tmp/survjax-a91-focused-final-x0.log`;
-  independent logs: `/private/tmp/survjax-a91-spec-x1.log`,
-  `/private/tmp/survjax-a91-spec-x0.log`.
-- Ruff: 74 files already formatted / All checks passed! Mypy:
-  Success: no issues found in 17 source files. `git diff --check`: exit 0.
+- `JAX_ENABLE_X64=<1|0> UV_CACHE_DIR=/private/tmp/survjax-uv-cache
+  uv run --locked --offline pytest tests/install -q -s`: 3 passed in 17.16s
+  (float64), 3 passed in 21.98s (float32), including external strict mypy:
+  `Success: no issues found in 1 source file`. These focused runs exercised
+  the default build-once fixture. The final extra runtime-requirement metadata
+  assertion is exercised in the cumulative gate.
+- `JAX_ENABLE_X64=<1|0> SPEC_THROUGH=A9 SURVJAX_WHEEL=<artifact below>
+  UV_CACHE_DIR=/private/tmp/survjax-uv-cache uv run --locked --offline pytest
+  tests/spec/test_a9_package.py tests/spec/test_a9_wheel_smoke.py -q`:
+  16 passed in 2.74s per mode, no skips or failures. Independent tests remain
+  unchanged and use the same runner-built wheel as the cumulative gate.
+- `bash -n scripts/check_wheel.sh`: exit 0. Ruff: 76 files already formatted /
+  All checks passed! Mypy core: no issues found in 17 source files.
+  `git diff --check`: exit 0.
 
-Full gate: `UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh
---through A7` exited 0: `check: all gates passed through A7`.
-Guard: ok (A9). Ruff: 74 files already formatted / All checks passed!
-Mypy: Success: no issues found in 17 source files.
+Artifact retained by the runner:
+`/private/var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/survjax-wheel.b3M6R5/survjax-0.0.1.dev0-py3-none-any.whl`.
+SHA-256: `700418efd9bf12297ed2e0851d5c133767dc7abf575d146ed85b3d4da6f1df3f`.
+Its WHEEL metadata says `Generator: uv 0.11.19`, `Root-Is-Purelib: true`,
+`Tag: py3-none-any`. Tested Python 3.12.9, JAX/JAXlib 0.11.2, NumPy 2.5.3;
+other pinned runtime packages: ml-dtypes 0.6.0, opt-einsum 3.4.0, SciPy 1.18.1.
+No different Python/JAX combination or accelerator is claimed.
+
+Focused logs: `/private/tmp/survjax-a92-install-x1.log`,
+`/private/tmp/survjax-a92-install-x0.log`. Independent logs:
+`/private/tmp/survjax-a92-spec-x1.log`, `/private/tmp/survjax-a92-spec-x0.log`.
+Full gate: `UV_CACHE_DIR=/private/tmp/survjax-uv-cache
+scripts/check_wheel.sh --through A7` exited 0:
+`check: all gates passed through A7`. Guard: ok (A9).
 
 | Gate stage | Float64 | Float32 |
 | --- | --- | --- |
-| Own tests | 789 passed, 7 skipped, 186.51s | 795 passed, 1 skipped, 173.74s |
-| Source doctests | 4 passed, 1.01s | 4 passed, 0.95s |
-| Independent through A7 | 2114 passed, 28 skipped, 218 deselected, 106.77s | 2118 passed, 24 skipped, 218 deselected, 107.94s |
+| Own tests | 792 passed, 7 skipped, 211.16s | 798 passed, 1 skipped, 192.31s |
+| Source doctests | 4 passed, 0.89s | 4 passed, 0.82s |
+| Independent through A7 | 2114 passed, 28 skipped, 218 deselected, 99.80s | 2118 passed, 24 skipped, 218 deselected, 95.99s |
 
-Full log: [/private/tmp/survjax-a91-gate.log](/private/tmp/survjax-a91-gate.log).
-The 15 new own tests pass in both modes with no new skips or exclusions.
-The independent gate's 218 deselections belong to later steps; the two A9
-modules above were also run separately in full. Only PLAN.md/REVIEW.md result
-records changed after the gate. Final Ruff format/lint and whitespace checks
-are run after those record updates, before the step commit.
+Full log: [/private/tmp/survjax-a92-gate.log](/private/tmp/survjax-a92-gate.log).
+All three new own cases pass in both modes; there are no new skips or
+exclusions. The 218 deselections belong to later gate steps. A9 package/wheel
+acceptance was run separately, without filters. Only PLAN.md/REVIEW.md result
+records changed after this gate; final Ruff and whitespace checks follow.
+Ruff 0.16.9 and mypy 2.3.1 were used; `jax.devices()` reports CpuDevice(id=0).
 
-The initial focused run in each dtype had 7 failed / 8 passed
-because the new analytical expectations negated NumPy boolean arrays. Casting
-the event indicators to float corrected that test-authoring error; no library
-change or tolerance adjustment was needed. An initial Ruff check also caught
-an unbound loop index in a test lambda; it now binds the index explicitly.
+The first requirements.txt install attempt failed at setup (1 passed, 2 errors per
+mode): cached wheels were present, but the registry metadata needed for a
+new requirements resolution was absent. Exporting pylock.toml retained the
+lock's artifact identities and fixed offline installation without downloading
+anything, changing versions or modifying the lockfile.
 
-No contract ambiguity or new deviation found. A9.2 installation, A9.3 example,
-A9.4 CPU measurements and A9.d1 narrative docs have not started. A8 fixtures
-are absent, so this step cannot establish the cumulative A9 or Slice A gate.
-No R or docs build is required by this test-only step. Stop after its commit.
+An auxiliary verbose build diagnostic without UV_CACHE_DIR failed before
+building because the sandbox denied access to the default user cache
+(`Operation not permitted` at `/Users/wamster3/.cache/uv`). It is not build
+evidence; the successful runner build uses the explicit permitted temporary
+cache, and backend identity is read from the resulting wheel.
+
+A8 fixtures remain absent: the cumulative through-A9 gate is pending A8.
+The default runner does not skip or suppress that requirement. A9.3 example,
+A9.4 benchmarks and A9.d1 docs have not started. Sdist and release checks are
+outside this Slice A wheel step. No contract ambiguity/new deviation found.
+Final result records are complete. No R, sdist or docs build ran. Commit this
+step on `A9` and stop for review.

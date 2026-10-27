@@ -1,10 +1,11 @@
 # A9 — Transformations, installation and Slice A evidence (2026-10-26)
 
-Status: **A9.1 implemented and verified; ready for review** ("ok plan agreed, get to
+Status: **A9.1 review passed; A9.2 implemented and verified, ready for review** ("ok plan agreed, get to
 work"). Planning started
 on the maintainer-created `A9` branch at `030314b`, with a clean working tree.
-This entry is active; earlier entries below are historical. Approval starts
-A9.1 only. Each later step needs its own approval after the preceding review.
+This entry is active; earlier entries below are historical. A9.1 was approved
+and passed review; "review passed, plan approved, on to A9.2" authorizes A9.2.
+Later steps still need approval after the preceding review.
 Each step ends in one commit, an overwritten REVIEW.md and a stop. Target at
 most 300 changed code/test/docstring lines per step; split and replan before
 exceeding that budget. Do not create or switch branches without instruction.
@@ -151,6 +152,45 @@ wheel must pass all applicable checks; report Python/JAX/NumPy/backend
 versions actually used. Keep the normal `scripts/run_tests.sh` working in
 both dtypes and excluding `tests/spec`. Update PLAN.md/REVIEW.md, commit and
 stop. A cumulative through-A9 run remains pending A8.
+
+### A9.2 implementation evidence (2026-10-27)
+
+Created the wheel runner, three own install tests and the annotated external
+family (281 script/test/example lines). The runtime export uses pylock.toml
+to preserve locked artifact identities and hashes and avoid needing cached
+registry metadata. Installs use a fresh external environment, offline binary
+sync, then the wheel with no dependency resolution. Strict external mypy and
+parameter derivatives pass; no library or dependency change was needed.
+Initial focused own runs after correcting the export format: 3 passed in
+17.16s (float64), 3 passed in 21.98s (float32). Final metadata checks are
+included in the cumulative gate now running.
+
+The runner-built wheel is used by both cumulative dtype processes and the
+independent A9 package/wheel modules: 16 passed in 2.74s in each mode.
+Its WHEEL metadata records `Generator: uv 0.11.19`, `Root-Is-Purelib: true`,
+`Tag: py3-none-any`. Python 3.12.9, JAX 0.11.2, NumPy 2.5.3; CPU only.
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check_wheel.sh --through A7`
+exited 0: `check: all gates passed through A7`. Guard passed; Ruff reports
+76 files already formatted / All checks passed! Mypy reports no issues in
+17 source files. The external example passed strict mypy in both processes.
+
+| Gate stage | Float64 | Float32 |
+| --- | --- | --- |
+| Own tests | 792 passed, 7 skipped, 211.16s | 798 passed, 1 skipped, 192.31s |
+| Source doctests | 4 passed, 0.89s | 4 passed, 0.82s |
+| Independent through A7 | 2114 passed, 28 skipped, 218 deselected, 99.80s | 2118 passed, 24 skipped, 218 deselected, 95.99s |
+
+Full log: `/private/tmp/survjax-a92-gate.log`. The three new own install
+cases run in each dtype, with no new skips or exclusions. The retained wheel
+has SHA-256 `700418efd9bf12297ed2e0851d5c133767dc7abf575d146ed85b3d4da6f1df3f`;
+REVIEW.md records its absolute path and focused/spec logs. Bash syntax and
+whitespace checks passed. Initial requirements.txt setup attempts failed
+because offline registry metadata was unavailable; pylock export fixed them.
+An auxiliary verbose build with no task cache variable hit the sandbox's
+restricted default cache; successful builds use the explicit permitted cache.
+No spec deviation or dependency change was needed. No R, sdist, docs build
+or later step ran. Only result records changed after the gate; final static
+and whitespace checks follow. Commit A9.2 on `A9` and stop for review.
 
 ## A9.3 — Tiny synthetic example
 
