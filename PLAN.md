@@ -1,11 +1,11 @@
 # A9 — Transformations, installation and Slice A evidence (2026-10-26)
 
-Status: **A9.1 review passed; A9.2 implemented and verified, ready for review** ("ok plan agreed, get to
-work"). Planning started
+Status: **A9.1–A9.2 review passed; A9.3 implemented and verified, ready for review**
+("review passed; on to next bit"). Planning started
 on the maintainer-created `A9` branch at `030314b`, with a clean working tree.
 This entry is active; earlier entries below are historical. A9.1 was approved
-and passed review; "review passed, plan approved, on to A9.2" authorizes A9.2.
-Later steps still need approval after the preceding review.
+and passed review; A9.2 passed review too. The maintainer
+authorized A9.3 on 2026-10-28; later steps still need approval after review.
 Each step ends in one commit, an overwritten REVIEW.md and a stop. Target at
 most 300 changed code/test/docstring lines per step; split and replan before
 exceeding that budget. Do not create or switch branches without instruction.
@@ -198,6 +198,14 @@ One concept: show a minimal supported workflow. Public API touched: none.
 Create `examples/slice_a.py` and `tests/unit/test_slice_a_example.py`.
 Spec: 6.1–6.2, 7.3, 10.3, 12.2. Target well below 300 changed lines.
 
+Implementation choice: expose a callable `run_example()` returning named JAX
+arrays, plus a guarded `main()` that prints them. Use times [1, 2, 3], events
+[True, False, True], exponential rate 0.5 and Weibull (shape, scale)=(2, 2).
+Compile the Weibull summed objective and its joint gradient/Hessian; return
+a time-first grid for two scales. Three focused tests call that same example
+and independently check contributions, derivatives and grid values/shapes.
+No new library API or dependency is needed.
+
 - Use a tiny explicit synthetic exact/right dataset, construct SurvivalData,
   perform an explicit host validation checkpoint, evaluate both built-ins,
   compute a summed objective with parameter gradient/Hessian under jit, and
@@ -212,6 +220,46 @@ Checks: execute `uv run python examples/slice_a.py` and the focused test in
 both dtype processes; run the cumulative available gate through A7 with the
 wheel runner, static checks and `git diff --check`. Record outputs, update
 PLAN.md/REVIEW.md, commit and stop. Docs integration waits for A9.d1.
+
+### A9.3 implementation evidence (2026-10-28)
+
+Created the runnable example (70 lines) and three own regression tests
+(83 lines): 153 added code/test lines. No library, dependency, shared
+tolerance, protected-file or docs-page change. Both CLI invocations exited 0;
+focused tests passed 3 cases in 2.17s per dtype, with no skips or failures.
+The printed Weibull objective is -3.7876820724517812 (float64) and
+-3.787682056427002 (float32), with joint gradient/Hessian and the (4,2)
+survival grid checked independently by the tests.
+
+The first wheel-backed gate failed on damaged pre-existing runtime cache
+entries (missing dist-info/RECORD): 793 passed, 7 skipped, 2 installation
+setup errors in the float64 own suite. Official uv cache/install commands
+restored all six artifacts from the existing lock via a one-time setup
+download. No versions or repository implementation changed. Offline install
+preflight then passed 3 tests in 16.68s in a fresh environment. REVIEW.md
+records the diagnostic attempts and repair. The final rerun
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check_wheel.sh --through A7`
+exited 0: `check: all gates passed through A7`. Guard passed; Ruff reports
+78 files already formatted / All checks passed! Mypy reports no issues in
+17 source files. Runtime: Python 3.12.9, JAX 0.11.2, NumPy 2.5.3, CpuDevice(id=0).
+
+| Gate stage | Float64 | Float32 |
+| --- | --- | --- |
+| Own tests | 795 passed, 7 skipped, 192.90s | 801 passed, 1 skipped, 188.68s |
+| Source doctests | 4 passed, 0.99s | 4 passed, 0.86s |
+| Independent through A7 | 2114 passed, 28 skipped, 218 deselected, 101.28s | 2118 passed, 24 skipped, 218 deselected, 93.42s |
+
+Full final log: `/private/tmp/survjax-a93-gate-final.log`. No new skips or
+exclusions. All tests in that run remained offline after environment setup.
+Only PLAN.md/REVIEW.md result records changed after the gate; final Ruff and
+whitespace checks follow. No R, docs build or benchmark ran. Commit A9.3 on
+`A9` and stop for review; A9.4 has not begun.
+
+### Docs to-do
+
+A9.d1 will link the example and describe the two dtype-mode run commands,
+the compiled derivatives and the time-first grid. Narrative docs stay in
+that separate approved step.
 
 ## A9.4 — Reproducible CPU baseline
 
