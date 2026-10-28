@@ -1,3 +1,81 @@
+# A10.2b2 — Public concordance entry points (2026-10-26)
+
+Status: **implemented and verified; ready for review**, authorized by
+"review approved ... get on with next subslice". Work in dev-a10 on A10-cindex from clean `715a7e3`; no merges.
+The maintainer also explicitly allows the two API-reference entries needed by
+the export-coverage test, as a narrow exception to the code-step docs rule.
+Tutorials and broader docs remain separate. The shared spec is now revision
+37; its concordance contract is unchanged. Likelihood alignment/spec sync
+remain owned elsewhere; do not change .spec-seen or that API here.
+
+
+Final evidence (completed 2026-10-27): both public entry points and their
+exports are implemented. Own focused suites pass 64 tests per dtype
+(6.87s float64 / 6.27s float32), no skips. The five selected independent A10
+modules pass 113 tests in float64 (45.13s), and 112 with 1 existing skip in
+float32 (47.97s). This is focused A10 evidence, not a full A10 gate.
+
+The initial through-A7 attempt failed only the old exact export smoke list
+(1 failed, 848 passed, 7 skipped); adding the two intended names fixed it.
+REVIEW.md records that failure and correction. The final unmodified
+through-A7 gate exited 0, ending `check: all gates passed through A7`:
+
+| Gate stage | Float64 | Float32 |
+| --- | --- | --- |
+| Own tests | 849 passed, 7 skipped, 171.12s | 855 passed, 1 skipped, 172.98s |
+| Source doctests | 4 passed, 1.03s | 4 passed, 0.97s |
+| Independent through A7 | 2123 passed, 28 skipped, 223 deselected, 121.84s | 2127 passed, 24 skipped, 223 deselected, 116.32s |
+
+Ruff: 78 files already formatted / All checks passed. Mypy: no issues in
+20 source files. No new skips or exclusions. Optional complete output:
+`/private/tmp/survjax-a102b2-final-gate.log`; this table is the durable summary.
+REVIEW.md was finalized before the final gate and is unchanged afterward.
+Source/test changes total 291 lines, plus seven approved API-reference lines;
+the metrics module is 220 lines. Final static/whitespace/scope checks follow
+this plan-only result edit. No merge, spec/sync marker, independent-test,
+likelihood API or dependency changes; no full A10 completion claim.
+Stop after this step's commit for review.
+
+One concept: connect checked observations and caller scores to the existing
+counter/result layer, with public exports. Target at most 300 source/test
+changed lines; split if that budget is exceeded.
+
+- Update metrics.py with concordance_index and concordance_index_with_info
+  using the shared _resolve_data helper and one private cohort evaluator.
+  Accept real JAX-supported score arrays without casting their precision to
+  the data dtype. Reject static type/shape misuse; invalid runtime values give
+  NaN plus masks. Recheck current data fields and retain construction issues.
+- Require matching non-scalar last observation axes; broadcast only leading
+  axes. Reduce invalid/support evidence per cohort and explicitly broadcast
+  every mask to result shape (review N-7). Replace entire failed cohorts with
+  safe finite arrays/boolean masks before counting; never drop observations.
+  Flatten leading batches for vmap and restore result shapes. Empty cohorts
+  remain evaluated zero-pair cases. Preserve data-float ratio dtype.
+- Export both functions in __init__.py. Add only their autodoc entries and
+  minimal section wrapper in docs/api.md, as approved. Rename result field
+  docstring headings to Attributes (review N-6). Do not change other docs.
+- Add tests/unit/test_concordance_entry_points.py: hand-counted raw/prepared
+  values, all five shape-table rows with every info leaf checked, failed-
+  cohort isolation/mask overlap, edited-field validation, empty/scalar/mismatch
+  cases, preserved score ordering/precision and jit/vmap agreement.
+- Update tests/unit/test_import.py's exact export set with the two intended
+  additions; retain every existing name pending separate likelihood alignment.
+- Update D-027's implementation note, this plan, and overwrite REVIEW.md with
+  reading order, invariants, spec mapping, actual check outputs and limits.
+
+Spec: 3.2–3.3, 6.1–6.3, 7.2, 9.1–9.2, 10.2, 12.1; accepted D-027. No new
+helpers/dependencies outside this concrete evaluator, no score gradients.
+Run new/existing concordance own suites plus the five non-fixture independent
+A10 modules in separate dtype processes; static checks and the unmodified
+through-A7 regression gate. A10 R fixtures/A8/A9 work remain unfinished;
+selecting the five modules is focused evidence, not a complete through-A10 gate.
+Verify only approved API-reference edits, protected paths and sync marker,
+record results, commit this one step on A10-cindex, then stop for review.
+Docs to-do: executable concordance tutorial, playground and held-out example;
+no full docs-build claim for this code step's two reference entries.
+
+---
+
 # A10.2b1 — Concordance result containers and ratio (2026-10-25)
 
 Status: **implemented and verified; ready for review**, authorized by

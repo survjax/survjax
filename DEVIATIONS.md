@@ -52,6 +52,12 @@
   count-to-result helper. Exact words, result-shaped masks and failed-cohort
   zeroing follow the accepted decision. Public metric entry points and input
   validation remain for a later step. Formal status remains maintainer-owned.
+- A10.2b2 implementation note (2026-10-26): both metric entry points are
+  exported, with shared raw/prepared input handling, matching observation
+  axes, broadcast leading axes and result-shaped masks. Current/stored data
+  issues and nonfinite scores invalidate their entire cohorts; unsupported
+  cohorts are masked before counting. The maintainer allowed the two matching
+  API-reference entries in this code step. Broader docs/fixtures remain pending.
 - Status: open.
 
 ## D-026 NaN triage after normalized fields are edited

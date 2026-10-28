@@ -1,88 +1,119 @@
-# Review: A10.2b1 — Concordance counts, diagnostics and ratio
+# Review: A10.2b2 — Public concordance entry points
 
-Read `src/survjax/metrics.py` first: the frozen registered count/info classes,
-then `_concordance_result`. Next read `tests/unit/test_concordance_results.py`
-and its hand-arithmetic comments, followed by the A10.2b1 plan and D-027 note.
-Authorized by "review approved ... get on with next subslice" on A10-cindex,
-starting at `10b8877` in dev-a10. One result-layer step, then review and stop.
+## Reading order
 
-## Contract and invariants
+1. `src/survjax/metrics.py`: `_evaluate_concordance`, then the two public
+   wrappers. The existing counter/result layer is reused without changes.
+2. `tests/unit/test_concordance_entry_points.py`: hand values, all five shape
+   rows (including every info leaf), whole-cohort failures and precision cases.
+3. `src/survjax/__init__.py`, its exact import-smoke export list, and the
+   two entries in `docs/api.md`, then the
+   current PLAN.md evidence and D-027 implementation note.
 
-- Spec 6.3/10.2 and accepted D-027: `ConcordanceCount` and `ConcordanceInfo`
-  are frozen dataclasses registered as pytrees. Four count fields each hold
-  uint32 hi/lo arrays; three boolean masks have the same leading result shape.
-  No observation or time-grid axis. Result types live in their module.
-- Spec 3.3/9.1: exact count words remain uint32 in both JAX dtype modes.
-  Floating reconstruction casts both words to the normalized data dtype before
-  multiplication, addition or division. The ratio has ordinary rounding in
-  that dtype; returned count words retain the exact integers.
-- Spec 9.2: C=(concordant+0.5*tied_score)/comparable. Check both comparable
-  words for zero. Substitute a denominator of one before division for a zero
-  total, then return NaN for undefined/failed cohorts (spec 7.2); no epsilon,
-  floor or clipping. A weak NaN selection also permits valid eager debugging.
-- D-027: invalid/unsupported masks remain independent, including overlap.
-  Failed cohorts have zero words in every count field and no_comparable_pairs
-  false. Only evaluated zero-pair cohorts have that mask true.
-- The private helper accepts aligned, already-counted arrays and masks. The
-  later public caller owns validation and safe cohort substitution before
-  counting; this result layer does not accept observation or score inputs.
-  No useful score gradients are promised or tested.
+Authorized by "review approved ... get on with next subslice", on A10-cindex
+from `715a7e3` in dev-a10. The maintainer explicitly approved only the two
+API-reference entries as a code-step docs exception; the seven-line addition
+is their heading/fence/directives. No tutorial or other docs edit.
 
-No top-level exports or metric entry points yet. Shared resolver, likelihood
-API, docs, dependencies, protected tests/scripts, spec and .spec-seen are
-unchanged. The separate alignment/sync branch has not landed; this step does
-not claim revision-35 likelihood API alignment or merge any other work.
+## Invariants and requirements
 
-## Requirement-to-test evidence
+Spec 6.1–6.2: both metric entry points use `_resolve_data`, so raw time/event
+and prepared data share pure checked normalization. Missing/mixed forms and
+static score-kind/shape misuse raise TypeError. Runtime nonfinite scores and
+observation issues give NaN plus diagnostics. Scores are compared in their
+JAX representation, preserving integer and available floating rank precision;
+they are not cast to the data dtype. The ratio retains the data float dtype.
 
-`test_ratio_and_exact_counts_match_hand_arithmetic` covers half score-tie
-credit, all-tied/perfect/reversed results and exact high-word totals, including
-high-only comparables. References use explicit integer fractions; the high/low
-case is 2**32/(3*2**31)=2/3. Integer assertions inspect both original words.
-`test_ratio_uses_data_float_dtype_before_division` checks 1/3 at data precision,
-including explicit float32 while x64 is enabled (spec 3.3/9.1).
+Spec 9.1–9.2: non-scalar observation axes must have identical lengths before
+leading-axis broadcasting. Counts and masks are reduced per cohort, never
+pooled over leading axes. Construction issue bits are retained and current
+normalized fields are rechecked after pytree reconstruction. Support is read
+from actual fields: exact/right observations only, left bound 0 and right
+bound +inf. Metadata flags are not a substitute for value checks.
 
-The failed-cohort cases check each mask and their overlap; evaluated zero
-pairs have NaN plus only no_comparable_pairs. The batch test checks independent
-values/masks/counts eagerly, under jit, vmap and jit-of-vmap (spec 6.3/9.1).
-Frozen-field and flatten/rebuild checks cover named result containers. The
-composition test uses the actual pair counter on hand-enumerated C,T,D,D
-pairs: (1+1/2)/4=3/8, eagerly and under jit inside jax.debug_nans(True).
-Expected values are mathematical anchors, never values generated by the
-implementation. Existing central tolerances are unchanged.
+Invalid and unsupported masks are explicitly broadcast to the result shape
+before counting (review N-7). Whole failed cohorts receive finite safe score/
+time arrays and false exact masks; no partial cohort or representative time
+for an unsupported observation is evaluated as a result (review N-3). The
+existing finalizer guarantees zero failed count words and distinguishes
+failed from evaluated zero-pair cohorts under accepted D-027.
+
+Leading axes are flattened for vmap and restored afterward. Explicit batch
+size/N dimensions handle empty cohorts without ambiguous reshape(-1,0).
+The counter retains O(N squared) work/O(N) pair workspace per result; no
+N-by-N pair matrix. No floors, clipping, epsilons, tracer-to-NumPy conversion,
+value-dependent Python branching or global precision change. No useful
+score-gradient guarantee. Frozen result field headings now use Attributes,
+matching existing diagnostics (review N-6).
+
+## Tests and expected values
+
+Own new tests cover raw/prepared and plain/info forms on explicit C,T,D,D
+pairs, giving (1+1/2)/4=3/8 with counts (1,2,1,4). Reversing scores gives
+5/8, including half credit. Those exact binary fractions anchor all five
+spec shape-table rows; every count-word/mask leaf must match result shape.
+NaN-score, raw-event-code, left-truncation and overlapping-mask cohorts leave
+a valid neighbor at 3/8. Edited-field validation, evaluated empty input, six
+static axis errors and three nonnumeric/nonreal score kinds have own cases.
+Float32 data retain distinct float64 ranks where available and adjacent large
+int32 ranks; results still have float32 dtype. jit and jit-of-vmap compose.
+No expected value comes from running the implementation as an oracle.
+
+The unchanged independent API/value/diagnostic/shape/property modules cover
+additional conventions, boundaries, call forms, compile reuse and permutations.
+Their fixture module is outside this code step, not modified/skipped/xfail'ed.
 
 ## Checks actually run before the regression gate
 
-The moved checkout had no environment. Ran
-`UV_CACHE_DIR=/private/tmp/survjax-uv-cache uv sync --locked --offline --dev`:
-exit 0, existing lockfile/cache only. Python 3.12.9, JAX/jaxlib 0.11.2,
-NumPy 2.5.3. No tracked dependency/lockfile change. Verified both survjax and
-survjax.metrics import from this dev-a10/src checkout.
+Commands use `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`, in separate
+JAX_ENABLE_X64=1/0 processes. Working directory: dev-a10.
 
-Commands below use `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`.
-`uv run ruff format src/survjax/metrics.py tests/unit/test_concordance_results.py`:
-initially 2 files reformatted; subsequent run 2 files left unchanged.
-`uv run ruff check .`: All checks passed.
-`uv run mypy src`: Success: no issues found in 20 source files.
+Own focused command:
+`uv run --group test pytest -q tests/unit/test_concordance_entry_points.py tests/unit/test_concordance_results.py tests/unit/test_concordance_counts.py tests/unit/test_api_reference.py tests/unit/test_import.py`.
+Float64 **64 passed in 6.87s**; float32 **64 passed in 6.27s**, no skips.
+This includes all 23 new own entry-point cases and API-reference coverage.
+Earlier runs passed 60 per mode before score-kind cases, then 63 per mode
+before including the import smoke test.
 
-Final focused command in separate JAX_ENABLE_X64=1/0 processes:
-`uv run --group test pytest -q tests/unit/test_concordance_results.py tests/unit/test_concordance_counts.py`.
-Float64: **39 passed in 2.71s**; float32: **39 passed in 2.15s**. No skips
-or failures. This includes all 14 new result cases plus the 25 counter cases.
-Earlier focused run before the composition case passed 38 per mode.
-Source plus tests are 272 lines, within the planned 280-line code/test budget.
+Independent command, with SPEC_THROUGH=A10:
+`uv run --group test pytest -q tests/spec/test_a10_concordance_api.py tests/spec/test_a10_concordance_values.py tests/spec/test_a10_concordance_diagnostics.py tests/spec/test_a10_concordance_shapes.py tests/spec/test_a10_concordance_properties.py`.
+Float64 **113 passed in 45.13s**; float32 **112 passed, 1 skipped in 47.97s**.
+The existing skip requires float64 scores alongside float32 data. No failures
+and no new skips/exclusions. These are five selected modules, not the full A10
+gate. All independent files are unchanged.
 
-## Full regression record and limits
+Ruff initially reformatted 2 files; lint passed. Mypy reported no issues in
+20 source files. No focused numerical failure or tolerance change occurred.
 
-Run the unchanged gate against finalized source/tests and this review:
+The initial through-A7 attempt exited 1: its float64 own run had **1 failed,
+848 passed, 7 skipped in 153.65s**. The failed test was
+`test_public_package_imports`, whose exact expected export set still described
+the previous API. Added the two intended metric names while retaining every
+previous name; the exact-set assertion remains strict. This is an own test,
+not a protected acceptance test. The 64-case focused rerun above passes with
+that smoke test included. Optional initial log:
+`/private/tmp/survjax-a102b2-initial-gate.log`. The final gate below is a new
+run after that correction and this review edit, using a separate log.
+
+Source/test changes total 291 lines, plus the seven authorized reference lines;
+the public metrics module is 220 lines. No scope split was needed.
+
+## Final gate and remaining work
+
+Run the unchanged regression gate after source/tests and this review are final:
 `UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A7`.
-PLAN.md will record the observed status/counts/timings after completion;
-this review is left unchanged afterward. Optional complete raw output:
-`/private/tmp/survjax-a102b1-final-gate.log`. Durable summary remains in PLAN.md.
-Final Ruff/mypy and working/staged diff checks follow any plan-only result edit.
+PLAN.md records actual status/counts/timings after completion; this review is
+left unchanged afterward. Optional complete output:
+`/private/tmp/survjax-a102b2-final-gate.log`. Durable summary is in PLAN.md.
+Finish with final static/whitespace/staged/protected-path checks.
 
-No through-A10 completion claim: public entry points, cohort/input validation,
-broadcasting, R fixtures, docs and installed-artifact coverage remain pending.
-No R, docs build, wheel, benchmark or accelerator check was run. No blanket
-numerical-safety claim for unchecked count arrays; the helper's inputs are
-prevalidated count words/masks. Stop after this step's commit without merging.
+No merge, rebase, spec/.spec-seen/sync edit, likelihood API change, new
+dependency or other-branch change. The shared spec is revision 37; the
+separately owned likelihood alignment remains absent from this branch and is
+not claimed here. The C-index statistical contract remains unchanged.
+
+R fixtures, narrative documentation/playground/held-out example, installed
+wheel evidence and the full Slice A gate remain pending. No full through-A10
+pass, R comparison, docs build, benchmark or accelerator check is claimed.
+Optional older workspace-walker compatibility nit N-5 is unchanged. Stop after
+this code step's commit for review, without merging or starting the next step.

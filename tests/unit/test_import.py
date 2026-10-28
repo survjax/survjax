@@ -18,6 +18,8 @@ def test_public_package_imports() -> None:
         "distribution",
         "static",
         "log_likelihood",
+        "concordance_index",
+        "concordance_index_with_info",
     }
     assert survjax.SurvivalData is not None
     assert issubclass(survjax.InvalidDataError, ValueError)
