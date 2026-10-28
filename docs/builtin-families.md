@@ -266,8 +266,8 @@ The links point to the
 [`survreg`](https://rdrr.io/cran/survival/man/survreg.html) and its
 [distribution conventions](https://rdrr.io/cran/survival/man/survreg.distributions.html),
 and [NumPyro's distributions](https://num.pyro.ai/en/stable/distributions.html).
-This page explains conventions only. Numerical agreement with R is checked
-later, against committed reference outputs.
+The [R comparisons below](#comparisons-with-r) describe the committed
+reference outputs used to check these parameter mappings numerically.
 
 ### `survreg`: an accelerated failure time model
 
@@ -353,3 +353,86 @@ NumPyro's `Weibull(scale, concentration)` is the same distribution, with
 `concentration` $= k$. Its `batch_shape` means the same as survjax's;
 survjax distributions additionally carry survival-specific methods such as
 `log_cdf`, `cumulative_hazard` and the time-first grids.
+
+## Comparisons with R
+
+The committed synthetic fixtures compare exponential and Weibull likelihoods
+and predictions with R's **flexsurv 2.3.2** and **survival 3.7-0**, generated
+with **R 4.4.2**. Only simulated observations and their R outputs are stored.
+The reference tests read those files without running R or accessing a network.
+They evaluate fixed parameter vectors; they do not fit models in survjax.
+
+| Fixture | Observations and parameter cases | R quantities compared |
+| --- | --- | --- |
+| Exponential | 16 rows, seed 8101; rates 0.1, 0.35 and 1.2 per year | Every row's log likelihood, survival and log survival; separate total log likelihood |
+| Weibull AFT | 686 rows, seed 8201; three common-shape, group-scale vectors | Every row's log likelihood, survival and log survival; separate totals; a time-first survival grid |
+
+Both fixtures contain exact events and right censoring without truncation.
+The Weibull fixture uses Good/Medium/Poor groups of sizes 229/229/228,
+with scales $b_g = b_{\mathrm{Good}}\exp(\beta_g)$. Its three vectors are
+named `fitted`, `unit_shape` and `alternative`. `fitted` identifies the
+recorded vector used to simulate the data, rather than a fit to these
+synthetic rows. The rows are newly simulated; no patient observations from
+`flexsurv::bc` are loaded or committed. Fixture times are in **years**,
+while the earlier teaching examples on this page use months.
+
+The Weibull grid has shape `(141, 3)`: times from 0 to 7 years in rows,
+Good/Medium/Poor in columns. Tests use the stored R times; rebuilding R's
+`seq` with JAX `arange` or `linspace` can shift a time by one ULP. The survreg
+grid route evaluates `psurvreg` directly at supplied AFT locations and is
+cross-checked against flexsurv. Singleton-fit and full-data likelihood checks
+cover the observed-time contributions, not individual grid cells.
+
+The comparisons exercise eager execution, `jax.jit` and `jax.vmap` in separate
+float64 and float32 processes. Weibull checks include both natural and
+`from_log` constructors, a common shape with batched scales, and raw and
+prepared likelihood inputs through the function and distribution method.
+Expected R values retain their stored float64 precision; only inputs are cast
+to the active JAX dtype. The central test tolerances are:
+
+| Active dtype | Absolute tolerance | Relative tolerance |
+| --- | --- | --- |
+| float64 | `1e-10` | `1e-8` |
+| float32 | `1e-5` | `1e-4` |
+
+These finite reference cases complement the independent mathematical and
+[numerical boundary tests](numerical-behaviour.md). The two R package paths
+are related: flexsurv uses survreg on this route, so their agreement is not
+fully independent numerical evidence. The fixtures provide no evidence for
+unimplemented censoring or truncation likelihoods, or for fitting accuracy.
+
+### Integrity and regeneration
+
+In a source checkout, `tests/reference/test_exponential_r.py` and
+`tests/reference/test_weibull_bc_like_r.py` use one shared fixture loader.
+It verifies all required payloads against each fixture's `SHA256SUMS` before
+parsing them, then checks provenance, row alignment, dimensions and labels.
+The Weibull loader also checks that the acceptance-schema export preserves
+the original observations, parameters, source results and grid.
+
+Regenerate only with the pinned R/package versions above. The generators in
+`scripts/fixtures/` support `--check-only` without writing. A normal run
+**overwrites payload files** in its destination; without a destination it
+writes into the committed fixture directory. To inspect fresh outputs first,
+pass a new scratch directory, for example from the repository root:
+
+```sh
+Rscript --vanilla scripts/fixtures/generate_bc_like.R --check-only
+Rscript --vanilla scripts/fixtures/generate_bc_like.R /tmp/bc-like-review-run1
+```
+
+Follow the full two-run comparison and checksum recipes in the fixture
+READMEs: {download}`exponential regeneration <../tests/fixtures/exponential/README.md>`
+and {download}`Weibull regeneration <../tests/fixtures/bc_like/README.md>`.
+Compare fresh outputs with each other and with committed payloads before
+replacing anything. Exports use 17 significant digits and record seed,
+versions, generating scripts and checksums. During fixture validation,
+Python separately checked decimal read-back against original R hexadecimal
+doubles; Python did not generate expected numerical values.
+
+The additional `tests/fixtures/bc_like/bc_synthetic_weibull.json` maps the
+same R outputs to the independent acceptance schema. The maintainer delivers
+that exact file to the authoritative tester repository, then syncs it into
+`tests/spec/fixtures/`; ordinary regeneration never writes there. That
+protected-fixture handoff remains pending in this checkout, so the passing
+implementation comparisons do not establish a full through-A8 acceptance pass.

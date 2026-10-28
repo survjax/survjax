@@ -4,7 +4,7 @@ Status: main through A7 is integrated at incoming commit 3389ee0. The
 maintainer accepted A8.4a.1 and approved A8.4a.2. The bc group/grid/export
 checks are accepted after review. A8.4b exponential reference comparisons
 are implemented, validated through A7 and ready for review. Protected tester-repo
-fixture delivery remains pending. A8.5 and A8.d1 remain unimplemented.
+fixture delivery remains pending. A8.5 is accepted. A8.d1 is implemented and ready for review.
 Historical plans below retain their original status wording.
 
 Work on the existing maintainer-created `a8-1-r-generator` branch, in this
@@ -263,7 +263,19 @@ Docs to-do: explain synthetic scope, grids and package-path limitations.
 
 ## A8.d1 — R reference evidence and regeneration (separate docs step)
 
-After reviewed A8 code is merged, edit `docs/builtin-families.md` for this one
+Execution (2026-10-28), authorized by "reviewer is ok; on next subslice,
+plan is approved": A8.5 is accepted. Update builtin-families.md with the
+committed reference evidence and regeneration workflow; correct the two stale
+likelihood-support statements found while auditing distributions.md. api.md
+needs no change. No new executable examples, source or fixture changes.
+Build both dtype renders, inspect the new section and links, record results,
+commit this documentation topic and stop.
+Completed: both fresh dtype docs builds pass; HTML checks pass for all 48
+local links/anchors, two new tables and byte-identical recipe downloads per
+mode. REVIEW.md records exact results and the incomplete browser visual
+inspection caused by concurrent Safari use. No through-A8 completion claim.
+
+After reviewed A8 code is accepted, edit `docs/builtin-families.md` for this one
 topic. Audit `docs/distributions.md` and `docs/api.md`; change only obsolete
 verification claims, splitting another topic if needed. Explain synthetic
 fixtures, fixed parameters, pinned versions, checksum checks, safe regeneration,
