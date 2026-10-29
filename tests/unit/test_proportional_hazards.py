@@ -288,3 +288,14 @@ def test_reference_retains_wider_baseline_dtype(x64_enabled):
     reference = jax.jit(lambda d: d.reference_time())(dist)
     assert reference.dtype == jnp.float64
     np.testing.assert_allclose(reference, 1e60, atol=0, rtol=RTOL[x64_enabled])
+
+
+def test_zero_log_limit_avoids_overflowing_linear_factor():
+    """Spec 4.4/7.2: with cure=1, S(inf)=1 is constant in every finite eta."""
+
+    def fn(eta):
+        dist = ProportionalHazards(CureBaseline(cure=1), log_hazard_ratio=eta)
+        return dist.survival(jnp.inf)
+
+    value, derivative = jax.jit(jax.value_and_grad(fn))(1000.0)
+    assert value == 1 and derivative == 0

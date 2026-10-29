@@ -1,6 +1,6 @@
 # PH.1 — Construction, diagnostics and direct PH composition
 
-Independent review: round 2/3
+Independent review: round 3/3
 
 Branch: `release-ph`. Actual full base SHA:
 `8757c0fda78e34e6e818249adedd2a144a33c33d` (requested snapshot 8757c0f).
@@ -11,9 +11,11 @@ at `../review/code-release-ph`; no branch creation or integration performed.
 
 1. `plans/release-agents/README.md`, `plans/release-agents/ph.md`, PH.1 at the
    top of PLAN.md, and spec 4.1–4.2, 4.4–4.7, 5–7, 8.7, 10.2, 12.1–12.2.
-2. `src/survjax/distributions/wrappers.py` (153 lines): the complete new code.
-3. `tests/unit/test_proportional_hazards.py` (290 lines): analytical evidence.
-4. Existing registration/policy in `distributions/base.py` and
+2. `src/survjax/distributions/wrappers.py` (163 lines): the complete new code.
+3. `tests/unit/test_proportional_hazards.py` (301 lines): analytical evidence.
+4. `tests/unit/test_proportional_hazards_guards.py` (97 lines): warning and
+   generic-tail guard regressions.
+5. Existing registration/policy in `distributions/base.py` and
    `_survival_methods.py`, nested diagnostics in `_parameter_issues.py`, and
    the shared `likelihood.py` evaluator (all unchanged).
 
@@ -48,9 +50,14 @@ at `../review/code-release-ph`; no branch creation or integration performed.
   or tolerances. No exports, docs, dependencies, protected paths, AFT, generic
   summaries or sampling. Initial source/test total was 292 added lines;
   round-1 fix-up changes 191 source/test lines (171 additions, 20 removals),
-  below its 300-line budget. Current files total 443 source/test lines.
+  below its 300-line budget. Round-2 fix-up adds 120/removes 2 source/test
+  lines (122 total), below its 150-line budget; three files now total 561 lines.
 - The PH-only initializer adapter calls the saved registered initializer with
-  keywords, preserving its checks/normalization. Registration's shared rule
+  keywords, preserving its checks/normalization. Eta is first normalized at
+  the adapter's caller-aware stack depth, so float64 conversion warnings still
+  deduplicate at each user line. Registration receives the converted array and
+  emits no duplicate. No warning filter or registry is changed by library code.
+  Registration's shared rule
   stays untouched while PH accepts exactly one optional positional argument.
 
 ## Requirement-to-test evidence
@@ -215,3 +222,92 @@ Checks of the follow-up (source/tests unchanged after these runs):
 
 No new spec question, dependency, protected-path edit or shared ownership
 change is needed for this follow-up. Full PH.2 evidence remains separate.
+
+
+## Independent round 2 outcome and final fix-up
+
+Reviewed implementation: `13b8b58ec22c41990d7f63f2a3261131a9ee6687`.
+Report: `../review/slices/PH.1.md`, round 2; `VERDICT: fix-first`.
+The reviewer independently confirms S-1 settled by the maintainer decision,
+F-1/F-2 fixed and N-1/N-2 fixed. Its old surviving mutants are now caught.
+D-028 stays formally open; the reviewer recommends a maintainer spec update
+when closing it. No spec edit is made here.
+
+- F-3 addressed: the PH adapter normalizes eta with the existing helper at
+  the correct warning stack depth, then passes that converted array to the
+  registered initializer. No catch/re-emit context, warning filter mutation,
+  shared registration edit or caller-location cache is introduced.
+  `test_float64_warnings_deduplicate_two_user_call_sites` checks positional
+  and keyword forms at distinct caller lines, repeats both twice, and requires
+  exactly two RuntimeWarnings at the two user locations. This guards warning
+  attribution and deduplication, beyond merely counting emitted warnings.
+  The x64 process skips it explicitly because no dtype conversion occurs.
+- F-4 addressed: `GenericExponential` implements only log survival/reference
+  time, so its generic log-CDF also underflows. The new guard test checks the
+  hand-derived rate tangent -exp(eta)*t in both derivative modes and dtypes,
+  with zero absolute tolerance. It detects removing isfinite(log_lower_tail).
+  The added cure=1/eta=1000 test checks S(inf)=1 and its exact zero eta
+  derivative, detecting removal of the linear-branch overflow bound. It does
+  not assert an unrepresentable derivative with respect to cure probability.
+- N-3: add a short case map above the masks. Retain lower-tail recovery because
+  F-1's value and eta derivative require it. The reviewer measures 225 traced
+  operations for PH versus 37 for its Exponential baseline; no speed claim or
+  optimization is made by this correctness step.
+
+Reviewer round-2 checks: plain check.sh still exits 1 because it has no
+SURVJAX_WHEEL. Own tests: 1066 passed/7 skipped (86.10s) and 1071 passed/
+2 skipped (166.34s); doctests 4 per mode; float64 acceptance 2327 passed,
+28 skipped, 5 wheel fixture errors, then no float32 acceptance run. Ruff/mypy
+clean. Reviewer mutant M8 and M10 survived and motivated F-4. It reports a
+refused cleanup leaving mutated code in a temporary reviewer worktree. I have
+not edited, reused or removed that worktree or reviewer-owned metadata.
+
+Final fix-up checks and intermediate results:
+
+- `JAX_ENABLE_X64=1 uv run --group test pytest tests/unit/test_proportional_hazards.py tests/unit/test_proportional_hazards_guards.py -q`
+  → 20 passed, 1 skipped in 21.41s.
+  Same command with `JAX_ENABLE_X64=0` → 20 passed, 1 skipped in 21.58s.
+  Skips are warning-conversion (x64) / mixed-reference-dtype (float32).
+- Ruff format: 114 files already formatted; Ruff lint: All checks passed!;
+  mypy: Success: no issues found in 21 source files.
+- Intermediate fresh-wheel `scripts/check_wheel.sh --through A10` started
+  before the additional mixed-dtype promotion regression was found. It exited
+  0: own suites 1068 passed/8 skipped (163.39s), 1074 passed/2 skipped
+  (159.31s); doctests 4 per mode (1.28s/1.15s); acceptance 2332 passed/
+  28 skipped (88.20s), 2322 passed/38 skipped (59.48s).
+  This is not the final-source gate: its wheel and own suites precede the
+  promoted-eta fix below. It is superseded by a complete fresh-wheel rerun.
+  Intermediate wheel: `/var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/survjax-wheel.RX4FgV/survjax-0.0.1.dev0-py3-none-any.whl`,
+  SHA-256 `5c73c76a4f40e9de2fd97660d26b93501b56214ce1ebea22b1e6dc554b622cd3`.
+
+Next independent review is round 3/3 for PH.1; no reset of the round count.
+Stop after its verdict, even if further findings remain. No next step begun.
+
+
+### Additional F-4 mixed-dtype correction before round 3
+
+While checking the linear bound, a local probe found the exponentiation still
+used eta's own dtype. With a float64 cure baseline at p=1 and float32 eta=90,
+it returned a baseline derivative 0 instead of the representable float64
+exp(90)=1.2204032943178408e39. The helper now promotes eta with baseline log
+survival before every scaling branch. No parameter leaf dtype is changed.
+`LogCureBaseline` and `test_zero_limit_linear_factor_uses_promoted_dtype`
+check the independently derived derivative in forward/reverse mode, with
+zero absolute tolerance. The test skips explicitly when x64 is disabled.
+
+- Final focused command (both PH files) as above: 21 passed, 1 skipped in
+  15.08s float64; 20 passed, 2 skipped in 15.23s float32. The extra float32
+  skip is this mixed-dtype regression. The earlier 20/20 counts precede it.
+- Ruff formatting/lint and mypy repeated clean after this source correction.
+- Final-source fresh-wheel `scripts/check_wheel.sh --through A10` → exit 0,
+  `check: all gates passed through A10` (completed 2026-10-30). Guard clean;
+  Ruff: 114 files already formatted / All checks passed!; mypy: no issues in
+  21 source files. Own suites: 1069 passed, 8 skipped (56.19s) float64;
+  1074 passed, 3 skipped (67.69s) float32. Doctests: 4 passed per mode
+  (1.24s/1.18s). Independent through-A10: 2332 passed, 28 skipped (89.18s)
+  float64; 2322 passed, 38 skipped (72.71s) float32.
+  Final wheel: `/var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/survjax-wheel.KmxcYM/survjax-0.0.1.dev0-py3-none-any.whl`.
+  SHA-256: `e466d40246ec6fda2b2384c587c2083f350971a47218b372ac04130e2c852131`.
+- Final whitespace/scope audit clean. Only PLAN.md, REVIEW.md, wrappers.py,
+  the main PH test module and the new PH guard test module changed. No source
+  changes followed the final focused and fresh-wheel verification.

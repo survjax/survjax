@@ -8,6 +8,7 @@ import jax.numpy as jnp
 from jax.typing import ArrayLike
 
 from survjax import constraints
+from survjax._dtypes import normalize_parameters
 from survjax.distributions.base import (
     SurvivalDistribution,
     distribution,
@@ -62,7 +63,12 @@ class ProportionalHazards(SurvivalDistribution):
     def _scale_log_survival(
         self, log_s: jax.Array, log_lower_tail: jax.Array | None = None
     ) -> jax.Array:
-        eta = self.log_hazard_ratio
+        eta = jnp.asarray(
+            self.log_hazard_ratio, dtype=jnp.result_type(log_s, self.log_hazard_ratio)
+        )
+        # Finite nonzero H0 uses log scaling; an accurate log F0 recovers tiny H0.
+        # Without that tail, true/rounded zero uses the safe linear tangent.
+        # Infinite limits and overflow are restored after substituting operands.
         zero = log_s == 0
         recover = jnp.zeros_like(zero)
         if log_lower_tail is not None:
@@ -147,7 +153,11 @@ def _initialize_ph(
     log_hazard_ratio: ArrayLike,
 ) -> None:
     # D-028: the maintainer permits a positional baseline only for this wrapper.
-    _registered_ph_init(self, baseline=baseline, log_hazard_ratio=log_hazard_ratio)
+    # spec 3.3: normalize here so warnings point past the adapter to the user's line.
+    parameters = normalize_parameters(
+        {"log_hazard_ratio": log_hazard_ratio}, warning_stacklevel=3
+    )
+    _registered_ph_init(self, baseline=baseline, **parameters)
 
 
 ProportionalHazards.__init__ = _initialize_ph  # type: ignore[method-assign,assignment]

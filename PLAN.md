@@ -14,6 +14,48 @@ at full base SHA `8757c0fda78e34e6e818249adedd2a144a33c33d` (8757c0f).
 Keep the unfinished A9/A10 history below; no archive or integration commit.
 Spec: 3.3, 4.1–4.2, 4.4–4.7, 5–7, 8.7, 10.2, 12.1–12.2.
 
+## PH.1 round-2 follow-up (2026-10-29)
+
+Round 2 on 13b8b58 returns fix-first. S-1 is settled by the maintainer's
+positional-baseline decision; F-1/F-2/N-1/N-2 are independently confirmed fixed.
+One small final fix-up, <=150 changed source/test lines; next review is 3/3.
+
+- F-3 / `wrappers.py`: normalize eta in the PH adapter with the existing dtype
+  helper and a caller-level stack depth before forwarding the converted array
+  to registration. Registration then receives its ordinary normalized dtype,
+  so it emits no duplicate warning. Do not catch/re-emit warnings or change
+  global filters, shared registration, or RMST-owned files.
+- Add `tests/unit/test_proportional_hazards_guards.py`: a float32-only warning
+  test exercises positional/keyword forms at two distinct user lines, repeats
+  each line, and requires exactly two warnings at those lines. A custom family
+  with only log survival/reference_time checks the baseline tangent when the
+  generic log-CDF also underflows (F-4), in both dtypes, forward and reverse.
+- Extend the existing cure-baseline tests with p=1 and eta=1000: survival at
+  infinity is 1 and its eta derivative is zero. This pins F-4's linear-branch
+  overflow bound without asserting an unrepresentable baseline-p derivative.
+- A follow-up probe found that the linear branch still exponentiates eta in
+  its own dtype. Promote eta with baseline log survival before scaling, so a
+  float64 baseline retains a representable exp(90) tangent with float32 eta.
+  Add an x64-only mixed-dtype zero-limit regression. This belongs to the same
+  F-4 guard correction and keeps the fix-up below 150 changed source/test lines.
+- N-3: add a short case map next to the scaling masks. Retain lower-tail
+  recovery because the first-derivative/value tests require its precision;
+  make no performance claim or new optimization in this correctness fix-up.
+- Update REVIEW.md by finding ID; run focused PH tests in both processes,
+  Ruff/mypy and a fresh-wheel through-A10 gate. Commit, invoke the exact
+  independent-review command for round 3/3, then stop and report its verdict.
+  D-028 remains formally open for the maintainer's spec disposition; no spec
+  edits, further public API, exports, new dependencies or protected-path changes.
+
+Final fix-up verified 2026-10-30: 122 changed source/test lines (120 added,
+2 removed), below the 150-line budget. Final focused PH suites: 21 passed,
+1 skipped / 20 passed, 2 skipped. Fresh-wheel through-A10 exits 0: own suites
+1069 passed, 8 skipped / 1074 passed, 3 skipped; doctests 4 passed per mode;
+acceptance 2332 passed, 28 skipped / 2322 passed, 38 skipped. Ruff/mypy and
+scope/whitespace clean. REVIEW.md distinguishes the earlier intermediate gate
+from the successful final-source rerun and records commands, times and hashes.
+Commit this fix-up and invoke round 3/3, then stop after the verdict.
+
 ## PH.1 round-1 follow-up (2026-10-29)
 
 Maintainer decision: “allow for positional baseline in PH wrapper”. Resume the
