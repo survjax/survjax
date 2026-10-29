@@ -44,31 +44,6 @@ def test_valid_r_observations_and_rates_have_clear_diagnostics(
 
 
 @pytest.mark.parametrize("source", ("flexsurv", "survreg"))
-def test_function_prepared_rows_match_r(
-    distribution, observations, exponential_case, source, x64_enabled
-):
-    """Spec 6.1/12.1: prepared-data contributions match every R row."""
-    data = survjax.SurvivalData(*observations)
-    evaluate = survjax.log_likelihood
-    expected = exponential_case[source]["log_likelihood"]
-    for mode, run in (
-        ("eager", evaluate),
-        ("jit", jax.jit(evaluate)),
-        ("vmap", jax.vmap(evaluate, in_axes=(None, 0))),
-    ):
-        actual = run(distribution, data)
-        assert actual.shape == expected.shape
-        assert actual.dtype == observations[0].dtype
-        np.testing.assert_allclose(
-            actual,
-            expected,
-            atol=ATOL[x64_enabled],
-            rtol=RTOL[x64_enabled],
-            err_msg=mode,
-        )
-
-
-@pytest.mark.parametrize("source", ("flexsurv", "survreg"))
 def test_method_prepared_rows_match_r(
     distribution, observations, exponential_case, source, x64_enabled
 ):
@@ -85,33 +60,6 @@ def test_method_prepared_rows_match_r(
         ("vmap", jax.vmap(evaluate, in_axes=(None, 0))),
     ):
         actual = run(distribution, data)
-        assert actual.shape == expected.shape
-        assert actual.dtype == observations[0].dtype
-        np.testing.assert_allclose(
-            actual,
-            expected,
-            atol=ATOL[x64_enabled],
-            rtol=RTOL[x64_enabled],
-            err_msg=mode,
-        )
-
-
-@pytest.mark.parametrize("source", ("flexsurv", "survreg"))
-def test_function_raw_rows_match_r(
-    distribution, observations, exponential_case, source, x64_enabled
-):
-    """Spec 6.1/12.1: keyword raw observations match every R contribution."""
-
-    def evaluate(dist, time, event):
-        return survjax.log_likelihood(dist, time=time, event=event)
-
-    expected = exponential_case[source]["log_likelihood"]
-    for mode, run in (
-        ("eager", evaluate),
-        ("jit", jax.jit(evaluate)),
-        ("vmap", jax.vmap(evaluate, in_axes=(None, 0, 0))),
-    ):
-        actual = run(distribution, *observations)
         assert actual.shape == expected.shape
         assert actual.dtype == observations[0].dtype
         np.testing.assert_allclose(
@@ -210,7 +158,7 @@ def test_summed_likelihood_matches_r_total(
 ):
     """Spec 12.1: the separate R package total supplements per-row checks."""
     data = survjax.SurvivalData(*observations)
-    actual = jnp.sum(survjax.log_likelihood(distribution, data))
+    actual = jnp.sum(distribution.log_likelihood(data))
     assert actual.shape == ()
     assert actual.dtype == observations[0].dtype
     np.testing.assert_allclose(

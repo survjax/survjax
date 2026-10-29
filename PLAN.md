@@ -24,10 +24,17 @@ unchanged. Prior plans below are historical; this entry is current.
 - Protected tests/spec/fixtures/bc_synthetic_weibull.json remains absent;
   durable maintainer handoff and sync still precede the through-A8 gate.
 
-## Proposed A8 compatibility code step — awaiting approval
+## A8 compatibility code step — approved
+
+Approved by "ok do it" after the integration audit. Merge completed as
+f4e0eae before this separate compatibility step.
+Completed: both focused dtype suites pass (111 cases each); all 48 method
+row/grid corruption controls are detected per dtype. The incoming six-worker
+through-A7 gate exits 0; REVIEW.md records exact counts and evidence limits.
+Commit this compatibility step and stop for review.
 
 Files: tests/reference/test_exponential_r.py and
- tests/reference/test_weibull_bc_like_r.py, plus PLAN.md/REVIEW.md.
+tests/reference/test_weibull_bc_like_r.py, plus PLAN.md/REVIEW.md.
 Public API: none added; align calls with spec 6.1/7.1/10.2/12.1.
 Remove redundant function-entry tests/case axes, retain method raw/prepared
 comparisons, and migrate the exponential supplemental total to the method.
@@ -38,8 +45,8 @@ edit protected tests or regenerate payloads. Target under 300 changed lines.
 Run both reference modules in each dtype and repeat focused row-order/grid
 sensitivity controls through the method. Then run scripts/check.sh --through A7
 with the incoming runner, final Ruff/mypy/diff checks, record exact outcomes,
-commit one compatibility step and stop. Until this step, the imported API
-removal leaves A8 reference tests failing; no integrated passing-gate claim.
+commit one compatibility step and stop. The earlier audit failure from the
+removed API is corrected by this step; full through-A8 remains pending.
 
 ## Subsequent docs correction — separate approval/step
 

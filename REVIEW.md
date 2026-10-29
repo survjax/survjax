@@ -1,79 +1,84 @@
-# Main integration audit — A8 follow-up required (2026-10-29)
+# A8 method-only likelihood compatibility
 
-Requested: resolve PLAN.md/REVIEW.md conflicts in the maintainer-started merge
-of main be1a5b3 into a8-1-r-generator, inspect spec/tests relevant to A8 and
-plan any additional work. No new numerical or compatibility implementation
-was authorized by this integration audit.
+Approved by "ok do it" after the integration audit. The maintainer-started
+merge of main be1a5b3 was completed as f4e0eae with the resolved records.
+This is the separate A8 compatibility test step, then a review stop.
 
-## Read first
+## Reading order
 
-1. PLAN.md, new integration findings and proposed compatibility step.
-2. Incoming src/survjax/__init__.py and likelihood.py: main removes the
-   top-level likelihood function; the distribution method remains.
-3. Incoming tests/spec/test_a8_bc_fixtures.py: method-only calls now match
-   spec revision 35, with unchanged fixture schema and numerical targets.
-4. Existing tests/reference/test_exponential_r.py and
-   test_weibull_bc_like_r.py: stale function calls require the planned fix.
+1. tests/reference/test_exponential_r.py: retain prepared/raw method tests;
+   remove their obsolete function duplicates; use the method for R totals.
+2. tests/reference/test_weibull_bc_like_r.py: remove the function case axis
+   and branch; all method prepared/raw eager/jit/vmap checks remain.
+3. PLAN.md: current approved step, separate docs correction and A8 closure.
 
-PLAN.md preserves both branches' distinct plan prefixes and their shared
-historical suffix once. Incoming main's size-interface plan is retained as
-integration history, not an instruction to start another step. This review
-replaces both previous per-step reviews; their exact records remain in Git
-(382f8dd for A8.d1 fixes, 030314b for main's size interface).
-Only PLAN.md/REVIEW.md conflict resolutions are authored here. All other
-staged incoming changes, including independent tests, protected scripts,
-.spec-seen, source and dependencies are retained unchanged from the merge.
+## Invariants and requirement mapping
 
-## Relevant contract changes
+- Spec 6.1/7.1/10.2, revision 35+: the sole public likelihood entry point is
+  dist.log_likelihood. No alias is restored and no library code is changed.
+- Spec 3.3/12.1: fixture loading, active-dtype inputs, host float64 expected
+  R values, all shape/dtype assertions and central tolerances are unchanged.
+- Spec 6.1/12.1: both raw and prepared method calls still compare each ordered
+  likelihood row with both sources for every exponential rate and Weibull AFT
+  vector. Eager/jit/vmap comparisons keep dynamic distribution arguments.
+- Spec 4.6/5/11.1/12.1: observed-time predictions and time-first stored-time
+  grids are unchanged, including both Weibull constructors and all groups.
+- Separately stored R totals remain supplemental checks. Exponential totals
+  now call the method; their expected numbers and tolerances are unchanged.
 
-Incoming marker: be26e50, revision 37; prior marker d243a966, revision 34.
-Read-only specification comparison confirms:
-- Revision 35: spec 6.1/7.1/10.2/12.1 remove the top-level likelihood and
-  require dist.log_likelihood as the sole public likelihood entry point.
-- Revision 36: spec 3.2 adds data.shape, len(data), undefined truth value.
-  Incoming main implements and tests them; A8 requires no data-size changes.
-- Revision 37: PH closure, staged RMST and release/demo requirements are
-  outside this A8 fixed-vector reference scope. No R payload regeneration.
+Only tests/reference plus PLAN.md/REVIEW.md change in this step. No fixture,
+loader, tolerance, dependency, source, protected-test, spec or docs/ changes.
+R is not run; all expectations remain committed R outputs. The related R
+package paths remain limited evidence, not independent numerical oracles.
 
-The independent A8 test diff migrates prepared/raw/design-matrix/total calls
-to the method and removes a redundant method test. It adds no schema or
-parameter changes. Spec tests stay read-only. The protected fixture is still
-absent; through-A8 remains pending durable tester-repo delivery and sync.
+## Focused validation
 
-Main also adds locked pytest-xdist and six-worker gate defaults. Retained;
-no changes to numerical tolerances. No contract ambiguity or new deviation.
+With UV_CACHE_DIR=/private/tmp/survjax-uv-cache and JAX_ENABLE_X64=<1|0>:
+`uv run --group test pytest -q tests/reference/test_exponential_r.py
+ tests/reference/test_weibull_bc_like_r.py`:
 
-## Actual checks and known failure
+- float64: 111 passed in 9.05s.
+- float32: 111 passed in 8.54s.
 
-Focused float64 checks on the combined working tree, using
-UV_CACHE_DIR=/private/tmp/survjax-uv-cache and uv run --group test pytest -q:
+Logs: /private/tmp/survjax-a8compat-focused-x64.log and
+/private/tmp/survjax-a8compat-focused-x32.log. The retained counts are 33
+exponential and 78 Weibull cases per dtype; 36 former function-only duplicate
+cases were removed, not numerical coverage of the remaining public method.
 
-- tests/reference/test_exponential_r.py -k function_prepared:
-  6 failed, 39 deselected in 1.14s, all AttributeError because survjax has no
-  log_likelihood attribute. Expected integration incompatibility, not a
-  numerical mismatch. Log: /private/tmp/survjax-a8-merge-probe.log.
-- Same module -k 'method or survival or diagnostics':
-  27 passed, 18 deselected in 2.60s.
-  Log: /private/tmp/survjax-a8-merge-method.log.
+Sensitivity plugin /private/tmp/survjax_a8compat_control.py temporarily rolls
+method likelihood output rows by one and reverses Weibull survival-grid
+columns. Committed source/fixtures are untouched. Both suites run with
+`-p survjax_a8compat_control` and PYTHONPATH=/private/tmp, separately per dtype:
+48 expected assertion failures / 63 passes in 4.54s x64 and 4.65s x32.
+All 36 ordered-row checks reject the roll; all 12 grid checks reject swapped
+columns. Totals retain their sums and pass. Logs:
+/private/tmp/survjax-a8compat-control-x64.log and
+/private/tmp/survjax-a8compat-control-x32.log. These expected child exit-1
+runs are corruption-detection evidence, not unchanged-suite failures.
 
-Initial sandboxed attempts could not download main's locked pytest-xdist
-package (DNS); the escalated retry installed it and ran these probes.
-No float32, full reference suite, mutation checks, full gate, R regeneration
-or docs build was run for this audit. The known stale calls must be migrated
-before claiming a passing integrated gate. Existing docs also still claim
-function/method comparison coverage; a separate docs fix is planned.
+## Gate and remaining limits
 
-Final Ruff formatting/lint, mypy and whitespace results are recorded below.
-Stop for approval of the proposed code step; do not restore the removed API,
-edit independent tests or start later-slice work.
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A7`
+uses main's incoming default six pytest-xdist workers. Full log:
+/private/tmp/survjax-a8compat-gate.log. Exact final outcome recorded below.
 
-Final static checks: Ruff format reports 78 files already formatted; Ruff lint
-reports All checks passed; mypy reports no issues in 17 source files;
-git diff --check exits 0. No conflict markers remain in either record.
+The protected acceptance fixture remains absent. No through-A8 or Slice A
+completion claim. No new deviations. No docs build or R regeneration in this
+code step. The known obsolete function/method coverage sentence in
+builtin-families.md is queued for the separate planned docs correction.
+Stop after this compatibility commit; do not begin that docs step yet.
 
-After staging, git diff --cached --check reports two inherited whitespace
-warnings in incoming read-only spec tests: API_ASSUMPTIONS.md:644 and
-test_a6_likelihood_shapes.py:121 (new blank line at EOF). Left unchanged;
-these are not conflict-resolution edits. Unmerged-path listing is empty.
-Merge remains in progress with resolved records staged; no merge commit was
-created during this audit. Compatibility implementation awaits plan approval.
+Final gate: exit 0, `check: all gates passed through A7`.
+- Guard OK; Ruff: 78 files already formatted / All checks passed!
+- mypy: Success: no issues found in 17 source files.
+- Own float64: 943 passed, 7 skipped in 47.23s.
+- Own float32: 949 passed, 1 skipped in 47.02s.
+- Source doctests: 4 passed per dtype in 1.15s / 1.09s.
+- Independent through A7 float64: 2114 passed, 28 skipped in 46.76s.
+- Independent through A7 float32: 2118 passed, 24 skipped in 46.07s.
+
+The gate's xdist summaries do not print deselection counts. No exclusions,
+new skips or protected-test changes were introduced in this step. Final Ruff
+format/lint and git diff --check pass after recording results. The two inherited
+blank-line warnings in protected tests belong to incoming main and are not
+part of this compatibility diff; they remain untouched.

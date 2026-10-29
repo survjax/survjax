@@ -67,10 +67,9 @@ def test_valid_aft_inputs_have_clear_diagnostics(distributions, observations):
 
 
 @pytest.mark.parametrize("source", ("flexsurv", "survreg"))
-@pytest.mark.parametrize("entry", ("function", "method"))
 @pytest.mark.parametrize("form", ("prepared", "raw"))
 def test_likelihood_rows_match_r(
-    distributions, observations, case, source, entry, form, x64_enabled
+    distributions, observations, case, source, form, x64_enabled
 ):
     """Spec 6.1/12.1: every ordered contribution matches R in each form."""
     dist, _ = distributions
@@ -79,8 +78,6 @@ def test_likelihood_rows_match_r(
         args = (survjax.SurvivalData(time, event),)
 
         def evaluate(distribution, data):
-            if entry == "function":
-                return survjax.log_likelihood(distribution, data)
             return distribution.log_likelihood(data)
 
         mapped = jax.vmap(evaluate, in_axes=(0, 0))
@@ -88,8 +85,6 @@ def test_likelihood_rows_match_r(
         args = (time, event)
 
         def evaluate(distribution, time, event):
-            if entry == "function":
-                return survjax.log_likelihood(distribution, time=time, event=event)
             return distribution.log_likelihood(time=time, event=event)
 
         mapped = jax.vmap(evaluate, in_axes=(0, 0, 0))
