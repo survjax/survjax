@@ -37,12 +37,18 @@ The maintainer reviews all code, so optimise for reviewability over speed.
 2. **Small steps.** One concept per step, ending in one commit. Aim for a diff
    of about 300 lines or less, tests included. If a step grows past that,
    split it and say so.
-3. **Stop after every step.** Write `REVIEW.md` (overwrite it each time):
+3. **Independent review, then stop after every step.** Write `REVIEW.md`
+   (overwrite it at the start of each step; update it in later review rounds of
+   the same step):
    - what to read first, in order;
    - the invariants the code relies on;
    - which tests demonstrate which spec requirement;
    - anything you are unsure about.
-   Then stop. Do not begin the next step until told.
+   Then run the `independent-review` skill (`$independent-review`): at most
+   three rounds by a separate reviewer, with fix-up commits for blocker and
+   should-fix findings in between. Then stop and report. Skip the review only
+   when the maintainer says so for this step. Do not begin the next step until
+   told.
 4. **Tests come with the code**, in the same commit, never "later".
 5. **No scope creep.** No dependencies, abstractions, helper layers, config
    systems or features beyond the spec without asking. Three similar lines beat
@@ -65,6 +71,14 @@ The maintainer reviews all code, so optimise for reviewability over speed.
    author from the spec alone and is read-only for you (see "Spec tests"
    below). If one fails and you think the test is wrong, add a `DEVIATIONS.md`
    entry. Do not edit, skip or xfail it.
+10. **The review is not yours.** The `independent-review` skill allows exactly
+    two things outside this repo: running the `claude` command it gives, in
+    the reviewer's checkout `../review/code-<branch>`, and reading the review
+    file `../review/slices/<step>.md`. Never edit anything in `review/`, never
+    add context or instructions to the reviewer prompt, and never re-run a
+    review to get a different verdict (one retry only when no new round was
+    written). If you disagree with a finding, give your reasons in `REVIEW.md`
+    instead of working around it. Spec-questions are for the maintainer.
 
 ## Docs
 

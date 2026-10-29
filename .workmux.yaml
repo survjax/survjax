@@ -1,0 +1,16 @@
+agent: codex
+worktree_dir: /Users/wamster3/dev/survjax # same depth as dev/, so spec -> ../design/spec resolves
+worktree_prefix: "dev-" # → survjax/dev-<branch>, like your dev-a10
+files:
+  copy:
+    - .codex/config.toml # gitignored, so worktrees don't get it otherwise
+post_create:
+  - uv sync --group test # own .venv; a shared one would import dev/main's src
+  - git worktree add --detach "../review/code-$(git branch --show-current)" HEAD
+pre_remove:
+  - git -C "$WM_PROJECT_ROOT" worktree remove --force "$WM_PROJECT_ROOT/../review/code-$(git -C "$WM_WORKTREE_PATH" branch --show-current)" || true
+panes:
+  - command: <agent>
+    focus: true
+  - split: horizontal
+    size: 10
