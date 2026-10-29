@@ -12,7 +12,7 @@ checks that the NaN rows are exactly ``data.issues.invalid_rows``.
 import jax
 import numpy as np
 import pytest
-from helpers import INF, NAN, assert_close, b, f, ll, ll_method, nan_causes
+from helpers import INF, NAN, assert_close, b, f, ll, nan_causes
 
 import survjax
 
@@ -122,7 +122,7 @@ def test_traced_construction_and_likelihood_under_jit():
 
     def run(time, event):
         data = survjax.SurvivalData(time, event)
-        return survjax.log_likelihood(_dist(), data), data.issues.invalid_rows
+        return _dist().log_likelihood(data), data.issues.invalid_rows
 
     value, invalid_rows = jax.jit(run)(f([2.0, 2.0]), np.array([1, 2], dtype=np.int32))
     _assert_row1_invalid(value, invalid_rows)
@@ -132,20 +132,10 @@ def test_traced_construction_and_likelihood_under_jit():
 def test_vmap_over_data_keeps_invalid_rows():
     """spec 7.1, rev 29: stored issues propagate under `vmap` over observations."""
     data = _with_invalid_indicator()
-    value = np.asarray(jax.vmap(lambda d: survjax.log_likelihood(_dist(), d))(data))
+    value = np.asarray(jax.vmap(lambda d: _dist().log_likelihood(d))(data))
     np.testing.assert_array_equal(np.isnan(value), [False, True, False])
     np.testing.assert_array_equal(np.isnan(value), np.asarray(data.issues.invalid_rows))
     assert_close(value[[0, 2]], [VALID_ROW, VALID_ROW])
-
-
-@pytest.mark.step("A6")
-def test_method_matches_function_on_invalid_data():
-    """spec 7.1, rev 29: `dist.log_likelihood` "returns exactly what the function returns", NaN rows included, without raising."""
-    data = _with_invalid_indicator()
-    plain = ll(_dist(), data)
-    method = ll_method(_dist(), data)
-    np.testing.assert_array_equal(method, plain)
-    np.testing.assert_array_equal(np.isnan(plain), [False, True, False])
 
 
 # ---------------------------------------------------------------- raw form
@@ -183,7 +173,7 @@ def test_raw_form_invalid_event_code_under_jit():
     """spec 6.1, rev 29: the raw form "behaves identically eagerly and under `jit`": NaN on the invalid row."""
 
     def run(time, event):
-        return survjax.log_likelihood(_dist(), time=time, event=event)
+        return _dist().log_likelihood(time=time, event=event)
 
     time, event = f([2.0, 2.0]), np.array([1, 2], dtype=np.int32)
     value = jax.jit(run)(time, event)

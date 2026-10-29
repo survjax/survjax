@@ -105,7 +105,7 @@ def test_installed_wheel_imports_and_evaluates_outside_the_source_tree(installed
 
         assert site in Path(survjax.__file__).resolve().parents, survjax.__file__
         data = survjax.SurvivalData(np.array([1.0, 2.0]), np.array([True, False]))
-        value = np.asarray(survjax.log_likelihood(survjax.Exponential(rate=np.array(0.5)), data))
+        value = np.asarray(survjax.Exponential(rate=np.array(0.5)).log_likelihood(data))
         expected = np.array([np.log(0.5) - 0.5, -1.0])
         assert np.allclose(value, expected, rtol=1e-4, atol=1e-5), value
         assert bool(data.issues.ok)

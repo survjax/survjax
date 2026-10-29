@@ -12,9 +12,7 @@ import survjax
 
 def _contributions(family, parameters, time, event):
     if family is survjax.Exponential:
-        return survjax.log_likelihood(
-            family(rate=parameters[0]), time=time, event=event
-        )
+        return family(rate=parameters[0]).log_likelihood(time=time, event=event)
     return family(shape=parameters[0], scale=parameters[1]).log_likelihood(
         survjax.SurvivalData(time, event)
     )

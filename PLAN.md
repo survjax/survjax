@@ -1,3 +1,82 @@
+# A10 integration with merged main/A9 (2026-10-29)
+
+Authorized by "main had moved and i've merge; check merge conflicts and
+bring up to date; A9 has been merged now". The maintainer-initiated merge
+is in progress: A10-cindex HEAD f71140a, incoming main ff9786f.
+Five files conflict. This is merge resolution/integration of reviewed work,
+not a new concordance feature or spec decision. Snapshot the initial index
+and preserve every incoming non-conflict change except the two explicitly
+listed integration edits below. Leave the merge commit to the maintainer.
+
+Files to resolve: PLAN.md, REVIEW.md, src/survjax/__init__.py,
+src/survjax/likelihood.py and tests/unit/test_import.py.
+Necessary integration edits: src/survjax/distributions/base.py and
+tests/install/test_wheel.py. No edits to spec, .spec-seen, independent
+tests, protected scripts, incoming dependencies, fixtures or docs.
+
+- Preserve main's method-only likelihood API and the two public A10 exports.
+  Remove the obsolete standalone likelihood wrapper. Keep input-form
+  normalization in _observation_inputs.py and import that same helper from
+  the distribution method and metrics; do not duplicate the old resolver.
+- Keep all incoming numerical likelihood behavior, A8 references, A9
+  transformation/wheel tests, fixture handoff and spec alignment. Keep the
+  withdrawn standalone A9 example absent. Extend the installed-wheel test's
+  exact expected export set by the two reviewed C-index functions.
+- Retain both branches' planning history below this current integration
+  record. Overwrite REVIEW.md with current reading order, invariants,
+  parent records, validation results and remaining A10 work.
+- Sync the environment from the incoming lockfile without changing project
+  metadata. Run focused integration checks, then scripts/check_wheel.sh
+  --through A9, including a freshly built wheel, full own suites and unchanged
+  independent through-A9 suites in both dtypes. Run the five non-fixture A10
+  acceptance modules in both dtypes. A10 R fixtures remain a separate step;
+  do not claim a full through-A10 gate or regenerate R data.
+- Verify conflict markers/unmerged entries are gone, all seven intended
+  resolution paths are staged, every other index entry matches the snapshot,
+  and protected incoming files equal main. Record results and stop with the
+  merge resolved and staged; no new merge, rebase or merge commit.
+
+
+Validation completed 2026-10-29. All five conflicts are resolved/staged;
+main's method-only API regression, the two C-index exports and the one
+shared resolver are preserved. The incoming likelihood evaluator AST is
+unchanged apart from moving its identical input resolver; only the method's
+import changes. All other 173 original stage-0 index entries are unchanged.
+Environment synced with uv sync --locked --offline --dev; no metadata edit.
+Focused shared-input/likelihood/concordance/API suites: 120 passed per mode
+(12.49s float64 / 11.93s float32). Fresh-wheel full gate:
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check_wheel.sh --through A9`
+exited 0, ending `check: all gates passed through A9`.
+
+| Gate stage | Float64 | Float32 |
+| --- | --- | --- |
+| Own tests, including installed wheel | 1036 passed, 7 skipped, 56.62s | 1042 passed, 1 skipped, 59.24s |
+| Source doctests | 4 passed, 1.09s | 4 passed, 1.10s |
+| Independent through A9 | 2211 passed, 28 skipped, 60.17s | 2202 passed, 37 skipped, 53.97s |
+| Five non-fixture independent A10 modules | 113 passed, 28.26s | 112 passed, 1 skipped, 21.81s |
+
+Ruff: 89 files already formatted / All checks passed! Mypy: no issues in
+20 source files. No source/test changes followed these runs. Complete
+commands, wheel identity, selection and remaining limits are in REVIEW.md.
+Net-to-main and resolution-only whitespace checks are clean. The full staged
+check reports only two pre-existing incoming-main EOF blank lines in
+read-only tests/spec/API_ASSUMPTIONS.md and test_a6_likelihood_shapes.py;
+confirmed identical in main and left unchanged. No new whitespace issue.
+The incoming .spec-seen remains be26e50. Subsequent design changes only add
+use-case companion links; concordance/likelihood requirements are unchanged.
+Final metadata restaging/index audit follows; leave the merge commit to
+the maintainer under the repository agreement. No full A10 gate claim.
+
+Spec: 6.1, 7.1-7.3, 9.1-9.2, 10.2-10.3, 12.1. Public API is the current
+method-only likelihood plus the already reviewed concordance functions.
+No new tests beyond updating existing exact export expectations are needed
+for this merge; use both branches' existing transformation/acceptance suites.
+Docs to-do: concordance topic/playground/held-out example, as recorded below.
+Earlier missing A8/A9 integration evidence is historical; update current
+results here after the combined-tree checks have actually run.
+
+---
+
 # A10.2b2 review follow-up — N-5 and N-8 (2026-10-28)
 
 Review follow-up to the approved public integration step, requested by
@@ -483,6 +562,1336 @@ dtype policy, data/diagnostic containers, export-reference test and gate read.
 environment check, spec edit, spec-seen update or commit during planning.
 
 ---
+
+
+# A9 scope for merge — remove the standalone example (2026-10-29)
+
+Approved directly by the maintainer: merge the A9 work except the slice_a
+example, which is superseded by use-case 1 and a mini version in the README.
+This narrow removal updates PLAN.md/REVIEW.md and deletes exactly:
+
+- `examples/slice_a.py`;
+- `tests/unit/test_slice_a_example.py` (its three dedicated regression cases).
+
+Public API touched: none. No tests are added for deleting the withdrawn demo.
+Spec context: 7.3, 10.3, 12.2; this removal makes no new completion claim and
+does not change the read-only specification. Check for surviving references,
+collect the remaining A9 tests, and run available static/whitespace checks.
+
+Preserve the A9.1 derivative/composition suite and A9.2 wheel/extension checks,
+and all other files already staged in the maintainer-initiated main merge.
+Incoming main c8adba5 supplies A8 fixtures, reference tests, docs and runner
+changes. The generated bc-like candidate and both protected copies were
+verified byte-identical during conflict resolution; its SHA-256 is
+`4edbdee917ae335da11911b39ec60442e21998687d27c62494f54e7eb1d0e450`.
+No incoming code, fixtures, protected tests/scripts, dependencies or spec
+marker changes are part of this removal. The merge commit remains with the
+maintainer; stage this cleanup with the existing resolved merge.
+
+Use-case 1 and the README mini example will carry the replacement teaching
+material. Their design and implementation are outside this removal request.
+A9.4 CPU measurements and A9.d1 docs remain pending. Combined-tree A8/A9
+validation has not been established by these cleanup changes.
+
+Removal checks: no surviving code/docs references; 18 retained A9 tests
+collected in 0.64s. Ruff reports 82 files already formatted / All checks
+passed! Mypy reports no issues in 17 source files. Whitespace checks pass.
+All 171 other index entries are unchanged. The staged net diff from incoming
+main contains only PLAN.md/REVIEW.md and the five retained A9.1/A9.2 files;
+the withdrawn example and its tests are absent. No full numerical gate ran.
+
+---
+
+# A9 — Transformations, installation and Slice A evidence (2026-10-26)
+
+Status: **A9.1–A9.2 review passed; A9.3 withdrawn by the maintainer**.
+Planning started
+on the maintainer-created `A9` branch at `030314b`, with a clean working tree.
+The scope note above records current status. A9.1 and A9.2 remain accepted.
+The standalone A9.3 example is removed; use-case 1 and a mini README example
+will supersede it. The remaining step descriptions retain their prior scope
+and results. A9.4 and A9.d1 still need approval before implementation.
+Each step ends in one commit, an overwritten REVIEW.md and a stop. Target at
+most 300 changed code/test/docstring lines per step; split and replan before
+exceeding that budget. Do not create or switch branches without instruction.
+
+## Contract, scope and existing evidence
+
+- Spec revision 37; `.spec-seen` records `be26e50`. Planning command
+  `../scripts/spec-since.sh dev` exited 0: `spec unchanged since be26e50`.
+  No spec, marker, dependency or public-library-API change is planned.
+- Sections 7.2–7.3, 10.2–10.3, 12.1–12.3 govern this work. Section 10.5
+  requires a separate closing docs step and rendered-page review.
+- Own tests already cover built-in second-order finite differences for both
+  likelihood input forms, analytical derivatives, parameter-issue isolation
+  (including nested families), boundary gradients and grid transformations.
+  Reuse that evidence; do not duplicate the earlier full matrices in A9.
+- Read-only A9 acceptance tests cover analytical derivatives, custom-family
+  autodiff defaults and reference substitution, compiled composition and
+  compilation reuse, package metadata and wheel installation. They have been
+  inspected, not executed in this planning turn.
+- A9.1–A9.2 supply derivative/composition tests and the wheel runner.
+  The standalone A9.3 example has been withdrawn; use-case 1 and a mini README
+  example will cover that work later. The CPU baseline remains pending.
+  A9 wheel tests require an absolute SURVJAX_WHEEL path, supplied by
+  scripts/check_wheel.sh.
+  Keep protected scripts/check.sh and all tests/spec content unchanged.
+- Incoming main now supplies scripts/fixtures, tests/fixtures and
+  tests/reference, including the bc-like synthetic data and the protected
+  acceptance fixture. The old missing-fixture blocker is superseded by this
+  integration. No R regeneration is needed; verify the combined gates before
+  claiming their results.
+- A9 excludes later likelihood modes, wrappers, RMST, metrics/concordance,
+  sampling, inference libraries, release demos, publication and accelerator
+  claims. Revision 37's first-release items have separate gates.
+
+## A9.1 — Remaining derivative and compiled-composition evidence
+
+One concept: verify the current public likelihood composes with JAX. Public
+API touched: none. Files to create:
+`tests/unit/test_likelihood_composition.py` and
+`tests/unit/test_likelihood_custom_derivatives.py`. Reuse
+`tests/impl_tolerances.py` without loosening its values; edit comments there
+only if a new finite-difference case needs an explicit scale justification.
+Spec: 4.2, 6.2, 7.2–7.3, 12.1 and compilation reuse in 12.3.
+
+- For Exponential and Weibull, construct ordinary data from traced arrays,
+  access and return data/parameter diagnostics, and evaluate the summed
+  likelihood with first and second parameter derivatives inside `jit`.
+  Cover flag and equivalent bounds construction; compare to prepared-data
+  evaluation and explicit analytical derivatives on a small mixed batch.
+  Expected numbers come from differentiated exact/right formulas, not the
+  prepared implementation alone. Keep parameters finite and interior.
+- Check forward/reverse derivatives and Hessians, `vmap` over independent
+  parameter vectors or datasets, and `jit(vmap(...))`. Include diagnostic
+  control flow (`lax.cond`) with an invalid replicate and verify valid
+  replicates retain their analytical values and derivatives. No fit/solver
+  implementation is necessary for this library-composition check.
+- Count traces for changed parameters and observation values with fixed
+  shape/dtype/weak typing/tree structure, and for equal-sized minibatches
+  sliced from one parent. Synchronize calls and assert actual numerical
+  outputs as well as reuse. Preserve inherited static metadata.
+- Add one small registered custom family with only `log_survival` and
+  `reference_time`, exercising generic density differentiation through the
+  likelihood. Verify analytical gradient/Hessian and second-order
+  `check_grads` in both modes on a smooth unit-scale interior case.
+- Add a reference-substitution regression whose positive finite reference
+  has a singular parameter derivative, so a leak into an inactive density
+  branch would poison exact/right mixed-batch gradients and Hessians.
+  Expected derivatives come from the active exponential formula.
+- Existing violation-isolation suites remain the evidence for invalid
+  parameters. Do not extend derivative promises to times, unsupported modes,
+  invalid/infinite objectives or support-change boundaries. If a new test
+  reveals a numerical defect, stop and plan a focused fix rather than
+  silently expanding this verification step.
+
+Checks after approval: focused new modules in separate `JAX_ENABLE_X64=1`
+and `=0` processes; independent `test_a9_likelihood_derivatives.py` and
+`test_a9_compiled_composition.py` with `SPEC_THROUGH=A9` in each mode;
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A7`;
+`git diff --check`. The A7 gate is the available cumulative regression gate,
+not an A9 completion claim. Record exact commands, counts, skips and failures.
+Write REVIEW.md with reading order, invariants and requirement/test mapping,
+update this plan's evidence, commit on `A9` and stop.
+
+### A9.1 implementation evidence
+
+Added two own test modules totaling 299 lines, 15 cases per dtype. Library
+source, shared tolerances and protected files are unchanged. Final focused
+runs: 15 passed in 22.61s (float64), 15 passed in 21.95s (float32).
+Independent A9 derivative/composition modules: 40 passed in 37.28s (float64);
+27 passed, 13 existing float64-only skips in 18.37s (float32).
+CPU environment: Python 3.12.9, JAX 0.11.2, NumPy 2.5.3. Ruff passes
+(74 files already formatted / All checks passed!), mypy reports no issues in
+17 source files. The initial focused failures came from negating NumPy
+boolean indicators in the new expectations; cast them to float. No library
+fix or tolerance change was needed. REVIEW.md records the requirement mapping
+and commands. The cumulative command
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A7`
+exited 0: `check: all gates passed through A7`.
+
+| Gate stage | Float64 | Float32 |
+| --- | --- | --- |
+| Own tests | 789 passed, 7 skipped, 186.51s | 795 passed, 1 skipped, 173.74s |
+| Source doctests | 4 passed, 1.01s | 4 passed, 0.95s |
+| Independent through A7 | 2114 passed, 28 skipped, 218 deselected, 106.77s | 2118 passed, 24 skipped, 218 deselected, 107.94s |
+
+Full log: `/private/tmp/survjax-a91-gate.log`. No new skips or exclusions.
+Only this result record and REVIEW.md changed after the gate; final Ruff and
+whitespace checks follow. No R, wheel or docs build ran; no later A9 step has
+begun. Commit this approved step on `A9` and stop for review.
+
+## A9.2 — Installed wheel and out-of-tree extension
+
+One concept: verify the distributed artifact independently of the source
+checkout. Public API touched: none. Create `scripts/check_wheel.sh`,
+`tests/install/test_wheel.py` and `tests/install/custom_family.py`.
+Spec: 4.2, 10.1–10.3, 12.1–12.2. Target under 300 changed code/test lines.
+
+- Provide a small runner that builds a wheel into a fresh temporary directory
+  using uv and the locked backend, sets `SURVJAX_WHEEL` to its absolute path
+  and delegates to the unchanged maintainer gate (default through A9).
+  Support an explicit lower gate while A8 is absent; never suppress failures.
+- Own install tests accept that artifact or build one once into pytest's
+  temporary directory when run via the standard own-test runner. No test
+  requires network access: build/install use offline cached locked tooling.
+  A missing setup artifact/cache is an explicit failure, not a skip or an
+  implicit download. No extra dependency or build hook is needed.
+- Create a fresh environment outside the source tree with only the locked
+  core runtime closure and the wheel, installed with uv from its cache.
+  Export runtime requirements from the existing lock without dev/docs/demo
+  groups; do not resolve different versions or use editable source installs.
+- From an empty external working directory, remove source-path injection,
+  assert the imported package lives in that environment, check exact Slice A
+  exports, metadata, Apache license and `py.typed`, and evaluate a likelihood
+  against hand-derived values. Confirm demo packages are absent and unused.
+- Copy the small fully annotated custom family into that external directory;
+  import, construct and evaluate it against analytical values and derivatives.
+  Run the existing mypy against it using the installed environment for package
+  discovery. This checks installed typing as well as runtime extension use.
+- Use fixture/session lifetime to avoid rebuilding for every assertion. Keep
+  temporary environments and archives outside tracked files. An sdist check
+  is a pre-release requirement, not part of this Slice A wheel step.
+
+Checks: own install module in both dtype processes, independent A9 package
+and wheel modules with `SURVJAX_WHEEL` set in both processes, out-of-tree mypy,
+and `scripts/check_wheel.sh --through A7` plus `git diff --check`. The same
+wheel must pass all applicable checks; report Python/JAX/NumPy/backend
+versions actually used. Keep the normal `scripts/run_tests.sh` working in
+both dtypes and excluding `tests/spec`. Update PLAN.md/REVIEW.md, commit and
+stop. A cumulative through-A9 run remains pending A8.
+
+### A9.2 implementation evidence (2026-10-27)
+
+Created the wheel runner, three own install tests and the annotated external
+family (281 script/test/example lines). The runtime export uses pylock.toml
+to preserve locked artifact identities and hashes and avoid needing cached
+registry metadata. Installs use a fresh external environment, offline binary
+sync, then the wheel with no dependency resolution. Strict external mypy and
+parameter derivatives pass; no library or dependency change was needed.
+Initial focused own runs after correcting the export format: 3 passed in
+17.16s (float64), 3 passed in 21.98s (float32). Final metadata checks are
+included in the cumulative gate now running.
+
+The runner-built wheel is used by both cumulative dtype processes and the
+independent A9 package/wheel modules: 16 passed in 2.74s in each mode.
+Its WHEEL metadata records `Generator: uv 0.11.19`, `Root-Is-Purelib: true`,
+`Tag: py3-none-any`. Python 3.12.9, JAX 0.11.2, NumPy 2.5.3; CPU only.
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check_wheel.sh --through A7`
+exited 0: `check: all gates passed through A7`. Guard passed; Ruff reports
+76 files already formatted / All checks passed! Mypy reports no issues in
+17 source files. The external example passed strict mypy in both processes.
+
+| Gate stage | Float64 | Float32 |
+| --- | --- | --- |
+| Own tests | 792 passed, 7 skipped, 211.16s | 798 passed, 1 skipped, 192.31s |
+| Source doctests | 4 passed, 0.89s | 4 passed, 0.82s |
+| Independent through A7 | 2114 passed, 28 skipped, 218 deselected, 99.80s | 2118 passed, 24 skipped, 218 deselected, 95.99s |
+
+Full log: `/private/tmp/survjax-a92-gate.log`. The three new own install
+cases run in each dtype, with no new skips or exclusions. The retained wheel
+has SHA-256 `700418efd9bf12297ed2e0851d5c133767dc7abf575d146ed85b3d4da6f1df3f`;
+REVIEW.md records its absolute path and focused/spec logs. Bash syntax and
+whitespace checks passed. Initial requirements.txt setup attempts failed
+because offline registry metadata was unavailable; pylock export fixed them.
+An auxiliary verbose build with no task cache variable hit the sandbox's
+restricted default cache; successful builds use the explicit permitted cache.
+No spec deviation or dependency change was needed. No R, sdist, docs build
+or later step ran. Only result records changed after the gate; final static
+and whitespace checks follow. Commit A9.2 on `A9` and stop for review.
+
+## A9.3 — Withdrawn standalone example (2026-10-29)
+
+The maintainer requested removal of `examples/slice_a.py` and its dedicated
+`tests/unit/test_slice_a_example.py`. They are excluded from the A9 merge.
+The previous fixed-parameter demo and its three regression cases are removed;
+A9.1 derivative coverage and A9.2 wheel/extension checks remain unchanged.
+Use-case 1 and a mini README example will supersede this standalone demo.
+No replacement example, fitting implementation or README edit belongs to
+this removal step. Their definition and validation remain future work.
+
+## A9.4 — Reproducible CPU baseline
+
+One concept: measure current behavior, without optimizing it. Public API
+touched: none. Create `scripts/benchmark_slice_a.py` and
+`benchmarks/slice_a_cpu.json`. Spec: 7.2, 12.1–12.3. Target at most 300
+changed script/test lines; the machine-readable measurements are evidence.
+
+- Fixed-seed synthetic exact/right data, CPU only, separate dtype processes.
+  Measure Exponential and Weibull, N=1,000/10,000/100,000, shared and
+  per-observation parameters, with a compiled summed objective and parameter
+  gradient. Compare prepared data against ordinary traced construction plus
+  diagnostics and evaluation. Return diagnostics so they cannot be eliminated;
+  record the prepared flags and conservative all-true traced metadata.
+- Separate host generation, device placement and prepared construction costs,
+  compilation/first-call costs, and warmed repeated execution. Synchronize all
+  measured output leaves. State warmup/repetition counts and report a timing
+  distribution, not a single asynchronous dispatch duration.
+- Check values and gradients before recording timings against independent
+  exact/right analytical formulas, using the existing dtype tolerances.
+  Verify compilation reuse for changed dynamic values and same-shaped parent
+  minibatches; reuse the A9.1 tests as regression evidence.
+- Record commands, seed, shapes, parameter layout, versions, hardware/OS,
+  actual CPU device, repetition count and logical input/output byte counts.
+  Report peak memory with its method if measured, otherwise explicitly mark
+  it unmeasured. Do not present byte counts as peak memory or claim speedups.
+- Commit compact reproducible results for both modes; inspect scaling and
+  preparation/construction overhead and record limitations in REVIEW.md.
+  No speed threshold, benchmark dependency, optimizer run or timing-sensitive
+  regular test. Numerical failures require investigation, not relaxed checks.
+
+Checks: execute the full benchmark matrix in both dtype processes, inspect
+all rows and correctness checks, run Ruff/mypy and the available cumulative
+regression gate, then `git diff --check`. Update PLAN.md/REVIEW.md, commit and
+stop. This provides CPU evidence only.
+
+## A9 Docs to-do — A9.d1, separate approval after code merges
+
+One topic: using and verifying the installed Slice A subset. Public API
+touched: none. Create `docs/slice-a-verification.md` and add its navigation
+entry in `docs/index.md`, at most 300 changed lines. Spec: 10.3, 10.5,
+12.1–12.3. Describe compiled derivatives, the wheel runner, benchmark
+reproduction and the evidence's limitations. Tie R-comparison claims to the
+integrated A8 evidence and actual executed checks. Fitting/example content
+will be supplied by use-case 1 and a mini README example, rather than the
+withdrawn standalone A9.3 demo; link that material once it exists.
+
+Run `UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/build_docs.sh` with
+fresh execution in both modes; inspect rendered results, links and layout.
+Audit existing executable pages and `docs/playground.ipynb` for the Slice A
+gate; record the working JupyterLab command and any remaining docs topics as
+separate steps rather than expanding this page's scope. Update REVIEW.md,
+commit on the maintainer-selected branch and stop.
+
+## Final evidence audit and planning checks
+
+The last A9 review must list every Slice A gate item with its concrete test,
+artifact or measurement and an honest pass/pending/fail status. Reuse earlier
+review evidence where applicable, but run the final cumulative
+`scripts/check_wheel.sh --through A9` against the combined tree, now that
+A8's fixtures are present. This example-removal turn does not run or claim
+that gate. Do not skip acceptance tests, manufacture fixtures or claim
+Slice A complete. Use-case 1 and the mini README example, CPU measurements
+and docs still need their own evidence and approved steps.
+
+Planning checks actually run: branch/status/history and protected-path diff
+inspection; read spec/goals, current plan/review/deviations, runner/build
+configuration, relevant own tests and independent A9/A8 contracts; spec
+alignment command above. No tests, builds, installs, benchmarks or R commands
+ran during planning. No contract ambiguity requiring a new deviation found.
+At the planning stop only PLAN.md had changed; `git diff --check` passed.
+That stop ended when the maintainer approved A9.1; implementation evidence
+for the approved step is recorded above.
+
+---
+
+# Incoming A8 history from main
+
+Retained verbatim from main's plan additions. Its branch names, approvals,
+check results and pending-handoff wording describe that work at the time;
+the current integration note above records the fixture's arrival here.
+
+# A8 integration audit and follow-up plan (2026-10-29)
+
+The maintainer initiated merging main (be1a5b3) into a8-1-r-generator and
+requested conflict resolution and an A8 relevance audit. Resolve only PLAN.md
+and REVIEW.md; retain all incoming code, independent tests, scripts and marker
+unchanged. Prior plans below are historical; this entry is current.
+
+## Findings
+
+- Incoming .spec-seen advances from d243a966 (revision 34) to be26e50
+  (revision 37). Spec 6.1, 7.1, 10.2 and 12.1 now require method-only
+  likelihood (revision 35). main implements the removal and migrates its
+  tests/docs. A8's own reference tests were not in that migration.
+- tests/spec/test_a8_bc_fixtures.py now uses dist.log_likelihood in prepared,
+  raw, jit/design-matrix and total comparisons. The redundant separate method
+  test is removed. Its fixture schema, parameters and numerical targets stay
+  unchanged. tests/spec/ remains read-only.
+- Spec 3.2 size/truth-value interface is implemented and independently tested
+  by incoming main; A8 constructs data explicitly and needs no size migration.
+- Revision 37 PH/RMST and release-demo changes concern later work, not A8's
+  fixed-vector exponential/Weibull fixtures. No fixture regeneration follows.
+- main adds pytest-xdist test tooling and defaults gates to six workers;
+  retain those incoming changes. They do not alter numerical tolerances.
+- Protected tests/spec/fixtures/bc_synthetic_weibull.json remains absent;
+  durable maintainer handoff and sync still precede the through-A8 gate.
+
+## A8 compatibility code step — approved
+
+Approved by "ok do it" after the integration audit. Merge completed as
+f4e0eae before this separate compatibility step.
+Completed: both focused dtype suites pass (111 cases each); all 48 method
+row/grid corruption controls are detected per dtype. The incoming six-worker
+through-A7 gate exits 0; REVIEW.md records exact counts and evidence limits.
+Commit this compatibility step and stop for review.
+
+Files: tests/reference/test_exponential_r.py and
+tests/reference/test_weibull_bc_like_r.py, plus PLAN.md/REVIEW.md.
+Public API: none added; align calls with spec 6.1/7.1/10.2/12.1.
+Remove redundant function-entry tests/case axes, retain method raw/prepared
+comparisons, and migrate the exponential supplemental total to the method.
+Keep every vector/source, ordered-row expectation, dtype/shape assertion,
+eager/jit/vmap path and central tolerance unchanged. Do not restore an alias,
+edit protected tests or regenerate payloads. Target under 300 changed lines.
+
+Run both reference modules in each dtype and repeat focused row-order/grid
+sensitivity controls through the method. Then run scripts/check.sh --through A7
+with the incoming runner, final Ruff/mypy/diff checks, record exact outcomes,
+commit one compatibility step and stop. The earlier audit failure from the
+removed API is corrected by this step; full through-A8 remains pending.
+
+## Subsequent docs correction — approved
+
+Approved by "ok do the docs correction" after d5c0a3c.
+Completed: both fresh dtype docs builds exit 0; HTML checks confirm method-only
+wording, all 48 local links/anchors and byte-identical recipe downloads per
+mode. REVIEW.md records evidence and verified fixture-handoff details.
+Commit this docs correction and stop for review.
+
+Change only the obsolete function/method claim in docs/builtin-families.md to
+method raw/prepared coverage. Audit A8 fixture READMEs for the same claim;
+no such explicit two-entry-point claim was found during this audit. Build
+both dtype docs, check links/rendered wording, update review, commit and stop.
+No broader docs/size-interface or later-slice work in this A8 correction.
+
+## Closure still required
+
+Maintainer supplies the committed acceptance-schema JSON to the authoritative
+tester repo and syncs it. Verify byte identity/checksum, then run the unchanged
+independent A8 module in both dtypes and full through-A8 gate. Neither fixture
+copying into protected paths nor a full A8 pass is implied by this merge.
+
+---
+
+# Remaining Slice A8 work — plan for approval (2026-10-23)
+
+Status: main through A7 is integrated at incoming commit 3389ee0. The
+maintainer accepted A8.4a.1 and approved A8.4a.2. The bc group/grid/export
+checks are accepted after review. A8.4b exponential reference comparisons
+are implemented, validated through A7 and ready for review. Protected tester-repo
+fixture delivery remains pending. A8.5 is accepted. A8.d1 is implemented and ready for review.
+Historical plans below retain their original status wording.
+
+Work on the existing maintainer-created `a8-1-r-generator` branch, in this
+checkout only. Keep one concept and roughly 300 changed code/test lines per
+step, one commit, REVIEW.md and a review stop. Replan before exceeding that
+budget; preserve the requested readable R structure and spacing. The existing
+343-line bc generator already exceeds the file-size guideline: if the export
+addition makes it unwieldy, split that concrete export responsibility into a
+small R file in the same step, without creating a general serialization layer.
+
+## Contract and boundaries
+
+Specification revision 34, sections 3.3, 4.6–4.7, 5, 6.1–6.3, 10.4–10.5,
+11.1 and 12.1–12.2. No public API, library algorithm, dependency or tolerance
+changes are planned. A7 owns tail/boundary/debug-nans evidence; A9 owns the
+broader derivative, packaging and performance completion work. Imported A9/A10
+acceptance tests do not expand A8's scope; no concordance work belongs here.
+Spec and independent tests stay read-only. Unexpected numerical failures go
+back to the responsible implementation; record genuine contract gaps in
+DEVIATIONS.md and ask rather than changing tests or loosening tolerances.
+
+The existing fixtures remain the reviewed source of synthetic evidence:
+- exponential: 16 rows, three fixed rates, two R paths;
+- bc_like: 686 rows, Good/Medium/Poor sizes 229/229/228, seed 8201, three
+  fixed vectors, observed-time predictions and 141-by-3 survival grids.
+
+Never load patient data or copy real-cohort likelihood totals. Keep all R
+exports at 17 significant digits. The chosen validation policy remains:
+R checks exact exported text; Python separately verifies numeric round trips
+against original R hexadecimal doubles. Python never generates expected values.
+The two R package paths are not fully independent numerical oracles.
+
+## A8.3a — Export the independent acceptance schema
+
+Review fix-up (2026-10-25), authorized by "check the review, address the nits":
+read ../review/slices/A8.3a.md. N-1 checks the assembled export against the
+original R observations and per-source references. N-2 moves grid identity
+into that output validation and distinguishes preservation from the upstream
+independent orientation check. N-3 remains an A8.3b handoff: restore a fully
+passing regeneration recipe, including comparison of the new committed JSON.
+N-4 retains the shared-oracle limitation; exact source-field checks protect
+mapping labels without claiming independent numerical evidence.
+Files: bc_spec_export.R, bc_like README, PLAN.md and REVIEW.md. No payload,
+manifest, generator main-script, library, dependency or protected-test edits.
+Re-run pinned R two-run/hex validation, E2/E4 mutations in check-only/export,
+final Ruff/diff checks and the through-A7 gate. All pass; the gate exits 0
+and REVIEW.md records exact counts and mutation results. One fix-up commit,
+then stop.
+
+Execution (2026-10-25): the approved export mapping is isolated in
+scripts/fixtures/bc_spec_export.R, sourced by the existing generator. Its
+checks also run under check-only; full generation writes the additional JSON
+in the chosen output directory. The old JSON header now records the exporter
+checksum. README documents the interim provenance difference until A8.3b.
+Scratch two-run, exact R-double and mutation checks pass. The final through-A7
+gate exits 0; counts and limits are recorded in REVIEW.md. No payload/manifests,
+independent tests, public API, dependencies or tolerances are changed.
+Code/README diff stays below 300 changed lines; do not start A8.3b.
+
+Files: `scripts/fixtures/generate_bc_like.R`, optionally one small R export
+file in `scripts/fixtures/` if needed for readability, and
+`tests/fixtures/bc_like/README.md`. No committed payload changes in this step.
+
+Extend the R generator to write an additional
+`bc_synthetic_weibull.json` inside its chosen output directory, using the
+already evaluated R objects. Retain data.csv and expected.json and their
+reviewed numerical contents. Follow `tests/spec/fixtures/README.md` exactly:
+- embed time/event/group arrays; metadata reports actual seed 8201, generator,
+  pinned R/packages (normalize survival's displayed 3.7.0 to 3.7-0 as needed);
+- map unit_shape to fixed_a, alternative to fixed_b, fitted to r_optimum;
+- map shape/scale_Good/beta_Medium/beta_Poor to the defined parameter names;
+- map each source's log_likelihood and survival to loglik and survival;
+- export stored grid times and flexsurv curves, time first, Good/Medium/Poor.
+
+Do not reparse decimal CSV/JSON inside R to build the additional export:
+that would reintroduce the pinned R parser's one-ULP issue. Do not write under
+`tests/spec/`. Default output stays tests/fixtures/bc_like; document that
+no-argument generation overwrites generated files, including the new JSON.
+Keep check-only free of writes and reject unknown flags before writing.
+
+Checks with code: exact field/case mappings, row and group order, parameter
+values, both sources, finite lengths/shapes, grid labels/orientation, exported
+text and precision. Exercise swapped cases/columns and shortened decimals in
+scratch copies and require detection. Confirm check-only does not write.
+Use pinned R 4.4.2, flexsurv 2.3.2, survival 3.7-0 only; if unavailable, deliver
+the generator and stop for the maintainer's run. Record all actual checks.
+Spec: 10.4, 11.1, 12.1. Docs to-do: export path and evidence limits in A8.d1.
+
+## A8.3b — Commit regenerated outputs and hand off the spec fixture
+
+Execution (2026-10-25): authorized by "all good; next bit of A8" after the
+A8.3a review fix-up ef4a038. Regenerate using that unchanged generator/exporter,
+validate two-run byte identity, preservation of reviewed values and exact
+R-double read-back, then import only the refreshed expected.json and additional
+JSON. Update the three-entry manifest and passing README recipe; CSV remains
+byte-identical. Validate the candidate against an untouched temporary copy of
+the A8 acceptance module in both dtypes, without writing in the real tests/spec.
+Finish with REVIEW.md, one data-only commit and a maintainer handoff; do not
+start A8.4. No generator, library, dependency, tolerance or protected-path edits.
+
+Files: bc_like data.csv/expected.json, the additional acceptance-schema JSON,
+SHA256SUMS and README under `tests/fixtures/bc_like/`. Change only generated
+provenance where needed in existing outputs; CSV and all prior numeric values
+must remain identical. No independent test or spec-file edits.
+
+Run the approved generator twice in the pinned R environment into temporary
+directories. Compare both runs, compare existing observations/reference numbers
+with committed A8.3, and independently check exact Python read-back against R
+hexadecimal values. Check every additional-schema field against the reviewed
+R output, including all three cases/sources and every grid cell. Update the
+manifest to cover all three payloads, then verify all entries. Keep regeneration
+commands comparing fresh outputs both to each other and to committed files.
+A8.3a review N-3 is closed only when the full documented recipe exits 0,
+including cmp of the additional JSON against its committed candidate; remove
+the interim provenance-drift notice then.
+Completed local validation: fresh two-run generation and exact R-double
+read-back pass; all existing observations and numbers are preserved. The
+unchanged A8 acceptance module passes 44 tests per dtype in a temporary copy
+with the candidate installed. The full README recipe now exits 0, with all
+six cmp checks and all three manifest entries passing; N-3 is closed.
+The real tests/spec fixture remains absent until the maintainer handoff.
+
+This generated-data step is separate from the generator code; no new large
+CSV diff is expected. Ask about a size exception only if a new large diff occurs.
+
+Protected fixture handoff: supply the verified additional JSON and checksum
+to the maintainer for inclusion at
+`tests/spec/fixtures/bc_synthetic_weibull.json` in the authoritative tester
+repo, followed by the usual spectests-* sync and maintainer merge. The sync
+replaces tests/spec wholesale, so a local-only copy there is not durable.
+No implementer write to that path, no test-loader adaptation and no guard bypass.
+After handoff, verify the synced file is byte-identical to the generated
+candidate and run the focused A8 acceptance module in both dtypes. If delivery
+is pending, report it explicitly; do not claim a through-A8 pass.
+Spec: 10.4, 11.1. Docs to-do: durable handoff/regeneration provenance.
+
+## A8.4a — Shared fixture loader and integrity checks
+
+A8.4a.2 execution (2026-10-26), authorized by "good on A8.4a.1; get to the
+next bit": finish bc group/block counts, time-first grid validation and exact
+acceptance-export consistency in tests/conftest.py. Add the bc corruption
+suite as tests/unit/test_bc_reference_fixtures.py so the existing 204-line
+common test module stays focused and below the file-size guideline. Validate
+rehashed bad groups/metadata, grid shape/order/finiteness, acceptance metadata,
+case/parameter/source/row/grid mismatches, and stored float64 precision. All
+hashes still pass before parsing. No payload, generator, library, tolerance,
+dependency, docs or protected-path changes. Keep the step below 300 code/test
+lines, run focused tests in both modes and the through-A7 gate, commit and stop.
+Final evidence: 58 focused tests pass per dtype; all 15 new guard-removal
+mutations are rejected per dtype; the full through-A7 gate exits 0. REVIEW.md
+records exact counts and limitations.
+A8.4b distribution comparisons are not authorized by this step.
+
+A8.4a.1 review fix-up (2026-10-25), explicitly authorized by "check the
+review and fix": read ../review/slices/A8.4a.1.md. SF-1 adds rehashed bad
+CSV/JSON tests that kill L6–L11 (nonfinite arrays, event counts, CSV MD5,
+positive times/parameters, and log_survival validation). N-1 gives each damage
+its exact expected rejection message. N-2's KeyError behavior is retained as
+accepted test infrastructure; no loader behavior change is needed. Files:
+unit test module and PLAN.md/REVIEW.md only. Demonstrate each formerly
+surviving mutation is rejected in both dtypes, run the focused suite and full
+through-A7 gate, then commit one fix-up and stop. Validation is complete:
+28 focused tests pass per dtype, L6–L11 are rejected per dtype, and the full
+gate exits 0. REVIEW.md records counts and mutation evidence. That fix-up
+did not start A8.4a.2.
+
+Execution (2026-10-25), approved by "go on with next bit; plan approved":
+implement in tests/conftest.py and tests/unit/test_reference_fixtures.py only,
+plus PLAN.md/REVIEW.md. Expose r_fixture(name, root=...) as a pytest callback;
+return the checked header/cases/grid plus host data arrays. Float arrays remain
+NumPy float64 regardless of JAX mode. Verify all known manifest payloads before
+any parsing; validate common schema/provenance and the bc acceptance mapping.
+Tests use temporary copies for damage/rehash cases; no R, dependencies, payload,
+public API, numerical tolerance or protected-test edits. Keep code/tests under
+300 changed lines. The full loader/negative tests plus bc consistency exceed
+that budget, so use the permitted split: A8.4a.1 implements all-payload hash
+verification, common provenance/rows/arrays and corruption tests; A8.4a.2 adds
+bc group/grid and acceptance-schema mapping checks with their negative tests.
+Stop for review after each commit; neither part alone completes A8.4a.
+Focused tests now pass 28 per dtype after the review fix-up; the full
+through-A7 gate exits 0. REVIEW.md
+records exact counts and the precision-control mutation. Commit and stop.
+The A8.4a.1 history above is retained; A8.4a.2 is now implemented as recorded
+in its execution entry. Distribution comparisons still wait for A8.4b/A8.5.
+
+Files: `tests/conftest.py`, `tests/unit/test_reference_fixtures.py`.
+No public API changes. All implementation reference tests use one loader,
+exposed as a pytest fixture; permit a temporary fixture root for loader tests.
+Use stdlib CSV, JSON and hashlib, existing NumPy, and plain return values.
+
+Verify manifest entries and raw bytes before parsing any payload. Require the
+known payloads for each set (two exponential files, three bc_like files);
+reject missing/malformed/duplicate entries and hash mismatches. Check schema,
+pinned provenance, row IDs, finite positive times, event coding, group order,
+case labels and result dimensions. For bc_like, require the extra export to
+match the original row values, vectors, per-source arrays and grid. Preserve
+stored numeric precision on the host; tests cast inputs to the active JAX
+dtype while expected R values remain float64. Missing data fails, never skips.
+
+Tests: both committed sets load; missing/malformed manifests fail; independent
+CSV and JSON edits in temporary copies fail before parsing (include the extra
+JSON); a correctly rehashed malformed schema fails validation; changed row
+alignment is detected. No general fixture framework or new tolerance values.
+Spec: 3.3, 10.4, 12.1. Keep loader plus tests within the step budget; split
+additional schema assertions if necessary rather than compressing them.
+
+## A8.4b — Exponential reference comparisons
+
+Execution (2026-10-26), approved by "review passed; implement next subslice":
+create tests/reference/test_exponential_r.py using r_fixture only. Explicitly
+cast CSV inputs and rates to the active JAX dtype while preserving R outputs
+as NumPy float64. For all three rates and both sources compare every row for
+function/method and raw/prepared likelihood, direct survival/log survival,
+and eager/jit/row-vmap execution; check valid diagnostics and scalar R totals
+separately. Update only the exponential fixture README's obsolete evidence
+and loader wording, plus PLAN.md/REVIEW.md. No payload, tolerance, library,
+dependency, docs/ or protected-path edits. Stay below 300 changed code/test
+lines; run focused tests per dtype and the through-A7 gate, commit and stop.
+Final evidence: 45 focused tests pass per dtype; a row-permutation control
+fails all 24 likelihood row cases while scalar totals still pass; the full
+through-A7 gate exits 0. REVIEW.md records exact counts and limits.
+A8.5 remains separate; protected acceptance-fixture handoff is still pending.
+
+File: `tests/reference/test_exponential_r.py`. No public API changes.
+For all rates and both R sources, compare every row's likelihood, survival
+and log survival using the shared loader and central tolerances. Cover both
+survjax.log_likelihood and dist.log_likelihood, raw/prepared inputs, clear data
+and parameter diagnostics, eager/jit/vmap agreement. A summed likelihood is
+secondary evidence and never replaces per-row assertions. Keep tests small
+and name the R origin explicitly. Spec: 4.6–4.7, 6.1–6.3, 12.1.
+Docs to-do: describe which exponential quantities are verified, in A8.d1.
+
+## A8.5 — Weibull reference comparisons and the A8 code gate
+
+Execution (2026-10-27), authorized by "implement A8.5, plan is approved":
+implement the approved reference tests on a8-1-r-generator. Protected fixture
+delivery remains pending; run the through-A7 gate and report that limitation.
+No loader, library, payload, docs/, dependency or tolerance changes.
+Completed: 102 focused tests pass per dtype; all 36 row/grid sensitivity
+controls fail as intended per dtype. The through-A7 gate exits 0; exact counts
+and evidence limits are recorded in REVIEW.md. Commit and stop for review.
+
+File: `tests/reference/test_weibull_bc_like_r.py`. No public API changes.
+For all vectors and both sources compare per-row log likelihood, survival,
+log survival and the (141, 3) grid. Derive row scales from recorded group
+coefficients, exercise common shape/batched scale, natural/from_log forms,
+raw/prepared likelihood, and focused eager/jit/vmap comparisons to stored R
+values. Use the stored grid.time values; rebuilding R seq can change one ULP.
+Use the active dtype and central tolerances without adjustments.
+
+After the protected fixture handoff is integrated, run the full through-A8
+gate, including unchanged independent acceptance tests. Record coverage and
+remaining limits in REVIEW.md; an A8 pass is not completion of all Slice A.
+Spec: 3.3, 4.6–4.7, 5, 6.1–6.3, 11.1, 12.1–12.2.
+Docs to-do: explain synthetic scope, grids and package-path limitations.
+
+## A8.d1 review fix-up — approved (2026-10-29)
+
+Read ../review/slices/A8.d1.md for 726896d. Both should-fix findings are
+confirmed. Approved by "yes do it"; implement only S-1 and S-2.
+Completed: both fresh dtype docs builds exit 0. HTML checks confirm the two
+paragraph fixes, cross-page anchor and all 85 local links/anchors per mode.
+REVIEW.md records exact results and the remaining visual-inspection limit.
+
+- S-1: docs/builtin-families.md: replace the final workflow-status paragraph
+  with one sentence identifying the acceptance-schema copy and saying ordinary
+  regeneration never writes to tests/spec/. Keep pending status in records.
+- S-2: docs/survival-data.md: replace the blanket no-R-agreement statement
+  with the verified exact/right-without-truncation scope and link to
+  builtin-families.md#comparisons-with-r. The table still compares syntax.
+- PLAN.md and REVIEW.md: record scope, evidence and remaining inspection limits.
+  Leave optional N-1/N-2 edits out of this focused should-fix commit.
+
+Public API/tests: none changed or added. Spec: 10.4–10.5, 11.1, 12.1.
+Build fresh docs in both dtype processes with scripts/build_docs.sh; check
+both changed paragraphs and cross-page anchors in HTML, inspect layout where
+browser access permits, then run Ruff and git diff --check. No R regeneration
+or full code gate for two prose edits. Commit one fix-up and stop for review.
+
+## A8.d1 — R reference evidence and regeneration (separate docs step)
+
+Execution (2026-10-28), authorized by "reviewer is ok; on next subslice,
+plan is approved": A8.5 is accepted. Update builtin-families.md with the
+committed reference evidence and regeneration workflow; correct the two stale
+likelihood-support statements found while auditing distributions.md. api.md
+needs no change. No new executable examples, source or fixture changes.
+Build both dtype renders, inspect the new section and links, record results,
+commit this documentation topic and stop.
+Completed: both fresh dtype docs builds pass; HTML checks pass for all 48
+local links/anchors, two new tables and byte-identical recipe downloads per
+mode. REVIEW.md records exact results and the incomplete browser visual
+inspection caused by concurrent Safari use. No through-A8 completion claim.
+
+After reviewed A8 code is accepted, edit `docs/builtin-families.md` for this one
+topic. Audit `docs/distributions.md` and `docs/api.md`; change only obsolete
+verification claims, splitting another topic if needed. Explain synthetic
+fixtures, fixed parameters, pinned versions, checksum checks, safe regeneration,
+acceptance-schema handoff and dtype tolerances. Explain shared R package routes
+and that survreg grid predictions are direct psurvreg evaluations, checked
+against flexsurv; singleton likelihood checks cover observations, not grid cells.
+Use committed evidence only. Build and inspect both dtype documentation renders
+with scripts/build_docs.sh. At most 300 changed lines, REVIEW.md, commit, stop.
+Spec: 10.4–10.5, 11.1. No fitting demo or later-slice claims.
+
+## Validation and approval stops
+
+For code steps: focused checks and mutation checks appropriate to the change,
+Ruff formatting/lint, mypy src, own suites in separate x64/x32 processes and
+the maintainer gate through A7 while A8 delivery is incomplete; through A8
+once its fixture is available. Use UV_CACHE_DIR=/private/tmp/survjax-uv-cache.
+Normal tests must require no R, network or external data. Each REVIEW.md names
+actual commands/results, reading order, invariants, spec-to-test mapping and
+limits. Do not start the next step without approval.
+
+A8.3a is accepted. A8.3b is locally validated and ready for its commit and
+review, with protected fixture delivery pending. Stop here; A8.4a and later
+steps retain their separate approval and review stops.
+
+---
+
+# Historical A8 preparation and integration plans
+
+These are retained for provenance, superseded by the active plan above.
+
+# A8 R fixtures and reference tests
+
+Status: main through `2c030c5`, including the independent A7/A8 tests and
+revision-34 spec marker, is integrated into this checkout (2026-10-23).
+A8.1/A8.2 are accepted; A8.3 fixtures were generated and validated on
+2026-10-21, with review nits addressed in `15b0a16`. The generated-data size
+exception was explicitly approved. A8 remains on `a8-1-r-generator`;
+A8.4/A8.5 are planned, not implemented. REVIEW.md records this integration;
+prior generation and nit-fix evidence remains in its Git history.
+
+The maintainer created this isolated checkout at
+`/Users/wamster3/dev/survjax/dev-a8`, branch `a8-1-r-generator`, from main
+at `9623594`. Implement the authorized step only, write REVIEW.md, commit
+and stop for review; later steps keep their separate approval stops. Paths
+below are relative to this checkout. Historical plans below the A8 section
+are background only.
+
+A6 is merged into main at `d4d4752` and is included by this integration. Stay
+in this A8 checkout; do not change the main checkout's branch or files. The
+incoming `.spec-seen` is retained unchanged. When checking spec alignment,
+the workspace helper's target is `dev-a8`, not `dev`
+(`../scripts/spec-since.sh dev-a8`).
+
+A8 supplies committed, synthetic R references for exponential and Weibull
+exact/right-censored likelihoods without truncation. The required larger
+fixture is a 686-row synthetic `bc`-like dataset, evaluated at the three
+parameter vectors in specification 11.1. Current contract: specification revision 34,
+sections 4.6, 6.3, 10.3–10.5, 11.1 and 12.1–12.2.
+
+## Coordination with A6 and A7
+
+Acceptance-test integration (2026-10-23), authorized by the maintainer's
+request to include the new main commits: merge `5d105ab` and `2c030c5`,
+retaining the incoming spec marker and all independent tests unchanged.
+Update only this plan and REVIEW.md; run the gate through A6, and probe the
+A8 fixture test separately without claiming A7/A8 completion.
+
+The imported `tests/spec/fixtures/README.md` defines a different fixture
+schema/path: `tests/spec/fixtures/bc_synthetic_weibull.json`, with vectors
+`fixed_a`, `fixed_b`, `r_optimum`, embedded data, per-source `loglik` and
+`survival`, and flexsurv grid curves. The existing A8.3 files remain valid R
+references but do not supply that file. Before claiming A8 completion, plan
+a separate generator/export adaptation to this schema, with byte/numeric
+validation against the existing R outputs. No values may be synthesized by
+Python or copied by hand. The destination is under read-only `tests/spec/`;
+its delivery must be coordinated with the maintainer under the protected-path
+rules rather than silently writing there. Do not edit the independent loader
+or assertions to accept our current schema. This integration does not
+authorize that generator change or the A8.4/A8.5 implementation.
+
+Integration (2026-10-23), authorized by the maintainer's request to resolve
+the in-progress merge: retain the A8 plan as active and the incoming A6 plan
+as historical context; overwrite REVIEW.md with integration evidence. Only
+PLAN.md and REVIEW.md conflict. Keep all cleanly merged files unchanged,
+including the incoming spec marker and independent tests. Run the gate through
+A6 and verify both fixture manifests before completing the merge. No A8.4
+implementation is authorized by this conflict-resolution step. A8.4's A6 API
+prerequisite is now available; A7 and later A8 steps remain separate work.
+
+- The maintainer has created this separate branch and worktree for A8
+  preparation. Do not switch the A6 checkout, edit its PLAN.md or REVIEW.md,
+  update its spec marker, or change its diagnostic decisions.
+- Generator/schema preparation can proceed alongside A6 using the existing
+  A5 distributions and normative parameter mappings. This is the parallel
+  preparation proposed here; normal integration still follows A6 then A7.
+- Likelihood reference tests require merged A6, including the final public
+  `survjax.log_likelihood` and `dist.log_likelihood` contract. Diagnostics come
+  from `data.issues` and `dist.parameter_issues()`; there is no likelihood
+  `_with_info` variant (revision 29, unchanged by revision 30). A8 calls that API;
+  numerical defects go back to the responsible implementation step.
+- A7 owns mpmath, delicate tails, boundary derivatives and debug-nans evidence.
+  A8 owns agreement with committed R values. Coordinate any shared edit to
+  `tests/conftest.py` or `tests/impl_tolerances.py` during integration.
+- The maintainer integrates approved preparation into the normal A8 branches
+  after A6/A7. No A8 completion claim before the through-A8 gate passes.
+  No new agent is needed for this planning request.
+
+## Fixture contract
+
+Each fixture directory contains `data.csv`, `expected.json` and a short README;
+its generator lives in `scripts/fixtures/`. Keep the schema small and explicit:
+
+- CSV: stable row ID, time in years, event (1 exact, 0 right), and group where
+  applicable. Synthetic observations only, with no truncation or patient rows.
+- JSON header: schema version, seed and RNG settings, R/package versions,
+  generating script, platform, units, event coding and parameter convention.
+  Record a checksum of the CSV and generator for provenance.
+- JSON values: explicitly named parameter cases, row-aligned log likelihoods,
+  log survival and survival values; a time-first survival grid where relevant.
+  Keep the flexsurv and survreg references separately identifiable, including
+  the package evaluation paths used. They are not fully independent oracles.
+- Export sufficient digits to preserve R doubles. Avoid JSON NaN/Infinity by
+  choosing finite reference cases; numerical extremes remain A7's remit.
+- Regeneration uses explicit seed, row/group order and fixed parameters,
+  without optimizer-dependent expected values. Normal tests only read files.
+  Use base R for the fixed-schema export; no new dependency is proposed.
+
+The bc-like dataset uses 686 simulated observations in Good/Medium/Poor groups
+of 229/229/228, generated from the recorded fitted Weibull model in 11.1.
+Simulate independent censoring with a fixed, documented rule that produces a
+similar censoring pattern; report realized counts rather than claiming exact
+agreement with the real cohort. Never load `flexsurv::bc` to construct it.
+
+Evaluate the recorded fitted vector and the fixed vectors
+`(k, b_Good, beta_Medium, beta_Poor) = (1, 10, -0.5, -1)` and
+`(1.5, 12, -0.6, -1.2)`. Store explicit natural parameters and AFT equivalents:
+`b_i = b_Good * exp(beta_group)`, `mu_i = log(b_i)`, `sigma = 1/k`.
+For the fitted vector use the constants recorded in 11.1, without refitting.
+Its synthetic-data totals must be newly generated, never copied from the
+real-data audit totals. Use the specified 0–7 year grid in steps of 0.05,
+shape `(141, 3)`, and include per-observation survival at observed times.
+
+## A8.1 Small exponential generator
+
+Review corrections (2026-10-20), authorized by the request to address
+`../review/slices/A8.1.md`: SF-1 adds exact CSV text read-back, per-number JSON
+format checks, case-label/rate checks and written-JSON verification. N-1 rejects
+unknown flags; N-3 uses one generating rate. Keep N-2/N-4 as reviewed. Files:
+the generator, its README, PLAN.md and REVIEW.md; no public API changes.
+The maintainer chose R-only exact text checks after the pinned R decimal
+reader lost one ULP on correct 17-digit output. Verify exact numeric round
+trips separately with Python against the original R hexadecimal values.
+Exercise exports and M6/M7/M8 mutations in temporary directories, check the
+CLI typo fails before writing, and run the through-A5 gate (spec 4.6, 10.4,
+12.1). S-1 updates only the future A8 plan; the inherited `.spec-seen` still
+describes the implementation baseline pending A6 integration. One fix-up
+commit, then stop; do not start A8.2 or commit A8.3 fixture payloads.
+
+Review follow-up: the maintainer requested clearer R structure and spacing.
+Expand calls/checks, separate the script's phases and make the output schema
+readable as R lists. Preserve parameters, checks and export contents; rerun
+check-only validation and record the result in REVIEW.md. One fix-up commit.
+
+Files: `scripts/fixtures/generate_exponential.R` and
+`tests/fixtures/exponential/README.md`. No library/public API changes.
+
+Create a compact seeded exact/right dataset and several fixed rates. Evaluate
+per-row likelihood and survival using the pinned R reference packages, with
+the survreg log-mean to rate conversion explicit. Establish the fixed-parameter
+package evaluation paths from their installed documentation while coding;
+do not substitute a fitted optimum or label handwritten formulas as package
+outputs. If no suitable path exists, report the gap before finalizing schema.
+
+Generator checks accompany the code: exact versions, positive finite times,
+both event kinds, valid row alignment, expected output shapes, finite interior
+values, and agreement of per-row sums with the package total at fixed
+parameters. Compare the two reference paths before emitting outputs. Record
+commands/results in REVIEW.md and stop. Target at most 300 changed lines.
+
+Implemented with 16 seeded rows and rates 0.1, 0.35 and 1.2. The generator's
+`--check-only` mode exercises both pinned package paths and assertions without
+writing fixtures. Default or explicit-destination CSV/JSON export is handed
+to the maintainer for A8.3, including the two-run comparison. Docs to-do:
+explain the eventual comparison evidence in A8.d1 after fixture tests pass.
+
+## A8.2 Synthetic bc-like generator
+
+Review fix-up (2026-10-20), authorized by the request to address
+`../review/slices/A8.2.md`: SF-1 checks every grid column against a separate
+prediction for its exported group label; reproduce B4 in check-only/export
+modes. N-1 uses character group labels for named-vector indexing. N-2 expands
+calls/checks and separates phases; keep the fix-up small without compressing
+it to preserve the initial step's cumulative line count. N-3 documents using
+stored grid times in A8.5; retain the N-4 grid-path limitation for A8.d1.
+Files: generator, fixture README, PLAN.md and REVIEW.md. No public API or
+fixture payload changes. Check unchanged export values, numeric read-back,
+mutants and the through-A5 gate (spec 4.6, 10.4, 11.1, 12.1). One commit,
+then stop; no merge or A8.3 generation/acceptance.
+
+Implementation details: seed 8201, groups in Good/Medium/Poor blocks and
+independent Uniform(0.5, 7.5) year censoring. Use fixed flexsurv Weibull AFT
+coefficients, and survreg log-scale locations supplied through offsets with
+fixed sigma and zero iterations. Check singleton likelihoods, row alignment,
+all parameter conversions, case labels and both observed/grid predictions.
+Preserve the A8.1 R-only export text checks; verify exact numeric read-back
+with Python in scratch validation. Run mutation checks and through-A5 gate.
+No library/public API, dependency, spec-marker, narrative-doc or A8.3 payload
+changes. Docs to-do: describe this fixture evidence in A8.d1 after integration.
+
+Files: `scripts/fixtures/generate_bc_like.R` and
+`tests/fixtures/bc_like/README.md`. No library/public API changes.
+
+Implement the larger fixture contract above, including both R reference paths,
+all three parameter vectors and the survival grid. Reuse the simple file
+format, without creating a general fixture framework. Include generator
+checks for group sizes, event coding, parameter conversion, row alignment,
+grid orientation, reference agreement and per-row/total agreement.
+Target at most 300 changed lines; stop with REVIEW.md before the next step.
+
+## A8.3 Generate and review the committed R outputs
+
+Review nits (2026-10-22), authorized in this conversation: N-1 adds committed
+payload comparisons and a no-argument overwrite warning to both READMEs.
+N-2 adds a two-entry SHA256SUMS manifest per fixture, a documented verification
+command and an A8.4 loader requirement. Files: both fixture READMEs/manifests,
+PLAN.md and REVIEW.md; no payload, generator or public API changes. Validate
+all hashes, committed-file comparisons and independent CSV/JSON corruption
+checks in temporary copies; run git diff --check. One fix-up commit, then stop.
+
+Current execution: the maintainer requested this step in this conversation.
+Run the reviewed, unchanged generators in the pinned R environment twice per
+fixture into temporary destinations. Validate byte identity, schema, row/group
+counts, finite values, case labels, checksums and exact R-to-Python numeric
+read-back. Import verified candidates; update both fixture READMEs and REVIEW.md.
+No public API, generator, Python/test, dependency, spec-marker or narrative-doc
+changes. Run the through-A5 gate; leave A6/A7 integration and A8.4/A8.5 untouched.
+The generated-data diff exceeds 300 lines; prepare the concrete payloads for
+the explicit exception below before committing. One data-only step, then stop.
+
+Files: `data.csv` and `expected.json` in both fixture directories; update their
+READMEs with exact regeneration commands and provenance.
+
+The workflow assigns R execution to the maintainer. Hand over the generators
+with `Rscript --vanilla scripts/fixtures/generate_exponential.R` and
+`Rscript --vanilla scripts/fixtures/generate_bc_like.R`. Require successful
+package loading and generator checks in the pinned environment. Generate
+twice into separate temporary destinations and compare committed payloads;
+exclude volatile timestamps from deterministic payloads. Inspect counts,
+checksums, finite values and parameter labels before importing.
+
+This data-only step needs an explicit exception to the approximate 300-line
+review target: the required 686-row CSV alone exceeds it. Keep generated
+outputs out of the code diffs and review them through provenance, regeneration
+and structural checks. If that exception is declined, agree a partitioned
+fixture layout before generation. Do not silently exceed the code-step budget.
+
+The reviewed generators ran successfully for A8.3 outside the sandbox with
+R 4.4.2, flexsurv 2.3.2 and survival 3.7.0 (release 3.7-0). Both fixture sets
+were generated twice and byte-compared; exact numeric read-back was checked
+against original R hexadecimal values. Four payloads are 706 generated lines
+and 341,548 bytes. The data-only size exception was approved in the final commit request;
+source code and handwritten verification values were not substituted.
+
+## A8.4 Fixture loader and exponential reference tests
+
+Requires A6's completed API and genuine committed outputs.
+Files: extend `tests/conftest.py`; consume the fixture SHA256SUMS manifests; add
+`tests/reference/test_exponential_r.py`. No new public exports.
+
+Add one shared loader exposed through a pytest fixture. It reads CSV/JSON with
+the standard library, checks schema, provenance and row alignment, and returns
+host arrays in their stored precision. Tests convert inputs to the active JAX
+dtype; expected values remain the R doubles. Missing or malformed fixtures
+fail explicitly rather than skip. All reference tests use this loader.
+
+Before parsing, use the standard library's hashlib to verify both `data.csv`
+and `expected.json` against each fixture's SHA256SUMS manifest. Require both
+entries; missing or malformed manifests and mismatched payloads fail explicitly.
+Add loader tests that independently alter CSV and JSON in temporary copies
+without updating the manifest, and require rejection in each case.
+
+Compare per-row exponential likelihoods against each R source, using both
+`survjax.log_likelihood` and `dist.log_likelihood`, and requiring clear
+`data.issues` and `dist.parameter_issues()` diagnostics for valid inputs.
+Compare direct survival/log survival and include a summed-likelihood
+sanity check without letting totals replace per-row assertions. Use existing
+central tolerances. Loader checks and reference tests accompany its code;
+keep the step within 300 changed lines and stop with REVIEW.md.
+
+## A8.5 Weibull reference tests
+
+Files: `tests/reference/test_weibull_bc_like_r.py`; shared loader changes only
+if the reviewed schema requires them. No public API or tolerance changes.
+
+For all three cases, construct row-specific scales from group indicators and
+compare every per-row log contribution, observed-time survival and the
+`(141, 3)` grid with both R sources. Check scalar common shape plus batched
+scale broadcasting, natural/from_log parameter equivalence, raw/prepared-data
+likelihood equivalence, and eager/jit/vmap agreement against the same stored
+references. Keep transformation coverage focused on these reference cases;
+the broader derivative suite belongs to A7/A9. Both dtypes use existing
+`tests/impl_tolerances.py` targets; investigate failures without loosening them.
+Keep the step within 300 changed lines and stop with REVIEW.md.
+
+Use the fixture's stored `grid.time` values as inputs, rather than rebuilding
+the R `seq` grid with JAX arange/linspace; decimal-looking times can differ by
+one ULP when rebuilt. Describe the grid's direct psurvreg route in A8.d1:
+locations are supplied explicitly and cross-checked with flexsurv, without
+singleton-fit checks for grid cells.
+
+## Validation and documentation
+
+For each code step run appropriate focused checks, Ruff, mypy, own tests in
+separate `JAX_ENABLE_X64=1` and `0` processes, and `git diff --check`.
+Use `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`. Before integration, run the
+gate only through the last completed step on that checkout. After A7 and all
+A8 steps are integrated, run `scripts/check.sh --through A8`. Normal Python
+tests must succeed without R, network access or local real datasets.
+
+A8.d1 follows reviewed code: update `docs/builtin-families.md` with the scope
+of the R comparison evidence and a regeneration pointer. Audit
+`docs/distributions.md` and `docs/api.md` for obsolete verification claims;
+edit only where needed. Build and inspect both dtype renders through
+`scripts/build_docs.sh`, documenting remaining limits. One topic, at most
+300 changed lines, its own REVIEW.md and stop.
+
+Every approved implementation step gets its own commit on a maintainer-created
+branch, REVIEW.md with invariants and spec/test mapping, and a stop. No merges,
+tags, protected test edits, spec edits, new Python dependencies or later-slice
+fixtures. Planning used repository inspection and R metadata checks only;
+pytest, lint, typing, docs builds and runtime gates were not run.
+
+---
+
+---
+
+# Historical main plans through A7
+
+Imported verbatim; old status/next-step instructions are historical only.
+
+---
+
+# Incoming main plans (preserved integration history)
+
+# SurvivalData size interface — revision 37 (2026-10-26)
+
+Status: **implemented and verified; ready for review**. Approval: "ok i switched
+branches you do it". The maintainer-created branch is `len_data`; the only
+pre-existing change was this plan. Planning started on clean `main`.
+This entry is the active plan; older entries below are historical.
+One code step, one commit, then a review stop. Target under 300 changed
+source/test lines.
+
+## Contract and current evidence
+
+- Spec section 3.2 (revision 37) adds `data.shape`, `len(data)` and an explicit
+  prohibition on truth testing. Sections 3.2 and 12.1 cover the shape,
+  indexing, PyTree and transformation checks for this step.
+- `shape` is a tuple of Python ints obtained from stored leaves, static under
+  jit and per-example under vmap. It must not enter PyTree auxiliary data.
+- `len(data)` counts the leading axis, including zero for empty data. Scalar
+  data raise TypeError. Multidimensional length is not the total element count.
+- `bool(data)` raises TypeError for every shape, including scalar and empty
+  data; implementing this is required to prevent Python falling back to len.
+  The contract adds neither `size` nor `ndim`.
+- At planning time `src/survjax/data.py` had indexing and PyTree reconstruction but none
+  of these three interfaces. Existing indexing and metadata tests provide
+  regression coverage for the six leaves and inherited may-contain flags.
+- `.spec-seen` already records `be26e50cc35db1c2affc3dafcb4bf4cf4baf1ebf`;
+  `../scripts/spec-since.sh dev` reports `spec unchanged since be26e50`.
+  No spec or marker change is needed. No contract ambiguity was found.
+
+## Implementation after approval
+
+Public API touched: `SurvivalData.shape`, `SurvivalData.__len__` and
+`SurvivalData.__bool__`. No new package exports.
+
+- `src/survjax/data.py`: add a read-only `shape` property annotated
+  `tuple[int, ...]`, returning `self.lower.shape`; add `__len__ -> int` with
+  an explicit scalar TypeError and leading-axis result; add `__bool__ -> bool`
+  that always raises TypeError with a clear truth-value message. Document
+  shapes, return values and errors in their docstrings and mention the size
+  interface in the class summary. Keep construction, leaves, auxiliary data
+  and reconstruction unchanged. No new helper or dependency is needed.
+- Create `tests/unit/test_data_size.py` with small cases and spec 3.2
+  docstrings. Expected shapes and lengths come directly from explicit input
+  dimensions, independently of the new methods:
+  - Both constructors: scalar `()`, vector `(3,)`, empty `(0,)` and matrix
+    `(2, 3)`; verify shape elements and eager lengths are Python ints, scalar
+    len raises TypeError, and matrix len is 2 rather than 6. Include `(2, 0)`
+    to distinguish a nonempty leading axis from zero total elements.
+  - Integer indexing, slices and tree-map slicing: shape and len follow the
+    selected leaves; integer selection of a vector produces scalar data.
+  - Eager/jit queries agree; inspect shape types inside tracing because jit
+    converts returned Python integers to scalar arrays. Under vmap over a
+    matrix, the body sees `(3,)` and len 3; over a vector, it sees `()` and
+    scalar len raises TypeError. Include jit-of-vmap coverage.
+  - Truth testing raises TypeError for scalar, empty, vector and matrix data,
+    eagerly and while tracing under jit/vmap. This includes `if data:`.
+  - Tree flatten/unflatten preserves the six leaves and auxiliary flags;
+    differently shaped slices retain the parent's tree structure. Assert
+    `size` and `ndim` are absent. No derivative checks apply to this static
+    shape interface; no tolerances are needed.
+- Update this PLAN.md with actual evidence and overwrite REVIEW.md with
+  reading order, invariants, spec-to-test mapping, exact checks and doubts.
+  Keep `tests/spec/`, the spec, docs and protected process files unchanged.
+
+## Verification and completion
+
+1. Run the new size tests plus existing data indexing, representation,
+   metadata and tracing tests in separate float64/float32 processes:
+   `JAX_ENABLE_X64=1` and `=0`, using `uv run pytest`.
+2. Run `UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A7`
+   on the final review snapshot. This runs Ruff, mypy, own tests, source
+   doctests and independent acceptance tests through the implemented gate in
+   both dtypes. Do not edit, skip or xfail independent tests if they fail.
+3. Run `git diff --check`; report exact results, failures and skips. Tests
+   and static checks have not been run during planning. No R checks are
+   needed for a shape-only interface.
+4. Commit code, tests, PLAN.md and REVIEW.md together on the maintainer-created
+   branch with an imperative subject and rationale. Stop for review; do not
+   start another step or claim Slice A completion.
+
+
+### Implementation evidence
+
+Implemented the three interfaces and 22 new own test cases. Source/test diff:
+34 added source lines and 139 test lines, below the 300-line budget.
+Focused own tests passed in both processes: 65 passed in 5.31s (float64),
+65 passed in 4.30s (float32), no skips or failures.
+
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A7`
+exited 0: `check: all gates passed through A7`. Ruff: 72 files already
+formatted / All checks passed! Mypy: no issues found in 17 source files.
+
+| Gate stage | Float64 | Float32 |
+| --- | --- | --- |
+| Own tests | 774 passed, 7 skipped, 157.24s | 780 passed, 1 skipped, 150.46s |
+| Source doctests | 4 passed, 0.95s | 4 passed, 1.03s |
+| Independent through A7 | 2114 passed, 28 skipped, 218 deselected, 103.10s | 2118 passed, 24 skipped, 218 deselected, 102.64s |
+
+Full log: `/private/tmp/survjax-len-data-gate.log`. No new skips or exclusions;
+independent tests were not modified. No R or docs build was run. REVIEW.md
+records invariants and the test mapping. Final Ruff/diff checks follow this
+record update; commit on `len_data` and stop for review.
+
+### Docs to-do
+
+A later approved docs step can explain shape, leading-axis len, scalar errors
+and explicit truth-value rejection in the observation-data guide. Public
+API docstrings ship with this code step; do not edit docs/ here.
+
+---
+
+# Revision 35 — Remove the public likelihood function (2026-10-25)
+
+Status: **LL.1 merged; LL.2 implemented and verified; ready for review** ("ok merged; now up to
+next bit"). Reuse the maintainer-created `remove-ll` branch at `fab100f`,
+which is also the merged main tip. The starting tree is clean. No further
+plan approval is needed for the LL.2 scope below.
+This entry supersedes earlier plans that require two public likelihood entry
+points; their implementation/review records below remain historical evidence.
+Two small steps, each with its own commit, REVIEW.md and approval stop.
+Approval of the first step does not start the second.
+
+## Contract and current evidence
+
+- Spec revision 35, decision 0048: `dist.log_likelihood(data=None, *,
+  time=None, event=None)` is the only public likelihood entry point. Remove
+  `survjax.log_likelihood`, retaining the method's signature, numerical
+  behavior, derivatives, diagnostics and prohibition on family overrides.
+  Sections covered: 4.2, 6.1, 7.1–7.3, 10.2, 12.1 and 12.2.
+- `.spec-seen` already records `9696894`, the revision-35 spec commit;
+  `../scripts/spec-since.sh dev` reports `spec unchanged since 9696894`.
+  No marker update or design-repo change is needed.
+- Updated independent tests arrived in `744fb55`, with source commit
+  `8041b326a194e89f56aade79b112e7f3c5bbc601`. They now require absence of
+  the top-level name and agreement of the method's two input forms in values,
+  gradients and Hessians. Later-step tests also migrated to the method;
+  their presence does not authorize implementing those steps.
+- Current code still re-exports the function. The base method delegates to
+  that function, and its docstring describes equivalence with it. Implementer
+  tests still exercise the function/method matrix. The likelihood tutorial,
+  API reference and simulation guide also retain function calls.
+- Planning checks were read-only inspection of source, tests, docs, spec diff,
+  branch/history/status and spec alignment. No tests or docs builds have run
+  for this change yet. No unresolved contract question was found.
+
+## LL.1 — Public API and implementer tests (first approval stop)
+
+Public API change: remove the top-level function; retain the existing method
+and both of its input forms. Target less than 300 changed source/test lines.
+
+Files and implementation:
+
+- `src/survjax/__init__.py`: remove the function import and `__all__` entry.
+- `src/survjax/likelihood.py`: delete the public `log_likelihood` wrapper.
+  Keep `_resolve_data` and the shared `_log_likelihood` evaluator here, as
+  section 10.2 specifies. Their numerical bodies remain unchanged.
+- `src/survjax/distributions/base.py`: delegate directly to those existing
+  private helpers, retaining the deferred import to avoid a cycle. Make the
+  method docstring self-contained: input forms, shapes, common dtype,
+  unsummed output, NaN/zero/overflow behavior, diagnostics and static misuse.
+  Do not add a compatibility alias or another public function.
+- `tests/unit/test_import.py`: update the exact export set and explicitly
+  assert absence of `survjax.log_likelihood`, including after importing the
+  evaluator module and invoking the method.
+- `tests/unit/test_likelihood_entry_points.py`: remove function/method
+  parametrization and function-only invalid-distribution tests. Retain all
+  method input-validation and transformation coverage. Add direct comparison
+  of raw/prepared values, first parameter derivatives and Hessians for the
+  two built-ins, eagerly and under jit; retain independent analytical anchors.
+- `tests/unit/test_likelihood_transformations.py`: remove the obsolete
+  entry-point axis while keeping both forms, both built-ins and second-order
+  forward/reverse finite-difference checks, eager and compiled.
+- `tests/unit/test_likelihood_tails.py`,
+  `tests/unit/test_likelihood_boundaries.py` and
+  `tests/unit/test_likelihood_debug_nans.py`: migrate function calls to the
+  method and remove only duplicate function/method cases. Preserve tail
+  expectations, tolerances, zero-censoring regression, debug mode and
+  eager/jit/vmap coverage. Existing tests importing `_log_likelihood` in
+  `test_likelihood_core.py` and `test_likelihood_parameters.py` need no change.
+- Update this plan's status and overwrite `REVIEW.md` with reading order,
+  invariants, spec-to-test mapping, exact results and remaining limitations.
+
+Verification after approval:
+
+1. Run the changed own modules plus likelihood core/parameter modules in
+   separate `JAX_ENABLE_X64=1` and `=0` processes using `uv run pytest`.
+2. Run the updated independent A6 entry-point/method modules in both dtypes
+   with `SPEC_THROUGH=A7`. Never edit, skip or xfail independent tests.
+3. Run `UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A7`
+   on the final review snapshot. This includes Ruff, mypy, all own tests,
+   source doctests and independent tests through the implemented A7 gate.
+   A8–A10 acceptance tests are deferred to their own implementation work.
+4. Search tracked source/tests/docs/notebook content for obsolete public
+   calls; at this step remaining calls must be confined to the LL.2 docs
+   to-do or explicit absence assertions. Run `git diff --check`.
+
+Report actual counts, removed duplicate cases, skips and failures; never infer
+numerical preservation from a rename alone. If a numerical change is needed
+or the source/test diff exceeds the budget, split/replan before expanding.
+Commit on `remove-ll` with an imperative subject and rationale, then stop.
+
+Implementation evidence: source/test diff is 177 changed lines; all five
+private likelihood helper ASTs match the starting commit. Focused own suites:
+205 passed per dtype (114.52s float64 / 114.19s float32). Updated independent
+A6 entry-point/method suites: 35 passed per dtype (7.01s / 7.03s). No skips
+or failures. Removed 42 function-only/duplicate cases and added 17 cases
+(16 input-form comparisons and one API-absence test), a net decrease of
+25 cases per dtype. Ruff reports 71 files already formatted / All checks
+passed; mypy reports no issues in 17 source files.
+
+The final `scripts/check.sh --through A7` ran after saving REVIEW.md and
+exited 0: `check: all gates passed through A7`. Ruff: 71 files already
+formatted / All checks passed; mypy: no issues in 17 source files.
+
+| Gate stage | Float64 | Float32 |
+| --- | --- | --- |
+| Own tests | 752 passed, 7 skipped, 160.92s | 758 passed, 1 skipped, 158.62s |
+| Source doctests | 4 passed, 1.09s | 4 passed, 1.03s |
+| Independent through A7 | 2082 passed, 28 skipped, 218 deselected, 112.08s | 2086 passed, 24 skipped, 218 deselected, 109.65s |
+
+Complete output: `/private/tmp/survjax-ll1-final-gate.log`. REVIEW.md remains
+unchanged after the gate; only this plan's result record is updated afterward.
+No new skips/exclusions. Final Ruff formatting/lint and diff checks follow
+this result update, then commit LL.1 and stop. LL.2 has not started.
+
+### Docs to-do
+
+The narrative docs intentionally wait for the separate LL.2 docs step below.
+The API reference and executable tutorial still reference the removed function
+after LL.1, so the full docs build is expected to be broken until LL.2 lands.
+LL.1 is not completion of the whole migration or of Slice A.
+
+## LL.2 — Likelihood API documentation (separate approval stop)
+
+Status: **implemented and verified; ready for review**. Followed the existing
+docs plan below; write REVIEW.md, commit on `remove-ll` and stop. The spec is still
+revision 35; `.spec-seen` already matches. No source/test changes are needed.
+
+One topic: migrate documentation to the distribution method, below 300 changed
+lines. Files: `docs/likelihood.md`, `docs/api.md`,
+`docs/simulation-guide.md`, PLAN.md and REVIEW.md. Public API touched: none.
+Spec: 6.1, 7.1, 10.2, 10.5 and 12.1.
+
+- Rewrite “Two entry points, two input forms” around one method accepting
+  `SurvivalData` or raw `time`/`event`. Compare those two forms in the
+  executable example and remove function-choice advice.
+- Remove the obsolete `autofunction` directive from the API reference;
+  retain the method documentation and adjust nearby wording if needed.
+- Change the simulation objective to construct a distribution and call its
+  method. Audit the tracked notebook and other current guides for stale
+  function calls; the distribution guide's local objective function is not
+  the removed package API and need not be renamed.
+- Run `UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/build_docs.sh`
+  with fresh execution, warnings fatal, in separate float32/float64 processes.
+  Inspect rendered method documentation, the two-form example's output,
+  links and layout in both modes. The simulation sketch uses optional
+  optimistix outside the core; do not add a dependency or claim solver
+  execution from a static code block. Record any visual inspection limit.
+- Repeat the obsolete-call audit, Ruff formatting/lint and `git diff --check`.
+  Update PLAN.md and overwrite REVIEW.md with exact checks and reading order;
+  commit this docs topic on `remove-ll`, then stop for review.
+
+LL.2 evidence: 36 changed lines across the three docs pages. The docs build
+exits 0 with `build succeeded` in float32 and float64; likelihood-page execution
+takes 4.01s / 3.35s. Log: `/private/tmp/survjax-ll2-docs-build.log`.
+The initial sandbox run could not open Jupyter kernel sockets; the permitted
+rerun passed. Existing kernel TCP transport notices appear in the log; there
+are no Sphinx documentation warnings. Chrome screenshot inspection passes for
+the tutorial's two-form section and API method reference in both dtype builds.
+Both forms show -23.124392 / -23.12439364 respectively. The HTML audit checks
+273 local page/anchor links per build and the method's reference anchor.
+The simulation guide is excluded from Sphinx; a temporary check extracts only
+its revised objective and verifies value/gradient/Hessian = 6/4/6 at log-rate
+zero on synthetic data, in both dtypes. Its optional solver was not run.
+Tracked docs/notebook audit finds no obsolete package-function references.
+REVIEW.md records commands, evidence and scope. Final Ruff formatting/lint
+passes after the review edit: 71 files already formatted / All checks passed.
+`git diff --check` exits 0. The full library gate and R were not run for this
+docs-only step. Generated HTML and temporary checks remain untracked.
+
+---
+
+---
+
 
 # A7.d1 follow-up — Zero-censoring diagnostics (2026-10-23)
 

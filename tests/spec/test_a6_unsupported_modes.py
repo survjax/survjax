@@ -1,10 +1,10 @@
-"""A6: NaN rows for observation modes Slice A does not implement (spec 7.1, 12.2; rev 31).
+"""A6: NaN rows for observation modes Slice A does not implement (spec 7.1, 12.2; rev 31, 35).
 
 Slice A supports exact and right-censored rows without truncation.
 "Unimplemented observation modes return NaN on those rows, eagerly and under
 transformations, preserving supported rows in the same batch" (12.2); 7.1:
-"Unsupported rows return NaN in both likelihood entry points, eagerly and
-under `jit`/`vmap`, without a value-dependent exception", and such an
+"Unsupported rows return NaN from the likelihood, eagerly and under
+`jit`/`vmap`, without a value-dependent exception" (rev 35), and such an
 observation "does not add a data or parameter issue". The triage recipe
 (``helpers.nan_causes``, ``helpers.unsupported_nan``) attributes those rows to
 mode support, not to ``Z=0`` or numerical failure.
@@ -20,7 +20,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from helpers import INF, assert_close, b, f, ll, ll_method, nan_causes, unsupported_nan
+from helpers import INF, assert_close, b, f, ll, nan_causes, unsupported_nan
 
 import survjax
 
@@ -98,23 +98,14 @@ def test_unsupported_row_adds_no_parameter_issue(case):
     assert not np.asarray(dist.parameter_issues().invalid_entries).any()
 
 
-# -------------------------------------------------- eager values, both entry points
+# --------------------------------------------------------------- eager values
 
 
 @pytest.mark.step("A6")
 @pytest.mark.parametrize("case", list(CASES))
 def test_unsupported_row_is_nan(case):
-    """spec 7.1 and 12.2, rev 31: `survjax.log_likelihood` returns NaN on the unsupported row, without an exception."""
+    """spec 7.1 and 12.2, rev 35: `dist.log_likelihood` returns NaN on the unsupported row, without an exception."""
     value = ll(_dist(), CASES[case]())
-    assert value.shape == (2,)
-    assert np.isnan(value[1]), f"unsupported row produced {value[1]!r}"
-
-
-@pytest.mark.step("A6")
-@pytest.mark.parametrize("case", list(CASES))
-def test_unsupported_row_is_nan_in_method(case):
-    """spec 7.1 and 12.2, rev 31: `dist.log_likelihood` also returns NaN on the unsupported row."""
-    value = ll_method(_dist(), CASES[case]())
     assert value.shape == (2,)
     assert np.isnan(value[1]), f"unsupported row produced {value[1]!r}"
 
@@ -127,16 +118,6 @@ def test_supported_row_keeps_its_value(case):
     assert_close(value[0], ROW0)
 
 
-@pytest.mark.step("A6")
-@pytest.mark.parametrize("case", list(CASES))
-def test_supported_row_keeps_its_value_in_method(case):
-    """spec 7.1, rev 31: the method preserves supported rows and equals the function."""
-    data = CASES[case]()
-    value = ll_method(_dist(), data)
-    assert_close(value[0], ROW0)
-    np.testing.assert_array_equal(value, ll(_dist(), data))
-
-
 # ------------------------------------------------------------- transformations
 
 
@@ -146,13 +127,9 @@ def test_unsupported_row_is_nan_under_jit(case):
     """spec 7.1, rev 31: prepared data passed into `jit` gives the eager result, NaN on the unsupported row."""
     data = CASES[case]()
 
-    def run(d):
-        return survjax.log_likelihood(_dist(), d), _dist().log_likelihood(d)
-
-    plain, method = (np.asarray(v) for v in jax.jit(run)(data))
-    for value in (plain, method):
-        assert np.isnan(value[1])
-        assert_close(value[0], ROW0)
+    value = np.asarray(jax.jit(lambda d: _dist().log_likelihood(d))(data))
+    assert np.isnan(value[1])
+    assert_close(value[0], ROW0)
 
 
 @pytest.mark.step("A6")
@@ -170,7 +147,7 @@ def test_unsupported_mode_from_traced_construction_is_nan(case):
         traced = survjax.SurvivalData.from_bounds(
             lower, upper, exact=exact, left_trunc=lt, right_trunc=rt
         )
-        return survjax.log_likelihood(_dist(), traced)
+        return _dist().log_likelihood(traced)
 
     value = np.asarray(
         jax.jit(build_and_evaluate)(
@@ -189,7 +166,7 @@ def test_unsupported_row_is_nan_under_vmap(case):
     rates = f([0.5, 2.0])
 
     def run(r):
-        return survjax.log_likelihood(survjax.Exponential(rate=r), data)
+        return survjax.Exponential(rate=r).log_likelihood(data)
 
     value = np.asarray(jax.vmap(run)(rates))
     assert value.shape == (2, 2)
@@ -221,7 +198,7 @@ def _per_row_jacobian_case(case, jac):
     data = CASES[case]()
 
     def row0(r):
-        return survjax.log_likelihood(survjax.Exponential(rate=r), data)[0]
+        return survjax.Exponential(rate=r).log_likelihood(data)[0]
 
     return np.asarray(jac(row0)(jnp.asarray(f([RATE, RATE]))))
 
@@ -259,7 +236,7 @@ def test_supported_row_keeps_its_gradient_with_shared_rate(case, mode):
     data = CASES[case]()
 
     def row0(r):
-        return survjax.log_likelihood(survjax.Exponential(rate=r), data)[0]
+        return survjax.Exponential(rate=r).log_likelihood(data)[0]
 
     grad = jax.grad(row0) if mode == "rev" else jax.jacfwd(row0)
     hess = jax.grad(jax.grad(row0)) if mode == "rev" else jax.jacfwd(jax.jacfwd(row0))
@@ -275,7 +252,7 @@ def test_supported_row_keeps_its_gradient_under_jit(case):
     data = CASES[case]()
 
     def row0(r):
-        return survjax.log_likelihood(survjax.Exponential(rate=r), data)[0]
+        return survjax.Exponential(rate=r).log_likelihood(data)[0]
 
     g = np.asarray(jax.jit(jax.jacrev(row0))(jnp.asarray(f([RATE, RATE]))))
     assert np.isfinite(g).all()

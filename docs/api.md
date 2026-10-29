@@ -1,15 +1,14 @@
 # API reference
 
-Everything below is exported from the top-level `survjax` package; anything
-else is internal. Each entry is generated from the docstring you also see
-with `help()`. For worked examples, see the guides:
+This reference covers public distributions, their methods, data and diagnostic
+types. Each entry is generated from the docstring you also see with `help()`.
+For worked examples, see the guides:
 [SurvivalData](survival-data.md), [Exponential and Weibull](builtin-families.md),
 [likelihoods](likelihood.md), [time grids](grids.md) and [writing a distribution](distributions.md).
 
 ## Likelihood contributions
 
 ```{eval-rst}
-.. autofunction:: survjax.log_likelihood
 .. automethod:: survjax.SurvivalDistribution.log_likelihood
 ```
 

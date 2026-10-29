@@ -127,8 +127,7 @@ def test_exponential_mixed_batch_matches_mpmath_under_jit_and_vmap():
     rate, t = (np.array([c[j] for c in cases]) for j in range(2))
 
     def one(r, time, event):
-        return survjax.log_likelihood(
-            survjax.Exponential(rate=r), survjax.SurvivalData(time, event)
+        return survjax.Exponential(rate=r).log_likelihood(survjax.SurvivalData(time, event)
         )
 
     jitted = np.asarray(jax.jit(one)(f(rate), f(t), b(exact)))

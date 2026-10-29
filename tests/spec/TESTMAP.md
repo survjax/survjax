@@ -1,6 +1,6 @@
 # Test map
 
-Spec: revision 34 (see `.spec-seen`). Unchanged requirements keep their
+Spec: revision 37 (see `.spec-seen`). Unchanged requirements keep their
 earlier revision tags. Tests from the revision 10 decision (sections 6.2, 10.2,
 13) are tagged `rev 10`. Tests from the performance amendment (section 7.2),
 accepted in revision 11, are tagged `rev 11`. A4 tests derive from revision 11 and
@@ -86,7 +86,24 @@ adds five `rev 34` overflow tests to `test_a7_likelihood_tails.py`, retags
 the A8 survival and grid tests `rev 34`, and resolves Q-039. No existing test
 asserted reverse-mode derivatives next to an infinite row. A9 and A10 (the
 maintainer's 2026-10-23 replan adding Harrell's C to Slice A; Q-047) were
-written against revision 34. The mpmath references
+written against revision 34. Revision 35 (decision 0048: `dist.log_likelihood`
+is the only public likelihood entry point; no top-level `survjax.log_likelihood`;
+6.1, 7.1, 10.2, 12.1, 12.2) moves every likelihood call in A6–A9 to the
+method (helper `ll` now calls it; `ll_method` removed) without retagging
+tests whose requirement did not change. It replaces the top-level export and
+module tests with `test_no_top_level_log_likelihood`, resolves Q-038,
+replaces the function-versus-method equality tests with raw-form versus
+`SurvivalData`-form agreement in values, gradients and Hessians, and deletes
+tests that became exact duplicates once both sides were the method. Tests
+whose assertion or quoted text changed are tagged `rev 35`. Revision 36
+(decision 0049: `data.shape`, `len(data)`, undefined truth value; 3.2, 12.1,
+12.2) adds `test_a3_shape_and_len.py`, tagged `rev 36` and marked A3 (Q-048).
+Revision 37 (decision 0050: first-public-release milestone with
+`ProportionalHazards`, its private PH closure and staged RMST, section 8.7;
+1, 4.2, 4.4, 4.5, 8.1, 8.4, 8.7, 10.4, 11.2, 11.3, 12.1, 12.2, 13) changes no
+requirement that an existing test asserts: no test used PH wrappers or
+summaries, and the A10 sections 9.1–9.2 are unchanged. Its new requirements
+are not yet tested (see "Not covered" below and Q-049). The mpmath references
 need `mpmath`, and the A10 property tests `hypothesis`, in the test environment. Tests are static acceptance tests and have never
 been executed against survjax. Test names below are relative to `tests/spec/`.
 
@@ -422,6 +439,30 @@ been executed against survjax. Test names below are relative to `tests/spec/`.
 | 3.2 | slicing works on data passed through jit (minibatches inside compiled code). | `test_slicing_inside_jit` |
 | 3.2 | for any integer-array index, \`data[idx].field == data.field[idx]\`. | `test_indexing_commutes_with_fields_property` |
 
+### `test_a3_shape_and_len.py`
+
+| Spec section | Requirement covered | Test |
+| --- | --- | --- |
+| 3.2 | "`data.shape` is the observation shape as a tuple of Python ints" (`(N,)`). | `test_shape_of_vector_data_is_a_tuple_of_python_ints` |
+| 3.2 | the same for scalar data, `()`. | `test_shape_of_scalar_data_is_empty_tuple` |
+| 3.2 | "Empty data `(0,)` are allowed". | `test_shape_of_empty_data` |
+| 3.2/12.1 | two-dimensional data. | `test_shape_of_two_dimensional_data` |
+| 3.2 | the bounds form has the same `shape`. | `test_shape_from_bounds_constructor` |
+| 3.2 | `shape` is the observation shape that every field has. | `test_shape_equals_field_shape` |
+| 3.2/12.1 | `shape` after indexing (slice, integer, integer array, 2-D, empty slice). | `test_shape_after_slicing`, `test_shape_after_integer_index_is_scalar`, `test_shape_after_integer_array_index`, `test_shape_after_indexing_two_dimensional_data`, `test_shape_after_empty_slice` |
+| 3.2 | "read from the stored leaves rather than kept in the auxiliary data". | `test_shape_is_read_from_stored_leaves`, `test_shape_is_not_in_the_tree_structure` |
+| 3.2/12.1 | "static under `jit`" (static ints). | `test_shape_is_static_under_jit` |
+| 3.2/12.1 | "per-example under `vmap`". | `test_shape_is_per_example_under_vmap`, `test_shape_is_per_example_under_vmap_of_two_dimensional_data` |
+| 3.2 | "There is no `size` or `ndim`". | `test_no_size_attribute`, `test_no_ndim_attribute` |
+| 3.2 | "`len(data)` is `data.shape[0]`". | `test_len_of_vector_data_is_number_of_observations` |
+| 3.2/12.1 | "on scalar data it raises `TypeError`". | `test_len_of_scalar_data_raises_type_error`, `test_len_of_integer_indexed_data_raises_type_error` |
+| 3.2 | empty data "have length 0". | `test_len_of_empty_data_is_zero`, `test_len_of_empty_slice_is_zero` |
+| 3.2 | "`len` counts only the leading axis; the total is `math.prod(data.shape)`". | `test_len_of_two_dimensional_data_counts_leading_axis` |
+| 3.2/12.1 | `len` after indexing. | `test_len_after_slicing` |
+| 3.2/12.1 | `len` under `jit` is a static int. | `test_len_under_jit_is_static` |
+| 3.2/12.1 | `len` under `vmap` follows the per-example shape. | `test_len_under_vmap_of_vector_data_raises_type_error`, `test_len_under_vmap_of_two_dimensional_data_is_per_example` |
+| 3.2/12.1 | "`bool(data)` (and so `if data:`) raises `TypeError` instead of testing emptiness". | `test_bool_of_nonempty_data_raises_type_error`, `test_bool_of_empty_data_raises_type_error`, `test_bool_of_scalar_data_raises_type_error`, `test_if_data_raises_type_error` |
+
 ### `test_a3_issue_decoding.py`
 
 | Spec section | Requirement covered | Test |
@@ -516,6 +557,9 @@ been executed against survjax. Test names below are relative to `tests/spec/`.
 
 ## A2–A3: deliberately not tested
 
+- `data.shape` and `len(data)` on traced construction inside `jit` (rev 36):
+  covered for data passed into `jit`; construction inside `jit` gives the same
+  leaves, so no separate test was added.
 - Exact punctuation and wording in `InvalidDataError` messages: section 6.2
   requires counts and first offending indices, tested as decimal integers
   (Q-017), while formatting remains open.
@@ -1183,7 +1227,7 @@ Each constraint is checked eagerly, under `jit` and under `vmap` (helper
 | 7.1 | rows marked by `parameter_issues().invalid_entries` are NaN even where the formula is finite (Exponential `rate=-1`, `0`; Weibull `scale=inf`, `shape=-1`; `from_log` overflow; a named condition; a nested violation; a custom declared family). | `test_declared_violation_is_nan_where_formula_is_finite`, `test_zero_rate_right_censored_row_is_nan`, `test_infinite_weibull_scale_right_censored_row_is_nan`, `test_negative_weibull_shape_right_censored_row_is_nan`, `test_from_log_overflow_row_is_nan`, `test_condition_violation_is_nan_on_exact_row`, `test_nested_violation_is_nan`, `test_declared_twin_of_finite_value_is_nan` |
 | 7.1/5 | with valid data the NaN rows are `invalid_entries` broadcast to the contribution shape (paired, scalar distribution, `(D,1)` draws); valid parameters give no NaN. | `test_nan_rows_are_parameter_issues_invalid_entries`, `test_scalar_invalid_distribution_marks_every_row`, `test_invalid_entries_broadcast_over_draws`, `test_valid_parameters_give_no_nan_rows` |
 | 7.1 | triage recipe: a row with invalid data and parameters is attributed to both; undeclared NaN is the remainder (`other`). | `test_invalid_parameters_and_invalid_data_overlap`, `test_undeclared_nan_is_the_recipe_remainder`, `test_undeclared_negative_rate_log_is_the_recipe_remainder` |
-| 7.1/12.1 | method equals function on violations; raw form in both. | `test_method_and_function_agree_on_parameter_violations`, `test_raw_form_forces_nan_on_parameter_violations` |
+| 7.1/12.1 | named-condition and constraint violations in one batch give exactly their NaN rows; the raw form forces NaN too (rev 35). | `test_named_condition_and_constraint_violations_give_nan_rows`, `test_raw_form_forces_nan_on_parameter_violations` |
 | 7.1/12.1 | rows without issues keep their values and parameter gradients (per-row parameters; Jacobian in both modes, eager and `jit`; sum over valid rows). Rev 32 widening: `test_a6_likelihood_gradient_isolation.py`. | `test_rows_without_issues_keep_their_values`, `test_rows_without_issues_keep_their_gradients`, `test_rows_without_issues_keep_their_gradients_under_jit`, `test_sum_over_valid_rows_has_alone_gradient` |
 | 7.1/5 | `jit` and `vmap` agreement of values and `invalid_entries`. | `test_parameter_violations_under_jit_match_eager`, `test_parameter_violations_under_vmap_match_batched_call` |
 
@@ -1221,12 +1265,13 @@ Each constraint is checked eagerly, under `jit` and under `vmap` (helper
 - **`parameter_issues()` is not overridden by families**: a rule for family
   authors with no observable outcome.
 
-## A6: exact and right-censored likelihood, method, unsupported modes (spec 4.2, 5, 6.1–6.3, 7.1–7.3, 12.2; rev 28, 29, 31, 32)
+## A6: exact and right-censored likelihood, method, unsupported modes (spec 4.2, 5, 6.1–6.3, 7.1–7.3, 12.2; rev 28, 29, 31, 32, 35)
 
 Hand-derived exponential and Weibull contributions (`Z=1` without
 truncation). Tails, boundaries, mpmath and `jax_debug_nans` are A7; R
-fixtures A8; `check_grads` and Hessians A9 (except the method/function
-Hessian agreement, 12.1). Shared helpers `ll`, `ll_method` and `nan_causes`
+fixtures A8; `check_grads` and Hessians A9 (except the raw-form versus
+data-form derivative agreement, 12.1). Shared helpers `ll` (the method,
+the only entry point since rev 35) and `nan_causes`
 (the 7.1 triage recipe) are in `helpers.py`.
 
 ### `test_a6_likelihood_values.py`: values
@@ -1247,8 +1292,7 @@ Hessian agreement, 12.1). Shared helpers `ll`, `ll_method` and `nan_causes`
 | --- | --- | --- |
 | 5 | scalar/scalar `()`; `(N,)` with scalar; paired `(N,)`; `(D,1)` and `(D,N)` give `(D,N)`; the documented Weibull regression pattern. | `test_scalar_data_scalar_distribution_gives_scalar`, `test_vector_data_scalar_distribution`, `test_vector_data_paired_distribution`, `test_draw_column_distribution_gives_draws_by_individuals`, `test_full_draw_matrix_distribution`, `test_weibull_draw_column_regression_pattern` |
 | 3.2/5 | multidimensional data keep every axis; trailing broadcasting of `(B,N)` data. | `test_multidimensional_data_keeps_its_axes`, `test_batched_datasets_against_trailing_distribution` |
-| 5 | bare `(D,)` against `(N,)`, `D != N`: `TypeError`, function and method. | `test_mismatched_bare_batch_raises_type_error`, `test_mismatched_bare_batch_raises_type_error_in_method` |
-| 5/7.1 | the method gives the function's `(D,N)` and scalar contribution shapes. | `test_method_follows_broadcast_contribution_shape`, `test_method_scalar_contribution_for_scalar_inputs` |
+| 5 | bare `(D,)` against `(N,)`, `D != N`: `TypeError`. | `test_mismatched_bare_batch_raises_type_error` |
 
 ### `test_a6_likelihood_invalid_data.py`: stored input issues
 
@@ -1257,35 +1301,38 @@ Hessian agreement, 12.1). Shared helpers `ll`, `ll_method` and `nan_causes`
 | 3.3/7.1 | invalid exact times (`0`, negative, `inf`, NaN) and right-censoring times (negative, `inf`, NaN): NaN rows equal `data.issues.invalid_rows`; the valid row keeps its value. | `test_invalid_exact_time_is_nan`, `test_invalid_right_censoring_time_is_nan` |
 | 7.1 | invalid indicator (code 2, NaN) is NaN although normalized fields look valid. | `test_invalid_event_code_is_nan_although_normalized_fields_look_valid`, `test_nan_event_indicator_is_nan` |
 | 3.1/7.1 | bounds form: mismatched exact upper is NaN; valid bounds rows equal the flag form. | `test_bounds_exact_row_with_mismatched_upper_is_nan`, `test_bounds_valid_exact_and_right_rows_match_flag_form` |
-| 7.1/12.1 | propagation after indexing, reconstruction, data returned from `jit`, traced construction under `jit`, `vmap` over data; method equals function. | `test_indexed_data_keeps_invalid_rows`, `test_rebuilt_data_keeps_invalid_rows`, `test_data_returned_from_jit_keeps_invalid_rows`, `test_traced_construction_and_likelihood_under_jit`, `test_vmap_over_data_keeps_invalid_rows`, `test_method_matches_function_on_invalid_data` |
+| 7.1/12.1 | propagation after indexing, reconstruction, data returned from `jit`, traced construction under `jit`, `vmap` over data. | `test_indexed_data_keeps_invalid_rows`, `test_rebuilt_data_keeps_invalid_rows`, `test_data_returned_from_jit_keeps_invalid_rows`, `test_traced_construction_and_likelihood_under_jit`, `test_vmap_over_data_keeps_invalid_rows` |
 | 6.1/7.1 | raw form (function and method): event code 2 and invalid times give NaN eagerly and under `jit`, on the rows `SurvivalData(time, event).issues` marks. | `test_raw_form_invalid_event_code_returns_nan_eagerly`, `test_raw_form_invalid_time_returns_nan_eagerly`, `test_raw_form_method_invalid_event_code_returns_nan_eagerly`, `test_raw_form_invalid_event_code_under_jit` |
 | 7.1 | uninformative bits alone do not invalidate; the recipe attributes invalid-data rows to data only; broadcast over draws. | `test_uninformative_bits_alone_do_not_invalidate`, `test_invalid_data_rows_triage_to_data_only`, `test_invalid_data_broadcasts_over_draws` |
 
-### `test_a6_likelihood_entry_points.py`: function forms, transformations, compilation
+### `test_a6_likelihood_entry_points.py`: input forms, transformations, compilation (through `dist.log_likelihood`, rev 35)
 
 | Spec section | Requirement covered | Test |
 | --- | --- | --- |
-| 10.2 | top-level entry point; `survjax.likelihood` module (Q-038). | `test_likelihood_entry_points_are_exported_at_top_level`, `test_likelihood_module_holds_the_entry_point` |
+| 7.1/10.2/12.1 | "There is no top-level `survjax.log_likelihood` function" (rev 35). | `test_no_top_level_log_likelihood` |
 | 6.2/6.3 | the likelihood "has no `_with_info` variant"; `LikelihoodIssues` removed (rev 29). | `test_likelihood_has_no_with_info_variant`, `test_likelihood_issues_container_is_removed` |
 | 6.1/7.1 | data form positional and by keyword; raw form equals data form; integer event codes. | `test_data_form_positional`, `test_data_form_by_keyword`, `test_raw_form_equals_data_form`, `test_raw_form_accepts_integer_event_codes` |
 | 6.1/6.2 | `TypeError` for a raw array as `data`, mixed forms, a missing `time` or `event`, no data, constructor keywords in the raw form, raw shape mismatch. | `test_raw_array_passed_as_data_raises_type_error`, `test_mixing_forms_raises_type_error`, `test_data_with_only_event_keyword_raises_type_error`, `test_raw_form_without_event_raises_type_error`, `test_raw_form_without_time_raises_type_error`, `test_no_data_at_all_raises_type_error`, `test_raw_form_rejects_constructor_keywords`, `test_raw_form_shape_mismatch_raises_type_error` |
 | 6.1/12.1 | eager/`jit`/`vmap` agreement, traced construction and raw form inside `jit`; summed-likelihood gradient. | `test_likelihood_under_jit_matches_eager`, `test_traced_construction_inside_jit_matches_eager`, `test_raw_form_inside_jit_matches_eager`, `test_vmap_over_data_matches_batched_call`, `test_vmap_over_parameter_draws_matches_batched_call`, `test_gradient_of_summed_likelihood_is_hand_derived` |
 | 7.2 | compilation reuse for new values (prepared data and traced construction); no host transfers on the compiled path (likelihood, `data.issues.ok`, `parameter_issues()`, gradient). | `test_new_values_reuse_compilation`, `test_traced_construction_reuses_compilation`, `test_compiled_path_makes_no_host_transfers` |
 
-### `test_a6_likelihood_method.py`: `dist.log_likelihood` (rev 29)
+### `test_a6_likelihood_method.py`: `dist.log_likelihood` (rev 29, 35)
 
 | Spec section | Requirement covered | Test |
 | --- | --- | --- |
-| 4.2/7.1 | a base method on every registered family: built-ins, a custom family that does not define it, a nested family; equal to the function. | `test_built_in_families_have_the_method`, `test_custom_family_has_the_method_without_defining_it`, `test_nested_family_method_equals_function` |
-| 6.1/7.1 | data form positional and by keyword `data=`; raw form; raw equals data form; integer event codes; Weibull hand-derived. All identical to the function. | `test_data_form_positional`, `test_data_form_by_keyword`, `test_raw_form_equals_function_raw_form`, `test_raw_form_equals_data_form`, `test_raw_form_accepts_integer_event_codes`, `test_weibull_method_equals_function` |
-| 6.1/6.2/7.1 | `TypeError` for a raw array as `data`, mixed forms, missing `time` or `event`, no data, positional `time`/`event` (keyword-only), constructor keywords. | `test_raw_array_passed_as_data_raises_type_error`, `test_mixing_forms_raises_type_error`, `test_raw_form_without_event_raises_type_error`, `test_raw_form_without_time_raises_type_error`, `test_no_data_at_all_raises_type_error`, `test_time_and_event_are_keyword_only`, `test_raw_form_rejects_constructor_keywords` |
-| 7.1/12.1 | equal to the function in values and first and second parameter derivatives, in both input forms (Weibull, summed); hand-derived exponential gradient. | `test_method_value_equals_function_value`, `test_method_gradient_equals_function_gradient`, `test_method_hessian_equals_function_hessian`, `test_method_gradient_is_hand_derived` |
-| 6.1/7.1/5 | `jit` (data and raw forms) and `vmap` over draws. | `test_method_under_jit_matches_eager`, `test_method_raw_form_under_jit_matches_eager`, `test_method_under_vmap_over_draws_matches_batched_call` |
+| 4.2/7.1 | a base method on every registered family: built-ins, a custom family that does not define it, a nested family. | `test_built_in_families_have_the_method`, `test_custom_family_has_the_method_without_defining_it`, `test_nested_family_has_the_method` |
+| 7.1 | Weibull per-row parameters, hand-derived. | `test_weibull_per_row_parameters_are_hand_derived` |
+| 7.1 | positional `time`/`event` rejected (keyword-only). | `test_time_and_event_are_keyword_only` |
+| 6.1/12.1 | "`dist.log_likelihood(time=..., event=...)` equal to `dist.log_likelihood(SurvivalData(time, event))` in values and first and second parameter derivatives" (rev 35): Weibull summed and per-row values exactly, gradient and Hessian. | `test_raw_form_value_equals_data_form_value`, `test_raw_form_per_row_values_equal_data_form`, `test_raw_form_gradient_equals_data_form_gradient`, `test_raw_form_hessian_equals_data_form_hessian` |
+
+The input forms, static misuse, `jit`/`vmap` and the hand-derived gradient
+are in `test_a6_likelihood_entry_points.py` (rev 35 removed their duplicates
+here).
 
 Invalid-data and parameter-issue NaN rows through the method are in
 `test_a6_likelihood_invalid_data.py` and
-`test_a6_likelihood_parameter_issues.py`; the method's static shape
-mismatch is in `test_a6_likelihood_shapes.py`.
+`test_a6_likelihood_parameter_issues.py`; the static shape mismatch is in
+`test_a6_likelihood_shapes.py`.
 
 ### `test_a6_unsupported_modes.py`: NaN rows for unsupported modes (rev 31)
 
@@ -1295,8 +1342,8 @@ right, right-truncated exact; row 0 is a supported exact row.
 | Spec section | Requirement covered | Test |
 | --- | --- | --- |
 | 3.2/7.1 | the rows are valid data and add no data or parameter issue. | `test_unsupported_row_is_valid_data`, `test_unsupported_row_adds_no_parameter_issue` |
-| 7.1/12.2 | NaN on the row without an exception, function and method; the supported row keeps its value; method equals function. | `test_unsupported_row_is_nan`, `test_unsupported_row_is_nan_in_method`, `test_supported_row_keeps_its_value`, `test_supported_row_keeps_its_value_in_method` |
-| 7.1/12.2 | the same under `jit` (prepared data, both entry points), traced construction and `vmap` over draws. | `test_unsupported_row_is_nan_under_jit`, `test_unsupported_mode_from_traced_construction_is_nan`, `test_unsupported_row_is_nan_under_vmap` |
+| 7.1/12.2 | NaN on the row without an exception; the supported row keeps its value. | `test_unsupported_row_is_nan`, `test_supported_row_keeps_its_value` |
+| 7.1/12.2 | the same under `jit` (prepared data), traced construction and `vmap` over draws. | `test_unsupported_row_is_nan_under_jit`, `test_unsupported_mode_from_traced_construction_is_nan`, `test_unsupported_row_is_nan_under_vmap` |
 | 7.1/12.2 | the Slice A triage recipe attributes the row to mode support (`unsupported_nan`), not `other`. | `test_triage_recipe_attributes_row_to_mode_support` |
 | 7.1/7.3 | the supported row keeps its first and second rate derivatives, per-row (Jacobian both modes, Hessian, `jit`) and with a shared rate. | `test_supported_row_keeps_its_gradient_per_row`, `test_supported_row_keeps_its_hessian_per_row`, `test_supported_row_keeps_its_gradient_with_shared_rate`, `test_supported_row_keeps_its_gradient_under_jit` |
 
@@ -1310,7 +1357,7 @@ function of the same flat parameter vector.
 | --- | --- | --- |
 | 7.1/12.1 | values of rows without issues equal alone; row 1 NaN. Violation classes zero, negative, NaN, `+inf`, `-inf` (and non-finite `real`), and named conditions; Exponential, Weibull (per-row scale with shared shape, per-row shape with shared scale), custom `constrained_rate`, `capped_rate` condition, `component_constrained` (batch leaf and component leaf), nested `scaled_capped` (base leaf, outer leaf, base and outer conditions). | `test_rows_without_issues_keep_values[*]` |
 | 7.1/7.3/12.1 | first and second derivatives equal alone, finite, in every leaf: `jacrev`, `jacfwd`, fwd-over-rev, rev-over-rev, fwd-over-fwd, rev-over-fwd. | `test_rows_without_issues_keep_derivatives[*]` |
-| 7.1/7.3 | the same under `jit`; through `dist.log_likelihood`. | `test_rows_without_issues_keep_derivatives_under_jit[*]`, `test_rows_without_issues_keep_derivatives_in_method[*]` |
+| 7.1/7.3 | the same under `jit`. | `test_rows_without_issues_keep_derivatives_under_jit[*]` |
 | 7.1/7.3 | hand-derived anchors: Exponential per-row Hessian; Weibull shared-shape gradient and Hessian with a negative per-row scale; nested shared `log_ratio` with a NaN base rate. | `test_exponential_isolated_hessian_is_hand_derived`, `test_weibull_shared_shape_derivatives_are_hand_derived`, `test_nested_shared_log_ratio_derivatives_are_hand_derived` |
 
 ### A6 (likelihood part): deliberately not tested
@@ -1401,7 +1448,7 @@ Seven-row valid batch: exact interior, tiny, upper tail; right at `0`, tiny
 
 | Spec section | Requirement covered | Test |
 | --- | --- | --- |
-| 7.2/12.1/12.2 | "the likelihood suite run eagerly under `jax_debug_nans` on valid mixed batches": Exponential (shared and per-row rates, hand values), Weibull `k` in `0.3, 0.5, 1, 2.5, 8` and per-row, `from_log`, the method form, a custom family on generic defaults, an improper family, bounds-form data with a `(0, +inf]` row. | `test_exponential_mixed_batch_under_debug_nans`, `test_exponential_per_row_rates_under_debug_nans`, `test_weibull_mixed_batch_under_debug_nans[k]`, `test_weibull_per_row_parameters_under_debug_nans`, `test_weibull_from_log_under_debug_nans`, `test_weibull_method_form_under_debug_nans`, `test_custom_family_with_generic_defaults_under_debug_nans`, `test_improper_family_under_debug_nans`, `test_bounds_form_batch_under_debug_nans` |
+| 7.2/12.1/12.2 | "the likelihood suite run eagerly under `jax_debug_nans` on valid mixed batches": Exponential (shared and per-row rates, hand values), Weibull `k` in `0.3, 0.5, 1, 2.5, 8` and per-row, `from_log`, a custom family on generic defaults, an improper family, bounds-form data with a `(0, +inf]` row. | `test_exponential_mixed_batch_under_debug_nans`, `test_exponential_per_row_rates_under_debug_nans`, `test_weibull_mixed_batch_under_debug_nans[k]`, `test_weibull_per_row_parameters_under_debug_nans`, `test_weibull_from_log_under_debug_nans`, `test_custom_family_with_generic_defaults_under_debug_nans`, `test_improper_family_under_debug_nans`, `test_bounds_form_batch_under_debug_nans` |
 
 ### A7: deliberately not tested
 
@@ -1437,7 +1484,7 @@ dtype, which in float64 are the 11.1 targets (`atol=1e-10`, `rtol=1e-8`).
 | --- | --- | --- |
 | 11.1 | fixture integrity: 686 rows, groups 229/229/228; exact and right rows with positive finite times; vectors equal to 11.1; flexsurv and survreg agree; 141×3 grid from 0 to 7. | `test_fixture_has_bc_size_and_group_sizes`, `test_fixture_rows_are_exact_or_right_censored_with_positive_finite_times`, `test_fixture_parameter_vectors_are_those_of_section_11_1[name]`, `test_fixture_sources_agree_with_each_other[name]`, `test_fixture_grid_has_shape_141_by_3[name]` |
 | 11.1/12.1/12.2 | "per-row log likelihoods ... from flexsurv and survreg at the three parameter vectors", float64 `atol=1e-10, rtol=1e-8`. | `test_per_row_log_likelihood_matches_r[name-source]` |
-| 6.1/7.1/11.1 | the method form and the raw `time=`/`event=` form give the same per-row values. | `test_method_log_likelihood_matches_r[name]`, `test_raw_form_log_likelihood_matches_r[name]` |
+| 6.1/7.1/11.1 | the raw `time=`/`event=` form gives the same per-row values. | `test_raw_form_log_likelihood_matches_r[name]` |
 | 4.1/11.1 | the 11.1 objective's construction `k=exp(theta[0])`, `b_i=exp(X_i beta)` through `Weibull.from_log` under `jit`. | `test_design_matrix_construction_with_from_log_matches_r[name]` |
 | 7.1/11.1 | the summed per-row values match R's sum. | `test_summed_log_likelihood_matches_r[name]` |
 | 8.1/11.1/12.1 | rev 34: "survival values `S_i(t_i)` at each row's own time"; `log_survival` on censored rows and `log_prob` on exact rows equal the R contributions. | `test_per_row_survival_matches_r[name-source]`, `test_per_row_log_survival_matches_right_censored_contributions[name]`, `test_per_row_log_prob_matches_exact_contributions[name]` |
@@ -1474,8 +1521,8 @@ Hessians are in the docstring of `test_a9_likelihood_derivatives.py`.
 | 7.3 | hand-derived Hessians of the summed likelihood: exponential shared and per-row (diagonal) rates; Weibull `(k,b)` gradient and full Hessian at `k<1`, `k=1`, `k>1`; per-row shapes (diagonal); `from_log` by the chain rule. | `test_exponential_shared_rate_hessian_is_hand_derived`, `test_exponential_per_row_rate_hessian_is_diagonal_and_hand_derived`, `test_weibull_shared_parameter_gradient_is_hand_derived`, `test_weibull_shared_parameter_hessian_is_hand_derived[k]`, `test_weibull_per_row_shape_hessian_is_diagonal_and_hand_derived`, `test_weibull_from_log_hessian_follows_the_chain_rule` |
 | 2/7.2/7.3 | right-censored at `0`: zero Hessian, including `k<1` (inactive density piece does not leak). | `test_right_censored_at_zero_has_zero_hessian[k]` |
 | 7.3 | "forward and reverse modes, including Hessians": four `jac*` compositions agree; per-row Jacobian in both modes. | `test_forward_and_reverse_hessians_agree`, `test_per_row_jacobian_in_both_modes` |
-| 7.3/12.1 | composed with `jit` and `vmap` (draws, datasets); method and raw form give the function's Hessian. | `test_hessian_under_jit_matches_eager`, `test_hessian_under_vmap_over_parameter_draws`, `test_gradient_under_vmap_over_datasets`, `test_method_hessian_under_jit_and_vmap_equals_function`, `test_raw_form_hessian_equals_data_form` |
-| 7.3/12.1 | `check_grads(order=2, modes=("fwd","rev"))`: exponential shared and per-row; Weibull shared (`k` 0.6, 1, 1.4, 3), per-row, `(D,1)` draws, `from_log`; method; under `jit`, `vmap`, and with construction inside `jit`. | `test_check_grads_exponential_shared_rate`, `test_check_grads_exponential_per_row_contributions`, `test_check_grads_weibull_shared_parameters[k]`, `test_check_grads_weibull_per_row_contributions`, `test_check_grads_weibull_draw_by_individual_contributions`, `test_check_grads_weibull_from_log`, `test_check_grads_method_form`, `test_check_grads_under_jit`, `test_check_grads_under_vmap_over_draws`, `test_check_grads_with_traced_construction` |
+| 7.3/12.1 | composed with `jit` and `vmap` (draws, datasets); `jit` of `vmap` and the raw form give the hand-derived Hessian. | `test_hessian_under_jit_matches_eager`, `test_hessian_under_vmap_over_parameter_draws`, `test_gradient_under_vmap_over_datasets`, `test_hessian_under_jit_of_vmap_is_hand_derived`, `test_raw_form_hessian_equals_data_form` |
+| 7.3/12.1 | `check_grads(order=2, modes=("fwd","rev"))`: exponential shared and per-row; Weibull shared (`k` 0.6, 1, 1.4, 3), per-row, `(D,1)` draws, `from_log`; under `jit`, `vmap`, and with construction inside `jit`. | `test_check_grads_exponential_shared_rate`, `test_check_grads_exponential_per_row_contributions`, `test_check_grads_weibull_shared_parameters[k]`, `test_check_grads_weibull_per_row_contributions`, `test_check_grads_weibull_draw_by_individual_contributions`, `test_check_grads_weibull_from_log`, `test_check_grads_under_jit`, `test_check_grads_under_vmap_over_draws`, `test_check_grads_with_traced_construction` |
 | 4.2/7.3 | "The custom-family recipe is verified where its primitives are twice differentiable"; autodiff `log_prob` default "adds one derivative order". | `test_check_grads_custom_family_on_generic_defaults`, `test_custom_family_hessian_matches_built_in` |
 | 7.2/12.1 | "reference-input gradient isolation": a `reference_time()` with infinite parameter derivative leaves right-censored and mixed gradients and Hessians hand-derived and finite (`stop_gradient` on substituted values). | `test_reference_input_does_not_reach_right_censored_gradients`, `test_reference_input_does_not_reach_mixed_batch_gradients` |
 
@@ -1492,7 +1539,7 @@ Hessians are in the docstring of `test_a9_likelihood_derivatives.py`.
 
 | Spec section | Requirement covered | Test |
 | --- | --- | --- |
-| 10.2 | top-level re-exports of the Slice A data object, distributions, likelihood and error classes. | `test_slice_a_names_are_exported_at_top_level[name]` |
+| 10.2 | top-level re-exports of the Slice A data object, distributions and error classes (no likelihood function since rev 35; its absence is `test_no_top_level_log_likelihood`). | `test_slice_a_names_are_exported_at_top_level[name]` |
 | 10.2/10.3 | `py.typed`; metadata `Name`, `Requires-Python >=3.12`, initial version, Apache license (Q-041). | `test_package_has_type_marker`, `test_distribution_name_is_survjax`, `test_distribution_requires_python_312`, `test_distribution_version_is_initial_development_version`, `test_distribution_license_metadata_is_apache` |
 | 10.3/12.1 | "core code imports and runs without NumPyro, Equinox, Optax, Optimistix ... or plotting libraries" (fresh interpreter, imports blocked). | `test_core_imports_and_runs_without_demo_dependencies` |
 
@@ -1622,3 +1669,25 @@ load time by design.
   outline): documentation steps, not tests (Q-047).
 - **Kaplan–Meier, Brier, IBS, AUC, distribution-versus-array prediction
   inputs, `G=0`, delayed entry**: Slice E.
+
+## Revision 37 (first public release): not yet tested
+
+Revision 37 adds requirements that no step in the role file's schedule covers
+(Q-049). Nothing is tested yet for:
+
+- **`ProportionalHazards` with the PH closure (4.4; 12.1 "PH closure" row):**
+  construction, parameter issues, direct methods and grids, likelihood, the
+  PH-Weibull and PH-Exponential identities in values and first derivatives,
+  the `(S, 1)` x `(S, 2)` broadcasting case, `rmst` on a PH wrapper of a
+  custom baseline raising `NotImplementedError`.
+- **Staged RMST (8.7; 4.5 `tau` rows; 12.1 "Staged RMST" row):** mpmath
+  quadrature values and first derivatives over `k` in [0.2, 50] and `tau/b`
+  in [1e-2, 1e5] with both tails, `tau=0`, invalid `tau` and parameter issues
+  giving NaN with isolated derivatives, `tau` broadcasting, eager/`jit`/`vmap`,
+  `NotImplementedError` from Weibull Hessians in `k`, finite Hessians
+  elsewhere, `NotImplementedError` from `mean`, `median`, `quantile` and from
+  `rmst` on a custom family. The 12.1 derivative tolerance factors are an
+  implementation measurement (13); tests would need those factors or a
+  justified scale of their own.
+- **Release demos (11.2, 11.3) and the simulation study:** end-to-end
+  evidence owned by the use-case design notes, not spec tests.

@@ -9,11 +9,9 @@ from jax.test_util import check_grads
 import survjax
 
 
-@pytest.fixture(params=["function", "method"])
-def evaluate(request):
-    if request.param == "method":
-        return lambda dist, *args, **kwargs: dist.log_likelihood(*args, **kwargs)
-    return survjax.log_likelihood
+@pytest.fixture
+def evaluate():
+    return lambda dist, *args, **kwargs: dist.log_likelihood(*args, **kwargs)
 
 
 @pytest.mark.parametrize("form", ["raw", "prepared"])

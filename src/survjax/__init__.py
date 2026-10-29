@@ -12,7 +12,6 @@ from survjax.distributions import (
     register_family,
     static,
 )
-from survjax.likelihood import log_likelihood
 from survjax.metrics import concordance_index, concordance_index_with_info
 
 __all__ = [
@@ -27,7 +26,6 @@ __all__ = [
     "param",
     "distribution",
     "static",
-    "log_likelihood",
     "concordance_index",
     "concordance_index_with_info",
 ]

@@ -2,49 +2,12 @@
 
 import jax
 import jax.numpy as jnp
-from jax.typing import ArrayLike, DTypeLike
+from jax.typing import DTypeLike
 
 from survjax._data_validation import current_field_issues
 from survjax._likelihood_parameters import stop_invalid_gradients
-from survjax._observation_inputs import _resolve_data
 from survjax.data import SurvivalData
 from survjax.distributions.base import SurvivalDistribution
-
-
-def log_likelihood(
-    dist: SurvivalDistribution,
-    data: SurvivalData | None = None,
-    *,
-    time: ArrayLike | None = None,
-    event: ArrayLike | None = None,
-) -> jax.Array:
-    """Return unsummed exact/right log contributions without truncation.
-
-    Args:
-        dist: A registered survival distribution with parameter batch axes.
-        data: Prepared SurvivalData, supplied instead of time and event.
-        time: Raw exact or right-censoring times; requires event. Inputs must
-            broadcast to time.shape without enlarging it.
-        event: Raw event indicators, 1/True for exact and 0/False for right
-            censoring. Requires time. Richer observations use SurvivalData.
-
-    Returns:
-        An array with the trailing-axis broadcast shape of the data and
-        distribution batch shapes, in their common floating dtype. There is
-        no time-grid axis, reduction or weighting. Invalid data/parameter rows
-        and modes unsupported in Slice A give NaN, eagerly and under jit/vmap;
-        supported rows retain their contributions. True zero likelihood gives
-        -inf. Inspect data.issues and dist.parameter_issues() for diagnostics;
-        only explicit host checkpoints raise for invalid runtime values.
-
-    Raises:
-        TypeError: Mixed or missing input forms, positional raw arrays, invalid
-            input types or incompatible shapes. time and event are keyword-only;
-            constructor options such as truncation are not accepted here.
-    """
-    if not isinstance(dist, SurvivalDistribution):
-        raise TypeError("dist must be a SurvivalDistribution instance")
-    return _log_likelihood(dist, _resolve_data(data, time, event))
 
 
 def _unusable_data_rows(data: SurvivalData, shape: tuple[int, ...]) -> jax.Array:

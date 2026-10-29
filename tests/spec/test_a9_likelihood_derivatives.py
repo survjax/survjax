@@ -56,12 +56,12 @@ def _data():
 
 
 def _exp_sum(rate):
-    return jnp.sum(survjax.log_likelihood(survjax.Exponential(rate=rate), _data()))
+    return jnp.sum(survjax.Exponential(rate=rate).log_likelihood(_data()))
 
 
 def _weibull_sum(shape, scale):
     dist = survjax.Weibull(shape=shape, scale=scale)
-    return jnp.sum(survjax.log_likelihood(dist, _data()))
+    return jnp.sum(dist.log_likelihood(_data()))
 
 
 def _weibull_hand(k, b_, t, exact):
@@ -155,7 +155,7 @@ def test_weibull_from_log_hessian_follows_the_chain_rule():
 
     def loss(u, v):
         dist = survjax.Weibull.from_log(log_shape=u, log_scale=v)
-        return jnp.sum(survjax.log_likelihood(dist, _data()))
+        return jnp.sum(dist.log_likelihood(_data()))
 
     u, v = np.log(1.4), np.log(2.2)
     hess = jax.hessian(loss, argnums=(0, 1))(jnp.asarray(f(u)), jnp.asarray(f(v)))
@@ -183,7 +183,7 @@ def test_right_censored_at_zero_has_zero_hessian(k):
 
     def loss(shape, scale):
         dist = survjax.Weibull(shape=shape, scale=scale)
-        return jnp.sum(survjax.log_likelihood(dist, data))
+        return jnp.sum(dist.log_likelihood(data))
 
     hess = jax.hessian(loss, argnums=(0, 1))(jnp.asarray(f(k)), jnp.asarray(f(2.0)))
     np.testing.assert_array_equal(np.asarray(hess, dtype=float), np.zeros((2, 2)))
@@ -213,7 +213,7 @@ def test_per_row_jacobian_in_both_modes():
     rates = jnp.asarray(f([0.5, 0.7, 1.1, 1.6, 2.0]))
 
     def contributions(r):
-        return survjax.log_likelihood(survjax.Exponential(rate=r), _data())
+        return survjax.Exponential(rate=r).log_likelihood(_data())
 
     r = np.asarray(rates, dtype=float)
     t = np.asarray(TIME)
@@ -254,7 +254,7 @@ def test_gradient_under_vmap_over_datasets():
 
     def grad_one(d):
         return jax.grad(
-            lambda r: jnp.sum(survjax.log_likelihood(survjax.Exponential(rate=r), d))
+            lambda r: jnp.sum(survjax.Exponential(rate=r).log_likelihood(d))
         )(jnp.asarray(f(0.8)))
 
     # d/r - T: (2/0.8 - 3.5, 1/0.8 - 6.0)
@@ -264,8 +264,8 @@ def test_gradient_under_vmap_over_datasets():
 
 
 @pytest.mark.step("A9")
-def test_method_hessian_under_jit_and_vmap_equals_function():
-    """spec 7.1 and 7.3, rev 29: `dist.log_likelihood` gives the function's Hessian under `jit` and `vmap`."""
+def test_hessian_under_jit_of_vmap_is_hand_derived():
+    """spec 7.1 and 7.3, rev 35: the Hessian under `jit` of `vmap` over parameter draws equals the hand-derived one."""
 
     def method_sum(p):
         return jnp.sum(survjax.Weibull(shape=p[0], scale=p[1]).log_likelihood(_data()))
@@ -282,7 +282,7 @@ def test_raw_form_hessian_equals_data_form():
 
     def raw_sum(p):
         dist = survjax.Weibull(shape=p[0], scale=p[1])
-        return jnp.sum(survjax.log_likelihood(dist, time=f(TIME), event=b(EVENT)))
+        return jnp.sum(dist.log_likelihood(time=f(TIME), event=b(EVENT)))
 
     params = jnp.asarray(f([1.4, 2.2]))
     _, expected = _weibull_sum_hand(1.4, 2.2)
@@ -305,7 +305,7 @@ def test_check_grads_exponential_per_row_contributions():
     """spec 7.3 and 12.1, rev 28: `check_grads` on the contribution vector with per-row rates."""
 
     def contributions(r):
-        return survjax.log_likelihood(survjax.Exponential(rate=r), _data())
+        return survjax.Exponential(rate=r).log_likelihood(_data())
 
     check_grads(contributions, (f([0.5, 0.7, 1.1, 1.6, 2.0]),), order=2, modes=("fwd", "rev"))
 
@@ -324,7 +324,7 @@ def test_check_grads_weibull_per_row_contributions():
     """spec 7.3 and 12.1, rev 28: `check_grads` on the contribution vector with per-row shapes and scales."""
 
     def contributions(k, s):
-        return survjax.log_likelihood(survjax.Weibull(shape=k, scale=s), _data())
+        return survjax.Weibull(shape=k, scale=s).log_likelihood(_data())
 
     check_grads(
         contributions,
@@ -340,7 +340,7 @@ def test_check_grads_weibull_draw_by_individual_contributions():
     """spec 5 and 7.3, rev 28: `check_grads` through the `(D,1)` draw broadcast to `(D,N)` contributions."""
 
     def contributions(k, s):
-        return survjax.log_likelihood(survjax.Weibull(shape=k, scale=s), _data())
+        return survjax.Weibull(shape=k, scale=s).log_likelihood(_data())
 
     check_grads(
         contributions, (f([[0.8], [1.6]]), f([[1.5], [2.5]])), order=2, modes=("fwd", "rev")
@@ -354,20 +354,9 @@ def test_check_grads_weibull_from_log():
 
     def loss(u, v):
         dist = survjax.Weibull.from_log(log_shape=u, log_scale=v)
-        return jnp.sum(survjax.log_likelihood(dist, _data()))
+        return jnp.sum(dist.log_likelihood(_data()))
 
     check_grads(loss, (f(0.3), f(0.8)), order=2, modes=("fwd", "rev"))
-
-
-@pytest.mark.step("A9")
-@requires_x64
-def test_check_grads_method_form():
-    """spec 7.1 and 7.3, rev 29: `check_grads` through `dist.log_likelihood`."""
-
-    def loss(k, s):
-        return jnp.sum(survjax.Weibull(shape=k, scale=s).log_likelihood(_data()))
-
-    check_grads(loss, (f(1.4), f(2.2)), order=2, modes=("fwd", "rev"))
 
 
 @pytest.mark.step("A9")
@@ -392,7 +381,7 @@ def test_check_grads_with_traced_construction():
 
     def loss(k, s):
         data = survjax.SurvivalData(jnp.asarray(f(TIME)), jnp.asarray(b(EVENT)))
-        return jnp.sum(survjax.log_likelihood(survjax.Weibull(shape=k, scale=s), data))
+        return jnp.sum(survjax.Weibull(shape=k, scale=s).log_likelihood(data))
 
     check_grads(jax.jit(loss), (f(1.4), f(2.2)), order=2, modes=("fwd", "rev"))
 
@@ -411,7 +400,7 @@ def test_check_grads_custom_family_on_generic_defaults():
 
     def loss(k, s):
         dist = fam.power_hazard()(shape=k, scale=s)
-        return jnp.sum(survjax.log_likelihood(dist, _data()))
+        return jnp.sum(dist.log_likelihood(_data()))
 
     check_grads(loss, (f(1.4), f(2.2)), order=2, modes=("fwd", "rev"))
 
@@ -422,7 +411,7 @@ def test_custom_family_hessian_matches_built_in():
 
     def custom_sum(p):
         dist = fam.power_hazard()(shape=p[0], scale=p[1])
-        return jnp.sum(survjax.log_likelihood(dist, _data()))
+        return jnp.sum(dist.log_likelihood(_data()))
 
     params = jnp.asarray(f([1.4, 2.2]))
     _, expected = _weibull_sum_hand(1.4, 2.2)
@@ -470,7 +459,7 @@ def test_reference_input_does_not_reach_right_censored_gradients():
     data = survjax.SurvivalData(f([2.0, 3.0]), b([False, False]))
 
     def loss(rate):
-        return jnp.sum(survjax.log_likelihood(_steep_reference()(rate=rate), data))
+        return jnp.sum(_steep_reference()(rate=rate).log_likelihood(data))
 
     rate = jnp.asarray(f(1.0))
     assert_close(np.asarray(jax.grad(loss)(rate)), -5.0)
@@ -489,7 +478,7 @@ def test_reference_input_does_not_reach_mixed_batch_gradients():
     data = survjax.SurvivalData(f([1.0, 2.0, 0.5]), b([True, False, True]))
 
     def loss(rate):
-        return jnp.sum(survjax.log_likelihood(_steep_reference()(rate=rate), data))
+        return jnp.sum(_steep_reference()(rate=rate).log_likelihood(data))
 
     rate = jnp.asarray(f(1.0))
     assert_close(np.asarray(jax.grad(loss)(rate)), -1.5)

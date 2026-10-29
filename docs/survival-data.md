@@ -273,8 +273,9 @@ Distribution parameters follow the same policy; see the
 
 The R calls below follow the official
 [`Surv` help page](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/Surv.html).
-They compare how the input is written. No numerical agreement with R has
-been checked.
+They compare how the input is written. Numerical agreement with R is checked
+only for exact and right-censored rows without truncation; see
+[Comparisons with R](builtin-families.md#comparisons-with-r).
 
 | Situation | R | survjax | Notes |
 | --- | --- | --- | --- |

@@ -58,13 +58,13 @@ def _check(values, grads):
         assert np.isfinite(np.asarray(g)).all(), g
 
 
-def _run(make, params, times, method=False):
+def _run(make, params, times):
     """Values and the gradient of the summed contributions, eagerly, under `jax_debug_nans`."""
     data = survjax.SurvivalData(times, KINDS)
 
     def total(p):
         dist = make(**p)
-        out = dist.log_likelihood(data) if method else survjax.log_likelihood(dist, data)
+        out = dist.log_likelihood(data)
         return out.sum(), out
 
     with jax.debug_nans(True):
@@ -121,13 +121,6 @@ def test_weibull_from_log_under_debug_nans():
 
 
 @pytest.mark.step("A7")
-def test_weibull_method_form_under_debug_nans():
-    """spec 7.1/7.2/12.1, rev 33: `dist.log_likelihood` raises no NaN on the same batch (Weibull `k=0.5`)."""
-    params = {"shape": jnp.asarray(f(0.5)), "scale": jnp.asarray(f(2.0))}
-    _run(survjax.Weibull, params, _times(2.0 * 1e6), method=True)
-
-
-@pytest.mark.step("A7")
 def test_custom_family_with_generic_defaults_under_debug_nans():
     """spec 4.2/7.2/12.1, rev 33: a custom family with only `log_survival` and `reference_time` raises no NaN (`ConstHazard`, `rate=2`)."""
     _run(fam.const_hazard(), {"rate": jnp.asarray(f(2.0))}, _times(1e3))
@@ -160,7 +153,7 @@ def test_bounds_form_batch_under_debug_nans():
     )
 
     def total(k, s):
-        out = survjax.log_likelihood(survjax.Weibull(shape=k, scale=s), data)
+        out = survjax.Weibull(shape=k, scale=s).log_likelihood(data)
         return out.sum(), out
 
     with jax.debug_nans(True):
