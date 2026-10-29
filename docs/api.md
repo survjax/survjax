@@ -12,6 +12,13 @@ For worked examples, see the guides:
 .. automethod:: survjax.SurvivalDistribution.log_likelihood
 ```
 
+## Concordance
+
+```{eval-rst}
+.. autofunction:: survjax.concordance_index
+.. autofunction:: survjax.concordance_index_with_info
+```
+
 ## Observation data
 
 ```{eval-rst}

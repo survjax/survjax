@@ -2,28 +2,12 @@
 
 import jax
 import jax.numpy as jnp
-from jax.typing import ArrayLike, DTypeLike
+from jax.typing import DTypeLike
 
 from survjax._data_validation import current_field_issues
 from survjax._likelihood_parameters import stop_invalid_gradients
 from survjax.data import SurvivalData
 from survjax.distributions.base import SurvivalDistribution
-
-
-def _resolve_data(
-    data: SurvivalData | None, time: ArrayLike | None, event: ArrayLike | None
-) -> SurvivalData:
-    """Resolve the two input forms without inspecting runtime values (spec 6.1)."""
-    if data is not None:
-        if not isinstance(data, SurvivalData):
-            raise TypeError("data must be SurvivalData; use time=... and event=...")
-        if time is not None or event is not None:
-            raise TypeError("data cannot be combined with time or event")
-        return data
-    if time is None or event is None:
-        raise TypeError("provide SurvivalData or both time=... and event=...")
-    # spec 6.1/6.2: preserve raw-input evidence through the pure checked constructor.
-    return SurvivalData(time, event)
 
 
 def _unusable_data_rows(data: SurvivalData, shape: tuple[int, ...]) -> jax.Array:

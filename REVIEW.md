@@ -1,105 +1,132 @@
-# A9 standalone example removal (2026-10-29)
+# Review: A10 integration with main/A9
 
-Read the current scope note in PLAN.md, then the staged deletion of the
-example and its dedicated test module. The maintainer requested that all
-other A9 work be retained for merge, with example content superseded by
-use-case 1 and a mini README version.
+Maintainer-initiated merge: A10-cindex f71140a with main ff9786f.
+Requested: check merge conflicts and bring A10 up to date after A9 merged.
+This review replaces the two conflicting handoff records. Their full content
+remains at `git show f71140a:REVIEW.md` and `git show ff9786f:REVIEW.md`.
+Both branches' planning records are retained in PLAN.md below the current
+integration record. No new feature or spec decision is introduced.
 
-Changes: remove examples/slice_a.py and tests/unit/test_slice_a_example.py;
-remove their implementation/tutorial material from PLAN.md/REVIEW.md and
-record the replacement direction. No replacement example or README content
-is implemented in this step. No public API or library behavior changes.
+## Reading order
 
-Keep the A9.1 derivative/composition tests, the A9.2 wheel runner and installed
-custom-family checks, plus every other already staged incoming main change.
-The incoming A8 review below is retained as historical evidence. Existing
-A9.1/A9.2 checks and counts remain recorded in PLAN.md; this removal does not
-claim a fresh full numerical gate or Slice A completion.
+1. src/survjax/__init__.py and tests/unit/test_import.py: current exports
+   retain A10's two metrics and main's absence of top-level log_likelihood.
+   Keep main's regression test that imports cannot restore the removed API.
+2. src/survjax/likelihood.py, distributions/base.py, then
+   _observation_inputs.py: one shared input resolver, the incoming private
+   numerical evaluator and main's public distribution method.
+3. tests/install/test_wheel.py: the existing strict export assertion now
+   includes the two reviewed concordance functions; all installed checks stay.
+4. PLAN.md's integration record and the unchanged incoming A8/A9 tests,
+   fixtures, wheel runner, aligned docs and spec-test sync.
 
-Validation completed:
+## Resolution invariants and scope
 
-- PASS: both files are absent; no surviving code/docs references to their
-  paths or run_example remain outside these removal records.
-- `JAX_ENABLE_X64=1 .venv/bin/python -m pytest --collect-only -q
-  tests/unit/test_likelihood_composition.py
-  tests/unit/test_likelihood_custom_derivatives.py tests/install/test_wheel.py`:
-  18 tests collected in 0.64s; no numerical tests were executed.
-  Log: `/private/tmp/survjax-a9-purge-collection.log`.
-- `.venv/bin/ruff format --check .`: 82 files already formatted.
-  `.venv/bin/ruff check .`: All checks passed!
-  `.venv/bin/mypy src`: Success: no issues found in 17 source files.
-  `git diff --check`: exit 0.
-- PASS: all 171 other index entries match the pre-removal snapshot. Neither
-  removed path is in the index; no unmerged entries or unstaged changes remain.
-  Compared to incoming main, only PLAN.md, REVIEW.md and the five retained
-  A9.1/A9.2 script/test files differ. Staged whitespace checks pass.
-- No full numerical gate, R, docs build, benchmark or replacement example
-  was run.
-Stage the cleanup with the existing maintainer-initiated merge; leave the
-merge commit to the maintainer.
+The five conflicts were PLAN.md, REVIEW.md, __init__.py, likelihood.py and
+the own import smoke test. Main removed the standalone likelihood wrapper;
+A10 moved input normalization and introduced the public metrics. Resolve by
+keeping the method-only likelihood API and both metrics, with exactly one
+_resolve_data implementation in _observation_inputs.py. The method imports
+it directly. Keep every incoming numerical evaluator function unchanged.
+Spec 6.1, 7.1-7.3, 9.1-9.2 and 10.2 govern these choices.
 
----
+The two additional integration edits are the distribution method's import
+and the installed wheel's exact expected export set. Only these seven paths
+may differ from the initial conflict/index snapshot. Preserve all other
+173 stage-0 entries byte-for-byte in the index. Incoming protected tests,
+scripts, dependencies, fixture data, docs and .spec-seen must match main;
+the API reference retains only the previously approved metric additions.
+Concordance code and its own tests, including N-5/N-8 fixes, are unchanged.
+The withdrawn standalone A9 example and its tests must stay absent.
 
-# Retained incoming A8 review — historical handoff status
-
-# A8 method-only reference documentation correction
-
-Approved by "ok do the docs correction; what's needed for the fixture handoff?"
-after compatibility commit d5c0a3c. Branch a8-1-r-generator.
-
-## Reading order and scope
-
-1. docs/builtin-families.md, Comparisons with R: replace the obsolete claim
-   of function/method coverage with raw/prepared distribution-method coverage.
-2. PLAN.md: approved docs correction and remaining fixture closure.
-
-Spec 6.1/7.1/10.2/12.1, revision 35+: the method is the only public likelihood
-entry point. The retained A8 tests demonstrated both input forms in d5c0a3c.
-This one-line correction changes no numerical claims, examples or APIs.
-Audit of both fixture READMEs found no explicit two-entry-point claim to fix.
-No source, tests, fixtures, dependencies, tolerances or protected paths change.
+The aligned spec marker be26e50 and incoming fixtures supersede the earlier
+A10 records' missing A8/A9 baseline and spec-alignment blockers. They do not
+prove combined-tree acceptance until the checks below finish. No R fixture
+is generated and no independent acceptance file is edited.
 
 ## Checks actually run
 
-`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/build_docs.sh` exited 0,
-build succeeded in both fresh dtype processes with Sphinx warnings fatal.
-Builtin page execution: float32 2.62s, float64 2.29s. All existing executable
-docs pages ran. Escalated execution permits the local Jupyter kernel sockets;
-the log contains existing IPKernelApp TCP notices, no Sphinx build warnings.
-Full log: /private/tmp/survjax-a8compat-docs.log.
+Working directory dev-a10; UV_CACHE_DIR=/private/tmp/survjax-uv-cache.
+`uv sync --locked --offline --dev`: succeeded using the incoming lockfile;
+installed its execnet 2.1.2 and pytest-xdist 3.8.0. Runtime versions remain
+Python 3.12.9, JAX/jaxlib 0.11.2 and NumPy 2.5.3. No dependency files changed
+beyond main's existing staged versions. Ruff reformatted one resolution file.
+Final static checks: **89 files already formatted**, **All checks passed!**;
+mypy: **Success: no issues found in 20 source files**.
 
-Direct HTML checks after both builds: PASS in each mode. Correct method-only
-wording present, obsolete wording absent, all 48 local links/anchors resolve,
-both downloaded recipe READMEs match committed originals byte-for-byte.
-Visual layout inspection remains unverified; no new browser interaction was
-attempted after the previously documented unavailable connector and concurrent
-Safari-use conflict. This edit removes wording from an existing paragraph.
+Focused own command, separately with JAX_ENABLE_X64=1 and =0:
+`uv run --group test pytest -q tests/unit/test_observation_inputs.py tests/unit/test_likelihood_entry_points.py tests/unit/test_concordance_counts.py tests/unit/test_concordance_results.py tests/unit/test_concordance_entry_points.py tests/unit/test_import.py tests/unit/test_api_reference.py`.
+**120 passed in 12.49s** (float64), **120 passed in 11.93s** (float32).
+These cover shared input forms, method-only import behavior, counts/results,
+shape and failure isolation, score precision, jit/vmap and API coverage.
 
-Final Ruff format: 78 files already formatted; Ruff lint: All checks passed!
-git diff --check: exit 0. No numerical suite/full gate rerun, mutation checks,
-R regeneration or new deviations in this docs-only step.
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check_wheel.sh --through A9`
+exited **0**, ending **check: all gates passed through A9**. The unmodified
+incoming runner builds a fresh wheel, supplies it to both own/independent
+installation tests, and uses the default six workers for numerical suites.
 
-## Fixture handoff verified, not performed
+| Stage | Float64 | Float32 |
+| --- | --- | --- |
+| Own suite | 1036 passed, 7 skipped, 56.62s | 1042 passed, 1 skipped, 59.24s |
+| Source doctests | 4 passed, 1.09s | 4 passed, 1.10s |
+| Independent through A9 | 2211 passed, 28 skipped, 60.17s | 2202 passed, 37 skipped, 53.97s |
 
-The already generated candidate is
- tests/fixtures/bc_like/bc_synthetic_weibull.json.
-Actual SHA-256, matching its committed manifest:
-4edbdee917ae335da11911b39ec60442e21998687d27c62494f54e7eb1d0e450
+This includes incoming A8 fixture/reference checks and A9 compiled
+composition, derivative, installed core and external typed-family checks.
+It does not imply completion of the withdrawn/replacement example,
+A9.4 performance or A9.d1 documentation work.
 
-../spectest is clean and has the same .spec-seen as this checkout:
-be26e50cc35db1c2affc3dafcb4bf4cf4baf1ebf.
-The JSON is absent both in that tester's tests/spec/fixtures/ and in this
-checkout's protected tests/spec/fixtures/. No new R generation is needed.
+Retained wheel:
+`/private/var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/survjax-wheel.qky0dw/survjax-0.0.1.dev0-py3-none-any.whl`.
+SHA-256: `8ca5093b02ae2ee23e85bc8feea86374f6ab2114906b5f3896a8b78c80af37f9`.
+Optional full output: `/private/tmp/survjax-a10-main-a9-gate.log`.
 
-Maintainer actions: copy this exact JSON to the authoritative tester repo's
- tests/spec/fixtures/bc_synthetic_weibull.json, verify checksum/byte identity
-and commit it there. On a maintainer-created clean spectests-* implementation
-branch, run scripts/sync_spec_tests.sh ../spectest; it checks both clean states
-and matching spec markers and replaces tests/spec wholesale. Review/commit
-that sync and integrate it normally. A direct local protected-path copy here
-would not be durable and is not the handoff workflow.
+A10 focused independent command, separately with JAX_ENABLE_X64=1/0 and
+SPEC_THROUGH=A10:
+`uv run --group test pytest -q -n 6 tests/spec/test_a10_concordance_api.py tests/spec/test_a10_concordance_values.py tests/spec/test_a10_concordance_diagnostics.py tests/spec/test_a10_concordance_shapes.py tests/spec/test_a10_concordance_properties.py`.
+**113 passed in 28.26s** (float64); **112 passed, 1 skipped in 21.81s**
+(float32). Existing skip requires float64 scores beside float32 data.
+No independent test edits, skip additions or xfails. This is the five
+non-fixture modules, not a full A10 gate. Optional logs:
+`/private/tmp/survjax-a10-main-acceptance-x64.log` and
+`/private/tmp/survjax-a10-main-acceptance-x32.log`.
 
-After integration, verify the protected copy matches the candidate, run the
-unchanged independent A8 fixture module in both dtypes and the full through-A8
-gate, then record the final outcome. No through-A8/Slice A completion claim.
-Stop after this docs commit for review; no protected fixture was written.
+## Merge audit
+
+All conflict markers and unmerged index entries are gone; the worktree
+matches the staged resolutions. AST comparison confirms the incoming
+likelihood module is unchanged except removal of its moved resolver and
+unused ArrayLike import. That resolver's AST matches _observation_inputs.py;
+there is exactly one implementation. The method's import is the only base
+change relative to main. Main's extra method-only import regression is kept.
+
+All **173 other initial stage-0 index entries** retain their original
+mode/blob identity. Protected tests/scripts, spec marker, dependencies,
+fixtures and references equal main; docs differ from main only by the seven
+previously approved API-reference lines. Both branches' PLAN history is
+retained, including the A9 standalone example withdrawal. The withdrawn
+example and its tests remain absent. HEAD f71140a and MERGE_HEAD/main
+ff9786f are unchanged; no merge commit, rebase or new merge was performed.
+
+`git diff --cached MERGE_HEAD --check` and resolution-only whitespace checks
+are clean. The full staged `git diff --cached --check` exits 2 solely for
+incoming EOF blank lines in tests/spec/API_ASSUMPTIONS.md:644 and
+tests/spec/test_a6_likelihood_shapes.py:121. `git diff HEAD MERGE_HEAD --check`
+reports the identical two warnings. Both read-only files are byte-identical
+to main and deliberately preserved; these are not resolution regressions.
+
+The imported spec marker remains be26e50 (revision 37). Design HEAD 3c9ce10
+has subsequent use-case companion-link changes in sections 11/12 and the
+header, with no likelihood/concordance contract change. No marker sync or
+spec edit was made here. Final metadata restaging/index audit follows;
+no source or test changes followed the passing runs.
+
+Leave this resolved/staged merge for the maintainer's final commit under
+AGENTS.md's "never merge" rule. Do not start the next A10 subslice.
+
+## Remaining limits
+
+The concordance R fixture, narrative topic/playground/held-out example and
+full A10 gate remain separate work. No R regeneration, docs build, CPU
+benchmark, accelerator result, A9.4/A9.d1 completion, or complete Slice A
+claim is implied. S-2 and formal deviation resolution remain maintainer-owned.

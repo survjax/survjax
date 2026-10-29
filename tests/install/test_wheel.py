@@ -148,6 +148,7 @@ def test_installed_core_uses_wheel_without_demo_dependencies(installed, x64_enab
             "constraints", "Exponential", "Weibull", "SurvivalData",
             "InvalidDataError", "InvalidParameterError", "SurvivalDistribution",
             "register_family", "param", "distribution", "static",
+            "concordance_index", "concordance_index_with_info",
         }
         assert all(hasattr(survjax, name) for name in survjax.__all__)
         assert not hasattr(survjax, "log_likelihood")

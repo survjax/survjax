@@ -1,5 +1,65 @@
 # Deviations and spec questions
 
+## D-027 Concordance result representation and undefined diagnostics
+
+- Step: A10 planning (2026-10-23), before public integration.
+- Spec section: 9.1–9.2, with public placement governed by 10.2.
+- What the spec says: totals use a two-word hi/lo accumulator;
+  `ConcordanceInfo` holds concordant, discordant, tied-score and comparable
+  counts plus invalid, unsupported and no-comparable-pair masks. The last
+  observation axis must match and is reduced. No comparable pairs gives NaN.
+- What remains unspecified: public field spellings, how exact two-word counts
+  are exposed, mask shapes/overlap, count meaning for invalid/unsupported
+  cohorts, and whether scalar or empty observation inputs are admitted.
+- Original proposal (superseded by the accepted decision below): define `ConcordanceInfo` in
+  `survjax.metrics`, as a frozen registered pytree; fields `concordant`,
+  `discordant`, `tied_score`, `comparable`, `invalid`, `unsupported` and
+  `no_comparable_pairs`. Each count is a `(hi, lo)` tuple of `uint32` arrays
+  with the broadcast leading shape; each mask has that same leading shape.
+  Invalid means any nonfinite score or invalid data row; unsupported means
+  any row outside exact/right without truncation. Preserve both masks when
+  they overlap; return NaN and zero counts for either condition, with
+  `no_comparable_pairs=False` because the cohort was not evaluated. Otherwise
+  set `no_comparable_pairs` exactly when the comparable count is zero. Reject
+  scalar scores/data as missing an observation axis; admit empty last axes as
+  undefined zero-pair cohorts. No new public count wrapper is proposed.
+- What was done: recorded the proposal only. A10.1 can test private counting
+  independently of this public contract; no public API choice implemented.
+  The maintainer's current request authorizes starting A10 ahead of the draft
+  delivery sequence; accepted section 12.2 remains unchanged.
+- Discussion update (2026-10-25): the maintainer requests explanation and
+  discussion before adopting a public contract. Newly synced independent
+  Q-042–Q-045 label these details assumptions, rather than spec requirements.
+  Q-044's reader accepts an integer array or a count object with `hi` and `lo`
+  attributes, not the proposed plain tuple. A small frozen registered count
+  object is a candidate for clearer public access; the private core can retain
+  tuples. Failed-cohort counts (guaranteed zero versus unspecified) and mask
+  semantics also remain for decision. No public choice has been adopted, and
+  no independent test has been changed to accommodate either proposal.
+- Maintainer decision (2026-10-25): after the detailed explanation and the
+  hi/lo range clarification, the maintainer said "ok proposal accepted".
+  Adopt a small frozen registered count pytree with `hi` and `lo` uint32
+  fields, the same in both dtype modes; the private core may retain tuples.
+  Adopt the named count and mask fields above, with result-shaped arrays;
+  counts are guaranteed zero for invalid/unsupported cohorts, whose
+  `no_comparable_pairs` mask is false. Invalid and unsupported may overlap.
+  Scalar inputs are rejected; a valid empty cohort has zero counts, a NaN
+  value and `no_comparable_pairs=True`. No public implementation exists yet.
+  Formal specification alignment and sync belong to another agent/branch,
+  as explicitly instructed by the maintainer; neither is performed here.
+- A10.2b1 implementation note (2026-10-25): `survjax.metrics` now contains
+  frozen registered `ConcordanceCount` and `ConcordanceInfo` types and a private
+  count-to-result helper. Exact words, result-shaped masks and failed-cohort
+  zeroing follow the accepted decision. Public metric entry points and input
+  validation remain for a later step. Formal status remains maintainer-owned.
+- A10.2b2 implementation note (2026-10-26): both metric entry points are
+  exported, with shared raw/prepared input handling, matching observation
+  axes, broadcast leading axes and result-shaped masks. Current/stored data
+  issues and nonfinite scores invalidate their entire cohorts; unsupported
+  cohorts are masked before counting. The maintainer allowed the two matching
+  API-reference entries in this code step. Broader docs/fixtures remain pending.
+- Status: open.
+
 ## D-026 NaN triage after normalized fields are edited
 - Step: A6.4b2 review follow-up, SQ1
 - Spec: sections 6.2 and 7.1, revision 32

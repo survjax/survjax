@@ -193,7 +193,8 @@ class SurvivalDistribution:
                 constructor options such as truncation require SurvivalData.
         """
         # spec 4.2/7.1: use the single evaluator; defer the import to avoid a cycle.
-        from survjax.likelihood import _log_likelihood, _resolve_data
+        from survjax._observation_inputs import _resolve_data
+        from survjax.likelihood import _log_likelihood
 
         return _log_likelihood(self, _resolve_data(data, time, event))
 
