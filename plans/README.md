@@ -4,6 +4,9 @@
 kept here, moved verbatim (newest section first within each file). Read one
 only when a step needs it.
 
+Prospective worktree handoffs: [first-release agents](release-agents/README.md).
+These are future assignments, not completed-step archives or implementation approval.
+
 | File | Contents |
 | --- | --- |
 | `A9.md` | A9 transformations, installation and Slice A evidence; open: "A9 Docs to-do" and "Final evidence audit" |
