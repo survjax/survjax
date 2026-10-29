@@ -1,209 +1,165 @@
-Independent review: round 4/3 (extra round explicitly authorized by maintainer)
+Independent review: round 1/3
 
-# A10.3 — Public concordance transformations and permutation evidence
+# A9.4 — Reproducible CPU baseline
 
-Approved after the detailed PLAN.md. Work on maintainer-created `a10b` from
-`a5cfea7`. Two new test modules, now 263 lines; no production/API changes.
-The previous integration review is retained at `git show a5cfea7:REVIEW.md`.
+Work on maintainer-created `a9b` from `1c0fd06`; plan archival commit
+`0a20008` preserves the previous A10 sections verbatim. The maintainer
+requested a roadmap audit, remaining-work plan and implementation. This
+step measures existing Slice A code; no library/API/dependency changes.
+Earlier A9 evidence remains in plans/A9.md and historical reviews in Git.
 
 ## Reading order
 
-1. tests/unit/test_concordance_transformations.py: two independently
-   enumerated tied-time cohorts crossed with three score draws; then failed
-   cohorts and a raw-input compile counter.
-2. tests/property/test_concordance.py: three reproducible public identities,
-   each with 40 Hypothesis examples (small tied integer cohorts, sizes 1–8).
-3. PLAN.md's A10.3 approval, scope, validation and later-work record.
-   Existing metrics.py and _concordance.py supply background only; unchanged.
+1. PLAN.md: roadmap audit, remaining A9 sequence, current step and limits.
+2. scripts/benchmark_slice_a.py: independent analytical formulas, timed
+   workload, synchronized sampling and trace-reuse assertions, report metadata.
+3. benchmarks/slice_a_cpu.json: float64 and float32 metadata, then 24 rows
+   each (2 families × 3 sizes × 2 parameter layouts × 2 construction paths).
+4. Existing tests/unit/test_likelihood_composition.py and
+   test_likelihood_custom_derivatives.py: regression evidence only, unchanged.
 
 ## Invariants and requirement mapping
 
-- Spec 6.1, 9.1–9.2, 12.1: the parametrized crossed-cohort test checks raw
-  and prepared input forms against hand-enumerated expectations. Data
-  `(2,1,4)` and scores `(3,4)` give `(2,3)`, so dataset and draw axes cannot
-  accidentally align. Eager, jit, nested vmap and jit-of-vmap check each
-  value, all eight uint32 count words, all three boolean masks and shapes.
-- Spec 6.2–6.3, 9.1–9.2, 12.1: the transformed-failures test constructs
-  observations inside each evaluator. Five cohorts distinguish valid,
-  invalid raw-event code, left truncation, both failures and all censored.
-  Check both score orders under all four evaluators. Failed cohorts retain
-  overlapping failure masks and zero counts; only evaluated zero-pair
-  cohorts set no_comparable_pairs. Valid neighbors retain all three pairs.
-- Spec 6.1/7.2: the raw compile-count test checks composition with raw
-  construction inside a trace; it does not exercise host-derived metadata.
-- Spec 3.2/7.2/12.1: the prepared-data compile-count test passes two
-  host-constructed SurvivalData arguments with different times/events/scores
-  but the same exact/right-censoring flags. Both hand-counted outputs are
-  checked and one trace is required, exercising static metadata reuse.
-  A third, all-exact cohort changes the flags and must produce a second trace.
-- Spec 9.2, 12.1: generated joint row permutations preserve the complete
-  value/info result, including NaNs. Python integer reconstruction of the
-  public hi/lo words checks the count partition and the zero-pair mask.
-  Score negation swaps concordant/discordant words, preserves ties, totals
-  and masks, and complements the value whenever pairs exist. Undefined
-  values stay NaN. Inputs and expectations use no production numerical
-  helpers and no independent-test helpers.
+- Spec 12.3: separate processes select float32/float64 through the existing
+  JAX environment setting. The script never toggles it. CPU is selected
+  explicitly and every initial result leaf is checked for CPU residence.
+- Spec 7.2/12.3: both paths time the summed physical-parameter likelihood
+  and reverse-mode gradient. Data and parameter diagnostics are auxiliary
+  outputs of value_and_grad and are returned in full; their work survives
+  compilation. The prepared path consumes all six data leaves, including
+  stored issue bits. The raw path constructs ordinary SurvivalData inside
+  jit from traced arrays. Recorded static flags are respectively
+  (true,true,false,false,false,false) and six trues.
+- Spec 7.3/12.1/12.3: each row's initial value and full gradient are checked
+  against independently differentiated exact/right NumPy formulas evaluated
+  in float64 from the actual input values. Exponential uses
+  e*log(r)-r*t, derivative e/r-t. Weibull uses
+  e*(log(k)-log(b)+(k-1)*log(t/b))-(t/b)**k; the code spells out its two
+  derivatives. Shared gradients sum the per-row derivatives. The only
+  tolerances are existing ATOL/RTOL loaded from tests/impl_tolerances.py.
+  Data/parameter diagnostic `ok` outputs must both be true.
+- Spec 7.2/12.3: after timing, each compiled function is called on two
+  same-shaped slices of one 2N parent with changed parameters, times and
+  event values; each result is analytically checked and total trace count
+  must remain one. Parent slices preserve metadata. Raw event arrays are
+  explicitly converted to the original boolean dtype so normalized weak
+  bool fields do not change the jit signature. Existing A9.1 tests retain
+  independent coverage of transformed diagnostics and second derivatives.
+- Spec 12.3: every timer uses perf_counter and blocks on all returned leaves.
+  Host generation, placement and concrete data construction are separate
+  fields; first call includes tracing/compilation/execution. Three warmups
+  precede ten synchronized samples; min/median/max and all samples are kept.
+  Preparation and post-timing correctness/reuse checks are outside warmed
+  evaluation. Record commands, seed, shapes, versions, OS/hardware/device,
+  source revision and library Git status. Logical leaf byte sums are
+  labelled as such; peak memory explicitly unmeasured.
 
-Counts and masks compare exactly; non-exact fractions use only existing
-ATOL/RTOL from tests/impl_tolerances.py. No new tolerances or score-gradient
-claims. Test dtype comes from the process environment; library configuration
-is unchanged. No spec ambiguities encountered; no new deviation needed.
+No new timing-sensitive regular tests. The executable harness checks the
+full 48-case workload numerically, and unchanged composition tests provide
+regression coverage. No new tolerance, unchecked path or numerical repair.
+No spec ambiguity/deviation encountered. Code is 230 lines; the JSON is
+measurement evidence rather than additional implementation.
 
-## Checks actually run for the initial implementation, fc7f82c
+## Measurements actually run
 
-All commands from dev-a10b with
-`UV_CACHE_DIR=/private/tmp/survjax-uv-cache`. Versions checked: Python 3.12.9,
-JAX/jaxlib 0.11.2, NumPy 2.5.3; import resolves to dev-a10b/src/survjax.
-No dependency edits or environment-version matrix claim.
+Sequential commands; this agent started regression tests only after measurement:
 
-Focused command, separately with `JAX_ENABLE_X64=1` and `=0`:
-`uv run --group test pytest -q tests/unit/test_concordance_counts.py tests/unit/test_concordance_results.py tests/unit/test_concordance_entry_points.py tests/unit/test_concordance_transformations.py tests/property/test_concordance.py`.
-**72 passed in 21.99s** (float64), **72 passed in 22.07s** (float32), no skips.
-The final naming-only lint correction is also included in the full gate.
+- `JAX_ENABLE_X64=1 JAX_PLATFORMS=cpu uv run python scripts/benchmark_slice_a.py --output benchmarks/slice_a_cpu.json`
+- `JAX_ENABLE_X64=0 JAX_PLATFORMS=cpu uv run python scripts/benchmark_slice_a.py --output benchmarks/slice_a_cpu.json`
 
-`uv run ruff format --check .`: **92 files already formatted**.
-`uv run ruff check .`: **All checks passed!**
-`uv run mypy src`: **Success: no issues found in 20 source files**.
-Initial default-cache uv calls exited 2 because the sandbox blocked the user
-cache. Retried formatting outside the sandbox with the temporary cache;
-subsequent checks use that cache. Initial lint flagged E741 for a test
-argument `l`; renamed it to `left_trunc`, then reran lint successfully.
+Both exited 0, **24 checked rows each**. Each row checks the initial and two
+changed workloads: **144 analytical value/gradient comparisons** in total,
+plus 48 single-trace assertions. The machine is Apple M4 Max, arm64, 16
+logical CPUs, macOS 26.6.2, actual device cpu:0. Python 3.12.9, JAX/jaxlib
+0.11.2, NumPy 2.5.3, survjax 0.0.1.dev0. The measured library revision is
+0a200085b0ab7a61f154da3ebc6cdcceaaf893d9, with no dirty source files.
+`uv run python -c 'import survjax; print(survjax.__file__)'` confirms
+`/Users/wamster3/dev/survjax/dev-a9b/src/survjax/__init__.py`.
+Benchmark/report files were uncommitted during measurement.
 
-`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check_wheel.sh --through A9`
-exited **0**, ending **check: all gates passed through A9**. The unchanged
-runner built a fresh wheel and used six workers for own/independent suites.
-
-| Gate stage | Float64 | Float32 |
+| Mode | Warm medians, N=100000 (all 8 cases) | First call range (all 24 cases) |
 | --- | --- | --- |
-| Own suite, including installed wheel | 1043 passed, 7 skipped, 62.65s | 1049 passed, 1 skipped, 56.33s |
-| Source doctests | 4 passed, 1.09s | 4 passed, 0.99s |
-| Independent through A9 | 2211 passed, 28 skipped, 61.89s | 2202 passed, 37 skipped, 50.55s |
+| float64 | 0.305–1.117 ms | 85.6–144.3 ms |
+| float32 | 0.231–0.523 ms | 71.8–132.9 ms |
 
-Retained wheel:
-`/private/var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/survjax-wheel.TXntu5/survjax-0.0.1.dev0-py3-none-any.whl`.
-SHA-256: `8ca5093b02ae2ee23e85bc8feea86374f6ab2114906b5f3896a8b78c80af37f9`.
-Full optional log: `/private/tmp/survjax-a103-wheel-gate.log`.
+Median times grow much less than 100-fold over the 100-fold increase in N,
+consistent with dispatch overhead and CPU parallelism; these three sizes
+do not establish asymptotic complexity. Row-parameter gradients and diagnostic outputs grow linearly in
+logical bytes. Maximum logical input/output bytes are 5,300,000/3,100,010 in
+float64 and 2,900,000/2,300,006 in float32. These are not peak-memory claims.
+At N=10000, traced/prepared median ratios range 1.14–1.60 in float64 and
+1.23–1.58 in float32. At N=100000 they range 0.89–1.18 and 0.89–1.07.
+Concrete construction ranges from 1.56 to 634.99 ms across both modes,
+with the first row at each size including eager compilation/cache setup;
+initial placement ranges from 0.11 to 1.30 ms. These costs are separate
+from warmed evaluation and are sensitive to process cache state.
+The ordering reverses for some cases: retain raw distributions and make no
+universal overhead or speedup claim. This is the first recorded baseline,
+so there is no earlier baseline against which to assert a regression.
 
-Selected independent A10 command, separately with `JAX_ENABLE_X64=1/0`
-and `SPEC_THROUGH=A10`:
-`uv run --group test pytest -q -n 6 tests/spec/test_a10_concordance_api.py tests/spec/test_a10_concordance_values.py tests/spec/test_a10_concordance_diagnostics.py tests/spec/test_a10_concordance_shapes.py tests/spec/test_a10_concordance_properties.py`.
-**113 passed in 22.55s** (float64); **112 passed, 1 skipped in 30.07s**
-(float32). Existing precision skip only; no skips/xfails added. These are
-the five non-fixture modules, not the full A10 gate. Optional logs:
-`/private/tmp/survjax-a103-acceptance-x64.log` and
-`/private/tmp/survjax-a103-acceptance-x32.log`.
+An independent JSON audit checked both modes, exactly the 24 expected unique
+case keys per mode, ten finite positive samples per row, min/max summaries,
+positive byte counts, CPU metadata, clean library source status and all
+correctness markers: **48-row JSON audit passed**. A second independent
+standard-library audit checked each median, parameter/time shapes and static
+flags: **48-row independent median/shape/metadata audit passed**.
 
-## Round 1 finding and follow-up for round 2
+Initial attempts and corrections: sandbox hardware identification (`sysctl`)
+failed with Operation not permitted; the measurements above were authorized
+outside the sandbox. The first executable attempt caught an extra trace when
+a normalized weak boolean event array replaced a strong raw input. Explicit
+boolean dtype conversion fixes the harness signature; no library change.
+An earlier successful float64 matrix was rerun after provenance metadata
+was added; only the final run is retained. No tolerances were changed.
 
-Read round 1 of `../review/slices/A10.3.md` for fc7f82c: **fix-first**,
-one should-fix **F-1**, no blockers or nits. Claude independently verified
-the hand-counted cohorts statically but could not run gates, focused tests
-or mutants because its headless Bash permissions refused those commands.
-No reviewer settings or permissions were changed by the implementer.
+## Verification
 
-**F-1 addressed:** add a prepared-data compilation test with two equal-flag
-mixed exact/right cohorts whose values differ, then an all-exact cohort with
-different flags. Check all hand-counted results and trace counts 1 then 2.
-Retain the raw test as tracing/composition coverage and correct its docstring
-and requirement mapping; it is not static-metadata evidence.
+`JAX_ENABLE_X64=1 uv run --group test pytest -q tests/unit/test_likelihood_composition.py tests/unit/test_likelihood_custom_derivatives.py`
+and the same command with `JAX_ENABLE_X64=0`: **15 passed in 28.03s** in each
+mode, no skips. These focused regressions ran alongside the full gate, after
+all benchmark measurement had finished.
 
-Reran the exact five-module focused command above on the final follow-up,
-separately in both modes: **73 passed in 12.16s** (float64),
-**73 passed in 12.22s** (float32), no skips. Ruff format: **92 files already
-formatted**; lint: **All checks passed!** The earlier full wheel/A9 gate,
-A10 selection and mypy results apply to fc7f82c; they were not rerun for
-this test-only follow-up. Production code, property tests and all existing
-checks remain unchanged. No mutation check was run by the implementer.
+`scripts/check_wheel.sh --through A9`: exited **0**, ending
+**check: all gates passed through A9**. Fresh wheel:
+`/var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/survjax-wheel.bigUQH/survjax-0.0.1.dev0-py3-none-any.whl`,
+SHA-256 `8ca5093b02ae2ee23e85bc8feea86374f6ab2114906b5f3896a8b78c80af37f9`.
+The unchanged runner supplies the same wheel to both dtype suites.
 
-## Round 2 outcome and round 3 request
+| Gate stage | float64 | float32 |
+| --- | --- | --- |
+| Own tests, including external wheel | 1044 passed, 7 skipped, 80.00s | 1050 passed, 1 skipped, 120.83s |
+| Source doctests | 4 passed, 1.38s | 4 passed, 1.25s |
+| Independent through A9 | 2211 passed, 28 skipped, 176.18s | 2202 passed, 37 skipped, 172.91s |
 
-Round 2 on c1400a1 returned **maintainer**, with F-1 fixed by static review
-and no new findings. The reviewer again could not execute tests or mutants
-under its headless permissions. The maintainer now requests another run and
-says the reviewer should have the correct permissions. Request round 3 with
-the unchanged implementation; only this review bookkeeping changes.
+Guard: **ok (a9b)**. Ruff: **104 files already formatted**, **All checks
+passed!** Mypy: **Success: no issues found in 20 source files**. No new skips,
+selection exceptions or protected-file changes. Detailed gate/focused output:
+`/private/tmp/survjax-a94-gate.log`, `/private/tmp/survjax-a94-focused64.log`,
+`/private/tmp/survjax-a94-focused32.log`. Reports are the durable evidence;
+temporary logs/artifacts need not survive.
 
-## Round 3 outcome and final fix-up
+`git diff --check` passes; an independent content comparison confirms the
+archive commit preserved A10's plan sections verbatim. The only changed
+implementation is the 230-line benchmark. No library source changed before
+or after measurement. R, docs build/rendering, sdist and accelerator checks
+were not run in this code step. Independent review follows the commit.
 
-Read round 3 of `../review/slices/A10.3.md`: **fix-first**, should-fix
-**F-2**, plus pre-existing out-of-scope nit **N-1**. The reviewer could run
-code this time. It could not detach to bd1bd84 because the checkout's
-index.lock was blocked, but compared c1400a1..bd1bd84 and confirmed only this
-review record differed; all executed source/tests match the request.
+## Limits and next work
 
-Reviewer execution (before this final fix-up):
+One machine/backend, one seed, positive interior parameters, valid exact/right
+observations only; no accelerator, invalid-input performance or optimizer
+claims. Sequential fixed ordering, short ten-sample distributions, no CPU
+isolation or thermal control; machine load and caches can affect timings.
+Concrete construction is single-shot and includes available eager compilation
+caches, so it is not an isolated steady-state preprocessing benchmark.
+CPU placement on Apple unified memory does not establish physical bus-transfer
+costs. Diagnostics are deliberately returned in full; timings are specific to
+that work and are not a minimal loss-only benchmark. Peak memory is unmeasured.
 
-- `scripts/check.sh --through A10` exited 1: Ruff/mypy passed; own suites
-  1044 passed, 7 skipped (float64) / 1050 passed, 1 skipped (float32);
-  doctests 4 passed per mode. Float64 independent phase: 8 failed, 2319
-  passed, 28 skipped, 5 errors. Eight failures need the missing A10.4 R
-  fixture; five wheel errors need SURVJAX_WHEEL, which the reviewer had not
-  supplied. The gate stopped before float32 independent tests. This is not
-  a successful full A10 gate or a wheel verification result.
-- Both new modules: 8 passed per dtype. Five non-fixture independent A10
-  modules: 112 passed, 1 skipped in float32 (float64 was in the gate).
-- Three float64 mutants caught: incorrect failed-cohort no-pair masks,
-  full rather than half credit for score ties, and omitted left-truncation
-  support detection. The first was caught only by our new failures test.
-  The constant-metadata mutant M4 survived, exposing F-2.
-
-**F-2 addressed:** build the third all-exact cohort with an explicit all-True
-event array, matching the first two cohorts' constructor path. The earlier
-time-only constructor changed an exact leaf's weak_type and caused an
-unrelated retrace even with constant metadata. No production change. The
-reviewer's round-2 static assessment of that control is explicitly withdrawn
-in round 3. Both F-1's equal-flag check and the corrected different-flag
-control are now present.
-
-Final implementer checks:
-
-- The same five-module focused command above: **73 passed in 13.31s**
-  (float64), **73 passed in 13.33s** (float32), no skips.
-- Ruff format/check: **92 files already formatted**, **All checks passed!**
-- M4 sensitivity in a separate source/test copy, never the reviewer's
-  checkout or worktree: replace tree_flatten's `self._may_contain` aux
-  with `(True,) * 6`. Verify the import resolves to the copied source, then
-  run only `test_prepared_metadata_reuses_compilation_when_values_change`
-  via the checkout's `.venv/bin/python -m pytest -q`, in separate
-  JAX_ENABLE_X64=1/0 processes with PYTHONPATH pointing to that copy. Each
-  exits 1 at `assert len(traces) == 2` with `assert 1 == 2`: **1 failed in
-  0.70s** (float64), **1 failed in 0.72s** (float32). Both mutants caught;
-  the verification script exits 0 only after checking both expected failures.
-  Isolated source and logs: `/private/tmp/survjax-a103-f2-mut-sr2qtot_`.
-
-No full gate/mypy/A10-selection rerun after this constructor-only test fix;
-prior execution is attributed to its exact stage above. N-1 (extra compile
-between equivalent constructor forms due to weak_type) remains for a later
-maintainer decision, as requested by the reviewer; no spec violation claimed.
-Reviewer cleanup was refused: its `/tmp/survjax-mut-A10.3` worktree still
-contains M4. The maintainer must remove that reviewer-owned worktree; the
-implementer did not modify or remove it.
-
-Final staged audit: exactly PLAN.md, REVIEW.md and the unit test;
-`git diff --cached --check` exits 0, no unstaged changes. No production or
-protected paths changed.
-
-All three review rounds are used. Commit this fix-up and stop; no fourth
-review, no next subslice and no merge approval claim.
-
-## Scope and limits
-
-The maintainer's subsequent "do another round of review" explicitly
-authorizes one additional round beyond the usual three-round limit. Request
-round 4 on the F-2 fix-up (491f7cc); this preparation changes only PLAN.md
-and REVIEW.md. Implementation, tests and prior check results are unchanged.
-
-Only the two new own-test modules, PLAN.md and this review may change.
-Spec, .spec-seen, independent tests, scripts, dependencies, production code,
-fixtures, docs and other branches remain unchanged. `git diff --cached
---check` exits 0 for the initial commit. Its staged path set was exactly the
-four authorized files. The follow-up changes only the unit test and the
-two handoff records; the staged path set matches those three paths and
-`git diff --cached --check` exits 0. No unstaged changes.
-
-A10.4's concordance R fixture, executable topic/playground and held-out
-example remain separate work. No full A10, docs build, R generation,
-performance measurement or complete Slice A claim. Final reviewer verdict
-was fix-first (before the F-2 fix-up); the fix-up is verified above and
-round 4 is pending under the maintainer's explicit exception. Stop after
-this additional round and any required fix-up, following the skill's verdict.
+The workspace roadmap is stale; subrepo instructions reserve its update to
+the workspace-root maintainer. Handoff should note A9.1/A9.2 and combined-tree
+A9 gates already passed, plus the present CPU-baseline review status.
+A9.d1 executable docs/rendered review, replacement tiny-example evidence and
+the final Slice A gate map remain pending. This is not the final A9 review or
+a Slice A completion claim. A10 fixture/reference/docs work remains separate.
+Stop after this step's independent review; do not begin the next step.

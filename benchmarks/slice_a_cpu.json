@@ -1,0 +1,2150 @@
+{
+  "runs": {
+    "float64": {
+      "library_revision": "0a200085b0ab7a61f154da3ebc6cdcceaaf893d9",
+      "library_worktree_status": "",
+      "utc": "2026-10-29T17:26:52.709845+00:00",
+      "command": "JAX_ENABLE_X64=1 JAX_PLATFORMS=cpu uv run python scripts/benchmark_slice_a.py --output benchmarks/slice_a_cpu.json",
+      "python": "3.12.9",
+      "versions": {
+        "jax": "0.11.2",
+        "jaxlib": "0.11.2",
+        "numpy": "2.5.3",
+        "survjax": "0.0.1.dev0"
+      },
+      "os": "macOS-26.6.2-arm64-arm-64bit",
+      "machine": "arm64",
+      "processor": "Apple M4 Max",
+      "logical_cpus": 16,
+      "device": "cpu:0",
+      "platform": "cpu",
+      "dtype": "float64",
+      "seed": 20261029,
+      "warmups": 3,
+      "repeats": 10,
+      "timer": "time.perf_counter; block_until_ready on every output leaf",
+      "peak_memory": "not measured; logical bytes are sums of array leaf nbytes, not peak memory",
+      "first_call": "includes tracing, compilation and first synchronized execution",
+      "preparation": "host generation, explicit placement, concrete construction timed separately for each row",
+      "rows": [
+        {
+          "family": "exponential",
+          "n": 1000,
+          "parameters": "shared",
+          "path": "prepared",
+          "parameter_shape": [
+            1
+          ],
+          "time_event_shape": [
+            1000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 0.0002655000425875187,
+          "initial_placement_seconds": 0.0012987079098820686,
+          "prepared_construction_seconds": 0.6045395000837743,
+          "compile_and_first_call_seconds": 0.08564291708171368,
+          "warm_seconds": [
+            5.21661713719368e-05,
+            8.27079638838768e-05,
+            6.60829246044159e-05,
+            5.150027573108673e-05,
+            4.61251474916935e-05,
+            3.979215398430824e-05,
+            5.766702815890312e-05,
+            6.466731429100037e-05,
+            7.020914927124977e-05,
+            7.450021803379059e-05
+          ],
+          "warm_min_seconds": 3.979215398430824e-05,
+          "warm_median_seconds": 6.116717122495174e-05,
+          "warm_max_seconds": 8.27079638838768e-05,
+          "logical_input_bytes": 37008,
+          "logical_output_bytes": 12020,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 1000,
+          "parameters": "shared",
+          "path": "traced",
+          "parameter_shape": [
+            1
+          ],
+          "time_event_shape": [
+            1000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 0.00011066673323512077,
+          "initial_placement_seconds": 0.00013666599988937378,
+          "prepared_construction_seconds": 0.001737749669700861,
+          "compile_and_first_call_seconds": 0.10753308329731226,
+          "warm_seconds": [
+            3.983406350016594e-05,
+            4.0040817111730576e-05,
+            3.541586920619011e-05,
+            3.795791417360306e-05,
+            5.950033664703369e-05,
+            6.324984133243561e-05,
+            4.4416170567274094e-05,
+            5.320832133293152e-05,
+            4.9833208322525024e-05,
+            4.745926707983017e-05
+          ],
+          "warm_min_seconds": 3.541586920619011e-05,
+          "warm_median_seconds": 4.593771882355213e-05,
+          "warm_max_seconds": 6.324984133243561e-05,
+          "logical_input_bytes": 9008,
+          "logical_output_bytes": 12020,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 1000,
+          "parameters": "per_observation",
+          "path": "prepared",
+          "parameter_shape": [
+            1,
+            1000
+          ],
+          "time_event_shape": [
+            1000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 7.087504491209984e-05,
+          "initial_placement_seconds": 0.0001438329927623272,
+          "prepared_construction_seconds": 0.0016595409251749516,
+          "compile_and_first_call_seconds": 0.08563941717147827,
+          "warm_seconds": [
+            8.758297190070152e-05,
+            7.78338871896267e-05,
+            8.16667452454567e-05,
+            7.145805284380913e-05,
+            6.958376616239548e-05,
+            7.070926949381828e-05,
+            7.65826553106308e-05,
+            7.804203778505325e-05,
+            7.770862430334091e-05,
+            6.695929914712906e-05
+          ],
+          "warm_min_seconds": 6.695929914712906e-05,
+          "warm_median_seconds": 7.714563980698586e-05,
+          "warm_max_seconds": 8.758297190070152e-05,
+          "logical_input_bytes": 45000,
+          "logical_output_bytes": 22010,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 1000,
+          "parameters": "per_observation",
+          "path": "traced",
+          "parameter_shape": [
+            1,
+            1000
+          ],
+          "time_event_shape": [
+            1000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 8.079223334789276e-05,
+          "initial_placement_seconds": 0.00018024956807494164,
+          "prepared_construction_seconds": 0.001899458933621645,
+          "compile_and_first_call_seconds": 0.08562095835804939,
+          "warm_seconds": [
+            6.433390080928802e-05,
+            5.695922300219536e-05,
+            6.445823237299919e-05,
+            8.195778355002403e-05,
+            5.462532863020897e-05,
+            4.533305764198303e-05,
+            4.2833853513002396e-05,
+            7.27502629160881e-05,
+            5.4833944886922836e-05,
+            4.504062235355377e-05
+          ],
+          "warm_min_seconds": 4.2833853513002396e-05,
+          "warm_median_seconds": 5.58965839445591e-05,
+          "warm_max_seconds": 8.195778355002403e-05,
+          "logical_input_bytes": 17000,
+          "logical_output_bytes": 22010,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 10000,
+          "parameters": "shared",
+          "path": "prepared",
+          "parameter_shape": [
+            1
+          ],
+          "time_event_shape": [
+            10000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 0.00011716596782207489,
+          "initial_placement_seconds": 0.00013945810496807098,
+          "prepared_construction_seconds": 0.563510499894619,
+          "compile_and_first_call_seconds": 0.09095574961975217,
+          "warm_seconds": [
+            0.0001360420137643814,
+            0.00013962481170892715,
+            0.00014420831575989723,
+            0.0001443331129848957,
+            0.00013299984857439995,
+            0.0001343749463558197,
+            0.0001466670073568821,
+            0.0001354580745100975,
+            0.0001382501795887947,
+            0.00014725001528859138
+          ],
+          "warm_min_seconds": 0.00013299984857439995,
+          "warm_median_seconds": 0.00013893749564886093,
+          "warm_max_seconds": 0.00014725001528859138,
+          "logical_input_bytes": 370008,
+          "logical_output_bytes": 120020,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 10000,
+          "parameters": "shared",
+          "path": "traced",
+          "parameter_shape": [
+            1
+          ],
+          "time_event_shape": [
+            10000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 0.00012912508100271225,
+          "initial_placement_seconds": 0.00011958414688706398,
+          "prepared_construction_seconds": 0.0016368753276765347,
+          "compile_and_first_call_seconds": 0.08656912483274937,
+          "warm_seconds": [
+            0.00027862517163157463,
+            0.0002649999223649502,
+            0.00022479193285107613,
+            0.00016254186630249023,
+            0.0002669999375939369,
+            0.00015508383512496948,
+            0.00015008309856057167,
+            0.00021929200738668442,
+            0.00022962503135204315,
+            0.0002081659622490406
+          ],
+          "warm_min_seconds": 0.00015008309856057167,
+          "warm_median_seconds": 0.00022204197011888027,
+          "warm_max_seconds": 0.00027862517163157463,
+          "logical_input_bytes": 90008,
+          "logical_output_bytes": 120020,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 10000,
+          "parameters": "per_observation",
+          "path": "prepared",
+          "parameter_shape": [
+            1,
+            10000
+          ],
+          "time_event_shape": [
+            10000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 0.00018191710114479065,
+          "initial_placement_seconds": 0.00015250034630298615,
+          "prepared_construction_seconds": 0.0017106248997151852,
+          "compile_and_first_call_seconds": 0.09521929221227765,
+          "warm_seconds": [
+            0.00016333302482962608,
+            0.0001527499407529831,
+            0.0001559997908771038,
+            0.00012520793825387955,
+            0.0001305839978158474,
+            0.0001411670818924904,
+            0.00017616618424654007,
+            0.0001698751002550125,
+            0.00014462508261203766,
+            0.00013566715642809868
+          ],
+          "warm_min_seconds": 0.00012520793825387955,
+          "warm_median_seconds": 0.00014868751168251038,
+          "warm_max_seconds": 0.00017616618424654007,
+          "logical_input_bytes": 450000,
+          "logical_output_bytes": 220010,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 10000,
+          "parameters": "per_observation",
+          "path": "traced",
+          "parameter_shape": [
+            1,
+            10000
+          ],
+          "time_event_shape": [
+            10000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 0.00017404090613126755,
+          "initial_placement_seconds": 0.00014008302241563797,
+          "prepared_construction_seconds": 0.0016272920183837414,
+          "compile_and_first_call_seconds": 0.1011055838316679,
+          "warm_seconds": [
+            0.00018533272668719292,
+            0.00017475010827183723,
+            0.00021837512031197548,
+            0.00018283305689692497,
+            0.0001699579879641533,
+            0.0001477501355111599,
+            0.00015249988064169884,
+            0.00016291579231619835,
+            0.00013149995356798172,
+            0.000191583763808012
+          ],
+          "warm_min_seconds": 0.00013149995356798172,
+          "warm_median_seconds": 0.00017235404811799526,
+          "warm_max_seconds": 0.00021837512031197548,
+          "logical_input_bytes": 170000,
+          "logical_output_bytes": 220010,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 100000,
+          "parameters": "shared",
+          "path": "prepared",
+          "parameter_shape": [
+            1
+          ],
+          "time_event_shape": [
+            100000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 0.0007403329946100712,
+          "initial_placement_seconds": 0.00019508274272084236,
+          "prepared_construction_seconds": 0.6349920420907438,
+          "compile_and_first_call_seconds": 0.09718191577121615,
+          "warm_seconds": [
+            0.00036687497049570084,
+            0.0003393338993191719,
+            0.0003042500466108322,
+            0.00030016666278243065,
+            0.00030562467873096466,
+            0.00029291585087776184,
+            0.00029408279806375504,
+            0.0002877498045563698,
+            0.0003109998069703579,
+            0.00031233299523591995
+          ],
+          "warm_min_seconds": 0.0002877498045563698,
+          "warm_median_seconds": 0.00030493736267089844,
+          "warm_max_seconds": 0.00036687497049570084,
+          "logical_input_bytes": 3700008,
+          "logical_output_bytes": 1200020,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 100000,
+          "parameters": "shared",
+          "path": "traced",
+          "parameter_shape": [
+            1
+          ],
+          "time_event_shape": [
+            100000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 0.000762708019465208,
+          "initial_placement_seconds": 0.00019829161465168,
+          "prepared_construction_seconds": 0.0021980837918817997,
+          "compile_and_first_call_seconds": 0.09365333337336779,
+          "warm_seconds": [
+            0.00034729205071926117,
+            0.00033454084768891335,
+            0.0003893747925758362,
+            0.00037674978375434875,
+            0.0003560422919690609,
+            0.00032187532633543015,
+            0.00037512509152293205,
+            0.00036562513560056686,
+            0.00038583390414714813,
+            0.00032908376306295395
+          ],
+          "warm_min_seconds": 0.00032187532633543015,
+          "warm_median_seconds": 0.0003608337137848139,
+          "warm_max_seconds": 0.0003893747925758362,
+          "logical_input_bytes": 900008,
+          "logical_output_bytes": 1200020,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 100000,
+          "parameters": "per_observation",
+          "path": "prepared",
+          "parameter_shape": [
+            1,
+            100000
+          ],
+          "time_event_shape": [
+            100000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 0.0010364172048866749,
+          "initial_placement_seconds": 0.00014350004494190216,
+          "prepared_construction_seconds": 0.0017865002155303955,
+          "compile_and_first_call_seconds": 0.11494166683405638,
+          "warm_seconds": [
+            0.0003888341598212719,
+            0.00038695894181728363,
+            0.00038062501698732376,
+            0.0003493749536573887,
+            0.0003697499632835388,
+            0.0003925836645066738,
+            0.0003448333591222763,
+            0.00039012543857097626,
+            0.00037237489596009254,
+            0.0003620828501880169
+          ],
+          "warm_min_seconds": 0.0003448333591222763,
+          "warm_median_seconds": 0.00037649995647370815,
+          "warm_max_seconds": 0.0003925836645066738,
+          "logical_input_bytes": 4500000,
+          "logical_output_bytes": 2200010,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 100000,
+          "parameters": "per_observation",
+          "path": "traced",
+          "parameter_shape": [
+            1,
+            100000
+          ],
+          "time_event_shape": [
+            100000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 0.0010667908936738968,
+          "initial_placement_seconds": 0.00015666568651795387,
+          "prepared_construction_seconds": 0.002134541980922222,
+          "compile_and_first_call_seconds": 0.12462595896795392,
+          "warm_seconds": [
+            0.000334917102009058,
+            0.00034608272835612297,
+            0.00033637508749961853,
+            0.0003782501444220543,
+            0.0005044997669756413,
+            0.0003120000474154949,
+            0.0002954169176518917,
+            0.00029279105365276337,
+            0.0003410838544368744,
+            0.00030291592702269554
+          ],
+          "warm_min_seconds": 0.00029279105365276337,
+          "warm_median_seconds": 0.00033564609475433826,
+          "warm_max_seconds": 0.0005044997669756413,
+          "logical_input_bytes": 1700000,
+          "logical_output_bytes": 2200010,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 1000,
+          "parameters": "shared",
+          "path": "prepared",
+          "parameter_shape": [
+            2
+          ],
+          "time_event_shape": [
+            1000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 6.712507456541061e-05,
+          "initial_placement_seconds": 0.00014224974438548088,
+          "prepared_construction_seconds": 0.0015824167057871819,
+          "compile_and_first_call_seconds": 0.11041054176166654,
+          "warm_seconds": [
+            7.700035348534584e-05,
+            7.999967783689499e-05,
+            7.420778274536133e-05,
+            6.562517955899239e-05,
+            6.329221650958061e-05,
+            6.44591636955738e-05,
+            6.345799192786217e-05,
+            6.312504410743713e-05,
+            6.233295425772667e-05,
+            6.804196164011955e-05
+          ],
+          "warm_min_seconds": 6.233295425772667e-05,
+          "warm_median_seconds": 6.50421716272831e-05,
+          "warm_max_seconds": 7.999967783689499e-05,
+          "logical_input_bytes": 37016,
+          "logical_output_bytes": 12029,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 1000,
+          "parameters": "shared",
+          "path": "traced",
+          "parameter_shape": [
+            2
+          ],
+          "time_event_shape": [
+            1000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 8.741673082113266e-05,
+          "initial_placement_seconds": 0.00019154231995344162,
+          "prepared_construction_seconds": 0.0016243751160800457,
+          "compile_and_first_call_seconds": 0.14432762516662478,
+          "warm_seconds": [
+            8.787494152784348e-05,
+            9.27499495446682e-05,
+            7.970910519361496e-05,
+            6.620865315198898e-05,
+            5.899975076317787e-05,
+            5.837529897689819e-05,
+            6.695790216326714e-05,
+            6.808293983340263e-05,
+            6.483308970928192e-05,
+            6.779097020626068e-05
+          ],
+          "warm_min_seconds": 5.837529897689819e-05,
+          "warm_median_seconds": 6.737443618476391e-05,
+          "warm_max_seconds": 9.27499495446682e-05,
+          "logical_input_bytes": 9016,
+          "logical_output_bytes": 12029,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 1000,
+          "parameters": "per_observation",
+          "path": "prepared",
+          "parameter_shape": [
+            2,
+            1000
+          ],
+          "time_event_shape": [
+            1000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 0.00010149972513318062,
+          "initial_placement_seconds": 0.00016454095020890236,
+          "prepared_construction_seconds": 0.0018923343159258366,
+          "compile_and_first_call_seconds": 0.1060014576651156,
+          "warm_seconds": [
+            7.38329254090786e-05,
+            7.729185745120049e-05,
+            8.691614493727684e-05,
+            6.945803761482239e-05,
+            7.124990224838257e-05,
+            7.012486457824707e-05,
+            8.908286690711975e-05,
+            7.212487980723381e-05,
+            6.37909397482872e-05,
+            7.26659782230854e-05
+          ],
+          "warm_min_seconds": 6.37909397482872e-05,
+          "warm_median_seconds": 7.239542901515961e-05,
+          "warm_max_seconds": 8.908286690711975e-05,
+          "logical_input_bytes": 53000,
+          "logical_output_bytes": 31010,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 1000,
+          "parameters": "per_observation",
+          "path": "traced",
+          "parameter_shape": [
+            2,
+            1000
+          ],
+          "time_event_shape": [
+            1000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 8.616596460342407e-05,
+          "initial_placement_seconds": 0.00014779064804315567,
+          "prepared_construction_seconds": 0.0018786657601594925,
+          "compile_and_first_call_seconds": 0.10887654218822718,
+          "warm_seconds": [
+            7.091695442795753e-05,
+            6.804242730140686e-05,
+            7.454212754964828e-05,
+            6.591575220227242e-05,
+            6.525032222270966e-05,
+            6.516743451356888e-05,
+            6.820773705840111e-05,
+            7.624970749020576e-05,
+            6.312504410743713e-05,
+            7.38753005862236e-05
+          ],
+          "warm_min_seconds": 6.312504410743713e-05,
+          "warm_median_seconds": 6.812508217990398e-05,
+          "warm_max_seconds": 7.624970749020576e-05,
+          "logical_input_bytes": 25000,
+          "logical_output_bytes": 31010,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 10000,
+          "parameters": "shared",
+          "path": "prepared",
+          "parameter_shape": [
+            2
+          ],
+          "time_event_shape": [
+            10000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 0.0001349169760942459,
+          "initial_placement_seconds": 0.00014312518760561943,
+          "prepared_construction_seconds": 0.0019227499142289162,
+          "compile_and_first_call_seconds": 0.111219875048846,
+          "warm_seconds": [
+            0.0002816249616444111,
+            0.0002826666459441185,
+            0.00028675002977252007,
+            0.00027745822444558144,
+            0.00025958335027098656,
+            0.00027566589415073395,
+            0.0002589588984847069,
+            0.0002616671845316887,
+            0.0002753329463303089,
+            0.0002821250818669796
+          ],
+          "warm_min_seconds": 0.0002589588984847069,
+          "warm_median_seconds": 0.0002765620592981577,
+          "warm_max_seconds": 0.00028675002977252007,
+          "logical_input_bytes": 370016,
+          "logical_output_bytes": 120029,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 10000,
+          "parameters": "shared",
+          "path": "traced",
+          "parameter_shape": [
+            2
+          ],
+          "time_event_shape": [
+            10000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 0.00013149995356798172,
+          "initial_placement_seconds": 0.00012079207226634026,
+          "prepared_construction_seconds": 0.0015743752010166645,
+          "compile_and_first_call_seconds": 0.11815508315339684,
+          "warm_seconds": [
+            0.00035745883360505104,
+            0.00037499982863664627,
+            0.00032074982300400734,
+            0.0003376249223947525,
+            0.0003510420210659504,
+            0.00033008307218551636,
+            0.00034404173493385315,
+            0.0002931668423116207,
+            0.0003277501091361046,
+            0.000286041758954525
+          ],
+          "warm_min_seconds": 0.000286041758954525,
+          "warm_median_seconds": 0.00033385399729013443,
+          "warm_max_seconds": 0.00037499982863664627,
+          "logical_input_bytes": 90016,
+          "logical_output_bytes": 120029,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 10000,
+          "parameters": "per_observation",
+          "path": "prepared",
+          "parameter_shape": [
+            2,
+            10000
+          ],
+          "time_event_shape": [
+            10000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 0.00020637502893805504,
+          "initial_placement_seconds": 0.00011862488463521004,
+          "prepared_construction_seconds": 0.0015692496672272682,
+          "compile_and_first_call_seconds": 0.10424862476065755,
+          "warm_seconds": [
+            0.00033733388409018517,
+            0.0003394591622054577,
+            0.000336499884724617,
+            0.0003653750754892826,
+            0.0003531672991812229,
+            0.0003419998101890087,
+            0.00033795787021517754,
+            0.0003436668775975704,
+            0.00033950014039874077,
+            0.0003531249240040779
+          ],
+          "warm_min_seconds": 0.000336499884724617,
+          "warm_median_seconds": 0.00034074997529387474,
+          "warm_max_seconds": 0.0003653750754892826,
+          "logical_input_bytes": 530000,
+          "logical_output_bytes": 310010,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 10000,
+          "parameters": "per_observation",
+          "path": "traced",
+          "parameter_shape": [
+            2,
+            10000
+          ],
+          "time_event_shape": [
+            10000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 0.00020150002092123032,
+          "initial_placement_seconds": 0.00013962527737021446,
+          "prepared_construction_seconds": 0.0017340830527245998,
+          "compile_and_first_call_seconds": 0.11973504209890962,
+          "warm_seconds": [
+            0.0003975830040872097,
+            0.0003714580088853836,
+            0.0003831661306321621,
+            0.00044129183515906334,
+            0.00039854226633906364,
+            0.00037354184314608574,
+            0.0003781248815357685,
+            0.00039079226553440094,
+            0.0004092077724635601,
+            0.00034462474286556244
+          ],
+          "warm_min_seconds": 0.00034462474286556244,
+          "warm_median_seconds": 0.0003869791980832815,
+          "warm_max_seconds": 0.00044129183515906334,
+          "logical_input_bytes": 250000,
+          "logical_output_bytes": 310010,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 100000,
+          "parameters": "shared",
+          "path": "prepared",
+          "parameter_shape": [
+            2
+          ],
+          "time_event_shape": [
+            100000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 0.00076683284714818,
+          "initial_placement_seconds": 0.00016029179096221924,
+          "prepared_construction_seconds": 0.0019395831041038036,
+          "compile_and_first_call_seconds": 0.1159334578551352,
+          "warm_seconds": [
+            0.0006990833207964897,
+            0.0007140841335058212,
+            0.0007500839419662952,
+            0.0007257498800754547,
+            0.0007645003497600555,
+            0.0007412079721689224,
+            0.0007368330843746662,
+            0.0006943750195205212,
+            0.0007726661860942841,
+            0.000735958106815815
+          ],
+          "warm_min_seconds": 0.0006943750195205212,
+          "warm_median_seconds": 0.0007363955955952406,
+          "warm_max_seconds": 0.0007726661860942841,
+          "logical_input_bytes": 3700016,
+          "logical_output_bytes": 1200029,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 100000,
+          "parameters": "shared",
+          "path": "traced",
+          "parameter_shape": [
+            2
+          ],
+          "time_event_shape": [
+            100000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 0.0007203333079814911,
+          "initial_placement_seconds": 0.00014016637578606606,
+          "prepared_construction_seconds": 0.0020041661337018013,
+          "compile_and_first_call_seconds": 0.12975195795297623,
+          "warm_seconds": [
+            0.0008494998328387737,
+            0.001019749790430069,
+            0.0007656672969460487,
+            0.0008340831845998764,
+            0.000702959019690752,
+            0.0008066250011324883,
+            0.0007019997574388981,
+            0.0008225417695939541,
+            0.0009019589051604271,
+            0.0008928747847676277
+          ],
+          "warm_min_seconds": 0.0007019997574388981,
+          "warm_median_seconds": 0.0008283124770969152,
+          "warm_max_seconds": 0.001019749790430069,
+          "logical_input_bytes": 900016,
+          "logical_output_bytes": 1200029,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 100000,
+          "parameters": "per_observation",
+          "path": "prepared",
+          "parameter_shape": [
+            2,
+            100000
+          ],
+          "time_event_shape": [
+            100000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 0.0014321249909698963,
+          "initial_placement_seconds": 0.00023791706189513206,
+          "prepared_construction_seconds": 0.002199833281338215,
+          "compile_and_first_call_seconds": 0.1137625826522708,
+          "warm_seconds": [
+            0.0011286670342087746,
+            0.0011815829202532768,
+            0.0011287080124020576,
+            0.0010589170269668102,
+            0.0011232499964535236,
+            0.0011189165525138378,
+            0.001114250160753727,
+            0.0010775420814752579,
+            0.0010949578136205673,
+            0.0010760840959846973
+          ],
+          "warm_min_seconds": 0.0010589170269668102,
+          "warm_median_seconds": 0.0011165833566337824,
+          "warm_max_seconds": 0.0011815829202532768,
+          "logical_input_bytes": 5300000,
+          "logical_output_bytes": 3100010,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 100000,
+          "parameters": "per_observation",
+          "path": "traced",
+          "parameter_shape": [
+            2,
+            100000
+          ],
+          "time_event_shape": [
+            100000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 0.001366499811410904,
+          "initial_placement_seconds": 0.00015862518921494484,
+          "prepared_construction_seconds": 0.0020550419576466084,
+          "compile_and_first_call_seconds": 0.11855245800688863,
+          "warm_seconds": [
+            0.0009852498769760132,
+            0.0010408749803900719,
+            0.0010496247559785843,
+            0.0010237502865493298,
+            0.0010690419003367424,
+            0.0010245833545923233,
+            0.0010500410571694374,
+            0.0010425420477986336,
+            0.0010566669516265392,
+            0.0012282496318221092
+          ],
+          "warm_min_seconds": 0.0009852498769760132,
+          "warm_median_seconds": 0.001046083401888609,
+          "warm_max_seconds": 0.0012282496318221092,
+          "logical_input_bytes": 2500000,
+          "logical_output_bytes": 3100010,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        }
+      ]
+    },
+    "float32": {
+      "library_revision": "0a200085b0ab7a61f154da3ebc6cdcceaaf893d9",
+      "library_worktree_status": "",
+      "utc": "2026-10-29T17:27:14.310303+00:00",
+      "command": "JAX_ENABLE_X64=0 JAX_PLATFORMS=cpu uv run python scripts/benchmark_slice_a.py --output benchmarks/slice_a_cpu.json",
+      "python": "3.12.9",
+      "versions": {
+        "jax": "0.11.2",
+        "jaxlib": "0.11.2",
+        "numpy": "2.5.3",
+        "survjax": "0.0.1.dev0"
+      },
+      "os": "macOS-26.6.2-arm64-arm-64bit",
+      "machine": "arm64",
+      "processor": "Apple M4 Max",
+      "logical_cpus": 16,
+      "device": "cpu:0",
+      "platform": "cpu",
+      "dtype": "float32",
+      "seed": 20261029,
+      "warmups": 3,
+      "repeats": 10,
+      "timer": "time.perf_counter; block_until_ready on every output leaf",
+      "peak_memory": "not measured; logical bytes are sums of array leaf nbytes, not peak memory",
+      "first_call": "includes tracing, compilation and first synchronized execution",
+      "preparation": "host generation, explicit placement, concrete construction timed separately for each row",
+      "rows": [
+        {
+          "family": "exponential",
+          "n": 1000,
+          "parameters": "shared",
+          "path": "prepared",
+          "parameter_shape": [
+            1
+          ],
+          "time_event_shape": [
+            1000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 0.0011214995756745338,
+          "initial_placement_seconds": 0.0012370827607810497,
+          "prepared_construction_seconds": 0.6001723753288388,
+          "compile_and_first_call_seconds": 0.08348891697824001,
+          "warm_seconds": [
+            4.5082997530698776e-05,
+            3.9999838918447495e-05,
+            3.879191353917122e-05,
+            7.179193198680878e-05,
+            4.9209222197532654e-05,
+            4.2875297367572784e-05,
+            3.5250093787908554e-05,
+            3.89590859413147e-05,
+            3.908434882760048e-05,
+            3.654230386018753e-05
+          ],
+          "warm_min_seconds": 3.5250093787908554e-05,
+          "warm_median_seconds": 3.954209387302399e-05,
+          "warm_max_seconds": 7.179193198680878e-05,
+          "logical_input_bytes": 21004,
+          "logical_output_bytes": 12012,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 1000,
+          "parameters": "shared",
+          "path": "traced",
+          "parameter_shape": [
+            1
+          ],
+          "time_event_shape": [
+            1000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 5.895877256989479e-05,
+          "initial_placement_seconds": 0.00011962465941905975,
+          "prepared_construction_seconds": 0.0017539998516440392,
+          "compile_and_first_call_seconds": 0.09270724980160594,
+          "warm_seconds": [
+            5.437526851892471e-05,
+            6.55418261885643e-05,
+            4.733400419354439e-05,
+            4.395795986056328e-05,
+            4.2667146772146225e-05,
+            3.5291071981191635e-05,
+            3.8917176425457e-05,
+            4.016701132059097e-05,
+            3.3291056752204895e-05,
+            3.4833792597055435e-05
+          ],
+          "warm_min_seconds": 3.3291056752204895e-05,
+          "warm_median_seconds": 4.14170790463686e-05,
+          "warm_max_seconds": 6.55418261885643e-05,
+          "logical_input_bytes": 5004,
+          "logical_output_bytes": 12012,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 1000,
+          "parameters": "per_observation",
+          "path": "prepared",
+          "parameter_shape": [
+            1,
+            1000
+          ],
+          "time_event_shape": [
+            1000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 8.262461051344872e-05,
+          "initial_placement_seconds": 0.00016204221174120903,
+          "prepared_construction_seconds": 0.0016285418532788754,
+          "compile_and_first_call_seconds": 0.07223508274182677,
+          "warm_seconds": [
+            5.229096859693527e-05,
+            4.824995994567871e-05,
+            4.979223012924194e-05,
+            4.712492227554321e-05,
+            3.7334393709897995e-05,
+            3.841705620288849e-05,
+            4.66248020529747e-05,
+            5.191657692193985e-05,
+            7.175002247095108e-05,
+            5.262484773993492e-05
+          ],
+          "warm_min_seconds": 3.7334393709897995e-05,
+          "warm_median_seconds": 4.902109503746033e-05,
+          "warm_max_seconds": 7.175002247095108e-05,
+          "logical_input_bytes": 25000,
+          "logical_output_bytes": 18006,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 1000,
+          "parameters": "per_observation",
+          "path": "traced",
+          "parameter_shape": [
+            1,
+            1000
+          ],
+          "time_event_shape": [
+            1000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 6.408384069800377e-05,
+          "initial_placement_seconds": 0.00013754237443208694,
+          "prepared_construction_seconds": 0.0018067499622702599,
+          "compile_and_first_call_seconds": 0.09637512499466538,
+          "warm_seconds": [
+            4.6459026634693146e-05,
+            5.645770579576492e-05,
+            4.283292219042778e-05,
+            3.674998879432678e-05,
+            3.954209387302399e-05,
+            3.9082951843738556e-05,
+            3.7416815757751465e-05,
+            4.479195922613144e-05,
+            3.858329728245735e-05,
+            3.654183819890022e-05
+          ],
+          "warm_min_seconds": 3.654183819890022e-05,
+          "warm_median_seconds": 3.931252285838127e-05,
+          "warm_max_seconds": 5.645770579576492e-05,
+          "logical_input_bytes": 9000,
+          "logical_output_bytes": 18006,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 10000,
+          "parameters": "shared",
+          "path": "prepared",
+          "parameter_shape": [
+            1
+          ],
+          "time_event_shape": [
+            10000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 0.0001244582235813141,
+          "initial_placement_seconds": 0.00012962473556399345,
+          "prepared_construction_seconds": 0.5574915423057973,
+          "compile_and_first_call_seconds": 0.07580712484195828,
+          "warm_seconds": [
+            0.0001233341172337532,
+            0.00014808401465415955,
+            0.00013637496158480644,
+            0.00014562485739588737,
+            0.00015558302402496338,
+            0.00016179168596863747,
+            0.00013504084199666977,
+            0.00012087495997548103,
+            0.00014066603034734726,
+            0.00014950009062886238
+          ],
+          "warm_min_seconds": 0.00012087495997548103,
+          "warm_median_seconds": 0.00014314544387161732,
+          "warm_max_seconds": 0.00016179168596863747,
+          "logical_input_bytes": 210004,
+          "logical_output_bytes": 120012,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 10000,
+          "parameters": "shared",
+          "path": "traced",
+          "parameter_shape": [
+            1
+          ],
+          "time_event_shape": [
+            10000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 0.0001304582692682743,
+          "initial_placement_seconds": 0.00015116622671484947,
+          "prepared_construction_seconds": 0.002237583976238966,
+          "compile_and_first_call_seconds": 0.10618175007402897,
+          "warm_seconds": [
+            0.00027183303609490395,
+            0.00021224981173872948,
+            0.00021016690880060196,
+            0.0001482916995882988,
+            0.00023004226386547089,
+            0.0001521660014986992,
+            0.00016945786774158478,
+            0.0003336658701300621,
+            0.00020195823162794113,
+            0.00016737496480345726
+          ],
+          "warm_min_seconds": 0.0001482916995882988,
+          "warm_median_seconds": 0.00020606257021427155,
+          "warm_max_seconds": 0.0003336658701300621,
+          "logical_input_bytes": 50004,
+          "logical_output_bytes": 120012,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 10000,
+          "parameters": "per_observation",
+          "path": "prepared",
+          "parameter_shape": [
+            1,
+            10000
+          ],
+          "time_event_shape": [
+            10000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 0.0001842910423874855,
+          "initial_placement_seconds": 0.00016895821318030357,
+          "prepared_construction_seconds": 0.0018297918140888214,
+          "compile_and_first_call_seconds": 0.07177212508395314,
+          "warm_seconds": [
+            0.00011520786210894585,
+            9.175017476081848e-05,
+            0.0001066252589225769,
+            0.00010433327406644821,
+            0.00012724986299872398,
+            9.816605597734451e-05,
+            0.00011733314022421837,
+            0.00011383416131138802,
+            0.00012449966743588448,
+            0.00010312488302588463
+          ],
+          "warm_min_seconds": 9.175017476081848e-05,
+          "warm_median_seconds": 0.00011022971011698246,
+          "warm_max_seconds": 0.00012724986299872398,
+          "logical_input_bytes": 250000,
+          "logical_output_bytes": 180006,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 10000,
+          "parameters": "per_observation",
+          "path": "traced",
+          "parameter_shape": [
+            1,
+            10000
+          ],
+          "time_event_shape": [
+            10000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 0.00018095830455422401,
+          "initial_placement_seconds": 0.0001672082580626011,
+          "prepared_construction_seconds": 0.001777375116944313,
+          "compile_and_first_call_seconds": 0.08610166609287262,
+          "warm_seconds": [
+            0.00014200014993548393,
+            0.00017470913007855415,
+            0.00012425007298588753,
+            0.00011504208669066429,
+            0.00019833305850625038,
+            0.00013129226863384247,
+            0.00022954214364290237,
+            0.00018854206427931786,
+            0.0001827920787036419,
+            0.00017283298075199127
+          ],
+          "warm_min_seconds": 0.00011504208669066429,
+          "warm_median_seconds": 0.0001737710554152727,
+          "warm_max_seconds": 0.00022954214364290237,
+          "logical_input_bytes": 90000,
+          "logical_output_bytes": 180006,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 100000,
+          "parameters": "shared",
+          "path": "prepared",
+          "parameter_shape": [
+            1
+          ],
+          "time_event_shape": [
+            100000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 0.0007105418480932713,
+          "initial_placement_seconds": 0.0001277918927371502,
+          "prepared_construction_seconds": 0.5726667921990156,
+          "compile_and_first_call_seconds": 0.08906404208391905,
+          "warm_seconds": [
+            0.0003952919505536556,
+            0.0005040420219302177,
+            0.000346415676176548,
+            0.00030912505462765694,
+            0.00029912497848272324,
+            0.00029574986547231674,
+            0.0002515418455004692,
+            0.0003158748149871826,
+            0.00027687475085258484,
+            0.0002692919224500656
+          ],
+          "warm_min_seconds": 0.0002515418455004692,
+          "warm_median_seconds": 0.0003041250165551901,
+          "warm_max_seconds": 0.0005040420219302177,
+          "logical_input_bytes": 2100004,
+          "logical_output_bytes": 1200012,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 100000,
+          "parameters": "shared",
+          "path": "traced",
+          "parameter_shape": [
+            1
+          ],
+          "time_event_shape": [
+            100000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 0.0007130838930606842,
+          "initial_placement_seconds": 0.00011062528938055038,
+          "prepared_construction_seconds": 0.0017105420120060444,
+          "compile_and_first_call_seconds": 0.09256487525999546,
+          "warm_seconds": [
+            0.00030845776200294495,
+            0.0003666249103844166,
+            0.00027508288621902466,
+            0.000268333125859499,
+            0.000243334099650383,
+            0.0002565421164035797,
+            0.0002644169144332409,
+            0.00030570803210139275,
+            0.0003805416636168957,
+            0.0002598753198981285
+          ],
+          "warm_min_seconds": 0.000243334099650383,
+          "warm_median_seconds": 0.0002717080060392618,
+          "warm_max_seconds": 0.0003805416636168957,
+          "logical_input_bytes": 500004,
+          "logical_output_bytes": 1200012,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 100000,
+          "parameters": "per_observation",
+          "path": "prepared",
+          "parameter_shape": [
+            1,
+            100000
+          ],
+          "time_event_shape": [
+            100000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 0.0010569160804152489,
+          "initial_placement_seconds": 0.00013279076665639877,
+          "prepared_construction_seconds": 0.001692167017608881,
+          "compile_and_first_call_seconds": 0.07255104184150696,
+          "warm_seconds": [
+            0.00023512495681643486,
+            0.0002305419184267521,
+            0.00022849999368190765,
+            0.00023624999448657036,
+            0.0002305000089108944,
+            0.00026912475004792213,
+            0.00021787500008940697,
+            0.0002765418030321598,
+            0.0003315410576760769,
+            0.00029024994000792503
+          ],
+          "warm_min_seconds": 0.00021787500008940697,
+          "warm_median_seconds": 0.0002356874756515026,
+          "warm_max_seconds": 0.0003315410576760769,
+          "logical_input_bytes": 2500000,
+          "logical_output_bytes": 1800006,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "exponential",
+          "n": 100000,
+          "parameters": "per_observation",
+          "path": "traced",
+          "parameter_shape": [
+            1,
+            100000
+          ],
+          "time_event_shape": [
+            100000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 0.001054583117365837,
+          "initial_placement_seconds": 0.00016220798715949059,
+          "prepared_construction_seconds": 0.0022570411674678326,
+          "compile_and_first_call_seconds": 0.10700312536209822,
+          "warm_seconds": [
+            0.0003443341702222824,
+            0.0002372092567384243,
+            0.00019575003534555435,
+            0.00022525014355778694,
+            0.0002132081426680088,
+            0.0003264588303864002,
+            0.0002709580585360527,
+            0.00029191700741648674,
+            0.0002204999327659607,
+            0.00022091669961810112
+          ],
+          "warm_min_seconds": 0.00019575003534555435,
+          "warm_median_seconds": 0.00023122970014810562,
+          "warm_max_seconds": 0.0003443341702222824,
+          "logical_input_bytes": 900000,
+          "logical_output_bytes": 1800006,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 1000,
+          "parameters": "shared",
+          "path": "prepared",
+          "parameter_shape": [
+            2
+          ],
+          "time_event_shape": [
+            1000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 6.662542000412941e-05,
+          "initial_placement_seconds": 0.00016499962657690048,
+          "prepared_construction_seconds": 0.001713290810585022,
+          "compile_and_first_call_seconds": 0.10325937485322356,
+          "warm_seconds": [
+            8.654128760099411e-05,
+            7.154187187552452e-05,
+            7.491698488593102e-05,
+            9.624985978007317e-05,
+            7.150042802095413e-05,
+            6.200000643730164e-05,
+            7.200008258223534e-05,
+            8.279085159301758e-05,
+            8.841697126626968e-05,
+            7.93328508734703e-05
+          ],
+          "warm_min_seconds": 6.200000643730164e-05,
+          "warm_median_seconds": 7.712491787970066e-05,
+          "warm_max_seconds": 9.624985978007317e-05,
+          "logical_input_bytes": 21008,
+          "logical_output_bytes": 12017,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 1000,
+          "parameters": "shared",
+          "path": "traced",
+          "parameter_shape": [
+            2
+          ],
+          "time_event_shape": [
+            1000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 8.354103192687035e-05,
+          "initial_placement_seconds": 0.0001982501707971096,
+          "prepared_construction_seconds": 0.0016859997995197773,
+          "compile_and_first_call_seconds": 0.10664020804688334,
+          "warm_seconds": [
+            6.524985656142235e-05,
+            7.845787331461906e-05,
+            7.854215800762177e-05,
+            8.354196324944496e-05,
+            8.925003930926323e-05,
+            6.579188629984856e-05,
+            7.008295506238937e-05,
+            7.312512025237083e-05,
+            9.099999442696571e-05,
+            6.150035187602043e-05
+          ],
+          "warm_min_seconds": 6.150035187602043e-05,
+          "warm_median_seconds": 7.579149678349495e-05,
+          "warm_max_seconds": 9.099999442696571e-05,
+          "logical_input_bytes": 5008,
+          "logical_output_bytes": 12017,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 1000,
+          "parameters": "per_observation",
+          "path": "prepared",
+          "parameter_shape": [
+            2,
+            1000
+          ],
+          "time_event_shape": [
+            1000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 8.799973875284195e-05,
+          "initial_placement_seconds": 0.00014441600069403648,
+          "prepared_construction_seconds": 0.0015891250222921371,
+          "compile_and_first_call_seconds": 0.11026991670951247,
+          "warm_seconds": [
+            5.429098382592201e-05,
+            7.104175165295601e-05,
+            7.475027814507484e-05,
+            7.16252252459526e-05,
+            8.858274668455124e-05,
+            8.474988862872124e-05,
+            7.970770820975304e-05,
+            5.583278834819794e-05,
+            8.479179814457893e-05,
+            6.787525489926338e-05
+          ],
+          "warm_min_seconds": 5.429098382592201e-05,
+          "warm_median_seconds": 7.318775169551373e-05,
+          "warm_max_seconds": 8.858274668455124e-05,
+          "logical_input_bytes": 29000,
+          "logical_output_bytes": 23006,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 1000,
+          "parameters": "per_observation",
+          "path": "traced",
+          "parameter_shape": [
+            2,
+            1000
+          ],
+          "time_event_shape": [
+            1000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 8.241692557930946e-05,
+          "initial_placement_seconds": 0.0001399577595293522,
+          "prepared_construction_seconds": 0.0016322089359164238,
+          "compile_and_first_call_seconds": 0.10809766594320536,
+          "warm_seconds": [
+            5.587516352534294e-05,
+            6.604194641113281e-05,
+            7.400009781122208e-05,
+            6.983289495110512e-05,
+            6.42905943095684e-05,
+            7.483316585421562e-05,
+            6.27920962870121e-05,
+            6.425008177757263e-05,
+            4.983274266123772e-05,
+            5.608284845948219e-05
+          ],
+          "warm_min_seconds": 4.983274266123772e-05,
+          "warm_median_seconds": 6.427033804357052e-05,
+          "warm_max_seconds": 7.483316585421562e-05,
+          "logical_input_bytes": 13000,
+          "logical_output_bytes": 23006,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 10000,
+          "parameters": "shared",
+          "path": "prepared",
+          "parameter_shape": [
+            2
+          ],
+          "time_event_shape": [
+            10000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 0.00012795813381671906,
+          "initial_placement_seconds": 0.00014699995517730713,
+          "prepared_construction_seconds": 0.0015856670215725899,
+          "compile_and_first_call_seconds": 0.09443304128944874,
+          "warm_seconds": [
+            0.0002144169993698597,
+            0.00024241721257567406,
+            0.00021683331578969955,
+            0.00020912475883960724,
+            0.00025975005701184273,
+            0.0002427501603960991,
+            0.00018895883113145828,
+            0.00023837527260184288,
+            0.00020037544891238213,
+            0.00024199998006224632
+          ],
+          "warm_min_seconds": 0.00018895883113145828,
+          "warm_median_seconds": 0.00022760429419577122,
+          "warm_max_seconds": 0.00025975005701184273,
+          "logical_input_bytes": 210008,
+          "logical_output_bytes": 120017,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 10000,
+          "parameters": "shared",
+          "path": "traced",
+          "parameter_shape": [
+            2
+          ],
+          "time_event_shape": [
+            10000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 0.00013787485659122467,
+          "initial_placement_seconds": 0.00015683285892009735,
+          "prepared_construction_seconds": 0.001558207906782627,
+          "compile_and_first_call_seconds": 0.12418900011107326,
+          "warm_seconds": [
+            0.00022962503135204315,
+            0.00034912489354610443,
+            0.00035833287984132767,
+            0.0002755410969257355,
+            0.0003471248783171177,
+            0.00029450003057718277,
+            0.0002155420370399952,
+            0.00025133416056632996,
+            0.00030562467873096466,
+            0.00034029223024845123
+          ],
+          "warm_min_seconds": 0.0002155420370399952,
+          "warm_median_seconds": 0.0003000623546540737,
+          "warm_max_seconds": 0.00035833287984132767,
+          "logical_input_bytes": 50008,
+          "logical_output_bytes": 120017,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 10000,
+          "parameters": "per_observation",
+          "path": "prepared",
+          "parameter_shape": [
+            2,
+            10000
+          ],
+          "time_event_shape": [
+            10000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 0.0001826249063014984,
+          "initial_placement_seconds": 0.00013412488624453545,
+          "prepared_construction_seconds": 0.0016429168172180653,
+          "compile_and_first_call_seconds": 0.09861591598019004,
+          "warm_seconds": [
+            0.00021479185670614243,
+            0.00020641693845391273,
+            0.00020058266818523407,
+            0.0002026660367846489,
+            0.00022858288139104843,
+            0.0001982920803129673,
+            0.00021254224702715874,
+            0.00020350003615021706,
+            0.00020512519404292107,
+            0.00019679218530654907
+          ],
+          "warm_min_seconds": 0.00019679218530654907,
+          "warm_median_seconds": 0.00020431261509656906,
+          "warm_max_seconds": 0.00022858288139104843,
+          "logical_input_bytes": 290000,
+          "logical_output_bytes": 230006,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 10000,
+          "parameters": "per_observation",
+          "path": "traced",
+          "parameter_shape": [
+            2,
+            10000
+          ],
+          "time_event_shape": [
+            10000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 0.00019975006580352783,
+          "initial_placement_seconds": 0.00014004064723849297,
+          "prepared_construction_seconds": 0.0017396248877048492,
+          "compile_and_first_call_seconds": 0.13294225046411157,
+          "warm_seconds": [
+            0.0002503329887986183,
+            0.00030025001615285873,
+            0.00028174975886940956,
+            0.00024079112336039543,
+            0.00026179198175668716,
+            0.00025287503376603127,
+            0.00022129202261567116,
+            0.0002633752301335335,
+            0.00020933384075760841,
+            0.0002015409991145134
+          ],
+          "warm_min_seconds": 0.0002015409991145134,
+          "warm_median_seconds": 0.0002516040112823248,
+          "warm_max_seconds": 0.00030025001615285873,
+          "logical_input_bytes": 130000,
+          "logical_output_bytes": 230006,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 100000,
+          "parameters": "shared",
+          "path": "prepared",
+          "parameter_shape": [
+            2
+          ],
+          "time_event_shape": [
+            100000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 0.0008248747326433659,
+          "initial_placement_seconds": 0.00021016690880060196,
+          "prepared_construction_seconds": 0.0022086668759584427,
+          "compile_and_first_call_seconds": 0.11270308401435614,
+          "warm_seconds": [
+            0.00047454191371798515,
+            0.0004754583351314068,
+            0.0005051251500844955,
+            0.0004569161683320999,
+            0.0004724999889731407,
+            0.0004302500747144222,
+            0.00048495829105377197,
+            0.00046520913019776344,
+            0.0004759998992085457,
+            0.0004808753728866577
+          ],
+          "warm_min_seconds": 0.0004302500747144222,
+          "warm_median_seconds": 0.00047500012442469597,
+          "warm_max_seconds": 0.0005051251500844955,
+          "logical_input_bytes": 2100008,
+          "logical_output_bytes": 1200017,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 100000,
+          "parameters": "shared",
+          "path": "traced",
+          "parameter_shape": [
+            2
+          ],
+          "time_event_shape": [
+            100000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 0.0007220841944217682,
+          "initial_placement_seconds": 0.00014258408918976784,
+          "prepared_construction_seconds": 0.001724165864288807,
+          "compile_and_first_call_seconds": 0.11623883340507746,
+          "warm_seconds": [
+            0.0005344580858945847,
+            0.0005255830474197865,
+            0.0005517499521374702,
+            0.0006254999898374081,
+            0.0004894589073956013,
+            0.0005895416252315044,
+            0.000429375097155571,
+            0.00047395890578627586,
+            0.0004497920162975788,
+            0.0004143747501075268
+          ],
+          "warm_min_seconds": 0.0004143747501075268,
+          "warm_median_seconds": 0.0005075209774076939,
+          "warm_max_seconds": 0.0006254999898374081,
+          "logical_input_bytes": 500008,
+          "logical_output_bytes": 1200017,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 100000,
+          "parameters": "per_observation",
+          "path": "prepared",
+          "parameter_shape": [
+            2,
+            100000
+          ],
+          "time_event_shape": [
+            100000
+          ],
+          "static_flags": [
+            true,
+            true,
+            false,
+            false,
+            false,
+            false
+          ],
+          "host_generation_seconds": 0.0013777082785964012,
+          "initial_placement_seconds": 0.0001665828749537468,
+          "prepared_construction_seconds": 0.001849417109042406,
+          "compile_and_first_call_seconds": 0.095253000035882,
+          "warm_seconds": [
+            0.0004977500066161156,
+            0.0005280831828713417,
+            0.0004971250891685486,
+            0.0004848339594900608,
+            0.0004947907291352749,
+            0.0005053747445344925,
+            0.0005650417879223824,
+            0.0005008340813219547,
+            0.0005133752711117268,
+            0.0005015828646719456
+          ],
+          "warm_min_seconds": 0.0004848339594900608,
+          "warm_median_seconds": 0.0005012084729969501,
+          "warm_max_seconds": 0.0005650417879223824,
+          "logical_input_bytes": 2900000,
+          "logical_output_bytes": 2300006,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        },
+        {
+          "family": "weibull",
+          "n": 100000,
+          "parameters": "per_observation",
+          "path": "traced",
+          "parameter_shape": [
+            2,
+            100000
+          ],
+          "time_event_shape": [
+            100000
+          ],
+          "static_flags": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "host_generation_seconds": 0.001369583886116743,
+          "initial_placement_seconds": 0.00012141605839133263,
+          "prepared_construction_seconds": 0.0016732090152800083,
+          "compile_and_first_call_seconds": 0.10406479192897677,
+          "warm_seconds": [
+            0.0005232496187090874,
+            0.0005586249753832817,
+            0.0005695000290870667,
+            0.0005476661026477814,
+            0.000510707963258028,
+            0.0005227909423410892,
+            0.0005687503144145012,
+            0.0005079996772110462,
+            0.0005021668039262295,
+            0.0005127498880028725
+          ],
+          "warm_min_seconds": 0.0005021668039262295,
+          "warm_median_seconds": 0.0005230202805250883,
+          "warm_max_seconds": 0.0005695000290870667,
+          "logical_input_bytes": 1300000,
+          "logical_output_bytes": 2300006,
+          "correctness": "analytical value/gradient passed",
+          "reuse": "one trace for initial values and two changed parent minibatches"
+        }
+      ]
+    }
+  }
+}
