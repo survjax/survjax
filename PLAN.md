@@ -1,6 +1,6 @@
 # A10.3 — Public concordance transformation and permutation evidence (2026-10-29)
 
-Status: **three review rounds used; final F-2 fix-up verified; stop**, following
+Status: **F-2 fix-up verified; maintainer-authorized round 4 pending**, following
 "implement and review (automatic via claude, use the skill) the next part of
 A10" and the subsequent "approved". Work on the maintainer-created `a10b`
 branch from clean `a5cfea7`.
@@ -43,6 +43,11 @@ REVIEW.md records the reviewer's gate results (including missing-fixture and
 unsupplied-wheel failures), mutant results, deferred N-1 and reviewer-owned
 temporary worktree cleanup. Commit the F-2 fix-up and stop at three rounds;
 no merge approval or full A10 claim, and no automatic A10.4 start.
+
+The subsequent "do another round of review" explicitly authorizes one
+additional independent review beyond the three-round limit. Review the
+unchanged F-2 fix-up from 491f7cc; record round 4 and follow its verdict.
+This request does not authorize starting A10.4 or changing protected paths.
 
 One concept: complete own public-API evidence for transformations and
 observation permutations. Aim for at most 300 changed source/test lines.

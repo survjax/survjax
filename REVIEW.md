@@ -1,4 +1,4 @@
-Independent review: round 3/3
+Independent review: round 4/3 (extra round explicitly authorized by maintainer)
 
 # A10.3 — Public concordance transformations and permutation evidence
 
@@ -188,6 +188,11 @@ review, no next subslice and no merge approval claim.
 
 ## Scope and limits
 
+The maintainer's subsequent "do another round of review" explicitly
+authorizes one additional round beyond the usual three-round limit. Request
+round 4 on the F-2 fix-up (491f7cc); this preparation changes only PLAN.md
+and REVIEW.md. Implementation, tests and prior check results are unchanged.
+
 Only the two new own-test modules, PLAN.md and this review may change.
 Spec, .spec-seen, independent tests, scripts, dependencies, production code,
 fixtures, docs and other branches remain unchanged. `git diff --cached
@@ -199,5 +204,6 @@ two handoff records; the staged path set matches those three paths and
 A10.4's concordance R fixture, executable topic/playground and held-out
 example remain separate work. No full A10, docs build, R generation,
 performance measurement or complete Slice A claim. Final reviewer verdict
-is fix-first (before the F-2 fix-up); the fix-up is verified above but has
-not received another independent review. Stop at the three-round limit.
+was fix-first (before the F-2 fix-up); the fix-up is verified above and
+round 4 is pending under the maintainer's explicit exception. Stop after
+this additional round and any required fix-up, following the skill's verdict.
