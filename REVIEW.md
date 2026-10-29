@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # RMST.2 — Weibull RMST values and safe tails
 
@@ -108,3 +108,43 @@ handoff to release-ph.
 The executable RMST docs topic follows core/PH integration and must state
 Weibull's higher shape-derivative limitation. A9/A10 docs remain separately
 owned. Reviewer-owned mutation worktree cleanup is not ours.
+
+## Round 1 response and round 2 request
+
+Round 1 on b552201: fix-first for F-1, untested safe-input substitutions in
+inactive tail branches. The implementation is unchanged. Add 10 test lines
+inside test_weibull_rmst_power_tails: jit-vmap of jacfwd and jacrev in
+(k,b,tau), at (50,2,2e-8) and (50,2,2e8); every derivative must be finite.
+The cutoff derivatives also equal [1,0], since survival rounds to those
+values in these respective tails. No new tolerance or stronger promise.
+
+- `JAX_ENABLE_X64=1 uv run --group test pytest tests/unit/test_weibull_rmst.py
+  tests/unit/test_rmst.py -q`: 21 passed, 18.19s. With =0: 21 passed, 18.05s.
+- In-memory mutation proofs, separate processes for both dtypes, using
+  `JAX_ENABLE_X64=1` / `=0` `uv run --group test python -`, then pytest on
+  test_weibull_rmst_power_tails: M1 (series_x=exp(log_x)) fails in both
+  modes (1 failed in 1.23s/1.26s); M2 (gamma_x=exp(log_x)) also fails in
+  both (1 failed in 1.19s/1.17s). Each fails the finite-gradient assertion
+  with the predicted NaNs. No source file or reviewer worktree mutated.
+- Ruff format: 114 files formatted; Ruff check: All checks passed; mypy:
+  no issues in 21 source files; git diff --check clean. Earlier complete
+  fresh-wheel gate covers identical production code; not repeated for this
+  test-only follow-up. Initial source/test diff 309 lines; follow-up 10 lines.
+
+N-1 addressed in PLAN.md's docs to-do: accuracy promised for k in [0.2,50]
+and tau/b in [0.01,1e5]; valid parameters outside this range can give NaN
+in float32 when the gamma probability underflows. No numerical scope change.
+RMST.1 N-2 is confirmed fixed by shared cutoff validation; RMST.1 N-1 remains
+RMST.3 full-range derivative work. RMST.1 S-1 stays for the maintainer with
+no change to invalid entries' own tangents.
+
+Reviewer independently ran check.sh through A10: all statics, own tests and
+doctests passed; x64 acceptance 2327 passed/28 skipped with 5 setup errors
+because SURVJAX_WHEEL was unset. Direct x32 acceptance without wheel-smoke
+module: 2317 passed/38 skipped. It did not repeat the fresh-wheel gate,
+which its permissions refused in RMST.1. Our final fresh-wheel pass above
+includes those five tests in both modes. Its independent value/branch probes
+passed the required domain; they supplement our suite, not our own runs.
+Reviewer mutation worktree /tmp/survjax-mut-RMST.2 remains with source restored,
+after cleanup was refused. Leave that reviewer-owned artifact to maintainer
+cleanup. Commit this bounded fix-up and request round 2 from a clean tree.

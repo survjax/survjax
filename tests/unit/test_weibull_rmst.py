@@ -70,6 +70,16 @@ def test_weibull_rmst_power_tails(x64_enabled):
         value, expected, atol=TAIL_ATOL[x64_enabled], rtol=TAIL_RTOL[x64_enabled]
     )
 
+    def fn(p):
+        return Weibull(shape=p[0], scale=p[1]).rmst(p[2])
+
+    points = jnp.array([[50.0, 2.0, 2e-8], [50.0, 2.0, 2e8]])
+    for transform in (jax.jacfwd, jax.jacrev):
+        gradients = jax.jit(jax.vmap(transform(fn)))(points)
+        assert np.isfinite(gradients).all()
+        # S(tau) rounds to 1 and 0 in these respective deep tails.
+        np.testing.assert_array_equal(gradients[:, 2], [1, 0])
+
 
 def test_weibull_shape_one_rmst_and_cutoff_grid(x64_enabled):
     """Spec 5/8.7: k=1 is exponential; explicit cutoff axes give (m,S,2)."""

@@ -57,10 +57,19 @@ Final fresh-wheel through-A10 gate: exit 0; own tests 1069/7 skipped and
 1075/1 skipped, doctests 4 per mode, independent 2332/28 skipped and
 2322/38 skipped. REVIEW.md records exact commands/timings, the initial
 pre-correction gate, corrected artifact and mixed-dtype mutation proof.
-Commit and request independent-review round 1/3, then follow its verdict.
+Initial implementation commit b552201. Round 1 returned fix-first for F-1:
+missing tail-gradient assertions. Add 10 test lines (no runtime change),
+checking finite first derivatives in every direction and [1,0] cutoff
+slopes at the two power tails under jit-vmap, jacfwd and jacrev. Focused
+suites 21 passed per dtype; both unsafe-input mutants now fail in both
+modes; statics clean. N-1's promised value-range/float32 limitation is in
+Docs to-do below. Commit the fix-up, request round 2/3 and follow its verdict.
 
 Docs to-do: RMST topic after core/PH integration, stating the Weibull shape
 higher-derivative limit and the absolute-scale cutoff-derivative accuracy.
+Accuracy is promised on k in [0.2,50], tau/b in [0.01,1e5]; outside that
+range, float32 can return NaN for valid inputs when the gamma probability
+underflows (review RMST.2 N-1).
 RMST.3 still owns full-range measured derivative tolerances/evidence (N-1).
 PH owns wrappers.py/exports and waits for the reviewed Weibull core merge
 and explicit ownership handoff before private built-in closure edits.
