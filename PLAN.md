@@ -7,6 +7,55 @@ audit and planning checks") and A8 (`plans/A8.md`, "Closure still required").
 
 ---
 
+# RMST.1 — Staged base surface and Exponential RMST (2026-10-29)
+
+Authorized release workstream on `release-rmst`; actual clean base:
+`8757c0fda78e34e6e818249adedd2a144a33c33d` (8757c0f).
+Preserve unfinished A9/A10 history below; no archive of unfinished work.
+One concept, at most about 300 source/test lines. No dependencies, exports,
+protected paths, docs, wrappers or Weibull edits in this step.
+
+- `src/survjax/distributions/base.py`: add spec-named `rmst(tau)`, `mean()`,
+  `median()` and `quantile(p)` methods raising NotImplementedError. The RMST
+  default covers unsupported families; Weibull remains staged until RMST.2.
+- `src/survjax/distributions/exponential.py`: override only `rmst(tau)` with
+  `-expm1(-rate*tau)/rate`. Validate dtype/shape statically, substitute invalid
+  cutoff/parameter entries before arithmetic, return NaN for those entries.
+  Keep tau=0 active so value=0, parameter derivatives=0, tau derivative=1.
+- `tests/unit/test_rmst.py`: public surface/absence, unsupported custom family,
+  misuse, zero and invalid values, scale changes, explicit cutoff axes,
+  eager/jit/vmap, independent mpmath integration/derivatives, forward/reverse
+  Hessians and higher derivatives, second-order check_grads and invalid-entry
+  derivative isolation (shared and per-row parameters). Use existing central
+  value/tail/derivative tolerances; add no tolerance without demonstrated need.
+- `REVIEW.md`: reading order, invariants, spec-to-test map, exact checks/results,
+  known staged limits and independent-review round count; overwrite now.
+
+Spec read in full: 4.1–4.2, 4.4–4.5, 4.7, 5, 7.2–7.3, 8.1–8.7,
+10.2, 12.1–12.2. Apply 8.7's explicit staged exception to 8.4.
+Checks: focused RMST/distribution regression in separate x64/float32 processes;
+Ruff format/check, mypy; unchanged fresh-wheel cumulative gate through A10.
+Inspect diff and scope, commit, invoke exact independent-review skill for
+RMST.1 in `../review/code-release-rmst`, act on at most three rounds, stop.
+
+Docs to-do: separate executable RMST topic after core and PH integration;
+state staged surface and Weibull shape-derivative limitation. A9/A10 docs
+remain with their assigned implementers. Ownership handoff: after reviewed
+Exponential AND Weibull core merges, release-ph may edit built-in private
+closure hooks and integrate wrapper RMST in its own reviewed step. No core
+handoff yet after RMST.1; wrappers.py and exports remain PH-owned.
+
+Implementation/evidence: exactly 300 source/test changed lines; no new
+central tolerances. Final focused RMST: 13 passed per dtype. Distribution
+regression: 140 passed/3 existing skips (x64), 143 passed (x32). Ruff: 112
+files formatted, all lint checks pass; mypy: no issues in 20 source files.
+Fresh-wheel unchanged through-A10 gate: exit 0; own tests 1061/7 skipped
+and 1067/1 skipped, doctests 4 per mode, independent tests 2332/28 skipped
+and 2322/38 skipped. Exact commands, times, environment, artifact identity
+and final-source limits are in REVIEW.md. Commit then request round 1/3.
+
+---
+
 # A10.4 — Synthetic R concordance references (2026-10-29)
 
 Authorized by “plan and implement A10.4”. Work on maintainer-created `A10.4`

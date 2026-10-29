@@ -50,6 +50,49 @@ class Exponential(SurvivalDistribution):
 
     rate: jax.Array = param(constraint=constraints.positive)
 
+    def rmst(self, tau: ArrayLike) -> jax.Array:
+        """Return restricted mean event time, ``-expm1(-rate*tau)/rate``.
+
+        Args:
+            tau: Cutoffs, broadcast against ``batch_shape``. For a time-first
+                cutoff grid, add one trailing singleton per batch axis.
+
+        Returns:
+            RMST with the broadcast shape. Negative, NaN or infinite cutoffs
+            and entries with parameter issues give NaN. At zero the value and
+            parameter derivatives are zero and the cutoff derivative is one.
+            JAX supports derivatives of all orders on valid smooth inputs.
+
+        Raises:
+            TypeError: For nonreal cutoffs or incompatible batch shapes.
+        """
+        try:
+            cutoff = jnp.asarray(tau)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("tau must contain real numeric values") from exc
+        if not (
+            jnp.issubdtype(cutoff.dtype, jnp.integer)
+            or jnp.issubdtype(cutoff.dtype, jnp.floating)
+        ):
+            raise TypeError("tau must contain real numeric values")
+        try:
+            cutoff, rate = jnp.broadcast_arrays(cutoff, self.rate)
+        except ValueError as exc:
+            raise TypeError(
+                "tau and distribution batch shapes are incompatible"
+            ) from exc
+        invalid = (
+            ~jnp.isfinite(cutoff)
+            | (cutoff < 0)
+            | self.parameter_issues().invalid_entries
+        )
+        # spec 8.7/7.2: mask both operands before arithmetic, including shared
+        # parameters beside invalid cutoffs. Zero is active to retain d/dtau=1.
+        safe_cutoff = jnp.where(invalid, jnp.zeros_like(cutoff), cutoff)
+        safe_rate = jnp.where(invalid, jnp.ones_like(rate), rate)
+        value = -jnp.expm1(-safe_rate * safe_cutoff) / safe_rate
+        return jnp.where(invalid, jnp.nan, value)
+
     @classmethod
     def from_log(cls, *, log_rate: ArrayLike) -> Self:
         """Build an exponential from its log rate, ``rate = exp(log_rate)``.
