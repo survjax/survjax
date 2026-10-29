@@ -1,4 +1,4 @@
-Independent review: round 2/3
+Independent review: round 3/3
 
 # A10.3 — Public concordance transformations and permutation evidence
 
@@ -115,6 +115,14 @@ A10 selection and mypy results apply to fc7f82c; they were not rerun for
 this test-only follow-up. Production code, property tests and all existing
 checks remain unchanged. No mutation check was run by the implementer.
 
+## Round 2 outcome and round 3 request
+
+Round 2 on c1400a1 returned **maintainer**, with F-1 fixed by static review
+and no new findings. The reviewer again could not execute tests or mutants
+under its headless permissions. The maintainer now requests another run and
+says the reviewer should have the correct permissions. Request round 3 with
+the unchanged implementation; only this review bookkeeping changes.
+
 ## Scope and limits
 
 Only the two new own-test modules, PLAN.md and this review may change.
@@ -127,6 +135,6 @@ two handoff records; the staged path set matches those three paths and
 
 A10.4's concordance R fixture, executable topic/playground and held-out
 example remain separate work. No full A10, docs build, R generation,
-performance measurement or complete Slice A claim. Round 2 is pending;
-invoke the exact skill command after the fix-up commit, then stop according
+performance measurement or complete Slice A claim. Round 3 is pending;
+invoke the exact skill command after the bookkeeping commit, then stop according
 to its verdict. No open uncertainty about this test-only change.
