@@ -14,6 +14,47 @@ at full base SHA `8757c0fda78e34e6e818249adedd2a144a33c33d` (8757c0f).
 Keep the unfinished A9/A10 history below; no archive or integration commit.
 Spec: 3.3, 4.1–4.2, 4.4–4.7, 5–7, 8.7, 10.2, 12.1–12.2.
 
+## PH.1 round-1 follow-up (2026-10-29)
+
+Maintainer decision: “allow for positional baseline in PH wrapper”. Resume the
+same step from clean b0b0f8b on release-ph; next review is round 2/3. Record the
+decision under D-028 without marking that entry resolved or editing the spec.
+This fix-up targets <=300 changed source/test lines relative to b0b0f8b; the
+initial 292-line implementation remains its own committed review unit.
+
+- `wrappers.py`: adapt only PH's registered initializer to accept baseline
+  positionally or by keyword, with log_hazard_ratio still keyword-only. Keep
+  base.py and other RMST-owned files untouched. Update the constructor docstring.
+- F-1: for zero baseline log survival at positive times, recover log H0 from
+  the baseline's log-CDF lower tail (log F0 = log H0 to rounding precision in
+  this underflow regime), then apply the PH formula in log space. Preserve
+  exp(eta) times the baseline tangent on true zero-limit hook values using a
+  safe linear branch. Do not add a new family hook or dispatch on family type.
+- F-2: add a small registered improper baseline in PH-specific tests; test
+  infinity values and derivatives, including a zero log-limit, and NaN eta's
+  hook/direct outputs. The tests accompany the already implemented hook.
+- N-1: return the baseline reference in the promoted baseline/predictor dtype;
+  test float64 baseline with float32 predictor. N-2: extend boundary tests to
+  a predictor just above log(dtype.max), pinning the overflow guard's band.
+- Constructor tests assert positional/keyword equivalence under tracing and
+  reject a second positional argument, duplicate baseline and missing fields.
+  F-1 regressions use hand-derived PH values and baseline/eta first derivatives
+  in both dtypes, eagerly and under jit, forward and reverse modes. Existing
+  tolerances remain unchanged. No weakened export-reference tests.
+- Update REVIEW.md by finding ID. Run focused tests in separate dtype processes,
+  Ruff/mypy, fresh-wheel through-A10 regression and whitespace/scope audit;
+  commit, invoke the independent-review skill exactly for round 2, then follow
+  its verdict with at most three total rounds. No next PH step or export work.
+
+Follow-up implemented: 191 changed source/test lines, within the fix-up budget.
+Focused PH: 18 passed float64 / 17 passed, 1 x64-only skip float32; Ruff/mypy
+clean. Fresh-wheel through-A10 exits 0: own suites 1066 passed, 7 skipped /
+1071 passed, 2 skipped; doctests 4 passed per mode; independent acceptance
+2332 passed, 28 skipped / 2322 passed, 38 skipped. Exact commands, timings,
+wheel hash and finding mapping are in REVIEW.md. Commit and round 2 follow.
+
+## Initial plan and round-1 evidence (retained history)
+
 One concept: the registered frozen PH distribution, used through its defining
 module until a separate export step. Target <=300 source/test changed lines.
 

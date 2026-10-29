@@ -1,5 +1,6 @@
 """Proportional-hazards composition (spec 4.4)."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import jax
@@ -28,7 +29,7 @@ class ProportionalHazards(SurvivalDistribution):
     equivalent rate is r*exp(eta); eta=log(2) doubles the hazard.
 
     Args:
-        baseline: Registered distribution, keyword only; its batch shape
+        baseline: Registered distribution, positional or keyword; its batch shape
             broadcasts with eta, preserving nested parameter dtypes.
         log_hazard_ratio: Finite real predictor, keyword only, with any
             broadcast-compatible shape. Values are stored without checking.
@@ -39,7 +40,7 @@ class ProportionalHazards(SurvivalDistribution):
         (K, *batch_shape). Diagnostics prefix nested keys with ``baseline.``.
 
     Raises:
-        TypeError: For malformed types, positional arguments or incompatible
+        TypeError: For malformed types, extra positional arguments or incompatible
             shapes. Runtime parameter violations appear in parameter_issues().
     """
 
@@ -47,33 +48,47 @@ class ProportionalHazards(SurvivalDistribution):
     log_hazard_ratio: jax.Array = param(constraint=constraints.real)
 
     def reference_time(self) -> jax.Array:
-        """Return baseline reference times in the predictor dtype.
+        """Return baseline reference times in the promoted parameter dtype.
 
         Returns:
             Positive finite times of shape batch_shape for valid parameters.
-            If dtype conversion loses the baseline reference, use one time
-            unit for inactive evaluations only (spec 4.2/7.2).
+            Baseline precision is retained when the predictor dtype is narrower.
         """
-        reference = jnp.asarray(
-            self.baseline.reference_time(), dtype=self.log_hazard_ratio.dtype
+        reference = self.baseline.reference_time()
+        return jnp.asarray(
+            reference, dtype=jnp.result_type(reference, self.log_hazard_ratio)
         )
-        usable = jnp.isfinite(reference) & (reference > 0)
-        return jnp.where(usable, reference, jnp.ones_like(reference))
 
-    def _scale_log_survival(self, log_s: jax.Array) -> jax.Array:
+    def _scale_log_survival(
+        self, log_s: jax.Array, log_lower_tail: jax.Array | None = None
+    ) -> jax.Array:
         eta = self.log_hazard_ratio
-        boundary = ((log_s == 0) | jnp.isinf(log_s)) & jnp.isfinite(eta)
+        zero = log_s == 0
+        recover = jnp.zeros_like(zero)
+        if log_lower_tail is not None:
+            recover = zero & jnp.isfinite(log_lower_tail)
+        boundary = (zero | jnp.isinf(log_s)) & jnp.isfinite(eta) & ~recover
         # spec 7.2: avoid exp(eta)*0 and exp(eta)*inf, including in the hook.
-        safe_log_s = jnp.where(boundary, -jnp.ones_like(log_s), log_s)
+        safe_log_s = jnp.where(boundary | recover, -jnp.ones_like(log_s), log_s)
         safe_eta = jnp.where(boundary, jnp.zeros_like(eta), eta)
-        log_magnitude = safe_eta + jnp.log(jnp.abs(safe_log_s))
+        log_h = jnp.log(jnp.abs(safe_log_s))
+        if log_lower_tail is not None:
+            # spec 4.4/7.2: when H0 underflows, log H0 = log F0 to rounding precision.
+            log_h = jnp.where(recover, log_lower_tail, log_h)
+        log_magnitude = safe_eta + log_h
         overflow = log_magnitude >= jnp.log(jnp.finfo(log_magnitude.dtype).max)
         # spec 7.1/7.2: restore IEEE overflow without an inactive exp tangent.
         magnitude = jnp.exp(jnp.where(overflow, 0.0, log_magnitude))
         value = jnp.sign(safe_log_s) * magnitude
         overflow_value = jnp.where(safe_log_s < 0, -jnp.inf, jnp.inf)
         value = jnp.where(overflow, overflow_value, value)
-        return jnp.where(boundary, log_s, value)
+        # A true zero log-limit may still have a nonzero baseline tangent.
+        linear = zero & boundary & (eta < jnp.log(jnp.finfo(eta.dtype).max))
+        zero_value = jnp.where(linear, log_s, 0.0) * jnp.exp(
+            jnp.where(linear, eta, 0.0)
+        )
+        boundary_value = jnp.where(zero, zero_value, log_s)
+        return jnp.where(boundary, boundary_value, value)
 
     def log_survival_at_infinity(self) -> jax.Array:
         """Return exp(eta)*log S0(+inf), retaining improper-family limits.
@@ -93,7 +108,11 @@ class ProportionalHazards(SurvivalDistribution):
             Log survival with the broadcast shape; zero at t=0, and the
             scaled baseline infinity limit at +inf. NaN times give NaN.
         """
-        return self._scale_log_survival(self.baseline.log_survival(t))
+        log_s = self.baseline.log_survival(t)
+        reference = jax.lax.stop_gradient(self.baseline.reference_time())
+        lower_tail_time = jnp.where(log_s == 0, jnp.asarray(t), reference)
+        log_lower_tail = self.baseline.log_cdf(lower_tail_time)
+        return self._scale_log_survival(log_s, log_lower_tail)
 
     def log_hazard(self, t: ArrayLike) -> jax.Array:
         """Return log h0(t) + eta, including baseline hazard limits.
@@ -116,3 +135,19 @@ class ProportionalHazards(SurvivalDistribution):
             +inf, NaN at NaN times, and the baseline-scaled limit at zero.
         """
         return self.log_hazard(t) + self.log_survival(t)
+
+
+_registered_ph_init: Callable[..., None] = ProportionalHazards.__init__
+
+
+def _initialize_ph(
+    self: ProportionalHazards,
+    baseline: SurvivalDistribution,
+    *,
+    log_hazard_ratio: ArrayLike,
+) -> None:
+    # D-028: the maintainer permits a positional baseline only for this wrapper.
+    _registered_ph_init(self, baseline=baseline, log_hazard_ratio=log_hazard_ratio)
+
+
+ProportionalHazards.__init__ = _initialize_ph  # type: ignore[method-assign,assignment]

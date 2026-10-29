@@ -1,6 +1,6 @@
 # PH.1 — Construction, diagnostics and direct PH composition
 
-Independent review: round 1/3 — completed; VERDICT: maintainer
+Independent review: round 2/3
 
 Branch: `release-ph`. Actual full base SHA:
 `8757c0fda78e34e6e818249adedd2a144a33c33d` (requested snapshot 8757c0f).
@@ -11,8 +11,8 @@ at `../review/code-release-ph`; no branch creation or integration performed.
 
 1. `plans/release-agents/README.md`, `plans/release-agents/ph.md`, PH.1 at the
    top of PLAN.md, and spec 4.1–4.2, 4.4–4.7, 5–7, 8.7, 10.2, 12.1–12.2.
-2. `src/survjax/distributions/wrappers.py` (118 lines): the complete new code.
-3. `tests/unit/test_proportional_hazards.py` (174 lines): analytical evidence.
+2. `src/survjax/distributions/wrappers.py` (153 lines): the complete new code.
+3. `tests/unit/test_proportional_hazards.py` (290 lines): analytical evidence.
 4. Existing registration/policy in `distributions/base.py` and
    `_survival_methods.py`, nested diagnostics in `_parameter_issues.py`, and
    the shared `likelihood.py` evaluator (all unchanged).
@@ -23,8 +23,9 @@ at `../review/code-release-ph`; no branch creation or integration performed.
   Both __init__.py files and all exact export/install/reference assertions
   remain unchanged. A later export step needs the maintainer's docs exception.
 - The wrapper is a registered frozen dataclass with a nested `baseline` and
-  real-constrained `log_hazard_ratio`. Constructors are keyword-only, pure and
-  value-unchecked. Registration owns dtype normalization, nested broadcasting,
+  real-constrained `log_hazard_ratio`. The baseline may be positional or keyword, by the maintainer decision on
+  D-028; eta remains keyword-only. Construction stays pure and value-unchecked.
+  Registration owns dtype normalization, nested broadcasting,
   PyTree reconstruction and indexing. Baseline leaves retain their dtypes.
 - H=exp(eta)*H0, log h=log h0+eta and log f=log h+log S. The wrapper never
   constructs or delegates to a PH-equivalent built-in distribution. The seven
@@ -33,13 +34,24 @@ at `../review/code-release-ph`; no branch creation or integration performed.
   Zero/infinite baseline log survival is substituted before arithmetic, and
   an overflowing final magnitude is restored after a safe exponential.
   This prevents inactive overflow tangents from poisoning boundary gradients.
+  Where baseline log survival underflows to zero, use the baseline's existing
+  log-CDF lower tail as log H0 (equal to rounding precision in this regime),
+  then scale in log space. This recovers the value and its eta/baseline
+  derivatives where the baseline retains that tail information. A genuinely
+  zero log-limit keeps the exp(eta)-scaled baseline tangent through a safe
+  linear branch when the factor is representable.
   No floors, clipping, epsilon or new derivative rules are used.
 - The baseline infinity hook is scaled, so an improper baseline can retain
-  its cure limit. Reference times use the baseline in the predictor dtype;
-  a finite-positive fallback only supplies inactive inputs, never model values.
+  its cure limit. Reference times retain the promoted baseline/predictor dtype;
+  no narrowing cast or fallback remains.
 - RMST ownership is respected: no edits to base.py, exponential.py, weibull.py
   or tolerances. No exports, docs, dependencies, protected paths, AFT, generic
-  summaries or sampling. Source/test total is 292 added lines.
+  summaries or sampling. Initial source/test total was 292 added lines;
+  round-1 fix-up changes 191 source/test lines (171 additions, 20 removals),
+  below its 300-line budget. Current files total 443 source/test lines.
+- The PH-only initializer adapter calls the saved registered initializer with
+  keywords, preserving its checks/normalization. Registration's shared rule
+  stays untouched while PH accepts exactly one optional positional argument.
 
 ## Requirement-to-test evidence
 
@@ -49,7 +61,7 @@ at `../review/code-release-ph`; no branch creation or integration performed.
 - `test_traced_diagnostics_include_predictor_and_prefixed_baseline`: spec
   4.7, pure traced construction and eager/jit/vmap masks, real predictor
   versus positive baseline violations, dotted keys and indexed diagnostics.
-- `test_static_misuse_raises`: spec 4.1–4.2, keyword-only calls, registered
+- `test_static_misuse_raises`: spec 4.1–4.2 / D-028 decision, keyword-only eta, registered
   nested type, nonreal predictor and incompatible construction shapes.
 - `test_direct_and_grid_exponential_formulas` (seven cases): spec 4.4–4.5/5,
   all direct methods via shared grids and vmap of pointwise methods, values
@@ -64,7 +76,7 @@ at `../review/code-release-ph`; no branch creation or integration performed.
   log H in host float64 with zero absolute tolerance; zero/infinity survival
   and exact zero reverse-mode boundary Jacobians for eta of both signs.
 
-## Checks and actual results
+## Initial-commit checks (965cbeb; retained history)
 
 Environment: own worktree .venv; `uv sync --locked --offline --dev --group test`
 exited 0 (155 packages resolved, 34 checked; no metadata changes).
@@ -99,20 +111,19 @@ Python 3.12.9, JAX 0.11.2, NumPy 2.5.3, pytest 9.1.1, CPU device 0.
 
 PH.1 is not the complete first-release PH gate. Full exponential/Weibull
 identity values and parameter derivatives, draw/observation/time broadcasting,
-custom improper and saturated baselines, invalid-row first/second derivative
+additional custom and saturated baselines, invalid-row first/second derivative
 isolation, nonzero boundary derivatives and the extended tail matrix belong
 to PH.2. These are not claimed verified by this initial test selection.
 RMST/closure waits for the reviewed RMST integration. The default log-CDF
 inherits the generic lower-tail range (spec 4.2); no new log-H extension hook
 or built-in dispatch is introduced here. Public export and executable topic
 integration remain separate. No R generation, demos or docs build were run.
-Round 1 identifies a constructor contract question (S-1 / D-028); my original
-reading that the keyword-only rule settled the illustrative positional calls
-was not accepted by the reviewer. No behavior or spec changes follow this
-verdict before the maintainer decides.
+Round 1 identified a constructor question (S-1 / D-028). The maintainer has
+now chosen a positional baseline. This follow-up implements the decision and
+records it in D-028 without editing the read-only spec or marking it resolved.
 
 
-## Independent round 1 outcome — stop for maintainer
+## Independent round 1 outcome — historical record before the decision
 
 Reviewed implementation commit: `965cbeb0b61efafc0b6a981fa5fedeec5044d3dd`.
 Report: `../review/slices/PH.1.md`, round 1. Final `VERDICT: maintainer`.
@@ -145,3 +156,62 @@ shared Git metadata after refused cleanup. I have not touched reviewer-owned
 paths or pruned other worktrees. No merge, push, publication or spec edit.
 This record and D-028 are a follow-up bookkeeping commit only; the reviewed
 implementation remains unchanged and is not approved for merge.
+
+
+## Round-1 follow-up for independent round 2
+
+Maintainer reply: “allow for positional baseline in PH wrapper”. Resume PH.1
+from b0b0f8b, retain release-ph ownership boundaries and public-export deferral.
+I am using the independent-review skill again after the fix-up commit; this
+is round 2/3 for PH.1, not a reset of the review count.
+
+- S-1 / D-028: implement the maintainer's constructor decision. Positional and
+  keyword baseline forms share registration; eta stays keyword-only. New
+  `test_positional_baseline_matches_keyword_under_tracing` compares both forms
+  eagerly/jit/vmap; `test_static_misuse_raises` checks extra positional eta,
+  duplicate baseline, missing eta and existing malformed types/shapes. The
+  obsolete positional-baseline rejection was changed for this explicit decision.
+- F-1: recover a zero baseline log survival from an accurate baseline log-CDF
+  lower tail, rather than returning an underflowed zero. The new test
+  `test_lower_tail_recovers_value_and_first_derivatives` checks the reviewer's
+  r/t/eta cases in both dtypes against hand-derived -exp(eta)*r*t and
+  (-exp(eta)*t, -exp(eta)*r*t), with zero absolute tolerance; eager/jit values,
+  jit forward/reverse first derivatives. No expectation uses production code.
+- F-2: `CureBaseline` supplies log S0(t)=log(p)*(1-exp(-t)). The new infinity
+  test checks S(inf)=p**exp(eta) and its p/eta derivatives, for p=.3 and p=1,
+  including the true zero log-limit tangent. A separate test checks NaN eta
+  in the direct hook and all seven infinity direct methods. Both reported
+  infinity-hook mutants are now directly targeted.
+- N-1: retain reference dtype by ordinary promotion; the new x64-only test
+  keeps the baseline reference 1e60 with a float32 eta. Its float32-mode skip
+  states why mixed float64 inputs cannot be tested there.
+- N-2: the extreme-predictor test now includes log(max)+.25 in each dtype;
+  exact zero boundary Jacobians pin the overflow guard's near-threshold band.
+
+Checks of the follow-up (source/tests unchanged after these runs):
+
+- `uv run ruff format --check .` → 113 files already formatted;
+  `uv run ruff check .` → All checks passed!;
+  `uv run mypy src` → Success: no issues found in 21 source files.
+  Initial mypy check rejected the initializer's dataclass-derived Array-only
+  annotation/signature. The saved initializer now has a Callable[..., None]
+  annotation; the method assignment explicitly ignores the generated-signature
+  mismatch, as registration already does for its own initializer replacement.
+- `JAX_ENABLE_X64=1 uv run --group test pytest tests/unit/test_proportional_hazards.py -q`
+  → 18 passed in 9.98s.
+  Same command with `JAX_ENABLE_X64=0` → 17 passed, 1 skipped in 10.12s.
+- Fresh-wheel `scripts/check_wheel.sh --through A10` → exit 0,
+  `check: all gates passed through A10`; guard, Ruff and mypy pass.
+  Own suites: 1066 passed, 7 skipped (70.01s) float64; 1071 passed, 2 skipped
+  (73.11s) float32. Source doctests: 4 passed in each mode (1.35s/1.19s).
+  Independent through-A10: 2332 passed, 28 skipped (95.92s) float64;
+  2322 passed, 38 skipped (84.82s) float32. The one additional float32 skip
+  versus round 1 is the new x64-only mixed-reference-dtype test.
+  Wheel: `/var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/survjax-wheel.YhuvWQ/survjax-0.0.1.dev0-py3-none-any.whl`.
+  SHA-256: `b9735cf8f54a912fb3720ce0ca5611eed64f3e7f4a2e3be75547c9c2faf2709a`.
+- `git diff --check` → exit 0, no output. Five-path scope audit only:
+  wrappers.py, PH tests, PLAN.md, REVIEW.md and DEVIATIONS.md. RMST-owned
+  files, exports, tolerances and all protected paths are unchanged.
+
+No new spec question, dependency, protected-path edit or shared ownership
+change is needed for this follow-up. Full PH.2 evidence remains separate.

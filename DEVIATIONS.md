@@ -15,6 +15,10 @@
   correct the examples, or allow a positional baseline for wrappers. Do not
   change behavior or spec before that decision. Review verdict is maintainer;
   numerical/test findings F-1 and F-2 remain open for the subsequent fix-up.
+- Maintainer decision, 2026-10-29: “allow for positional baseline in PH
+  wrapper”. Implement both positional and keyword baseline forms, retaining
+  keyword-only log_hazard_ratio. Spec remains read-only; formal disposition
+  of this entry stays with the maintainer.
 - Status: open
 
 ## D-027 Concordance result representation and undefined diagnostics
