@@ -86,7 +86,7 @@ def test_zero_censoring_keeps_zero_derivatives_beside_an_event(shape, x64_enable
     )
 
     def rows(p):
-        return survjax.log_likelihood(survjax.Weibull(shape=p[0], scale=p[1]), data)
+        return survjax.Weibull(shape=p[0], scale=p[1]).log_likelihood(data)
 
     # At t=1,b=2: H=(1/2)**k; c=0 contributes the constant log S(0)=0.
     cumulative_hazard, log_ratio = 0.5**shape, np.log(0.5)

@@ -243,12 +243,7 @@ def assert_tail_close(actual, expected, rtol, err_msg=""):
 
 
 def ll(dist, data=None, **raw):
-    """``survjax.log_likelihood`` as a NumPy array (spec 7.1)."""
-    return np.asarray(survjax.log_likelihood(dist, data, **raw))
-
-
-def ll_method(dist, data=None, **raw):
-    """``dist.log_likelihood`` as a NumPy array (spec 7.1, rev 29)."""
+    """``dist.log_likelihood``, the only likelihood entry point, as a NumPy array (spec 7.1, rev 35)."""
     return np.asarray(dist.log_likelihood(data, **raw))
 
 

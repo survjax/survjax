@@ -156,29 +156,17 @@ def test_fixture_grid_has_shape_141_by_3(bc, name):
 @pytest.mark.parametrize("source", SOURCES)
 @pytest.mark.parametrize("name", VECTORS)
 def test_per_row_log_likelihood_matches_r(bc, name, source):
-    """spec 11.1/12.1, rev 33: `survjax.log_likelihood` per row equals the R per-row log likelihood (float64 `atol=1e-10, rtol=1e-8`)."""
-    value = np.asarray(survjax.log_likelihood(_dist(bc, name), _data(bc)))
+    """spec 11.1/12.1, rev 35: `dist.log_likelihood` per row equals the R per-row log likelihood (float64 `atol=1e-10, rtol=1e-8`)."""
+    value = np.asarray(_dist(bc, name).log_likelihood(_data(bc)))
     assert value.shape == (686,)
     assert_close(value, bc["results"][name][source]["loglik"])
 
 
 @pytest.mark.step("A8")
 @pytest.mark.parametrize("name", VECTORS)
-def test_method_log_likelihood_matches_r(bc, name):
-    """spec 7.1/11.1, rev 33: `dist.log_likelihood` per row equals the flexsurv values."""
-    value = np.asarray(_dist(bc, name).log_likelihood(_data(bc)))
-    assert_close(value, bc["results"][name]["flexsurv"]["loglik"])
-
-
-@pytest.mark.step("A8")
-@pytest.mark.parametrize("name", VECTORS)
 def test_raw_form_log_likelihood_matches_r(bc, name):
     """spec 6.1/11.1, rev 33: the raw `time=`, `event=` form gives the same per-row values."""
-    value = np.asarray(
-        survjax.log_likelihood(
-            _dist(bc, name), time=f(bc["time"]), event=b(bc["event"] == 1)
-        )
-    )
+    value = np.asarray(_dist(bc, name).log_likelihood(time=f(bc["time"]), event=b(bc["event"] == 1)))
     assert_close(value, bc["results"][name]["flexsurv"]["loglik"])
 
 
@@ -207,7 +195,7 @@ def test_design_matrix_construction_with_from_log_matches_r(bc, name):
     @jax.jit
     def per_row(theta):
         dist = survjax.Weibull.from_log(log_shape=theta[0], log_scale=x @ theta[1:])
-        return survjax.log_likelihood(dist, data)
+        return dist.log_likelihood(data)
 
     assert_close(per_row(jnp.asarray(theta)), bc["results"][name]["flexsurv"]["loglik"])
 
@@ -221,7 +209,7 @@ def test_summed_log_likelihood_matches_r(bc, name):
     count, since 686 rows each within ``atol`` can add up to ``686 * atol``.
     """
     tol = TOLERANCES[FLOAT]
-    total = float(np.asarray(survjax.log_likelihood(_dist(bc, name), _data(bc))).sum(dtype=np.float64))
+    total = float(np.asarray(_dist(bc, name).log_likelihood(_data(bc))).sum(dtype=np.float64))
     expected = float(bc["results"][name]["flexsurv"]["loglik"].sum())
     np.testing.assert_allclose(total, expected, rtol=tol["rtol"], atol=686 * tol["atol"])
 

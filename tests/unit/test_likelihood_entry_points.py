@@ -9,26 +9,9 @@ from impl_tolerances import ATOL, RTOL
 import survjax
 
 
-@pytest.fixture(params=["function", "method"])
-def evaluate(request):
-    if request.param == "method":
-        return lambda dist, *args, **kwargs: dist.log_likelihood(*args, **kwargs)
-    return survjax.log_likelihood
-
-
-@pytest.mark.parametrize(
-    "dist", [None, object(), survjax.Exponential], ids=["none", "object", "class"]
-)
-@pytest.mark.parametrize("compiled", [False, True], ids=["eager", "jit"])
-def test_non_distribution_argument_raises_clear_type_error(dist, compiled):
-    """Spec 6.1: invalid distribution types are rejected before evaluation."""
-    data = survjax.SurvivalData([1.0], [1])
-
-    def run():
-        return survjax.log_likelihood(dist, data)
-
-    with pytest.raises(TypeError, match="dist must be a SurvivalDistribution instance"):
-        (jax.jit(run) if compiled else run)()
+@pytest.fixture
+def evaluate():
+    return lambda dist, *args, **kwargs: dist.log_likelihood(*args, **kwargs)
 
 
 @pytest.mark.parametrize("form", ["raw", "prepared"])
@@ -75,7 +58,7 @@ def test_positional_raw_array_points_to_keyword_form(evaluate):
 
 
 def test_raw_keywords_are_keyword_only(evaluate):
-    """Spec 6.1: only data may follow the distribution positionally."""
+    """Spec 6.1: only data may be passed positionally."""
     with pytest.raises(TypeError):
         evaluate(survjax.Exponential(rate=1.0), None, [1.0], [1])
 
@@ -135,7 +118,7 @@ def test_invalid_raw_indicators_keep_evidence(evaluate, form, mode, x64_enabled)
 def test_public_derivatives_match_analytical_anchors(
     evaluate, form, transform, x64_enabled
 ):
-    """Spec 7.3/12.1: delegation preserves first and second parameter derivatives."""
+    """Spec 7.3/12.1: the method preserves first and second parameter derivatives."""
     time, event = jnp.array([1.0, 2.0, 3.0]), jnp.array([1, 0, 1])
     kwargs = (
         {"time": time, "event": event}
@@ -153,4 +136,48 @@ def test_public_derivatives_match_analytical_anchors(
     for result in (value, compiled):
         np.testing.assert_allclose(
             result, expected, atol=ATOL[x64_enabled], rtol=RTOL[x64_enabled]
+        )
+
+
+@pytest.mark.parametrize("family", [survjax.Exponential, survjax.Weibull])
+@pytest.mark.parametrize(
+    "transform",
+    [None, jax.jacfwd, jax.jacrev, jax.hessian],
+    ids=["values", "fwd", "rev", "hessian"],
+)
+@pytest.mark.parametrize("compiled", [False, True], ids=["eager", "jit"])
+def test_input_forms_agree_in_values_and_parameter_derivatives(
+    family, transform, compiled, x64_enabled
+):
+    """Spec 6.1/12.1, rev 35: raw and prepared forms agree through order two."""
+    time, event = jnp.array([0.5, 1.0, 1.5]), jnp.array([True, False, True])
+    data = survjax.SurvivalData(time, event)
+    exponential = family is survjax.Exponential
+    parameters = jnp.array([2.0] if exponential else [1.5, 2.0])
+
+    def rows(p, *, prepared):
+        dist = family(rate=p[0]) if exponential else family(shape=p[0], scale=p[1])
+        if prepared:
+            return dist.log_likelihood(data)
+        return dist.log_likelihood(time=time, event=event)
+
+    def raw(p):
+        return rows(p, prepared=False)
+
+    def prepared(p):
+        return rows(p, prepared=True)
+
+    if transform is not None:
+        raw, prepared = transform(raw), transform(prepared)
+    if compiled:
+        raw, prepared = jax.jit(raw), jax.jit(prepared)
+    # This tests form equivalence; analytical and finite-difference tests above
+    # and in test_likelihood_transformations.py independently check correctness.
+    actual, expected = raw(parameters), prepared(parameters)
+    assert jnp.all(jnp.isfinite(actual))
+    if transform is None:
+        np.testing.assert_array_equal(actual, expected)
+    else:
+        np.testing.assert_allclose(
+            actual, expected, atol=ATOL[x64_enabled], rtol=RTOL[x64_enabled]
         )

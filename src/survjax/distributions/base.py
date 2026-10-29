@@ -168,27 +168,34 @@ class SurvivalDistribution:
         time: ArrayLike | None = None,
         event: ArrayLike | None = None,
     ) -> jax.Array:
-        """Return the same contributions and derivatives as survjax.log_likelihood.
+        """Return unsummed exact/right log contributions without truncation.
 
         Args:
-            data: Prepared SurvivalData, instead of the raw keyword form.
-            time: Raw exact/right-censoring times; requires event.
+            data: Prepared SurvivalData, supplied instead of time and event.
+            time: Raw exact/right-censoring times; requires event. Event inputs
+                must broadcast to time.shape without enlarging it.
             event: 1/True for exact and 0/False for right censoring; requires time.
 
         Returns:
-            Unsummed log contributions, broadcasting trailing data and parameter
-            batch axes with no time-grid axis. Slice A supports exact/right
-            observations without truncation. Invalid or unsupported rows give
-            NaN, and true zero likelihood gives -inf, eagerly and under jit/vmap.
+            An array with the trailing-axis broadcast shape of the data and
+            distribution batch shapes, in their common floating dtype. There is
+            no time-grid axis, reduction or weighting. Invalid data/parameter
+            rows and modes unsupported in Slice A give NaN, eagerly and under
+            jit/vmap; supported rows retain their contributions. True zero
+            likelihood and log contributions below the dtype's finite range
+            give -inf.
+            Inspect data.issues and self.parameter_issues() for diagnostics;
+            only explicit host checkpoints raise for invalid runtime values.
 
         Raises:
             TypeError: Mixed/missing forms, positional raw arrays, invalid types
-                or incompatible shapes. Richer inputs require SurvivalData.
+                or incompatible shapes. time and event are keyword-only;
+                constructor options such as truncation require SurvivalData.
         """
         # spec 4.2/7.1: use the single evaluator; defer the import to avoid a cycle.
-        from survjax.likelihood import log_likelihood
+        from survjax.likelihood import _log_likelihood, _resolve_data
 
-        return log_likelihood(self, data, time=time, event=event)
+        return _log_likelihood(self, _resolve_data(data, time, event))
 
     def parameter_conditions(self) -> Mapping[str, jax.Array]:
         """Return named boolean masks of parameter-condition violations.

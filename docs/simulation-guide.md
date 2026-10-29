@@ -45,9 +45,8 @@ N = 512  # example intended dataset size; keep it fixed for the pilot
 
 
 def nll(log_rate, data):
-    return -survjax.log_likelihood(
-        survjax.Exponential.from_log(log_rate=log_rate), data
-    ).sum()
+    model = survjax.Exponential.from_log(log_rate=log_rate)
+    return -model.log_likelihood(data).sum()
 
 
 score = jax.grad(nll)

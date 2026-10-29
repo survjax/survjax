@@ -19,7 +19,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 import spec_families as fam
-from helpers import INF, NAN, assert_close, b, f, ll_method, nan_causes
+from helpers import INF, NAN, assert_close, b, f, nan_causes
 
 import survjax
 
@@ -28,7 +28,7 @@ RIGHT = False
 
 
 def _ll(dist, data):
-    return np.asarray(survjax.log_likelihood(dist, data))
+    return np.asarray(dist.log_likelihood(data))
 
 
 def _data(time, event):
@@ -181,30 +181,26 @@ def test_invalid_parameters_and_invalid_data_overlap():
     assert not other.any()
 
 
-# ------------------------------------------------ method and function agree
+# ------------------------------------------------------------- mixed rows
 
 
 @pytest.mark.step("A6")
-def test_method_and_function_agree_on_parameter_violations():
-    """spec 7.1 and 12.1, rev 29: `dist.log_likelihood` returns exactly what the function returns, NaN rows included."""
+def test_named_condition_and_constraint_violations_give_nan_rows():
+    """spec 7.1 and 12.1, rev 35: a named-condition violation (`rate > cap`) and a constraint violation (`rate < 0`) each force their row to NaN."""
     dist = fam.capped_rate()(rate=f([3.0, 1.0, -1.0, 0.5]), cap=f([2.0, 2.0, 2.0, 2.0]))
     data = _data([1.0, 1.0, 2.0, 2.0], [EXACT, EXACT, RIGHT, RIGHT])
-    plain = _ll(dist, data)
-    method = ll_method(dist, data)
-    np.testing.assert_array_equal(method, plain)
-    np.testing.assert_array_equal(np.isnan(plain), [True, False, True, False])
+    np.testing.assert_array_equal(np.isnan(_ll(dist, data)), [True, False, True, False])
 
 
 @pytest.mark.step("A6")
 def test_raw_form_forces_nan_on_parameter_violations():
-    """spec 6.1 and 7.1, rev 29: the raw `time=`/`event=` form forces NaN too, in the function and the method."""
+    """spec 6.1 and 7.1, rev 35: the raw `time=`/`event=` form forces NaN too."""
     dist = survjax.Exponential(rate=f([-1.0, 1.0]))
     time, event = f([2.0, 2.0]), b([RIGHT, RIGHT])
-    value = np.asarray(survjax.log_likelihood(dist, time=time, event=event))
+    value = np.asarray(dist.log_likelihood(time=time, event=event))
     assert np.isnan(value[0])
     assert_close(value[1], -2.0)
     np.testing.assert_array_equal(_bad_params(dist, value), [True, False])
-    np.testing.assert_array_equal(ll_method(dist, time=time, event=event), value)
 
 
 # ------------------------------------------ undeclared NaN: the recipe's remainder
@@ -297,7 +293,7 @@ def test_rows_without_issues_keep_their_gradients(mode):
     rate, data = _per_row_case()
 
     def ll(r):
-        return survjax.log_likelihood(survjax.Exponential(rate=r), data)
+        return survjax.Exponential(rate=r).log_likelihood(data)
 
     jac_fn = jax.jacrev(ll) if mode == "rev" else jax.jacfwd(ll)
     jac = np.asarray(jac_fn(jnp.asarray(rate)))[ROWS_OK]
@@ -312,7 +308,7 @@ def test_rows_without_issues_keep_their_gradients_under_jit(mode):
     rate, data = _per_row_case()
 
     def ll(r):
-        return survjax.log_likelihood(survjax.Exponential(rate=r), data)
+        return survjax.Exponential(rate=r).log_likelihood(data)
 
     jac_fn = jax.jacrev(ll) if mode == "rev" else jax.jacfwd(ll)
     jac = np.asarray(jax.jit(jac_fn)(jnp.asarray(rate)))[ROWS_OK]
@@ -327,11 +323,11 @@ def test_sum_over_valid_rows_has_alone_gradient():
     keep = jnp.asarray(ROWS_OK)
 
     def loss_together(r):
-        return jnp.sum(survjax.log_likelihood(survjax.Exponential(rate=r), data)[keep])
+        return jnp.sum(survjax.Exponential(rate=r).log_likelihood(data)[keep])
 
     def loss_alone(r):
         sub = survjax.Exponential(rate=r[::2])  # rows 0 and 2
-        return jnp.sum(survjax.log_likelihood(sub, data[::2]))
+        return jnp.sum(sub.log_likelihood(data[::2]))
 
     g_together = np.asarray(jax.grad(loss_together)(jnp.asarray(rate)))[ROWS_OK]
     g_alone = np.asarray(jax.grad(loss_alone)(jnp.asarray(rate)))[ROWS_OK]
@@ -351,7 +347,7 @@ def test_parameter_violations_under_jit_match_eager():
 
     def run(r):
         dist = survjax.Exponential(rate=r)
-        return survjax.log_likelihood(dist, data), dist.parameter_issues().invalid_entries
+        return dist.log_likelihood(data), dist.parameter_issues().invalid_entries
 
     eager_value, eager_mask = run(rate)
     jit_value, jit_mask = jax.jit(run)(rate)
@@ -368,7 +364,7 @@ def test_parameter_violations_under_vmap_match_batched_call():
     rates = f([[1.0, 2.0, 0.5], [1.0, -1.0, 0.5]])
 
     def run(r):
-        return survjax.log_likelihood(survjax.Exponential(rate=r), data)
+        return survjax.Exponential(rate=r).log_likelihood(data)
 
     mapped = np.asarray(jax.vmap(run)(rates))
     batched = np.asarray(run(rates))

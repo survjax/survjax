@@ -6,6 +6,9 @@
 # 3. the implementer's own tests, both dtype modes (scripts/run_tests.sh)
 # 4. source doctests, both dtype modes
 # 5. independent spec tests up to step <N>, both dtype modes
+#
+# PYTEST_WORKERS sets the pytest-xdist worker count for steps 3 and 5
+# (default 6; 0 runs serially).
 set -euo pipefail
 
 usage() { echo "usage: scripts/check.sh --through A<N>" >&2; exit 2; }
@@ -17,6 +20,8 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ -n "$through" ] || usage
+workers="${PYTEST_WORKERS:-6}"
+export PYTEST_WORKERS="$workers"
 
 cd "$(git rev-parse --show-toplevel)"
 
@@ -67,7 +72,7 @@ done
 for x64 in 1 0; do
   echo "spec tests through $through, JAX_ENABLE_X64=$x64"
   set +e
-  JAX_ENABLE_X64=$x64 SPEC_THROUGH="$through" uv run pytest tests/spec -q
+  JAX_ENABLE_X64=$x64 SPEC_THROUGH="$through" uv run --group test pytest tests/spec -q -n "$workers"
   rc=$?
   set -e
   if [ $rc -ne 0 ] && [ $rc -ne 5 ]; then
