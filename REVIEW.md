@@ -1,91 +1,67 @@
 Independent review: round 1/3
 
-# A10.d1 — Executable concordance guide
+# A10.d2 — Concordance in the editable playground
 
-Authorized by “ok move on to next part of A10”. Branch A10.4, clean base
-7c4f57b. One docs topic: docs/concordance.md and index/API links. No source,
-API, dependencies, fixtures, protected paths or spec changes.
+Authorized after the maintainer reviewed A10.d1. Branch A10.4, clean base
+fdce5db. Scope: docs/playground.ipynb only, plus PLAN.md and REVIEW.md.
+No source, tests, dependency, protected paths or spec changes. The separate
+8757c0f planning packet is not part of this step and remains unchanged.
 
 ## Reading order
 
-1. docs/concordance.md: synthetic five-pair example, score draws and failure
-   diagnostics; score direction, support and reference evidence.
-2. docs/index.md and docs/api.md: topic links and current capability wording.
-3. PLAN.md A10.d1: scope, prerequisite through-A10 result, later work.
+1. docs/playground.ipynb: corrected introduction, then the new concordance
+   cells before Things to try; existing data/distribution cells are preserved.
+2. PLAN.md A10.d2: requirements, single-runner validation and remaining steps.
+3. docs/concordance.md: accepted background for the same hand-enumerated
+   cohort and the semantics; unchanged by this step.
 
-## Invariants and spec mapping
+## Validation ownership — reviewer is the sole runner
 
-Spec 6.1: scores first, prepared data or raw time/event keywords. Spec 9.1–9.2:
-observation axis last, no broadcasting it, leading cohorts never pooled;
-higher scores predict earlier events; event/censor time ties comparable,
-other time ties excluded, tied scores get half credit; failed cohorts have
-zero counts, no-pair masks only for evaluated cohorts. Exact counts use
-uint32 hi/lo words; returned ratios follow the observation float dtype.
-No gradients or calibration promised. O(N²) work and O(N) pair workspace.
-Spec 10.4/12.1: reference claims limited to committed synthetic pinned-R
-checks, no R required for examples. Spec 10.5: examples execute freshly in
-both dtype processes; no outputs committed. Spec 12.2: this is the guide,
-not the playground, held-out example or final completion audit.
+The maintainer explicitly requested “only you or the reviewer run them not
+both as it would be exactly the same no?” The previous reviewer repeated the
+implementer's docs build because its role requires one. For this step the
+implementer deliberately runs NO docs build, Ruff, mypy, pytest or full gate.
+The reviewer owns the fresh scripts/build_docs.sh run in both modes, Ruff
+and notebook validation. Checks are pending at this commit, assigned to
+review rather than omitted or claimed passed. Please record exact outcomes,
+including the hand-derived C/count assertions and unexecuted source state.
+The implementer reviews source and staged changes only. The final A10 audit
+will inspect the complete rendered site; no browser QA claim for this step.
 
-## Validation ownership
+## Invariants and requirement mapping
 
-The maintainer explicitly requested: “only you or the reviewer run them not
-both as it would be exactly the same no?” The implementer owns this step's
-build and routine checks. Please review source and recorded evidence without
-repeating those same checks. This preserves the maintainer's preference;
-no changes to the required reviewer prompt or protected settings.
+Spec 6.1/9.1–9.2: finite caller-supplied higher-risk scores; exact/right only,
+no truncation; N is last and must match; leading score draws evaluated
+separately. Default cohort is the guide's time [1,2,2,3], events [T,T,F,T],
+scores [4,3,1,4]. Hand pairs: (1,2),(1,3),(2,3) concordant; (1,4) tied;
+(2,4) discordant; (3,4) excluded. Counts (3,1,1,5), C=3.5/5=7/10.
+Reversal gives (1,3,1,5), C=3/10; constant scores give C=1/2. Assertions
+check these expected fractions and transformation agreement on the defaults;
+users editing defaults are told to recalculate their expectations.
+Counts are reconstructed as Python ints from hi/lo on the host. No gradient
+is taken through C. The existing mixed cohort is valid but unsupported;
+all-censored data are evaluated with no comparable pairs. NaNs retain their
+correct distinct masks and failed counts are zero, without dropping rows.
+Spec 10.5/12.1: synthetic, public-API, network/R-free examples execute during
+the two-mode build; notebook code cells are committed with empty outputs
+and null execution counts. Remove the existing saved import error and stale
+Python 3.14.5 metadata; the locked environment determines the interpreter.
+Spec 12.2: editable playground coverage, not the held-out example/final audit.
 
-Prerequisite full fresh-wheel gate on 7c4f57b already passed through A10:
-own suites 1048 passed, 7 skipped / 1054 passed, 1 skipped; doctests 4 each;
-independent suites 2332 passed, 28 skipped / 2322 passed, 38 skipped.
-No production/test changes for this step, so that gate is not repeated.
+## Checks and limits at commit
 
-## Checks and rendered inspection
+Implemented six new cells (three prose/code pairs) before Things to try.
+Notebook diff: 138 additions, 23 deletions, 161 changed lines. Existing data
+and distribution cell sources/IDs are preserved. Intro and exploration
+prompts changed as planned; all code outputs/counts are cleared, including
+the old ModuleNotFoundError output, and stale Python version metadata removed.
+The new value assertions use exactly the correctly rounded hand-derived
+7/10, 3/10 and 1/2 in the result dtype; they apply only to this default cohort,
+not as a general numerical tolerance guarantee.
 
-`scripts/build_docs.sh > /private/tmp/survjax-a10d1-docs.log 2>&1` exited 0,
-both Sphinx builds succeeded, but notebook shutdowns logged macOS sysctl
-PermissionError tracebacks inside the sandbox. Repeated unchanged using the
-approved escalated build command, logging to
-`/private/tmp/survjax-a10d1-docs-unsandboxed.log`: exit 0, both builds
-succeeded; no PermissionError, execution error or Sphinx warning. Existing
-IPKernelApp TCP-transport warnings still appear on stderr; they do not
-originate from the new page or from Sphinx warning checks. Optional docs
-dependencies were synced from the unchanged lockfile on the first run.
-
-The guide's eight code cells execute freshly in each process (3.30s float32,
-3.19s float64 on the final build). Outputs in both renders:
-- Hand table: C = 0.700, counts (3,1,1,5), raw C = 0.7.
-- Score draws: [0.7,0.3,0.5]; jit and vmap give the same array.
-- Invalid draw: [0.7,NaN,0.5], invalid [False,True,False], zero failed counts.
-- Valid delayed-entry cohort: NaN with unsupported True and invalid False.
-- All censored: NaN with no_comparable_pairs True, no failure masks.
-Assertions for counts, shapes, transformation agreement and masks all pass.
-
-`uv run ruff format --check .`: final run 112 files already formatted
-(initial run before docs artifacts: 105).
-`uv run ruff check .`: All checks passed! `git diff --check`: clean.
-No new pytest/mypy/full-wheel invocation: this docs-only step does not
-change source or tests; the prerequisite gate is listed above.
-
-Rendered evaluation: served docs/_build over loopback port 8764 using
-Python's http.server. CUA browser host was unavailable, so used native
-Brave controls in a new tab. Inspected html-x32/concordance.html and
-html-x64/concordance.html, with screenshots and accessibility text.
-Page title, sidebar and section navigation are present. The complete pair
-table and rendered fraction are readable; count/mask/shape tables fit the
-content column. Score-draw and failure outputs match the values above;
-code blocks stay within their containers. Verified the API's worked-guide
-backlink navigates to the guide and inspected the updated index wording,
-prose link and toctree entry. No layout issue found at the inspected desktop
-viewport; no mobile-layout claim. Generated HTML and execution outputs are
-ignored and uncommitted.
-
-Known gaps: the existing playground still says likelihoods are unimplemented
-and has no concordance cells; its update is the next separate docs topic.
-The held-out synthetic workflow and final evidence/install audit remain
-unfinished. This guide describes current support, undefined/failed results,
-exact-pair complexity and the scope of committed R evidence without claiming
-these remaining deliverables or Slice A completion. No new deviation.
-
-Final planned-file/whitespace audit, docs commit and independent review
-follow. The maintainer's single-runner preference above applies to review.
+Source/diff inspection completed. No automated checks run by implementer.
+Automated checks are pending the reviewer as sole runner. No claim of a
+passing build or lint before review. Do not rerun the full through-A10 gate:
+source/tests have not changed since the passing 7c4f57b wheel gate.
+No browser inspection performed; held-out synthetic example and final
+evidence/rendered-site audit remain. Commit and round 1 follow.

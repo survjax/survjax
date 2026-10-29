@@ -7,6 +7,70 @@ audit and planning checks") and A8 (`plans/A8.md`, "Closure still required").
 
 ---
 
+# A10.d2 — Concordance in the editable playground (2026-10-29)
+
+Authorized by “ok i've reviewed the docs; on to the next bit”. A10.d1 is
+accepted by the maintainer after round 1's merge verdict. Continue on the
+existing `A10.4` branch from clean `fdce5db`; no branch creation or merge.
+One notebook topic, at most 300 changed notebook lines. Public API unchanged.
+Spec: 6.1, 9.1–9.2, 10.5, 12.1 and 12.2's public concordance item.
+
+Files to change:
+
+- `docs/playground.ipynb`: correct the obsolete “likelihoods are not
+  implemented yet” introduction, link current likelihood/concordance guides
+  and give the locked JupyterLab command. Add an editable, separate synthetic
+  four-patient concordance cohort with the guide's hand-derived counts and
+  C=7/10. Show score draws (original/reversed/constant), last-axis shapes and
+  jit/vmap agreement against explicit expected fractions. Demonstrate the
+  existing mixed six-patient cohort's unsupported modes, and an evaluated
+  all-censored zero-pair result. Explain finite higher-risk scores, exact/right
+  support without truncation, whole-cohort masks, and no score-gradient
+  promise. Add focused Things-to-try prompts. Tell users that changing the
+  defaults also changes the hand-derived assertions.
+- Clear committed execution outputs/counts (including the existing first
+  cell's ModuleNotFoundError) and remove stale Python 3.14.5 version metadata;
+  preserve existing observation/distribution cells and IDs. No execution
+  outputs, generated HTML or caches committed. No dependency changes.
+- Prepend this plan and overwrite `REVIEW.md` at the start, recording reading
+  order, notebook invariants, requirements, validation ownership and limits.
+  Do not alter the guide, tests, production, protected paths or spec.
+
+Validation ownership: the maintainer requires one runner, not the implementer
+and reviewer both. The implementer will NOT run build_docs, Ruff, mypy, pytest
+or the full gate for this step. The independent reviewer is the sole runner
+for `scripts/build_docs.sh` (both modes), Ruff and appropriate notebook checks;
+its role already requires a fresh docs build. The implementer will inspect
+the notebook source/staged diff, then commit with checks explicitly pending
+review, use the exact independent-review command for `A10.d2` in
+`../review/code-A10.4` and read the result. Maximum three review rounds with
+separate fixes for blocker/should-fix findings, then stop. Browser inspection
+of the complete rendered site remains in the final A10 docs audit; do not
+claim it for this notebook step. This avoids rerunning the reviewer's build.
+
+Prerequisites: the last full fresh-wheel gate passed through A10 on 7c4f57b;
+no runtime/test change since. A10.d1's two dtype builds passed. No repetition
+of those gates for notebook-only edits. The concurrent 8757c0f planning packet
+is outside this step and remains unchanged. Docs to-do: held-out synthetic
+example, then final installed-artifact/evidence/rendered-site audit. A10 and
+Slice A completion are not claimed by this notebook update.
+
+Planning evidence: clean status/branch/history, notebook cells/metadata,
+current guide, docs build/config, spec sections above and review workflow read.
+No new spec choice, API, dependency or deviation is needed.
+
+Implemented: six new cells (three prose/code pairs) before Things to try;
+intro/launch instructions and exploration prompts updated. Notebook diff:
+138 added, 23 removed lines (161 changed), including removal of the saved
+import error/count and stale version metadata. Existing data/distribution
+cell sources and IDs are preserved; all code outputs/counts cleared.
+Source/diff inspection matches the planned hand counts, score-draw fractions,
+transformation calls and unsupported/zero-pair distinctions. No automated
+checks run by the implementer. Commit for the reviewer-owned build/checks
+and round 1; results are explicitly pending, not claimed as passed.
+
+---
+
 # A10.d1 — Executable concordance guide (2026-10-29)
 
 Authorized by “ok move on to next part of A10”. Continue on the existing
