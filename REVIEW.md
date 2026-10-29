@@ -1,6 +1,6 @@
 # PH.1 — Construction, diagnostics and direct PH composition
 
-Independent review: round 1/3
+Independent review: round 1/3 — completed; VERDICT: maintainer
 
 Branch: `release-ph`. Actual full base SHA:
 `8757c0fda78e34e6e818249adedd2a144a33c33d` (requested snapshot 8757c0f).
@@ -106,4 +106,42 @@ RMST/closure waits for the reviewed RMST integration. The default log-CDF
 inherits the generic lower-tail range (spec 4.2); no new log-H extension hook
 or built-in dispatch is introduced here. Public export and executable topic
 integration remain separate. No R generation, demos or docs build were run.
-No uncertainty requiring a new spec decision was encountered in this scope.
+Round 1 identifies a constructor contract question (S-1 / D-028); my original
+reading that the keyword-only rule settled the illustrative positional calls
+was not accepted by the reviewer. No behavior or spec changes follow this
+verdict before the maintainer decides.
+
+
+## Independent round 1 outcome — stop for maintainer
+
+Reviewed implementation commit: `965cbeb0b61efafc0b6a981fa5fedeec5044d3dd`.
+Report: `../review/slices/PH.1.md`, round 1. Final `VERDICT: maintainer`.
+One review invocation, no retry. No fix-up implementation or second step begun.
+
+- S-1 / D-028 (open): spec 4.2 keyword-only constructors conflict with the
+  positional baseline in 4.4/11.3 examples. The implementation followed 4.2;
+  the reviewer requires a maintainer decision before the next fix-up.
+- F-1 (open, should-fix): a baseline log survival rounded to zero at positive
+  time is returned unscaled, losing the exp(eta) factor in its baseline
+  tangent. Review probes: float32 r=1e-30, t=1e-20, eta=40 gives d/dr=-1e-20
+  instead of about -2.35e-3; float64 r=t=1e-200, eta=300 also fails. This
+  refutes a general derivative-correctness claim; focused tests missed it.
+- F-2 (open, should-fix): improper-baseline infinity scaling and NaN eta hook
+  behavior need tests in the same step. Deferring these implemented behaviors
+  to PH.2 was insufficient. Mutants removing either behavior survived.
+- N-1 / N-2 (open nits): promoted reference dtype versus predictor downcast;
+  an overflow-threshold regression near log(max). Record for the fix-up scope.
+
+Reviewer checks: own suites 1060 passed/7 skipped and 1066 passed/1 skipped;
+4 source doctests per dtype; Ruff/mypy clean. Its plain check.sh gate exits 1
+because SURVJAX_WHEEL was not supplied: float64 independent suite 2327 passed,
+28 skipped, 5 wheel-fixture setup errors, then stops before float32 acceptance.
+The reviewer could not invoke check_wheel.sh under its permissions. This does
+not supersede the successful fresh-wheel gate above; it is an independent
+verification limit. Mutation checks caught 2/5 mutants in both modes.
+
+The reviewer reports a leftover prunable temporary-worktree registration in
+shared Git metadata after refused cleanup. I have not touched reviewer-owned
+paths or pruned other worktrees. No merge, push, publication or spec edit.
+This record and D-028 are a follow-up bookkeeping commit only; the reviewed
+implementation remains unchanged and is not approved for merge.

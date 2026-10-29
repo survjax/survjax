@@ -49,7 +49,7 @@ If a check fails, record the actual failure; no unsupported gate-pass claim.
 Docs to-do: separately authorize public export/API-reference integration; later
 executable PH topic documents eta>0 as higher hazard and the release subset.
 
-Implementation complete: 118 source + 174 test lines (292 total). Focused PH:
+Initial implementation committed: 118 source + 174 test lines (292 total). Focused PH:
 12 passed per mode (10.05s float64 / 9.99s float32); Ruff formatting/lint and
 mypy clean (21 source files). Initial focused boundary-gradient failure was
 fixed with guarded exponential overflow, leaving the test unchanged.
@@ -57,7 +57,11 @@ Fresh-wheel through-A10 gate exits 0: own suites 1060 passed, 7 skipped /
 1066 passed, 1 skipped; source doctests 4 passed per mode; independent suites
 2332 passed, 28 skipped / 2322 passed, 38 skipped. Exact commands/timings,
 wheel identity, limits and requirement map are in REVIEW.md. Scope and staged
-whitespace audit clean. Commit and independent round 1 follow; stop afterward.
+whitespace audit clean. Commit 965cbeb is reviewed: round 1 returns maintainer
+for S-1 (constructor contract; logged as open D-028). F-1 underflowed baseline
+tangents and F-2 missing improper/NaN-hook evidence remain should-fix; N-1/N-2
+remain nits. REVIEW.md records the independent probes and gate limits. Stop
+for the maintainer decision, with no code fix-up or next step begun.
 
 ---
 

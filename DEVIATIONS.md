@@ -1,5 +1,22 @@
 # Deviations and spec questions
 
+## D-028 PH baseline positional versus keyword-only construction
+
+- Step: PH.1 independent review round 1, 2026-10-29 (S-1).
+- Spec section: 4.2, 4.4 and 11.3, revision 37.
+- Spec says: 4.2 requires registered families to use keyword arguments only;
+  4.4 and 11.3 show `ProportionalHazards(base, log_hazard_ratio=...)` with a
+  positional baseline. The wrapper constructor exception, if any, is unstated.
+- Did / propose: commit 965cbeb0b61efafc0b6a981fa5fedeec5044d3dd reuses
+  registration's keyword-only rule, documents it and tests positional rejection.
+  I read 4.2 as governing the wrapper, but the independent reviewer considers
+  the conflicting examples an unresolved constructor contract. Record the gap
+  now and request the maintainer's choice: keep the keyword-only rule and
+  correct the examples, or allow a positional baseline for wrappers. Do not
+  change behavior or spec before that decision. Review verdict is maintainer;
+  numerical/test findings F-1 and F-2 remain open for the subsequent fix-up.
+- Status: open
+
 ## D-027 Concordance result representation and undefined diagnostics
 
 - Step: A10 planning (2026-10-23), before public integration.
