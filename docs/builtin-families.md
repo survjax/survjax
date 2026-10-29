@@ -430,9 +430,6 @@ versions, generating scripts and checksums. During fixture validation,
 Python separately checked decimal read-back against original R hexadecimal
 doubles; Python did not generate expected numerical values.
 
-The additional `tests/fixtures/bc_like/bc_synthetic_weibull.json` maps the
-same R outputs to the independent acceptance schema. The maintainer delivers
-that exact file to the authoritative tester repository, then syncs it into
-`tests/spec/fixtures/`; ordinary regeneration never writes there. That
-protected-fixture handoff remains pending in this checkout, so the passing
-implementation comparisons do not establish a full through-A8 acceptance pass.
+The directory also holds the same R outputs in the acceptance-test schema
+(`bc_synthetic_weibull.json`); ordinary regeneration never writes to
+`tests/spec/`.

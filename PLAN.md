@@ -261,6 +261,29 @@ remaining limits in REVIEW.md; an A8 pass is not completion of all Slice A.
 Spec: 3.3, 4.6–4.7, 5, 6.1–6.3, 11.1, 12.1–12.2.
 Docs to-do: explain synthetic scope, grids and package-path limitations.
 
+## A8.d1 review fix-up — approved (2026-10-29)
+
+Read ../review/slices/A8.d1.md for 726896d. Both should-fix findings are
+confirmed. Approved by "yes do it"; implement only S-1 and S-2.
+Completed: both fresh dtype docs builds exit 0. HTML checks confirm the two
+paragraph fixes, cross-page anchor and all 85 local links/anchors per mode.
+REVIEW.md records exact results and the remaining visual-inspection limit.
+
+- S-1: docs/builtin-families.md: replace the final workflow-status paragraph
+  with one sentence identifying the acceptance-schema copy and saying ordinary
+  regeneration never writes to tests/spec/. Keep pending status in records.
+- S-2: docs/survival-data.md: replace the blanket no-R-agreement statement
+  with the verified exact/right-without-truncation scope and link to
+  builtin-families.md#comparisons-with-r. The table still compares syntax.
+- PLAN.md and REVIEW.md: record scope, evidence and remaining inspection limits.
+  Leave optional N-1/N-2 edits out of this focused should-fix commit.
+
+Public API/tests: none changed or added. Spec: 10.4–10.5, 11.1, 12.1.
+Build fresh docs in both dtype processes with scripts/build_docs.sh; check
+both changed paragraphs and cross-page anchors in HTML, inspect layout where
+browser access permits, then run Ruff and git diff --check. No R regeneration
+or full code gate for two prose edits. Commit one fix-up and stop for review.
+
 ## A8.d1 — R reference evidence and regeneration (separate docs step)
 
 Execution (2026-10-28), authorized by "reviewer is ok; on next subslice,

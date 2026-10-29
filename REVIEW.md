@@ -1,73 +1,61 @@
-# A8.d1 — R reference evidence and regeneration
+# A8.d1 review fix-up — S-1 and S-2
 
-Approved by "reviewer is ok; on next subslice, plan is approved" after
-A8.5 e158e1e. Branch: a8-1-r-generator. Stop after this docs commit.
+Approved by "yes do it" on 2026-10-29 after reviewing
+../review/slices/A8.d1.md for 726896d. Branch: a8-1-r-generator.
 
 ## Read in this order
 
-1. docs/builtin-families.md, Comparisons with R: fixture scope, grid route,
-   dtype checks, evidence limits and regeneration pointers. The former
-   "checked later" sentence now links to this section.
-2. docs/distributions.md: two obsolete likelihood-support statements now
-   describe exact/right support without truncation and link to the guide.
-3. PLAN.md: this execution and the pending protected-fixture handoff.
+1. docs/builtin-families.md, final paragraph: S-1 replaces the maintainer
+   handoff/status paragraph with the acceptance-schema copy and the invariant
+   that ordinary regeneration never writes into tests/spec/.
+2. docs/survival-data.md, Comparison with R: S-2 retains the syntax comparison
+   and links to numerical evidence, scoped to exact/right without truncation.
+3. PLAN.md: approved fix-up and result record.
 
-Audit of docs/api.md found no obsolete verification claims; it is unchanged.
-No new Python examples, source/docstring changes, fixture updates, dependencies,
-lockfile changes, tolerance changes or protected-path edits.
+## Invariants and scope
 
-## Invariants and evidence
+Spec 10.4–10.5, 11.1 and 12.1: user-facing documentation matches the committed
+reference evidence. No unimplemented likelihood or broader R-agreement claim.
+Pending protected-fixture delivery remains a development-record concern:
+through-A8 is still unverified; this commit does not change that status.
 
-- Spec 10.4/11.1: only committed synthetic observations and R outputs support
-  numerical claims. Counts, seeds, fixed vectors, parameter mappings and pinned
-  versions match the fixture READMEs, generators and checked reference tests.
-- Spec 3.3/12.1: explain active-dtype inputs, preserved float64 expectations,
-  central tolerances and eager/jit/vmap comparisons already demonstrated by
-  A8.4b/A8.5. This docs step does not rerun those reference suites.
-- Spec 5/11.1: stored times, (141, 3) time-first group order, direct psurvreg
-  grid route and its cross-check are distinguished from observed-time
-  singleton/full-data likelihood checks. Related R paths are not independent
-  oracles. Fixed-vector comparisons do not establish fitting accuracy.
-- Spec 10.4/10.5: explain manifest-before-parse checks, no-write check-only,
-  overwrite defaults, scratch destination, full two-run recipes, 17-digit
-  exports and the separate historical exact-double round-trip check.
-- Protected fixture delivery remains the maintainer's separate tester-repo
-  handoff/sync. No through-A8 or Slice A completion claim.
+Only these two prose edits and plan/review records change. No public API,
+source, tests, fixtures, generators, dependencies, tolerances, spec or protected
+paths change. Optional reviewer nits N-1/N-2 remain outside this approved fix.
+No new tests are appropriate for two prose edits; existing executable docs
+provide the build check.
 
 ## Actual checks
 
-`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/build_docs.sh`:
-final exit 0; build succeeded in both separate dtype processes, fresh execution
-with Sphinx warnings fatal. Log: /private/tmp/survjax-a8d1-docs-final.log.
-Builtin page execution: 2.70s float32 / 2.51s float64.
-Custom-family guide execution: 4.16s float32 / 4.31s float64.
-All existing executable docs pages ran; the new shell block is illustrative
-and was not executed. No R regeneration, full code gate or new unit tests.
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/build_docs.sh` exited 0:
+build succeeded in separate float32 and float64 processes, fresh notebook
+execution with Sphinx warnings fatal. Escalated execution was used for local
+Jupyter kernel port binding, as required by the previously observed sandbox
+restriction. Full log: /private/tmp/survjax-a8d1-fix-docs.log.
 
-Environment retries: the first sandboxed attempt failed downloading locked
-docs dependencies (DNS); the escalated retry installed them and built both
-modes. After correcting the extra stale sentence, the sandboxed final rebuild
-failed when Jupyter bound a local port; the escalated final rebuild passed.
-The logs contain IPKernelApp TCP-without-encryption notices from the local
-kernel runtime; Sphinx itself reports no build warnings/errors on the passing
-runs. Neither retry changed project dependency declarations or the lockfile.
+| Changed page execution | Float32 | Float64 |
+| --- | --- | --- |
+| builtin-families.md | 2.68s | 2.44s |
+| survival-data.md | 2.76s | 2.49s |
 
-`python3 /private/tmp/check_a8d1_html.py` after the completed final build:
-PASS in both modes: 48 local links/anchors resolve, two new tables, dtype
-outputs present, stale claims absent, both downloaded fixture READMEs
-byte-identical to committed originals. An earlier check ran before the final
-x64 writer completed and saw its stale output; the completed-build rerun above
-passes. The docs recipe downloads are packaged by Sphinx, not broken links
-outside the HTML tree.
+The build executed all existing runnable docs pages. No new code examples;
+R regeneration commands were not run. The log includes the existing local
+IPKernelApp TCP-without-encryption notices; no Sphinx build warning/error.
 
-Browser inspection: the IAB/browser connector was unavailable (empty browser
-inventory). Safari accessibility inspection of the local x64 page confirmed
-new headings, both tables, rendered AFT math, command block, README links,
-navigation entries and the pending-handoff paragraph. Screenshot inspection
-was interrupted by concurrent user Safari navigation to another checkout;
-the next action was rejected as user-changed state. Stopped UI actions to
-avoid interfering. Complete visual layout inspection in both modes remains
-unverified; both final HTML trees were inspected structurally as above.
+`python3 /private/tmp/check_a8d1_fix_html.py` passed in both modes:
+corrected paragraphs present, obsolete claims/status absent, new cross-page
+anchor resolves, all 85 local links/anchors across both changed pages resolve.
+Checks ran after both final HTML trees completed.
 
-Final `uv run ruff format --check .`, `uv run ruff check .` (same tmp cache)
-and `git diff --check` pass. No new deviations. Stop for review.
+Browser inventory returned no available connector browsers. No new Safari
+interaction was attempted after the concurrent-user conflict recorded in the
+previous review. Full visual layout inspection remains unverified; final
+HTML text, links and structure were checked directly in both modes.
+
+Final checks with the same UV_CACHE_DIR:
+- uv run ruff format --check .: 77 files already formatted.
+- uv run ruff check .: All checks passed!
+- git diff --check: exit 0, no output.
+
+No full code gate, numerical-suite rerun, R regeneration or new deviations.
+Stop after this fix-up commit for review.
