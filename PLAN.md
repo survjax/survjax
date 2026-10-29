@@ -1,3 +1,81 @@
+# A10.3 — Public concordance transformation and permutation evidence (2026-10-29)
+
+Status: **implemented and verified; ready for independent review**, following
+"implement and review (automatic via claude, use the skill) the next part of
+A10" and the subsequent "approved". Work on the maintainer-created `a10b`
+branch from clean `a5cfea7`.
+The reviewed A10.2 API and main/A9 integration are present. The next outline
+item is A10.3, before the separate A10.4 R-fixture step below.
+
+Completed implementation: two new own-test modules, 231 lines, seven tests.
+Focused concordance suites: 72 passed per dtype (21.99s float64 / 22.07s
+float32), no skips. Fresh-wheel `scripts/check_wheel.sh --through A9` exited
+0, ending `check: all gates passed through A9`: own suites 1043 passed,
+7 skipped / 1049 passed, 1 skipped; source doctests 4 passed per mode;
+independent through-A9 suites 2211 passed, 28 skipped / 2202 passed,
+37 skipped. Five non-fixture independent A10 modules: 113 passed (22.55s)
+float64 / 112 passed, 1 skipped (30.07s) float32. Ruff: 92 files formatted,
+All checks passed; mypy: no issues in 20 source files. Existing skips only.
+Exact commands, timings, wheel identity, initial cache/lint failures and
+limits are recorded in REVIEW.md. No production code changed; no full A10
+claim. Final staged audit, commit and automatic Claude review follow.
+
+One concept: complete own public-API evidence for transformations and
+observation permutations. Aim for at most 300 changed source/test lines.
+Public API and implementation behavior: unchanged. Spec sections: 6.1–6.3,
+7.2 (compilation reuse), 9.1–9.2, 12.1 (transformations and metric shapes).
+
+Files to create or change:
+
+- Create `tests/unit/test_concordance_transformations.py`. Use distinct,
+  hand-enumerated tied-time/tied-score cohorts, with counts and fractions
+  derived in comments. Check `(B,1,N)` data against `(D,N)` scores, using
+  different B and D lengths; compare eager, jit, nested vmap and jit-of-vmap
+  to those expectations for values, all eight count words and all masks.
+  Cover prepared inputs and raw construction inside the compiled function.
+- In that module, test transformed invalid and unsupported cohorts beside
+  valid and evaluated zero-pair cohorts. Check cohort isolation, preserved
+  overlapping masks, zero failed counts and result shapes against explicit
+  expectations. Add a trace counter showing equal-shape/dtype changes to
+  scores, times and event values reuse compilation. No score derivatives.
+- Create `tests/property/test_concordance.py`. Reproducible Hypothesis cases
+  (`derandomize=True`) use small positive integer times, boolean events and
+  bounded integer scores so ties and exact arithmetic are frequent. Verify
+  joint row-permutation invariance of the complete result, count partition
+  (`comparable = concordant + discordant + tied_score`), and score negation
+  swapping concordant/discordant while preserving ties, masks and C's
+  complement when defined. Cover no-pair NaNs explicitly. Identity-based
+  expectations must not use production helpers or independent test helpers.
+- Update this plan with actual results and overwrite `REVIEW.md` with the
+  reading order, invariants, spec/test mapping, checks and limits. Retain
+  historical plan records below. No changes to spec, `.spec-seen`, docs,
+  protected tests/scripts, fixtures, dependencies or likelihood code.
+
+Verification after approval:
+
+- Run all own concordance modules, including both new modules, in separate
+  `JAX_ENABLE_X64=1` and `=0` processes. Use existing central tolerances for
+  non-exact floating identities; compare count words and masks exactly.
+- Run Ruff format/check and mypy, then the unchanged
+  `scripts/check_wheel.sh --through A9` for the combined-tree regression and
+  installed exports. Run the five non-fixture independent A10 modules in
+  both dtypes with `SPEC_THROUGH=A10`, without changing their selection logic
+  or contents. The missing concordance R fixture precludes a full A10 claim.
+- Inspect whitespace and the final diff; commit this step on `a10b` with
+  `REVIEW.md` recording `Independent review: round 1/3`. From a clean tree,
+  invoke the exact independent-review skill command in
+  `../review/code-a10b`, step `A10.3`, and read `../review/slices/A10.3.md`.
+  Follow its verdict, with at most three rounds and separate fix-up commits
+  for blocker/should-fix findings; stop after this step and report.
+
+Docs to-do: existing concordance topic/playground and held-out synthetic
+example remain later steps. A10.4 owns pinned-R generation/reference tests.
+Planning checks: read branch/status/history, the A10 outline, current public
+metric and own/independent shape/property coverage, shared test fixtures and
+spec sections above. No implementation, tests or review run during planning.
+
+---
+
 # A10 integration with merged main/A9 (2026-10-29)
 
 Authorized by "main had moved and i've merge; check merge conflicts and
