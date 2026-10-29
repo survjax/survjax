@@ -28,3 +28,6 @@ RTOL = {True: 1e-8, False: 1e-4}
 # and no severe term cancellation, within the same 1e-8/1e-4 targets.
 TAIL_ATOL = {True: 0.0, False: 0.0}
 TAIL_RTOL = {True: 1e-8, False: 1e-4}
+
+# Six binomial/delta-method MCSEs allow this fixed-seed family of empirical checks.
+SIMULATION_SIGMAS = 6

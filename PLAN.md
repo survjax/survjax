@@ -1,3 +1,70 @@
+# SIM.1 — Shared Weibull generator and censoring calibration (2026-10-29)
+
+Work on `release-simulation` from full base
+`8757c0fda78e34e6e818249adedd2a144a33c33d` (clean launch snapshot).
+The matching reviewer checkout already exists. Preserve the unfinished A10
+history below; its docs and A9/PH/RMST work belong to other implementers.
+
+One concept: reusable demo-only inverse-CDF generation and host-side numerical
+calibration, without PH, fitting, core changes or optional dependencies.
+Spec revision 37: 3.3, 4.4 (generating PH-equivalent scales only), 7.3,
+10.3, 11.4, 12.1–12.3; use-cases/00-common.md and both 01 files.
+
+Files and contract to implement:
+- `examples/weibull_simulation/study.py`: `generate_weibull(key, shape, scale,
+  censor_limit, *, sample_shape=())`, returning a named tuple with `time`,
+  `event`, `event_time`, `censor_time`. Parameters broadcast to row/batch axes;
+  sample_shape prefixes those axes. Exactly split the supplied key into U/C
+  keys; callers derive scenario/replicate keys with the specified fold/split
+  scheme. JAX generation supports jit/vmap and selected process precision.
+- Same module: `calibrate_censoring(shape, scale, target) -> float` uses NumPy
+  float64 quadrature and bracketed bisection of the mean integrated survival.
+  Concrete positive finite broadcast parameters only; calibration is host-only,
+  not an RMST implementation or differentiable library API. Check quadrature
+  convergence; fail explicitly rather than return an unverified calibration.
+- `tests/unit/test_simulation_generator.py`: analytical exponential calibration,
+  independent mpmath Weibull quadrature, heterogeneous broadcasting, key mapping,
+  transformation agreement and fixed-seed large-sample survival/HR/censoring
+  recovery with justified statistical bounds. Centralize any new test bounds
+  in `tests/impl_tolerances.py`. Ordinary checks remain offline.
+- `examples/weibull_simulation/DEPENDENCIES.md` and a temporary isolated environment
+  probe (record the exact invocation in REVIEW.md): concrete exact-version proposal for the later examples group, test
+  Optimistix/Matplotlib/Equinox/Optax/NumPyro against locked Python/JAX/NumPy.
+  No pyproject/lock edits or added diagnostics/loader packages in this step.
+- `REVIEW.md`: reading order, invariants, evidence and limitations; freeze the
+  reviewed consumer import contract and calibrated simulation c values.
+
+Target at most about 300 implementation/test/proposal lines (plan/review
+records separate); split fitting, scenario runner, results and docs into later
+steps. Docs to-do: executable simulation page and recorded full results after
+reviewed PH integration; propose fresh docs command with examples selected.
+
+Checks: focused tests in separate JAX_ENABLE_X64=1/0 processes, Ruff formatting
+and lint, mypy src, unchanged `scripts/check.sh --through A10` cumulative gate.
+Record exact versions, commands and outputs. Commit the step, invoke the exact
+independent-review skill command for SIM.1, follow up to three rounds, then stop.
+Dependency installation into the project still awaits maintainer approval;
+only an isolated proposal probe is authorized here. Never merge/push/publish.
+
+
+Implementation: 300 added source/test/proposal lines, excluding plan/review
+records; no library API, dependencies, lockfile or protected-file edits.
+Reviewed consumer contract is recorded in REVIEW.md pending round 1.
+Both simulation targets independently match 40-digit mpmath quadrature;
+focused final suites: 12 passed in each dtype, including second derivatives.
+Ruff formatting/lint and mypy pass. Calibrated c values: 47.793149053990135
+and 19.17253543619806 years; pilot empirical censoring .249355/.550485.
+Dependency versions proposed and tested in isolation: Optimistix 0.1.0,
+Matplotlib 3.11.2, Equinox 0.13.8, Optax 0.2.8, NumPyro 0.22.0 against the
+existing locked JAX/jaxlib 0.11.2 and NumPy 2.5.3; group/lock approval pending.
+Cumulative fresh-wheel through-A10 gate: exit 0, all gates passed.
+Own suites 1059/1066 passed (7/1 existing skips); independent 2332/2322
+passed (28/38 existing skips); source doctests 4 per mode. REVIEW.md records
+exact timings, commands and the focused derivative-test evidence. Commit and
+independent round 1 now follow; stop after the review verdict.
+
+---
+
 # PLAN.md: current sub-slice only
 
 This file holds the plan of the sub-slice in progress, newest section first.
