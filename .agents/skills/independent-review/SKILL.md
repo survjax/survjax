@@ -16,11 +16,13 @@ at the top of REVIEW.md; it is the round count across sessions.
 
 ## Each round
 
-1. Run exactly this, with workdir = the review checkout, outside the sandbox, timeout 60 minutes.
-   Do not add context, summaries or instructions to the prompt:
+1. Run exactly this as one command (no `cd`, `&&`, `$(...)` or variables), with
+   workdir = the review checkout, timeout 60 minutes. Fill in the step ID and the
+   full commit hash literally. Keep the arguments in this order: a Codex rule
+   pre-approves exactly this prefix. Do not add arguments, context, summaries or
+   instructions:
 
-   claude -p "Automated review request. Step <STEP>, commit <SHA>. Follow the reviewer role." \
-     --settings /Users/wamster3/dev/survjax/roles/reviewer-settings.json --permission-mode dontAsk
+   claude --settings /Users/wamster3/dev/survjax/roles/reviewer-settings.json --permission-mode dontAsk -p "Automated review request. Step <STEP>, commit <SHA>. Follow the reviewer role."
 
 2. Read the newest round in the review file (the text after the last `<!-- round` marker).
    Claude's chat output is not the review. If no new round was written, retry once, then stop
