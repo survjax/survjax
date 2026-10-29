@@ -48,6 +48,8 @@ def _reject_json_constant(word: str) -> None:
 
 
 def _load_r_fixture(name: str, root: Path = _R_FIXTURES) -> dict:
+    if name == "concordance":
+        return _load_concordance_fixture(root / name)
     if name not in ("exponential", "bc_like"):
         raise ValueError(f"unknown R fixture: {name}")
     is_bc = name == "bc_like"
@@ -236,6 +238,44 @@ def _check_bc_fixture(expected: dict, data: dict, payload: bytes) -> None:
             raise ValueError("acceptance export curves mismatch")
 
 
+def _load_concordance_fixture(directory: Path) -> dict:
+    payloads = _checked_payloads(directory, {"data.csv", "concordance_synthetic.json"})
+    fixture = json.loads(
+        payloads["concordance_synthetic.json"], parse_constant=_reject_json_constant
+    )
+    meta = fixture["meta"]
+    if (meta["R"], meta["survival"], meta["flexsurv"], meta["seed"]) != (
+        "4.4.2",
+        "3.7-0",
+        "2.3.2",
+        20261023,
+    ) or meta["generator"] != "scripts/fixtures/generate_concordance.R":
+        raise ValueError("invalid concordance provenance")
+    if meta["csv_md5"] != hashlib.md5(payloads["data.csv"]).hexdigest():
+        raise ValueError("CSV provenance checksum mismatch")
+    rows = list(csv.DictReader(io.StringIO(payloads["data.csv"].decode())))
+    expected_rows = []
+    for case in fixture["cases"]:
+        for i, (time, event) in enumerate(
+            zip(case["time"], case["event"], strict=True)
+        ):
+            expected_rows.append(
+                dict(
+                    case=case["name"],
+                    row_id=str(i + 1),
+                    time=format(time, ".17g"),
+                    event=str(event),
+                    **{
+                        f"score{d + 1}": format(scores[i], ".17g")
+                        for d, scores in enumerate(case["scores"])
+                    },
+                )
+            )
+    if rows != expected_rows:
+        raise ValueError("concordance CSV/JSON alignment mismatch")
+    return fixture
+
+
 @pytest.fixture
 def r_fixture() -> Callable[..., dict]:
     """Load a manifest-checked R set, with an optional temporary fixture root.
@@ -243,5 +283,6 @@ def r_fixture() -> Callable[..., dict]:
     Returns header/cases/grid plus data arrays; all floating arrays retain
     NumPy float64 precision independently of the process's JAX dtype mode.
     The bc acceptance export must match the primary rows, vectors and grids.
+    The concordance export must match every CSV observation and score row.
     """
     return _load_r_fixture

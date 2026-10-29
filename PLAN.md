@@ -7,6 +7,81 @@ audit and planning checks") and A8 (`plans/A8.md`, "Closure still required").
 
 ---
 
+# A10.4 — Synthetic R concordance references (2026-10-29)
+
+Authorized by “plan and implement A10.4”. Work on maintainer-created `A10.4`
+from clean `e8dbbed`. One concept: committed synthetic Harrell-C reference
+data and comparisons, with no public API or production behavior change.
+Spec: 6.1, 9.1–9.2, 10.4, 12.1. Target about 300 changed lines including
+generated payloads, excluding plan/review records; split if it grows beyond
+that. Existing A10 planning remains below because this is the same sub-slice.
+
+Files to create/change:
+
+- `scripts/fixtures/generate_concordance.R`: require R 4.4.2, survival 3.7-0
+  and flexsurv 2.3.2 before output; fixed seed/RNG, synthetic cohorts only.
+  Base-R export (no dependency added), optional output directory/check-only.
+  Evaluate `survival::concordance` with `reverse=TRUE`, `timewt="n"`,
+  `timefix=FALSE`. Include 100 heavily tied rows covering all time-tie kinds,
+  plus untied positive times with >50% censoring and perfect/reversed scores.
+- `tests/fixtures/concordance/{data.csv,concordance_synthetic.json,SHA256SUMS,README.md}`:
+  CSV observations/scores and the already documented independent-test JSON
+  schema; record versions, seed, generator hash and exact R call. Regenerate
+  twice into temporary directories and compare every payload byte. Explain
+  R's count mapping and exact ties, with no convention difference assumed.
+- `tests/conftest.py`: extend the existing shared manifest-checked loader
+  for this set, preserving CSV/JSON row/score alignment and provenance.
+- `tests/reference/test_concordance_r.py`: compare R values and all four
+  count pairs/masks for prepared/raw, eager/jit/vmap calls in both dtypes;
+  existing central tolerances only, exact counts. Missing fixtures fail.
+- Overwrite `REVIEW.md` with reading order, invariants, requirement mapping,
+  actual commands/results and limits; update this section with evidence.
+
+The independent loader requires its copy under read-only `tests/spec/fixtures/`.
+Produce the matching export in our fixture directory for maintainer delivery,
+as with A8. Do not edit protected paths or change its loader/selection. A full
+through-A10 gate remains unavailable until the maintainer supplies that copy.
+No spec/deviation/dependency/docs changes are needed. Docs to-do: the existing
+concordance topic/playground and held-out example remain separate steps.
+
+Checks: verify pinned R/package versions and installed concordance help; run
+generator check-only and two independent generations, compare with committed
+payloads and check hashes. Run focused own references/concordance in separate
+dtype processes, Ruff, mypy and `scripts/check_wheel.sh --through A9`.
+Probe all independent A10 modules in both modes and report the missing-file
+failures explicitly. Inspect final diff/whitespace/scope, write REVIEW.md
+with “Independent review: round 1/3”, commit on `A10.4`, then invoke the exact
+independent-review skill command from `../review/code-A10.4`. Follow at most
+three rounds, with separate fixes if needed, then stop and report.
+
+Planning evidence: clean branch/status, current A10 outline and earlier
+review read; normative sections above, shared fixture loader, both existing
+reference sets and independent fixture schema read. R reports 4.4.2,
+survival 3.7.0, flexsurv 2.3.2. The official concordance manual confirms
+orientation, weighting, timefix and five count fields; pinned installed help
+will govern generation. No implementation or tests before this plan.
+
+Implementation completed: exactly 300 changed implementation/test/fixture
+lines, including 105 CSV lines; public API and production code unchanged.
+Pinned R generated 104 synthetic observations in two cohorts, three score
+draws each. Both independent regenerations and committed payloads are
+byte-identical; SHA-256 checks pass. All six R outputs also match a separate
+pair enumeration of the spec rules, including all three time-tie kinds.
+Focused own concordance/reference suites: 77 passed in 27.85s (float64),
+77 passed in 27.86s (float32), no skips. Ruff: 104 files formatted / All
+checks passed; mypy: no issues in 20 source files. Independent A10 probe:
+8 failed, 113 passed (57.50s) / 8 failed, 112 passed, 1 existing skip
+(59.90s); all failures are the absent protected fixture, before assertions.
+REVIEW.md records commands, the corrected working-directory error and limits.
+The matching JSON is ready for maintainer delivery; no full A10 pass claimed.
+Fresh-wheel `scripts/check_wheel.sh --through A9`: exit 0, all gates passed.
+Own suites: 1048 passed, 7 skipped / 1054 passed, 1 skipped; source doctests:
+4 passed per mode; independent through-A9: 2211 passed, 28 skipped / 2202
+passed, 37 skipped. Existing skips only. REVIEW.md records timings and wheel
+hash. Final scope/whitespace/static audit is clean; commit and round 1 follow.
+
+---
+
 # A10.3 — Public concordance transformation and permutation evidence (2026-10-29)
 
 Status: **F-2 fix-up verified; maintainer-authorized round 4 pending**, following
