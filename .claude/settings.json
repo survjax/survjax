@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv run:*)",
+      "Bash(uv sync:*)",
+      "Bash(uv lock:*)",
+      "Bash(scripts/run_tests.sh:*)",
+      "Bash(scripts/check.sh:*)",
+      "Bash(scripts/build_docs.sh:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git -C spec:*)"
+    ],
+    "ask": [
+      "Bash(uv add:*)",
+      "Bash(uv remove:*)",
+      "Bash(git push:*)",
+      "Edit(tests/spec/**)",
+      "Edit(spec/**)",
+      "Edit(CLAUDE.md)",
+      "Edit(scripts/check.sh)"
+    ],
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git rebase:*)",
+      "Bash(git tag:*)",
+      "Bash(git reset --hard:*)"
+    ]
+  }
+}

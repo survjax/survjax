@@ -31,9 +31,26 @@ explicitly, never return plausible values (section 12.2).
 
 The maintainer reviews all code, so optimise for reviewability over speed.
 
-1. **Plan first.** Before code for a step, write or update `PLAN.md`: files to
-   create or change, public API touched, tests you will add, spec sections
-   covered. Then **stop and wait for approval.**
+1. **Plan, then continue.** Before code for a step, write the step's section
+   in `PLAN.md`: files to create or change, public API touched, tests you will
+   add, spec sections covered. Then implement it without waiting for approval,
+   unless one of these holds; then **stop and ask**:
+   - the spec does not settle something, or the step needs a `DEVIATIONS.md`
+     entry;
+   - the step adds public API or a module that the spec does not name;
+   - the step adds a dependency;
+   - the step will not fit in about 300 changed lines (propose a split);
+   - the step would touch a protected path (`tests/spec/`, `spec/`,
+     `CLAUDE.md`, `AGENTS.md`, `scripts/check.sh`,
+     `scripts/sync_spec_tests.sh`, `.agents/`, `.workmux.yaml`).
+   The maintainer reads the code and the review, usually not the plan; the
+   reviewer checks the plan against the spec.
+
+   `PLAN.md` holds only the sub-slice in progress, newest section first. When
+   you start a new sub-slice, first move the finished one's sections verbatim
+   to `plans/<sub-slice>.md` and add it to `plans/README.md`, in a commit of
+   its own with no other changes. Read an archived plan only when a step
+   needs it.
 2. **Small steps.** One concept per step, ending in one commit. Aim for a diff
    of about 300 lines or less, tests included. If a step grows past that,
    split it and say so.
@@ -141,6 +158,7 @@ spec -> ../design/spec    GOALS.md, SPECIFICATION.md (symlink; read-only, see ab
 .spec-seen                design commit of the spec this repo is aligned with
 CLAUDE.md                 this file (AGENTS.md is a symlink to it)
 PLAN.md  REVIEW.md  DEVIATIONS.md
+plans/                    archived plans of other sub-slices (verbatim)
 pyproject.toml  uv.lock  .python-version  .pre-commit-config.yaml
 .gitignore  LICENSE
 src/survjax/          layout of spec 10.2; only modules Slice A needs
