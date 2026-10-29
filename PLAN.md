@@ -7,6 +7,60 @@ audit and planning checks") and A8 (`plans/A8.md`, "Closure still required").
 
 ---
 
+# PH.1 — Construction, diagnostics and direct PH composition (2026-10-29)
+
+Authorized by the release-ph workmux launch. Clean branch `release-ph` starts
+at full base SHA `8757c0fda78e34e6e818249adedd2a144a33c33d` (8757c0f).
+Keep the unfinished A9/A10 history below; no archive or integration commit.
+Spec: 3.3, 4.1–4.2, 4.4–4.7, 5–7, 8.7, 10.2, 12.1–12.2.
+
+One concept: the registered frozen PH distribution, used through its defining
+module until a separate export step. Target <=300 source/test changed lines.
+
+- Create `src/survjax/distributions/wrappers.py`: `ProportionalHazards` with
+  required keyword-only `baseline` nested distribution and real-constrained
+  `log_hazard_ratio`. Reuse registration for dtype/broadcast/indexing/diagnostics.
+  Implement PH log survival, log density and log hazard; inherit the remaining
+  direct methods, seven grids and exact/right likelihood evaluator. Delegate
+  reference time to the baseline, converted to the predictor dtype with a
+  finite-positive fallback used only for inactive evaluations. Scale finite
+  baseline log survival in log space; guard zero and infinity before arithmetic.
+  Scale the infinity hook to retain improper-baseline limits/derivatives.
+- Create `tests/unit/test_proportional_hazards.py`: frozen/pytree construction,
+  nested dtype preservation, `(S,1)` × `(S,2)` broadcasting, indexing, traced
+  construction and prefixed diagnostics; static misuse; all seven direct/grid
+  methods vs analytical exponential expectations; exact/right raw and prepared
+  likelihood; eager/jit/vmap agreement, interior forward/reverse order-2 checks;
+  zero/infinity policy and extreme finite predictor.
+  Reuse existing central ordinary/derivative/tail tolerances, unchanged.
+- Overwrite `REVIEW.md` with reading order, invariants, tests/spec mapping,
+  commands/results and limits. Commit this step, invoke independent-review
+  exactly for PH.1, follow at most three rounds, then stop/report.
+
+Public exports remain unchanged: no docs/code exception assumed and no export
+assertions weakened. No RMST-owned files, dependencies, protected paths, AFT,
+summaries or sampling. Later PH steps own the full Weibull/Exponential identity,
+transformation, improper custom-baseline, invalid-row and tail matrix;
+closure/RMST waits for reviewed RMST integration. Split additional evidence before exceeding this step's budget.
+
+Checks: focused PH tests in separate x64/float32 processes, Ruff format/lint,
+mypy and fresh-wheel unchanged cumulative `scripts/check_wheel.sh --through A10`.
+If a check fails, record the actual failure; no unsupported gate-pass claim.
+Docs to-do: separately authorize public export/API-reference integration; later
+executable PH topic documents eta>0 as higher hazard and the release subset.
+
+Implementation complete: 118 source + 174 test lines (292 total). Focused PH:
+12 passed per mode (10.05s float64 / 9.99s float32); Ruff formatting/lint and
+mypy clean (21 source files). Initial focused boundary-gradient failure was
+fixed with guarded exponential overflow, leaving the test unchanged.
+Fresh-wheel through-A10 gate exits 0: own suites 1060 passed, 7 skipped /
+1066 passed, 1 skipped; source doctests 4 passed per mode; independent suites
+2332 passed, 28 skipped / 2322 passed, 38 skipped. Exact commands/timings,
+wheel identity, limits and requirement map are in REVIEW.md. Scope and staged
+whitespace audit clean. Commit and independent round 1 follow; stop afterward.
+
+---
+
 # A10.4 — Synthetic R concordance references (2026-10-29)
 
 Authorized by “plan and implement A10.4”. Work on maintainer-created `A10.4`

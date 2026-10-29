@@ -1,122 +1,109 @@
+# PH.1 — Construction, diagnostics and direct PH composition
+
 Independent review: round 1/3
 
-# A10.4 — Synthetic R concordance references
+Branch: `release-ph`. Actual full base SHA:
+`8757c0fda78e34e6e818249adedd2a144a33c33d` (requested snapshot 8757c0f).
+Unfinished A9/A10 PLAN history is preserved. Reviewer checkout already exists
+at `../review/code-release-ph`; no branch creation or integration performed.
 
-Authorized by “plan and implement A10.4”. Branch `A10.4`, base `e8dbbed`.
-Exactly 300 changed implementation/test/fixture lines, including 105 CSV
-lines, plus PLAN.md and this review. No production or public API changes.
+## Read first, in order
 
-## Reading order
+1. `plans/release-agents/README.md`, `plans/release-agents/ph.md`, PH.1 at the
+   top of PLAN.md, and spec 4.1–4.2, 4.4–4.7, 5–7, 8.7, 10.2, 12.1–12.2.
+2. `src/survjax/distributions/wrappers.py` (118 lines): the complete new code.
+3. `tests/unit/test_proportional_hazards.py` (174 lines): analytical evidence.
+4. Existing registration/policy in `distributions/base.py` and
+   `_survival_methods.py`, nested diagnostics in `_parameter_issues.py`, and
+   the shared `likelihood.py` evaluator (all unchanged).
 
-1. scripts/fixtures/generate_concordance.R: pinned versions, synthetic
-   cohorts, exact R call, reference counts and base-R CSV/JSON export.
-2. tests/fixtures/concordance/README.md and concordance_synthetic.json:
-   regeneration, case coverage, reference provenance and protected handoff.
-3. tests/conftest.py's new concordance branch/helper: existing shared
-   manifest verification precedes parsing; CSV/JSON observations and scores
-   must agree in case/row order, with matching provenance/CSV MD5.
-4. tests/reference/test_concordance_r.py: four cases crossing two cohorts
-   and prepared/raw inputs, each evaluated eagerly, jitted and vmapped.
-5. PLAN.md's A10.4 scope/results. Earlier review is in base commit history.
+## Scope and invariants
 
-## Invariants and spec/test mapping
+- This is a defining-module implementation, not public-export integration.
+  Both __init__.py files and all exact export/install/reference assertions
+  remain unchanged. A later export step needs the maintainer's docs exception.
+- The wrapper is a registered frozen dataclass with a nested `baseline` and
+  real-constrained `log_hazard_ratio`. Constructors are keyword-only, pure and
+  value-unchecked. Registration owns dtype normalization, nested broadcasting,
+  PyTree reconstruction and indexing. Baseline leaves retain their dtypes.
+- H=exp(eta)*H0, log h=log h0+eta and log f=log h+log S. The wrapper never
+  constructs or delegates to a PH-equivalent built-in distribution. The seven
+  grid methods and the exact/right likelihood evaluator are inherited.
+- Scaling uses sign and log magnitude to avoid premature exp(eta) overflow.
+  Zero/infinite baseline log survival is substituted before arithmetic, and
+  an overflowing final magnitude is restored after a safe exponential.
+  This prevents inactive overflow tangents from poisoning boundary gradients.
+  No floors, clipping, epsilon or new derivative rules are used.
+- The baseline infinity hook is scaled, so an improper baseline can retain
+  its cure limit. Reference times use the baseline in the predictor dtype;
+  a finite-positive fallback only supplies inactive inputs, never model values.
+- RMST ownership is respected: no edits to base.py, exponential.py, weibull.py
+  or tolerances. No exports, docs, dependencies, protected paths, AFT, generic
+  summaries or sampling. Source/test total is 292 added lines.
 
-- Spec 9.1–9.2/10.4: only synthetic positive exact/right observations, no
-  truncation, weights or strata. Seed 20261023, explicit RNG kind. R 4.4.2,
-  survival 3.7-0 (R reports 3.7.0), flexsurv 2.3.2 checked before output.
-  Export uses base R; no dependency changes. The official manual and pinned
-  installed help establish reverse/timewt/timefix and count-field meanings.
-- Spec 9.2/12.1: all expectations are R fit$concordance/fit$count. Generator
-  uses reverse=TRUE, timewt="n", timefix=FALSE. Concordant/discordant map
-  directly, tied.x is tied_score, and their sum is comparable; tied.y and
-  tied.xy are excluded. A separate Python pair enumeration of the spec
-  rules matched all six R results; no convention difference was found.
-- Heavy-ties cohort: 100 rows, 36 events, 64 censored; fixed first six rows
-  guarantee event/event, event/censor and censor/censor ties. Two seeded
-  integer score vectors and one constant vector exercise score ties. R
-  counts (C,D,T,total): (698,937,156,1791), (810,848,133,1791),
-  (0,0,1791,1791). The untied four-row cohort has 75% censoring and
-  perfect/reversed/constant scores: counts (2,0,0,2), (0,2,0,2), (0,0,2,2).
-- Spec 6.1/9.1/12.1: reference tests check three score draws together,
-  prepared/raw forms and eager/jit/vmap. Values use unchanged centralized
-  dtype tolerances; eight hi/lo words and three masks compare exactly.
-  Output dtype follows explicitly typed observation data in each process.
-  Integer/quarter times and integer scores preserve every order/tie in both
-  modes. Existing suites cover invalid/unsupported/undefined cohorts and
-  nonzero high words; this fixture intentionally has finite defined ratios.
-- Spec 10.4: CSV and JSON generated together, JSON records seed/RNG/versions,
-  platform, generator path/hash, CSV hash and call. SHA-256 covers both
-  payloads and is checked by the existing shared loader before JSON parsing.
-  Missing data fail rather than skip; normal tests require no R/network.
+## Requirement-to-test evidence
 
-## Checks actually run
+- `test_broadcast_pytree_indexing_and_dtypes`: spec 3.3/4.1–4.2/4.4,
+  (2,1) baseline × (2,2) predictor, preserved float32 nested dtype with
+  mode-default predictor dtype, frozen leaves, tree round trip and slicing.
+- `test_traced_diagnostics_include_predictor_and_prefixed_baseline`: spec
+  4.7, pure traced construction and eager/jit/vmap masks, real predictor
+  versus positive baseline violations, dotted keys and indexed diagnostics.
+- `test_static_misuse_raises`: spec 4.1–4.2, keyword-only calls, registered
+  nested type, nonreal predictor and incompatible construction shapes.
+- `test_direct_and_grid_exponential_formulas` (seven cases): spec 4.4–4.5/5,
+  all direct methods via shared grids and vmap of pointwise methods, values
+  independently derived from hazards [1,4], at t=0, 1 and +inf; eager/jit/vmap.
+- `test_likelihood_and_second_order_interior_derivatives`: spec 6–7/12.1,
+  independently derived exact/right contributions, prepared/raw forms,
+  eager/jit, debug_nans on a valid mixed batch and forward/reverse order-2
+  finite-difference checks in the baseline rate and eta. Existing central
+  derivative scales apply to this O(1) averaged likelihood, unchanged.
+- `test_extreme_predictors_do_not_form_overflow_times_zero`: spec 7.1–7.2,
+  representable H despite overflowing exp(eta), compared to the analytical
+  log H in host float64 with zero absolute tolerance; zero/infinity survival
+  and exact zero reverse-mode boundary Jacobians for eta of both signs.
 
-R version/package query: R 4.4.2, survival 3.7.0, flexsurv 2.3.2; inspected
-installed concordance help with Rd2txt. Also consulted the official manual:
-https://stat.ethz.ch/R-manual/R-devel/library/survival/html/concordance.html
+## Checks and actual results
 
-From the repository root:
-- `Rscript --vanilla scripts/fixtures/generate_concordance.R --check-only`:
-  exit 0, “Checked 104 synthetic rows, two cohorts, three score draws each”.
-- Ran the generator with default output, then independently to
-  `/private/tmp/survjax-a104-run1` and `/private/tmp/survjax-a104-run2`.
-  `diff -r` of both runs and `cmp` of each payload against the committed
-  directory: exit 0, no output; CSV/JSON byte-identical on recorded platform.
-- `shasum -a 256 -c SHA256SUMS` in tests/fixtures/concordance: both OK.
-- Standalone Python JSON audit checked current generator MD5 and enumerated
-  every unordered pair from exported time/event/score arrays, using spec 9.2
-  rules without survjax or independent test helpers. All six R count triples
-  match exactly, defining fractions agree within 1e-15; all three time-tie
-  kinds present. This audit checks conventions; it generates no fixture values.
-- One invocation mistakenly ran the root-relative generator from the fixture
-  directory: exit 2, script not found. Repeated from the repository root,
-  exit 0; no output files were changed by the failed invocation.
+Environment: own worktree .venv; `uv sync --locked --offline --dev --group test`
+exited 0 (155 packages resolved, 34 checked; no metadata changes).
+Python 3.12.9, JAX 0.11.2, NumPy 2.5.3, pytest 9.1.1, CPU device 0.
 
-Focused command, separately with JAX_ENABLE_X64=1 and =0:
-`uv run --group test pytest -q tests/reference/test_concordance_r.py tests/unit/test_concordance_counts.py tests/unit/test_concordance_results.py tests/unit/test_concordance_entry_points.py tests/unit/test_concordance_transformations.py tests/property/test_concordance.py`
-77 passed in 27.85s (float64), 77 passed in 27.86s (float32), no skips.
+- Initial focused command below: 11 passed / 1 failed in each dtype
+  (18.48s each). The extreme predictor test exposed NaN boundary reverse-mode
+  derivatives from an inactive overflowing exponential. Fixed by substituting
+  its input and restoring the overflow value separately; test unchanged.
+- Final focused commands:
+  `JAX_ENABLE_X64=1 uv run --group test pytest tests/unit/test_proportional_hazards.py -q`
+  → 12 passed in 10.05s;
+  same command with `JAX_ENABLE_X64=0` → 12 passed in 9.99s. No skips.
+- `uv run ruff format --check .` → 113 files already formatted;
+  `uv run ruff check .` → All checks passed!;
+  `uv run mypy src` → Success: no issues found in 21 source files.
+- `git diff --check` → exit 0, no output.
+- `scripts/check_wheel.sh --through A10` → exit 0,
+  `check: all gates passed through A10`. Unchanged guard passes on release-ph.
+  Ruff/mypy repeat the clean outputs above. Fresh-wheel install expectations
+  and all own suites: 1060 passed, 7 skipped (126.40s) float64; 1066 passed,
+  1 skipped (174.25s) float32. Source doctests: 4 passed per mode (1.75s/1.61s).
+  Independent through-A10: 2332 passed, 28 skipped (205.76s) float64;
+  2322 passed, 38 skipped (179.15s) float32. Existing skips only.
+  Wheel: `/var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/survjax-wheel.XcrWfu/survjax-0.0.1.dev0-py3-none-any.whl`.
+  SHA-256: `7f28b3791c7c6130dee9d7f2cf4bf11dfe8347d655fba0e862575cea4aec928f`.
+- Final staged whitespace and four-path scope audit are clean. The first
+  sandboxed git add could not create the shared worktree index.lock; rerunning
+  the same staging command with the approved escalation succeeded.
 
-`uv run ruff format --check .`: 104 files already formatted.
-`uv run ruff check .`: All checks passed!
-`uv run mypy src`: Success: no issues found in 20 source files.
-`scripts/check_wheel.sh --through A9 > /private/tmp/survjax-a104-wheel-gate.log 2>&1`:
-exit 0, ending “check: all gates passed through A9”. Fresh wheel retained at
-`/var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/survjax-wheel.dczbdn/survjax-0.0.1.dev0-py3-none-any.whl`,
-SHA-256 `8ca5093b02ae2ee23e85bc8feea86374f6ab2114906b5f3896a8b78c80af37f9`.
-The installed-wheel smoke test is included in own suites; all gate stages
-ran unchanged, with the normal existing skips and no added exclusions.
+## Limits and follow-up
 
-| Stage | Float64 | Float32 |
-| --- | --- | --- |
-| Own tests, including wheel | 1048 passed, 7 skipped, 63.67s | 1054 passed, 1 skipped, 60.47s |
-| Source doctests | 4 passed, 0.86s | 4 passed, 0.86s |
-| Independent through A9 | 2211 passed, 28 skipped, 62.81s | 2202 passed, 37 skipped, 54.43s |
-
-No implementation/test changes after these runs. Final Ruff and whitespace
-checks pass. All protected paths, spec marker, production, dependency and
-docs files remain unchanged. Initial commit and independent review follow.
-Sandboxed git add/commit each failed creating the external worktree index
-lock; staging/commit use the approved escalated Git commands. No source or
-test change resulted, and staged whitespace/scope checks pass.
-
-Independent A10 command, separately with JAX_ENABLE_X64=1 and =0 and
-SPEC_THROUGH=A10: `uv run --group test pytest -q` followed by all six
-tests/spec/test_a10_concordance_{api,diagnostics,fixtures,properties,shapes,values}.py
-paths (explicitly expanded). Exit 1 in each mode: 8 failed, 113 passed in
-57.50s (float64); 8 failed, 112 passed, 1 skipped in 59.90s (float32).
-All eight failures are the missing protected concordance_synthetic.json,
-at tests/spec/conftest.py:101. No assertion was reached in those tests;
-no new skip or exclusion. Logs: /private/tmp/survjax-a104-spec-x{1,0}.log.
-
-Python 3.12.9, JAX 0.11.2, NumPy 2.5.3; no version changes or matrix claim.
-
-## Limits and handoff
-
-The independent loader reads tests/spec/fixtures/concordance_synthetic.json,
-which is absent. Its matching generated export is in our fixture directory;
-copying into the protected directory belongs to the maintainer/spec-test
-workflow. No protected paths, selection rules, tests or assertions changed.
-Do not interpret the through-A9 regression or our R references as a full
-through-A10 pass. Concordance docs/playground/held-out example remain later
-steps. No docs build or performance evidence claimed for this reference step.
-No spec ambiguity or new deviation. Stop after independent review.
+PH.1 is not the complete first-release PH gate. Full exponential/Weibull
+identity values and parameter derivatives, draw/observation/time broadcasting,
+custom improper and saturated baselines, invalid-row first/second derivative
+isolation, nonzero boundary derivatives and the extended tail matrix belong
+to PH.2. These are not claimed verified by this initial test selection.
+RMST/closure waits for the reviewed RMST integration. The default log-CDF
+inherits the generic lower-tail range (spec 4.2); no new log-H extension hook
+or built-in dispatch is introduced here. Public export and executable topic
+integration remain separate. No R generation, demos or docs build were run.
+No uncertainty requiring a new spec decision was encountered in this scope.
