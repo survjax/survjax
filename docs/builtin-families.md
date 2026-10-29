@@ -386,7 +386,7 @@ cover the observed-time contributions, not individual grid cells.
 The comparisons exercise eager execution, `jax.jit` and `jax.vmap` in separate
 float64 and float32 processes. Weibull checks include both natural and
 `from_log` constructors, a common shape with batched scales, and raw and
-prepared likelihood inputs through the function and distribution method.
+prepared likelihood inputs through the distribution method.
 Expected R values retain their stored float64 precision; only inputs are cast
 to the active JAX dtype. The central test tolerances are:
 

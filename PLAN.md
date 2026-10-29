@@ -48,7 +48,13 @@ with the incoming runner, final Ruff/mypy/diff checks, record exact outcomes,
 commit one compatibility step and stop. The earlier audit failure from the
 removed API is corrected by this step; full through-A8 remains pending.
 
-## Subsequent docs correction — separate approval/step
+## Subsequent docs correction — approved
+
+Approved by "ok do the docs correction" after d5c0a3c.
+Completed: both fresh dtype docs builds exit 0; HTML checks confirm method-only
+wording, all 48 local links/anchors and byte-identical recipe downloads per
+mode. REVIEW.md records evidence and verified fixture-handoff details.
+Commit this docs correction and stop for review.
 
 Change only the obsolete function/method claim in docs/builtin-families.md to
 method raw/prepared coverage. Audit A8 fixture READMEs for the same claim;

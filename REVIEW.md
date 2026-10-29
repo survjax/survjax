@@ -1,84 +1,61 @@
-# A8 method-only likelihood compatibility
+# A8 method-only reference documentation correction
 
-Approved by "ok do it" after the integration audit. The maintainer-started
-merge of main be1a5b3 was completed as f4e0eae with the resolved records.
-This is the separate A8 compatibility test step, then a review stop.
+Approved by "ok do the docs correction; what's needed for the fixture handoff?"
+after compatibility commit d5c0a3c. Branch a8-1-r-generator.
 
-## Reading order
+## Reading order and scope
 
-1. tests/reference/test_exponential_r.py: retain prepared/raw method tests;
-   remove their obsolete function duplicates; use the method for R totals.
-2. tests/reference/test_weibull_bc_like_r.py: remove the function case axis
-   and branch; all method prepared/raw eager/jit/vmap checks remain.
-3. PLAN.md: current approved step, separate docs correction and A8 closure.
+1. docs/builtin-families.md, Comparisons with R: replace the obsolete claim
+   of function/method coverage with raw/prepared distribution-method coverage.
+2. PLAN.md: approved docs correction and remaining fixture closure.
 
-## Invariants and requirement mapping
+Spec 6.1/7.1/10.2/12.1, revision 35+: the method is the only public likelihood
+entry point. The retained A8 tests demonstrated both input forms in d5c0a3c.
+This one-line correction changes no numerical claims, examples or APIs.
+Audit of both fixture READMEs found no explicit two-entry-point claim to fix.
+No source, tests, fixtures, dependencies, tolerances or protected paths change.
 
-- Spec 6.1/7.1/10.2, revision 35+: the sole public likelihood entry point is
-  dist.log_likelihood. No alias is restored and no library code is changed.
-- Spec 3.3/12.1: fixture loading, active-dtype inputs, host float64 expected
-  R values, all shape/dtype assertions and central tolerances are unchanged.
-- Spec 6.1/12.1: both raw and prepared method calls still compare each ordered
-  likelihood row with both sources for every exponential rate and Weibull AFT
-  vector. Eager/jit/vmap comparisons keep dynamic distribution arguments.
-- Spec 4.6/5/11.1/12.1: observed-time predictions and time-first stored-time
-  grids are unchanged, including both Weibull constructors and all groups.
-- Separately stored R totals remain supplemental checks. Exponential totals
-  now call the method; their expected numbers and tolerances are unchanged.
+## Checks actually run
 
-Only tests/reference plus PLAN.md/REVIEW.md change in this step. No fixture,
-loader, tolerance, dependency, source, protected-test, spec or docs/ changes.
-R is not run; all expectations remain committed R outputs. The related R
-package paths remain limited evidence, not independent numerical oracles.
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/build_docs.sh` exited 0,
+build succeeded in both fresh dtype processes with Sphinx warnings fatal.
+Builtin page execution: float32 2.62s, float64 2.29s. All existing executable
+docs pages ran. Escalated execution permits the local Jupyter kernel sockets;
+the log contains existing IPKernelApp TCP notices, no Sphinx build warnings.
+Full log: /private/tmp/survjax-a8compat-docs.log.
 
-## Focused validation
+Direct HTML checks after both builds: PASS in each mode. Correct method-only
+wording present, obsolete wording absent, all 48 local links/anchors resolve,
+both downloaded recipe READMEs match committed originals byte-for-byte.
+Visual layout inspection remains unverified; no new browser interaction was
+attempted after the previously documented unavailable connector and concurrent
+Safari-use conflict. This edit removes wording from an existing paragraph.
 
-With UV_CACHE_DIR=/private/tmp/survjax-uv-cache and JAX_ENABLE_X64=<1|0>:
-`uv run --group test pytest -q tests/reference/test_exponential_r.py
- tests/reference/test_weibull_bc_like_r.py`:
+Final Ruff format: 78 files already formatted; Ruff lint: All checks passed!
+git diff --check: exit 0. No numerical suite/full gate rerun, mutation checks,
+R regeneration or new deviations in this docs-only step.
 
-- float64: 111 passed in 9.05s.
-- float32: 111 passed in 8.54s.
+## Fixture handoff verified, not performed
 
-Logs: /private/tmp/survjax-a8compat-focused-x64.log and
-/private/tmp/survjax-a8compat-focused-x32.log. The retained counts are 33
-exponential and 78 Weibull cases per dtype; 36 former function-only duplicate
-cases were removed, not numerical coverage of the remaining public method.
+The already generated candidate is
+ tests/fixtures/bc_like/bc_synthetic_weibull.json.
+Actual SHA-256, matching its committed manifest:
+4edbdee917ae335da11911b39ec60442e21998687d27c62494f54e7eb1d0e450
 
-Sensitivity plugin /private/tmp/survjax_a8compat_control.py temporarily rolls
-method likelihood output rows by one and reverses Weibull survival-grid
-columns. Committed source/fixtures are untouched. Both suites run with
-`-p survjax_a8compat_control` and PYTHONPATH=/private/tmp, separately per dtype:
-48 expected assertion failures / 63 passes in 4.54s x64 and 4.65s x32.
-All 36 ordered-row checks reject the roll; all 12 grid checks reject swapped
-columns. Totals retain their sums and pass. Logs:
-/private/tmp/survjax-a8compat-control-x64.log and
-/private/tmp/survjax-a8compat-control-x32.log. These expected child exit-1
-runs are corruption-detection evidence, not unchanged-suite failures.
+../spectest is clean and has the same .spec-seen as this checkout:
+be26e50cc35db1c2affc3dafcb4bf4cf4baf1ebf.
+The JSON is absent both in that tester's tests/spec/fixtures/ and in this
+checkout's protected tests/spec/fixtures/. No new R generation is needed.
 
-## Gate and remaining limits
+Maintainer actions: copy this exact JSON to the authoritative tester repo's
+ tests/spec/fixtures/bc_synthetic_weibull.json, verify checksum/byte identity
+and commit it there. On a maintainer-created clean spectests-* implementation
+branch, run scripts/sync_spec_tests.sh ../spectest; it checks both clean states
+and matching spec markers and replaces tests/spec wholesale. Review/commit
+that sync and integrate it normally. A direct local protected-path copy here
+would not be durable and is not the handoff workflow.
 
-`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A7`
-uses main's incoming default six pytest-xdist workers. Full log:
-/private/tmp/survjax-a8compat-gate.log. Exact final outcome recorded below.
-
-The protected acceptance fixture remains absent. No through-A8 or Slice A
-completion claim. No new deviations. No docs build or R regeneration in this
-code step. The known obsolete function/method coverage sentence in
-builtin-families.md is queued for the separate planned docs correction.
-Stop after this compatibility commit; do not begin that docs step yet.
-
-Final gate: exit 0, `check: all gates passed through A7`.
-- Guard OK; Ruff: 78 files already formatted / All checks passed!
-- mypy: Success: no issues found in 17 source files.
-- Own float64: 943 passed, 7 skipped in 47.23s.
-- Own float32: 949 passed, 1 skipped in 47.02s.
-- Source doctests: 4 passed per dtype in 1.15s / 1.09s.
-- Independent through A7 float64: 2114 passed, 28 skipped in 46.76s.
-- Independent through A7 float32: 2118 passed, 24 skipped in 46.07s.
-
-The gate's xdist summaries do not print deselection counts. No exclusions,
-new skips or protected-test changes were introduced in this step. Final Ruff
-format/lint and git diff --check pass after recording results. The two inherited
-blank-line warnings in protected tests belong to incoming main and are not
-part of this compatibility diff; they remain untouched.
+After integration, verify the protected copy matches the candidate, run the
+unchanged independent A8 fixture module in both dtypes and the full through-A8
+gate, then record the final outcome. No through-A8/Slice A completion claim.
+Stop after this docs commit for review; no protected fixture was written.
