@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # A10.d2 — Concordance in the editable playground
 
@@ -65,3 +65,35 @@ passing build or lint before review. Do not rerun the full through-A10 gate:
 source/tests have not changed since the passing 7c4f57b wheel gate.
 No browser inspection performed; held-out synthetic example and final
 evidence/rendered-site audit remain. Commit and round 1 follow.
+
+## Round 1 result and B-1 follow-up
+
+Round 1 on 93dbca8 returned fix-first: B-1 is the sole blocker, a missing
+Ruff line wrap in the new mapped_c call (91 characters). No should-fixes,
+nits or spec questions. The reviewer confirmed the hand counts, C fractions,
+mask prose, cleared outputs/counts and preserved existing cells/IDs.
+
+Reviewer-owned checks (not repeated by implementer):
+- scripts/build_docs.sh: sandboxed attempt exited 2 (uv cache permissions);
+  permitted rerun exited 0, both builds succeeded with no Sphinx warnings.
+  Playground execution: 8.73s float32 / 18.59s float64. Existing IPKernelApp
+  TCP-transport warnings only. The same assertions passed in both modes.
+- Separate float32 nbconvert execution: C=0.7, counts (3,1,1,5), all three
+  draw evaluators [0.7,0.3,0.5], unsupported NaN/True and zero-pair NaN/True.
+- Ruff lint passed; format check failed for B-1. Plain check.sh --through A10
+  exited 1 at formatting, so no later gate stages ran. No full gate claim.
+- Float32 notebook mutants: tie credit 0 caught by C assertion; failed
+  cohorts incorrectly flagged no-pair caught by mask assertion. Dropping only
+  delayed-entry detection survived as expected because this mixed cohort
+  also has interval/left censoring; no new rule coverage claimed.
+
+B-1 fix: manually wrap that one call exactly as the report's formatter
+direction specifies. Two added notebook source lines; no numerical, prose,
+metadata, output or assertion change. Final notebook delta from fdce5db:
+140 additions / 23 deletions (163 changed lines). The implementer still ran
+no build, lint, pytest or other automated validation. Commit this formatting
+fix-up and request round 2, with the reviewer still the sole check runner.
+
+Reviewer cleanup note: /tmp/survjax-mut-A10.d2 was reverted and reported
+clean but removal was refused twice. It is reviewer-owned; the implementer
+does not manipulate it under the repository's independent-review boundary.

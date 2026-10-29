@@ -69,6 +69,15 @@ transformation calls and unsupported/zero-pair distinctions. No automated
 checks run by the implementer. Commit for the reviewer-owned build/checks
 and round 1; results are explicitly pending, not claimed as passed.
 
+Round 1 on 93dbca8: fix-first for sole blocker B-1, a Ruff line-wrap failure
+in the mapped_c call. Reviewer-owned builds pass in both modes (8.73s /
+18.59s notebook execution), lint passes; plain through-A10 gate stops at
+formatting. Hand counts/fractions and masks verified, two relevant notebook
+mutants caught. Manually wrap the one call as reported; no behavior change.
+Final notebook delta is 163 lines. No automated checks by implementer;
+record exact results and reviewer-owned temporary-worktree cleanup limit
+in REVIEW.md, commit the formatting fix-up, request round 2 and stop.
+
 ---
 
 # A10.d1 — Executable concordance guide (2026-10-29)
