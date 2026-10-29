@@ -17,8 +17,11 @@ Bump the revision line at the top of `SPECIFICATION.md` if a requirement changed
 (typo fixes need no bump). Then run `../scripts/spec-since.sh dev --mark` and
 commit `.spec-seen` here.
 
-The other files in `spec/` and the spec's links into the design repo are
-background for the maintainer. You do not need them.
+`spec/use-cases/` holds the designs of the first-release demos; the spec
+delegates their exact values to them. When a step implements a demo, read that
+use case's main doc and details file. The other files in `spec/` and the spec's
+links into the design repo are background for the maintainer. You do not need
+them.
 
 Current target: **Slice A** (spec section 12.2). Do not implement anything
 belonging to slices B to F. Unimplemented observation modes must fail
