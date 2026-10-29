@@ -13,8 +13,8 @@ kernelspec:
 This page shows the extension interface: how to describe your own
 distribution and evaluate it. survjax also ships the
 [exponential and Weibull families](builtin-families.md), which work the same
-way but use closed forms. Likelihoods for `SurvivalData` are planned for a
-later step of Slice A.
+way but use closed forms. [Likelihood contributions](likelihood.md) support
+exact and right-censored `SurvivalData` without truncation.
 ```
 
 ## One function describes the whole distribution
@@ -363,8 +363,8 @@ $$
 $$
 
 which is maximised at $\hat\lambda = \sum_i d_i / \sum_i t_i = 2/32 = 0.0625$
-per month. survjax will compute likelihoods for `SurvivalData` directly in a
-later step; here we write the formula out to see the pieces.
+per month. survjax computes these [likelihood contributions](likelihood.md)
+for `SurvivalData` directly; here we write the formula out to see the pieces.
 
 ```{code-cell} ipython3
 time = jnp.array([4.0, 12.0, 7.0, 9.0])
