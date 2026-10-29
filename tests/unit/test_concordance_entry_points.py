@@ -83,6 +83,41 @@ def test_bad_cohort_isolated_from_valid_neighbor(failure):
     np.testing.assert_array_equal(value[0], 0.375)
 
 
+@pytest.mark.parametrize("mode", ["right-trunc", "interval", "left-censored"])
+def test_unsupported_bounds_cohort_isolated_from_valid_neighbor(mode):
+    """Spec 9.1: valid unsupported observations fail their entire cohort."""
+    lower = jnp.stack([TIME, TIME])
+    upper = jnp.broadcast_to(jnp.where(EVENT, TIME, jnp.inf), lower.shape)
+    right = jnp.array([jnp.inf, 10.0 if mode == "right-trunc" else jnp.inf])[:, None]
+    if mode in ("interval", "left-censored"):
+        upper = upper.at[1, 1].set(2.5 if mode == "interval" else 2.0)
+    if mode == "left-censored":
+        lower = lower.at[1, 1].set(0.0)
+    data = survjax.SurvivalData.from_bounds(
+        lower, upper, exact=EVENT, right_trunc=right
+    )
+    assert bool(data.issues.ok)
+    for evaluate in (
+        survjax.concordance_index_with_info,
+        jax.jit(survjax.concordance_index_with_info),
+    ):
+        value, info = evaluate(SCORE, data)
+        np.testing.assert_array_equal(np.isnan(value), [False, True])
+        np.testing.assert_array_equal(info.invalid, [False, False])
+        np.testing.assert_array_equal(info.unsupported, [False, True])
+        np.testing.assert_array_equal(info.no_comparable_pairs, [False, False])
+        # The valid neighbor has C,T,D,D pairs: (1+1/2)/4 = 3/8.
+        np.testing.assert_array_equal(value[0], 0.375)
+        for name, expected in zip(
+            ("concordant", "discordant", "tied_score", "comparable"),
+            (1, 2, 1, 4),
+            strict=True,
+        ):
+            count = getattr(info, name)
+            np.testing.assert_array_equal(count.hi, [0, 0])
+            np.testing.assert_array_equal(count.lo, [expected, 0])
+
+
 def test_edited_fields_are_rechecked_alongside_stored_issues():
     """Spec 6.2: pytree reconstruction can bypass constructor field validation."""
     data = survjax.SurvivalData(TIME, EVENT)

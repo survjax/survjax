@@ -1,3 +1,53 @@
+# A10.2b2 review follow-up — N-5 and N-8 (2026-10-28)
+
+Review follow-up to the approved public integration step, requested by
+"check the nits in ../slices/A10.md" and the standing "check the review and
+address" instruction. Read the actual report at ../review/slices/A10.md,
+round 4 for 8109470: merge verdict, no blockers or should-fix findings.
+Work on A10-cindex from clean 8109470; one test-only fix-up commit, then stop.
+No new public API, numerical behavior or spec decision.
+
+
+Completed 2026-10-29: N-8 adds three eager/jit unsupported-mode cases; N-5
+adds distinct ClosedJaxpr descent after the Jaxpr case. Only 38 test lines
+were added; production code is unchanged. Focused five-file selection:
+67 passed in 6.56s (float64), 67 passed in 5.83s (float32), no skips.
+Ruff: 78 files already formatted / All checks passed. Mypy: no issues in
+20 source files. Both reported unsupported-mode mutants are caught in both
+dtypes: E1 fails right-trunc only (1 failed, 2 passed); E2 fails interval
+and left-censored (2 failed, 1 passed). Each mutation run deselects 23 tests.
+REVIEW.md records exact selections, timings, scope and the untested distinct
+ClosedJaxpr representation. Final whitespace/staged/scope checks follow.
+Ready for the one test-only fix-up commit and review stop.
+
+Files: tests/unit/test_concordance_entry_points.py,
+tests/unit/test_concordance_counts.py, PLAN.md and REVIEW.md.
+Spec: 9.1 (unsupported modes), 9.2 (whole cohorts and workspace), 12.1.
+
+- N-8: add three parametrized from_bounds cases: finite right truncation,
+  interval observation and left censoring. Each unsupported cohort has a
+  valid neighbor with hand-counted C=3/8 and counts (1,2,1,4). Check eager/jit
+  agreement, unsupported-only masks, zero failed counts, and no evaluated
+  zero-pair flag. Inputs must be valid observations; unsupported is distinct
+  from invalid. Preserve the existing left-truncation coverage.
+- N-5: descend through distinct ClosedJaxpr wrappers in the recursive own
+  workspace guard, after the Jaxpr case. Locked JAX 0.11.2 aliases the two
+  classes; handle that without recursing on Jaxpr.jaxpr repeatedly. Do not
+  claim other JAX versions were executed.
+- Reconcile the review's focused-count difference: its four files total 63;
+  the previously reported 64 also included test_api_reference.py. Keep the
+  original evidence intact and record the selection explicitly in REVIEW.md.
+- Run the five focused own modules in separate dtype processes, Ruff, mypy
+  and whitespace/protected-scope checks. In temporary source copies only,
+  remove each unsupported-mode term in turn and require the new cases to
+  catch both mutants in both modes. Do not mutate the working source.
+- This is test-only: production runtime is unchanged from the passing public
+  integration gate. No full regression/independent A10 rerun is necessary;
+  record that limit honestly. No fixture, docs, dependency, protected test,
+  .spec-seen, sync or likelihood changes. No merge or next subslice.
+
+---
+
 # A10.2b2 — Public concordance entry points (2026-10-26)
 
 Status: **implemented and verified; ready for review**, authorized by

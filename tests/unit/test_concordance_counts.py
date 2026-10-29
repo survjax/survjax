@@ -157,6 +157,9 @@ def test_pair_workspace_has_no_cohort_square():
                 for var in (*equation.invars, *equation.outvars):
                     yield getattr(var.aval, "shape", ())
                 yield from shapes_in(equation.params)
+        elif isinstance(value, core.ClosedJaxpr):
+            # Locked JAX aliases Jaxpr; distinct wrappers need this descent.
+            yield from shapes_in(value.jaxpr)
         elif isinstance(value, dict):
             for item in value.values():
                 yield from shapes_in(item)
