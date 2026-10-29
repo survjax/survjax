@@ -1,6 +1,6 @@
 # A10.3 — Public concordance transformation and permutation evidence (2026-10-29)
 
-Status: **implemented and verified; ready for independent review**, following
+Status: **round-1 F-1 addressed; ready for round-2 independent review**, following
 "implement and review (automatic via claude, use the skill) the next part of
 A10" and the subsequent "approved". Work on the maintainer-created `a10b`
 branch from clean `a5cfea7`.
@@ -19,6 +19,17 @@ All checks passed; mypy: no issues in 20 source files. Existing skips only.
 Exact commands, timings, wheel identity, initial cache/lint failures and
 limits are recorded in REVIEW.md. No production code changed; no full A10
 claim. Final staged audit, commit and automatic Claude review follow.
+
+Round 1 on fc7f82c returned fix-first for should-fix F-1 (no blockers/nits).
+Add prepared-data static-metadata compilation evidence: equal flags reuse
+one trace despite changed data/scores; changing flags produces another.
+Retain raw tracing coverage with an accurate description. Final source/test
+total: 260 lines, eight tests. Focused own suites now 73 passed per mode
+(12.16s float64 / 12.22s float32), no skips; Ruff formatting/lint clean.
+The earlier full gate/A10 selection are initial-commit evidence, not reruns
+after this test-only follow-up. REVIEW.md records the distinction and the
+reviewer's inability to execute checks under its headless permissions.
+Commit the fix-up and request round 2 using the same skill; then stop.
 
 One concept: complete own public-API evidence for transformations and
 observation permutations. Aim for at most 300 changed source/test lines.

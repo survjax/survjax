@@ -114,7 +114,7 @@ def test_transformed_failures_preserve_whole_cohort_masks(x64_enabled):
 
 
 def test_dynamic_scores_times_and_events_reuse_raw_compilation(x64_enabled):
-    """Spec 7.2: changing values with fixed shapes/dtypes reuses compilation."""
+    """Spec 6.1/7.2: raw construction composes with a fixed-shape compiled call."""
     traces = []
 
     @jax.jit
@@ -132,3 +132,32 @@ def test_dynamic_scores_times_and_events_reuse_raw_compilation(x64_enabled):
         result = run(jnp.array(scores), jnp.array(time), jnp.array(event))
         _assert_result(result, value, counts, False, False, False, x64_enabled)
     assert len(traces) == 1
+
+
+def test_prepared_metadata_reuses_compilation_when_values_change(x64_enabled):
+    """Spec 3.2/7.2/12.1: equal metadata flags reuse a prepared-data trace."""
+    traces = []
+
+    @jax.jit
+    def run(scores, data):
+        traces.append(None)
+        return survjax.concordance_index_with_info(scores, data)
+
+    # Both cohorts contain exact and right-censored rows, so their static
+    # flags agree despite different times/events/scores. First pairs (0,1),
+    # (0,2),(1,2) are all C; second pairs (1,0),(1,2) are C,D, hence 1/2.
+    cases = (
+        ([3.0, 2.0, 1.0], [1.0, 2.0, 3.0], [True, True, False], 1.0, (3, 0, 0, 3)),
+        ([1.0, 2.0, 3.0], [3.0, 1.0, 2.0], [False, True, False], 0.5, (1, 1, 0, 2)),
+    )
+    for scores, time, event, value, counts in cases:
+        data = survjax.SurvivalData(jnp.array(time), jnp.array(event))
+        result = run(jnp.array(scores), data)
+        _assert_result(result, value, counts, False, False, False, x64_enabled)
+    assert len(traces) == 1
+    # Spec 3.2: removing right censoring changes the flags/tree structure,
+    # so this call must compile separately rather than reuse the mixed trace.
+    exact = survjax.SurvivalData(jnp.array([1.0, 2.0, 3.0]))
+    result = run(jnp.array([3.0, 2.0, 1.0]), exact)
+    _assert_result(result, 1.0, (3, 0, 0, 3), False, False, False, x64_enabled)
+    assert len(traces) == 2

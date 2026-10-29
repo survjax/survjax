@@ -1,9 +1,9 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # A10.3 — Public concordance transformations and permutation evidence
 
 Approved after the detailed PLAN.md. Work on maintainer-created `a10b` from
-`a5cfea7`. Two new test modules, 231 lines; no production/API changes.
+`a5cfea7`. Two new test modules, now 260 lines; no production/API changes.
 The previous integration review is retained at `git show a5cfea7:REVIEW.md`.
 
 ## Reading order
@@ -29,9 +29,13 @@ The previous integration review is retained at `git show a5cfea7:REVIEW.md`.
   Check both score orders under all four evaluators. Failed cohorts retain
   overlapping failure masks and zero counts; only evaluated zero-pair
   cohorts set no_comparable_pairs. Valid neighbors retain all three pairs.
-- Spec 7.2: the compile-count test changes scores, times and event values
-  while keeping shapes/dtypes fixed. Both hand-counted outputs are checked,
-  and one trace is required for the raw-input compiled evaluator.
+- Spec 6.1/7.2: the raw compile-count test checks composition with raw
+  construction inside a trace; it does not exercise host-derived metadata.
+- Spec 3.2/7.2/12.1: the prepared-data compile-count test passes two
+  host-constructed SurvivalData arguments with different times/events/scores
+  but the same exact/right-censoring flags. Both hand-counted outputs are
+  checked and one trace is required, exercising static metadata reuse.
+  A third, all-exact cohort changes the flags and must produce a second trace.
 - Spec 9.2, 12.1: generated joint row permutations preserve the complete
   value/info result, including NaNs. Python integer reconstruction of the
   public hi/lo words checks the count partition and the zero-pair mask.
@@ -45,7 +49,7 @@ ATOL/RTOL from tests/impl_tolerances.py. No new tolerances or score-gradient
 claims. Test dtype comes from the process environment; library configuration
 is unchanged. No spec ambiguities encountered; no new deviation needed.
 
-## Checks actually run
+## Checks actually run for the initial implementation, fc7f82c
 
 All commands from dev-a10b with
 `UV_CACHE_DIR=/private/tmp/survjax-uv-cache`. Versions checked: Python 3.12.9,
@@ -89,16 +93,40 @@ the five non-fixture modules, not the full A10 gate. Optional logs:
 `/private/tmp/survjax-a103-acceptance-x64.log` and
 `/private/tmp/survjax-a103-acceptance-x32.log`.
 
+## Round 1 finding and follow-up for round 2
+
+Read round 1 of `../review/slices/A10.3.md` for fc7f82c: **fix-first**,
+one should-fix **F-1**, no blockers or nits. Claude independently verified
+the hand-counted cohorts statically but could not run gates, focused tests
+or mutants because its headless Bash permissions refused those commands.
+No reviewer settings or permissions were changed by the implementer.
+
+**F-1 addressed:** add a prepared-data compilation test with two equal-flag
+mixed exact/right cohorts whose values differ, then an all-exact cohort with
+different flags. Check all hand-counted results and trace counts 1 then 2.
+Retain the raw test as tracing/composition coverage and correct its docstring
+and requirement mapping; it is not static-metadata evidence.
+
+Reran the exact five-module focused command above on the final follow-up,
+separately in both modes: **73 passed in 12.16s** (float64),
+**73 passed in 12.22s** (float32), no skips. Ruff format: **92 files already
+formatted**; lint: **All checks passed!** The earlier full wheel/A9 gate,
+A10 selection and mypy results apply to fc7f82c; they were not rerun for
+this test-only follow-up. Production code, property tests and all existing
+checks remain unchanged. No mutation check was run by the implementer.
+
 ## Scope and limits
 
 Only the two new own-test modules, PLAN.md and this review may change.
 Spec, .spec-seen, independent tests, scripts, dependencies, production code,
 fixtures, docs and other branches remain unchanged. `git diff --cached
---check` exits 0. The staged path set is exactly the four authorized files;
-there are no unstaged changes. No source/test changes followed the full gate.
+--check` exits 0 for the initial commit. Its staged path set was exactly the
+four authorized files. The follow-up changes only the unit test and the
+two handoff records; the staged path set matches those three paths and
+`git diff --cached --check` exits 0. No unstaged changes.
 
 A10.4's concordance R fixture, executable topic/playground and held-out
 example remain separate work. No full A10, docs build, R generation,
-performance measurement or complete Slice A claim. Independent Claude review
-has not yet run; invoke the exact skill command after the commit, then stop
-according to its verdict. No open uncertainty about this test-only change.
+performance measurement or complete Slice A claim. Round 2 is pending;
+invoke the exact skill command after the fix-up commit, then stop according
+to its verdict. No open uncertainty about this test-only change.
