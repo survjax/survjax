@@ -157,7 +157,10 @@ def test_prepared_metadata_reuses_compilation_when_values_change(x64_enabled):
     assert len(traces) == 1
     # Spec 3.2: removing right censoring changes the flags/tree structure,
     # so this call must compile separately rather than reuse the mixed trace.
-    exact = survjax.SurvivalData(jnp.array([1.0, 2.0, 3.0]))
+    # Use the same constructor path to preserve every leaf's weak_type.
+    exact = survjax.SurvivalData(
+        jnp.array([1.0, 2.0, 3.0]), jnp.array([True, True, True])
+    )
     result = run(jnp.array([3.0, 2.0, 1.0]), exact)
     _assert_result(result, 1.0, (3, 0, 0, 3), False, False, False, x64_enabled)
     assert len(traces) == 2

@@ -1,6 +1,6 @@
 # A10.3 — Public concordance transformation and permutation evidence (2026-10-29)
 
-Status: **round-1 F-1 addressed; ready for round-2 independent review**, following
+Status: **three review rounds used; final F-2 fix-up verified; stop**, following
 "implement and review (automatic via claude, use the skill) the next part of
 A10" and the subsequent "approved". Work on the maintainer-created `a10b`
 branch from clean `a5cfea7`.
@@ -30,6 +30,19 @@ The earlier full gate/A10 selection are initial-commit evidence, not reruns
 after this test-only follow-up. REVIEW.md records the distinction and the
 reviewer's inability to execute checks under its headless permissions.
 Commit the fix-up and request round 2 using the same skill; then stop.
+
+The maintainer requested round 3 after correcting reviewer permissions.
+Round 3 on bd1bd84 could execute checks/mutants and returned fix-first for
+F-2: the third prepared-data call changed weak_type as well as metadata,
+so a constant-metadata mutant survived. Use an explicit all-True event
+array on that call, matching the other constructor paths. Final focused
+suites: 73 passed per mode (13.31s float64 / 13.33s float32), Ruff clean.
+The corrected test catches the constant-metadata mutant in both modes in
+isolated temporary source copies. Source/test total: 263 lines, eight tests.
+REVIEW.md records the reviewer's gate results (including missing-fixture and
+unsupplied-wheel failures), mutant results, deferred N-1 and reviewer-owned
+temporary worktree cleanup. Commit the F-2 fix-up and stop at three rounds;
+no merge approval or full A10 claim, and no automatic A10.4 start.
 
 One concept: complete own public-API evidence for transformations and
 observation permutations. Aim for at most 300 changed source/test lines.

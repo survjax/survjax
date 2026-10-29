@@ -3,7 +3,7 @@ Independent review: round 3/3
 # A10.3 — Public concordance transformations and permutation evidence
 
 Approved after the detailed PLAN.md. Work on maintainer-created `a10b` from
-`a5cfea7`. Two new test modules, now 260 lines; no production/API changes.
+`a5cfea7`. Two new test modules, now 263 lines; no production/API changes.
 The previous integration review is retained at `git show a5cfea7:REVIEW.md`.
 
 ## Reading order
@@ -123,6 +123,69 @@ under its headless permissions. The maintainer now requests another run and
 says the reviewer should have the correct permissions. Request round 3 with
 the unchanged implementation; only this review bookkeeping changes.
 
+## Round 3 outcome and final fix-up
+
+Read round 3 of `../review/slices/A10.3.md`: **fix-first**, should-fix
+**F-2**, plus pre-existing out-of-scope nit **N-1**. The reviewer could run
+code this time. It could not detach to bd1bd84 because the checkout's
+index.lock was blocked, but compared c1400a1..bd1bd84 and confirmed only this
+review record differed; all executed source/tests match the request.
+
+Reviewer execution (before this final fix-up):
+
+- `scripts/check.sh --through A10` exited 1: Ruff/mypy passed; own suites
+  1044 passed, 7 skipped (float64) / 1050 passed, 1 skipped (float32);
+  doctests 4 passed per mode. Float64 independent phase: 8 failed, 2319
+  passed, 28 skipped, 5 errors. Eight failures need the missing A10.4 R
+  fixture; five wheel errors need SURVJAX_WHEEL, which the reviewer had not
+  supplied. The gate stopped before float32 independent tests. This is not
+  a successful full A10 gate or a wheel verification result.
+- Both new modules: 8 passed per dtype. Five non-fixture independent A10
+  modules: 112 passed, 1 skipped in float32 (float64 was in the gate).
+- Three float64 mutants caught: incorrect failed-cohort no-pair masks,
+  full rather than half credit for score ties, and omitted left-truncation
+  support detection. The first was caught only by our new failures test.
+  The constant-metadata mutant M4 survived, exposing F-2.
+
+**F-2 addressed:** build the third all-exact cohort with an explicit all-True
+event array, matching the first two cohorts' constructor path. The earlier
+time-only constructor changed an exact leaf's weak_type and caused an
+unrelated retrace even with constant metadata. No production change. The
+reviewer's round-2 static assessment of that control is explicitly withdrawn
+in round 3. Both F-1's equal-flag check and the corrected different-flag
+control are now present.
+
+Final implementer checks:
+
+- The same five-module focused command above: **73 passed in 13.31s**
+  (float64), **73 passed in 13.33s** (float32), no skips.
+- Ruff format/check: **92 files already formatted**, **All checks passed!**
+- M4 sensitivity in a separate source/test copy, never the reviewer's
+  checkout or worktree: replace tree_flatten's `self._may_contain` aux
+  with `(True,) * 6`. Verify the import resolves to the copied source, then
+  run only `test_prepared_metadata_reuses_compilation_when_values_change`
+  via the checkout's `.venv/bin/python -m pytest -q`, in separate
+  JAX_ENABLE_X64=1/0 processes with PYTHONPATH pointing to that copy. Each
+  exits 1 at `assert len(traces) == 2` with `assert 1 == 2`: **1 failed in
+  0.70s** (float64), **1 failed in 0.72s** (float32). Both mutants caught;
+  the verification script exits 0 only after checking both expected failures.
+  Isolated source and logs: `/private/tmp/survjax-a103-f2-mut-sr2qtot_`.
+
+No full gate/mypy/A10-selection rerun after this constructor-only test fix;
+prior execution is attributed to its exact stage above. N-1 (extra compile
+between equivalent constructor forms due to weak_type) remains for a later
+maintainer decision, as requested by the reviewer; no spec violation claimed.
+Reviewer cleanup was refused: its `/tmp/survjax-mut-A10.3` worktree still
+contains M4. The maintainer must remove that reviewer-owned worktree; the
+implementer did not modify or remove it.
+
+Final staged audit: exactly PLAN.md, REVIEW.md and the unit test;
+`git diff --cached --check` exits 0, no unstaged changes. No production or
+protected paths changed.
+
+All three review rounds are used. Commit this fix-up and stop; no fourth
+review, no next subslice and no merge approval claim.
+
 ## Scope and limits
 
 Only the two new own-test modules, PLAN.md and this review may change.
@@ -135,6 +198,6 @@ two handoff records; the staged path set matches those three paths and
 
 A10.4's concordance R fixture, executable topic/playground and held-out
 example remain separate work. No full A10, docs build, R generation,
-performance measurement or complete Slice A claim. Round 3 is pending;
-invoke the exact skill command after the bookkeeping commit, then stop according
-to its verdict. No open uncertainty about this test-only change.
+performance measurement or complete Slice A claim. Final reviewer verdict
+is fix-first (before the F-2 fix-up); the fix-up is verified above but has
+not received another independent review. Stop at the three-round limit.
