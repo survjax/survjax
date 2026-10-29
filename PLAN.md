@@ -7,6 +7,72 @@ audit and planning checks") and A8 (`plans/A8.md`, "Closure still required").
 
 ---
 
+# A10.d1 — Executable concordance guide (2026-10-29)
+
+Authorized by “ok move on to next part of A10”. Continue on the existing
+maintainer-created `A10.4` branch from clean `7c4f57b`; do not create a branch
+or merge. One docs topic, at most 300 changed docs lines. No API, source,
+dependency, fixture, protected-path or spec changes. Spec: 6.1, 9.1–9.2,
+10.4–10.5, 12.1; the public concordance item of 12.2.
+
+Prerequisite evidence: the maintainer merged the independent fixtures.
+`scripts/check_wheel.sh --through A10` on `7c4f57b` exited 0: own suites
+1048 passed, 7 skipped / 1054 passed, 1 skipped; source doctests 4 per mode;
+independent suites 2332 passed, 28 skipped / 2322 passed, 38 skipped.
+Ruff/mypy clean. The concordance acceptance copy matches our export byte
+for byte. A10.4 round 1 found no blockers/should-fixes; its maintainer
+handoff is now fulfilled. N-1/N-2 remain optional next-regeneration notes.
+
+Files to create/change:
+
+- `docs/concordance.md`: MyST executable guide with synthetic exact/right
+  observations. Explain caller-supplied higher-risk scores, every pair/tie
+  rule, a hand-enumerated five-pair example and half credit; both input forms;
+  last observation axis versus broadcast leading axes; jit/vmap and score
+  draws; exact hi/lo counts and cohort diagnostics; supported observations,
+  undefined results, O(N²) work/O(N) pair workspace and no score-gradient
+  guarantee. Explain committed pinned-R evidence and its limits, explicit
+  caller-selected subsets, and held-out evaluation without fitting on test
+  outcomes. Assertions check the worked counts, masks and shapes.
+- `docs/index.md`: correct the now-stale metrics-planned statement and link
+  the new topic in prose/toctree. `docs/api.md`: add its worked-guide link.
+- Prepend this plan and overwrite `REVIEW.md` at the start of the step with
+  scope, invariants, reading order and pending checks, then fill actual
+  build/visual results before the docs commit.
+
+Validation: run unchanged `scripts/build_docs.sh` for fresh execution in
+separate float32/float64 processes, Ruff and whitespace checks; inspect the
+new rendered page, navigation and outputs in a browser in both builds.
+The full through-A10 gate above is current prerequisite evidence; do not
+repeat it for narrative-only changes. The maintainer requested “only you
+or the reviewer run them not both”: the implementer owns these checks;
+review should inspect the recorded results rather than duplicate them.
+After a clean commit, run the exact independent-review skill command for
+step `A10.d1` in `../review/code-A10.4`, at most three rounds, then stop.
+
+Docs to-do after this step: concordance playground integration and a tiny
+held-out synthetic example; final installed-artifact/evidence audit. The
+existing playground's obsolete likelihood statement belongs to its later
+update. Do not claim those items or Slice A complete from this guide.
+
+Planning evidence: read current docs/index/API, notebook cells, build/config,
+public metrics implementation, normative sections above and the A10 outline.
+No archived-plan requirement is implemented here; no new spec choice arose.
+
+Implemented: a 220-line executable guide, index capability/navigation update
+and API backlink; 232 changed docs lines including deletions. Both dtype
+builds succeed with all eight new cells executed (3.30s float32 / 3.19s
+float64 on the final build). A first sandboxed build exited 0 but logged
+notebook-shutdown sysctl permission errors; the unchanged permitted rebuild
+has no such errors or Sphinx warnings. Final Ruff: 112 files formatted / All checks
+passed; whitespace clean. Native Brave inspection covered both guide renders,
+pair table/formula, output/mask/shape tables, API backlink and index navigation;
+no desktop layout issue found. REVIEW.md records exact commands, runtime
+warnings, observed outputs and deferred notebook/held-out/audit work.
+No full-gate rerun for docs-only edits. Ready for commit and round 1 review.
+
+---
+
 # A10.4 — Synthetic R concordance references (2026-10-29)
 
 Authorized by “plan and implement A10.4”. Work on maintainer-created `A10.4`
