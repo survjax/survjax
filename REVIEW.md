@@ -1,114 +1,105 @@
-# A9.3 — Tiny synthetic example
+# A9 standalone example removal (2026-10-29)
 
-Read `examples/slice_a.py`, then `tests/unit/test_slice_a_example.py`, then
-the active A9.3 entry in PLAN.md. Approval: "review passed; on to next bit".
-Branch `A9`, starting commit `51978e8`. This step adds 70 example lines and
-83 test lines (153 total). No library source, public exports, dependencies,
-shared tolerances, spec, independent tests, protected scripts or docs pages
-changed. Spec alignment check: `spec unchanged since be26e50`.
+Read the current scope note in PLAN.md, then the staged deletion of the
+example and its dedicated test module. The maintainer requested that all
+other A9 work be retained for merge, with example content superseded by
+use-case 1 and a mini README version.
 
-The example constructs three explicit synthetic exact/right observations,
-performs the data's explicit host-validation checkpoint, and evaluates both
-built-ins through the public likelihood method. It compiles the summed
-Weibull objective with its joint shape/scale gradient and Hessian, then
-returns a time-first survival grid for two scales. `run_example()` returns
-named JAX arrays; `main()` prints those same results under a main guard.
-No global JAX config, fitting algorithm, plotting or external data is used.
+Changes: remove examples/slice_a.py and tests/unit/test_slice_a_example.py;
+remove their implementation/tutorial material from PLAN.md/REVIEW.md and
+record the replacement direction. No replacement example or README content
+is implemented in this step. No public API or library behavior changes.
 
-Invariants and spec-to-test mapping:
+Keep the A9.1 derivative/composition tests, the A9.2 wheel runner and installed
+custom-family checks, plus every other already staged incoming main change.
+The incoming A8 review below is retained as historical evidence. Existing
+A9.1/A9.2 checks and counts remain recorded in PLAN.md; this removal does not
+claim a fresh full numerical gate or Slice A completion.
 
-- `test_example_contributions_match_exact_and_right_formulas` (6.1, 7.1,
-  12.2): exact times 1 and 3, right censoring at 2, exponential rate 0.5
-  and Weibull shape/scale 2. Checks the actual example's returned inputs,
-  both contribution vectors, and every floating output's process-selected
-  dtype. Expected log contributions come from log f/log S, with the formulas
-  stated beside the assertions.
-- `test_example_compiled_objective_has_analytical_derivatives` (7.3,
-  12.2): scalar objective, two-component gradient and complete 2-by-2
-  Hessian, including the mixed derivative. Expectations come from explicit
-  differentiation of the exact/right Weibull formula, not library results.
-  The objective equals log(3/4)-7/2; its scale derivative is 3/2 and second
-  scale derivative -17/4. The shape and mixed entries use the stated powers
-  and logs at t/scale=[1/2,1,3/2].
-- `test_example_grid_is_time_first_and_starts_at_zero` (5, 12.2): checks
-  grid times [0,1,2,3], scales [1,2], the (4,2) output and the exact S(0)=1
-  row. Every value is compared to the analytical exp(-(t/scale)^2) formula.
+Validation completed:
 
-The test fixture loads the script by path and calls its run_example(),
-so CLI and regression tests share the same calculations. All tolerances
-come from tests/impl_tolerances.py unchanged. No new derivative guarantee is
-introduced; the example uses finite valid smooth interior parameters.
-Existing library tests supply the broader transformation/derivative matrix.
+- PASS: both files are absent; no surviving code/docs references to their
+  paths or run_example remain outside these removal records.
+- `JAX_ENABLE_X64=1 .venv/bin/python -m pytest --collect-only -q
+  tests/unit/test_likelihood_composition.py
+  tests/unit/test_likelihood_custom_derivatives.py tests/install/test_wheel.py`:
+  18 tests collected in 0.64s; no numerical tests were executed.
+  Log: `/private/tmp/survjax-a9-purge-collection.log`.
+- `.venv/bin/ruff format --check .`: 82 files already formatted.
+  `.venv/bin/ruff check .`: All checks passed!
+  `.venv/bin/mypy src`: Success: no issues found in 17 source files.
+  `git diff --check`: exit 0.
+- PASS: all 171 other index entries match the pre-removal snapshot. Neither
+  removed path is in the index; no unmerged entries or unstaged changes remain.
+  Compared to incoming main, only PLAN.md, REVIEW.md and the five retained
+  A9.1/A9.2 script/test files differ. Staged whitespace checks pass.
+- No full numerical gate, R, docs build, benchmark or replacement example
+  was run.
+Stage the cleanup with the existing maintainer-initiated merge; leave the
+merge commit to the maintainer.
 
-Checks completed:
+---
 
-- `JAX_ENABLE_X64=<1|0> UV_CACHE_DIR=/private/tmp/survjax-uv-cache
-  uv run --locked --offline python examples/slice_a.py`: exit 0 in both
-  modes. Printed Weibull total -3.7876820724517812 (float64) and
-  -3.787682056427002 (float32); gradient approximately [-0.0266918,1.5],
-  Hessian approximately [[-0.990018,1.48901],[1.48901,-4.25]], and a (4,2)
-  survival grid with first row [1,1]. Exponential/Weibull per-row outputs,
-  inputs and grid coordinates are also printed.
-- `JAX_ENABLE_X64=<1|0> UV_CACHE_DIR=/private/tmp/survjax-uv-cache
-  uv run --locked --offline pytest tests/unit/test_slice_a_example.py -q`:
-  3 passed in 2.17s per mode, no skips or failures.
-- Ruff: 78 files already formatted / All checks passed! Mypy:
-  Success: no issues found in 17 source files. `git diff --check`: exit 0.
+# Retained incoming A8 review — historical handoff status
 
-CLI logs: `/private/tmp/survjax-a93-example-x1.log`,
-`/private/tmp/survjax-a93-example-x0.log`. Focused logs:
-`/private/tmp/survjax-a93-focused-x1.log`,
-`/private/tmp/survjax-a93-focused-x0.log`.
-The initial wheel-runner cumulative attempt exited 1 during its float64 own
-suite: 793 passed, 7 skipped, 2 installation setup errors in 171.97s. Both
-errors came from an existing JAX cache archive missing its dist-info/RECORD;
-the unchanged installation tests could not copy it into a fresh environment.
-A focused `pytest tests/install -q -x` diagnostic reproduced that setup error
-(1 passed, 1 error in 0.34s), recorded in
-`/private/tmp/survjax-a93-install-diagnostic.log`. Initial gate log:
-`/private/tmp/survjax-a93-gate.log`.
+# A8 method-only reference documentation correction
 
-Environment repair used official uv cache/install commands only. An initial
-cache clean waited for the running gate, then removed the JAX cache entry;
-a first refill also found a missing JAXlib RECORD. After the gate and clean
-finished, the other five runtime cache entries were cleared and all six
-runtime wheels reinstalled into `/private/tmp/survjax-a93-cache-repair` from
-an export of the existing lock. A one-time network download restored the
-pinned artifacts; package versions, source, tests and lockfile did not change.
-The partially installed repair-only environment emitted missing-RECORD
-uninstall warnings, so it is not used as verification evidence. Fresh
-installation-test environments remain the verification target. Cache-clean
-process inspection required sandbox escalation and confirmed both commands
-had already exited; no process was killed. This setup repair does not make
-regular tests require network.
+Approved by "ok do the docs correction; what's needed for the fixture handoff?"
+after compatibility commit d5c0a3c. Branch a8-1-r-generator.
 
-Offline preflight with the repaired cache:
-`JAX_ENABLE_X64=1 SURVJAX_WHEEL=<initial runner artifact>
-UV_CACHE_DIR=/private/tmp/survjax-uv-cache uv run --locked --offline pytest
-tests/install -q`: 3 passed in 16.68s, no errors or skips. Log:
-`/private/tmp/survjax-a93-install-repaired.log`. Final rerun:
-`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check_wheel.sh --through A7`
-exited 0: `check: all gates passed through A7`. Guard: ok (A9). Ruff:
-78 files already formatted / All checks passed! Mypy: no issues found in
-17 source files. Tested Python 3.12.9, JAX 0.11.2, NumPy 2.5.3;
-`jax.devices()` reports CpuDevice(id=0).
+## Reading order and scope
 
-| Gate stage | Float64 | Float32 |
-| --- | --- | --- |
-| Own tests | 795 passed, 7 skipped, 192.90s | 801 passed, 1 skipped, 188.68s |
-| Source doctests | 4 passed, 0.99s | 4 passed, 0.86s |
-| Independent through A7 | 2114 passed, 28 skipped, 218 deselected, 101.28s | 2118 passed, 24 skipped, 218 deselected, 93.42s |
+1. docs/builtin-families.md, Comparisons with R: replace the obsolete claim
+   of function/method coverage with raw/prepared distribution-method coverage.
+2. PLAN.md: approved docs correction and remaining fixture closure.
 
-Full log: [/private/tmp/survjax-a93-gate-final.log](/private/tmp/survjax-a93-gate-final.log).
-The three new example cases pass in each dtype, with no new skips or
-exclusions. All tests in the final run remained offline after cache setup.
-The 218 deselections belong to later gate steps. The new runner artifact is
-retained at `/private/var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/survjax-wheel.TnEXsf/survjax-0.0.1.dev0-py3-none-any.whl`.
-Only PLAN.md/REVIEW.md result records changed after this gate; final Ruff and
-whitespace checks follow before commit.
+Spec 6.1/7.1/10.2/12.1, revision 35+: the method is the only public likelihood
+entry point. The retained A8 tests demonstrated both input forms in d5c0a3c.
+This one-line correction changes no numerical claims, examples or APIs.
+Audit of both fixture READMEs found no explicit two-entry-point claim to fix.
+No source, tests, fixtures, dependencies, tolerances or protected paths change.
 
-No new deviation or contract ambiguity. No R, docs build or benchmark is
-needed for this example step. A8 fixtures remain absent, so the cumulative
-A9/Slice A completion gate is still pending A8. A9.4 benchmarks and A9.d1
-narrative docs have not begun; the approved docs to-do remains in PLAN.md.
-Commit A9.3 and stop for review before the next step.
+## Checks actually run
+
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/build_docs.sh` exited 0,
+build succeeded in both fresh dtype processes with Sphinx warnings fatal.
+Builtin page execution: float32 2.62s, float64 2.29s. All existing executable
+docs pages ran. Escalated execution permits the local Jupyter kernel sockets;
+the log contains existing IPKernelApp TCP notices, no Sphinx build warnings.
+Full log: /private/tmp/survjax-a8compat-docs.log.
+
+Direct HTML checks after both builds: PASS in each mode. Correct method-only
+wording present, obsolete wording absent, all 48 local links/anchors resolve,
+both downloaded recipe READMEs match committed originals byte-for-byte.
+Visual layout inspection remains unverified; no new browser interaction was
+attempted after the previously documented unavailable connector and concurrent
+Safari-use conflict. This edit removes wording from an existing paragraph.
+
+Final Ruff format: 78 files already formatted; Ruff lint: All checks passed!
+git diff --check: exit 0. No numerical suite/full gate rerun, mutation checks,
+R regeneration or new deviations in this docs-only step.
+
+## Fixture handoff verified, not performed
+
+The already generated candidate is
+ tests/fixtures/bc_like/bc_synthetic_weibull.json.
+Actual SHA-256, matching its committed manifest:
+4edbdee917ae335da11911b39ec60442e21998687d27c62494f54e7eb1d0e450
+
+../spectest is clean and has the same .spec-seen as this checkout:
+be26e50cc35db1c2affc3dafcb4bf4cf4baf1ebf.
+The JSON is absent both in that tester's tests/spec/fixtures/ and in this
+checkout's protected tests/spec/fixtures/. No new R generation is needed.
+
+Maintainer actions: copy this exact JSON to the authoritative tester repo's
+ tests/spec/fixtures/bc_synthetic_weibull.json, verify checksum/byte identity
+and commit it there. On a maintainer-created clean spectests-* implementation
+branch, run scripts/sync_spec_tests.sh ../spectest; it checks both clean states
+and matching spec markers and replaces tests/spec wholesale. Review/commit
+that sync and integrate it normally. A direct local protected-path copy here
+would not be durable and is not the handoff workflow.
+
+After integration, verify the protected copy matches the candidate, run the
+unchanged independent A8 fixture module in both dtypes and the full through-A8
+gate, then record the final outcome. No through-A8/Slice A completion claim.
+Stop after this docs commit for review; no protected fixture was written.

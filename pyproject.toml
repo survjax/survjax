@@ -13,7 +13,12 @@ authors = [{ name = "Wouter A.C. van Amsterdam" }]
 dependencies = ["jax>=0.11.2", "numpy>=2.5.3"]
 
 [dependency-groups]
-test = ["pytest>=9.1.1", "mpmath>=1.4.1", "hypothesis>=6.168.1"]
+test = [
+    "pytest>=9.1.1",
+    "mpmath>=1.4.1",
+    "hypothesis>=6.168.1",
+    "pytest-xdist>=3.8.0",
+]
 dev = [
     { include-group = "test" },
     "ruff>=0.16.9",
