@@ -56,6 +56,13 @@ scope/whitespace clean. REVIEW.md distinguishes the earlier intermediate gate
 from the successful final-source rerun and records commands, times and hashes.
 Commit this fix-up and invoke round 3/3, then stop after the verdict.
 
+Round 3 completed on a4ca299: no open code findings, all five relevant mutants
+caught, and the reviewer states the code is ready to merge. Final verdict is
+maintainer solely for the formal D-028 spec exception. The constructor choice
+is already implemented; no repeat decision is needed. Spec/protected paths
+remain untouched, and D-028 remains formally open for maintainer disposition.
+Record the outcome without code changes, then stop. No fourth review or PH.2.
+
 ## PH.1 round-1 follow-up (2026-10-29)
 
 Maintainer decision: “allow for positional baseline in PH wrapper”. Resume the

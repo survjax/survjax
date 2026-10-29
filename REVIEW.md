@@ -1,6 +1,6 @@
 # PH.1 — Construction, diagnostics and direct PH composition
 
-Independent review: round 3/3
+Independent review: round 3/3 — completed; VERDICT: maintainer (D-028 only)
 
 Branch: `release-ph`. Actual full base SHA:
 `8757c0fda78e34e6e818249adedd2a144a33c33d` (requested snapshot 8757c0f).
@@ -311,3 +311,47 @@ zero absolute tolerance. The test skips explicitly when x64 is disabled.
 - Final whitespace/scope audit clean. Only PLAN.md, REVIEW.md, wrappers.py,
   the main PH test module and the new PH guard test module changed. No source
   changes followed the final focused and fresh-wheel verification.
+
+
+## Independent round 3 outcome — code findings cleared; stop
+
+Reviewed implementation: `a4ca299efb3e95388dbe209a08457533bd054f80`.
+Report: `../review/slices/PH.1.md`, round 3 dated 2026-10-30.
+Final `VERDICT: maintainer`, solely for D-028's formal spec disposition.
+Three automated rounds used; no retry and no fourth invocation.
+
+The reviewer states: no open code finding; every blocker/should-fix fixed;
+the code is ready to merge. F-1/F-2/N-1/N-2 remain fixed, F-3/F-4 are fixed,
+and N-3 is addressed. All five round-3 mutants are caught in their applicable
+dtype modes: missing isfinite recovery guard, missing linear overflow bound,
+missing eta promotion, wrong warning stack depth and missing adapter
+normalization. Focused unmutated results: 21 passed/1 skipped float64 and
+20 passed/2 skipped float32. Reviewer also probed dataclasses.replace and
+pickle successfully; these are its probes, not new committed test coverage.
+
+The constructor question S-1 is settled by the maintainer's explicit decision.
+D-028 stays open because only the maintainer closes deviations, and protected
+spec changes were excluded from this workstream. The remaining concrete spec
+text could be added to section 4.2:
+
+> Exception: ProportionalHazards accepts baseline positionally or by keyword;
+> log_hazard_ratio remains keyword-only.
+
+No constructor choice needs repeating, and no code fix is waiting on this text.
+I have not edited spec/, changed .spec-seen, marked D-028 resolved, merged,
+pushed or published. Formal spec synchronization remains with the maintainer.
+
+Reviewer gate rerun: clean Ruff/mypy; own tests 1069 passed/8 skipped (64.22s)
+float64 and 1074 passed/3 skipped (62.89s) float32; doctests 4 per mode;
+float64 acceptance 2327 passed/28 skipped/5 wheel fixture errors (unsupplied
+SURVJAX_WHEEL), then no float32 acceptance stage. The reviewer did not have
+permission for check_wheel.sh. Its earlier gate was discarded because the
+reviewer accidentally ran mutations in its review checkout concurrently; it
+restored the file, verified a clean status, and reran. Our final fresh-wheel
+through-A10 pass above is independent of those reviewer setup/procedure limits.
+
+The reviewer still reports refused cleanup of temporary worktree metadata for
+/tmp/survjax-mut-PH.1 and /tmp/survjax-mut-PH.1r3. No reviewer paths or shared
+worktree metadata have been edited or pruned by me. Record this outcome in a
+bookkeeping-only commit; implementation and tests remain exactly a4ca299.
+Stop after PH.1, with PH.2, exports and RMST integration still separate.
