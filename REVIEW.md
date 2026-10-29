@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # RMST.1 — Staged base surface and Exponential RMST
 
@@ -67,12 +67,54 @@ pytest 9.1.1; CpuDevice(id=0). Existing lockfile, no dependency changes.
 
 ## Limits and ownership
 
-Exactly 300 source/test changed lines (plan/review records excluded). Only
+Initial commit: 300 source/test changed lines (plan/review excluded). The
+F-1 follow-up adds 18 test lines in a separate commit. Only
 base.py, exponential.py and RMST-specific tests change behavior/evidence.
 base.py was already 502 lines; no unnamed helper/module or refactor added.
 No docs, exports, wrappers, dependencies or protected paths touched.
-No spec questions or new deviations. This step does not complete staged RMST.
+No implementation deviation added. Reviewer question S-1 remains for the
+maintainer (below); no behavior change made for it. Staged RMST is incomplete.
 After the separately reviewed Weibull core steps merge, hand base.py,
 exponential.py and weibull.py to release-ph for private built-in closure
 hooks and wrapper RMST integration. PH owns wrappers.py/exports already;
 it must wait for that core handoff. A9/A10 docs remain separately owned.
+
+## Round 1 response and round 2 request
+
+Round 1 on 944582f: `fix-first`. F-1 fixed by the new
+`test_rmst_cutoff_derivatives_isolate_invalid_entries`: differentiate a
+masked sum in the cutoff vector [1,-1,NaN,+inf,-inf,0], in forward and
+reverse modes under jit, against [exp(-2),0,0,0,0,1]. This tests the safe
+cutoff operand directly, rather than only differentiating the selected rate.
+Runtime implementation unchanged; this is an 18-line test-only fix-up.
+
+- `JAX_ENABLE_X64=1 uv run --group test pytest tests/unit/test_rmst.py -q`:
+  14 passed, 12.85s. With `=0`: 14 passed, 12.55s.
+- Mutant proof in separate dtype processes: `JAX_ENABLE_X64=1` / `=0`
+  `uv run --group test python -`, compiling an in-memory copy of exponential.py
+  with only `safe_cutoff = cutoff`, rebinding the public Exponential to that
+  copy, then running pytest on the new test node. Both fail as intended:
+  NaN-location mismatch at invalid cutoffs; 1 failed, 0.22s / 0.21s.
+  No source file or reviewer-owned mutation worktree changed.
+- Ruff format: 112 files already formatted; Ruff lint: All checks passed;
+  mypy: no issues in 20 source files. The earlier fresh-wheel full gate is
+  evidence for the initial implementation; it was not repeated for this
+  test-only follow-up. Final scope/whitespace checked before commit.
+
+N-1 deferred to planned RMST.3 full-range derivative evidence: honor 12.1's
+absolute-scale tau derivative rule, with no relative-tail accuracy promise.
+N-2 deferred: no unnamed module/helper abstraction introduced in this step;
+validation reuse and file sizes must be considered in RMST.2 before code.
+S-1 is the reviewer's spec question: does 8.4's NaN-tangent requirement apply
+to invalid staged RMST entries, or does 7.2 safe substitution govern their
+own zero tangents? The skill reserves spec questions for the maintainer;
+no spec/deviation/code change made for S-1 and no resolution claimed.
+
+The reviewer independently ran check.sh through A10: statics, own tests and
+doctests passed in both modes; x64 independent tests had 2327 passed,
+28 skipped and 5 setup errors because SURVJAX_WHEEL was unset. Its permission
+mode refused check_wheel.sh, so it did not confirm wheel acceptance or start
+x32 independent tests. Our fresh-wheel gate above passed all of those tests.
+The reviewer's `/tmp/survjax-mut-RMST.1` worktree remains after its cleanup
+was refused. Leave reviewer artifacts to the maintainer; do not edit them.
+Request round 2 from the clean fix-up commit, then follow the skill verdict.

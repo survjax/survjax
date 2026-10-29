@@ -52,7 +52,16 @@ files formatted, all lint checks pass; mypy: no issues in 20 source files.
 Fresh-wheel unchanged through-A10 gate: exit 0; own tests 1061/7 skipped
 and 1067/1 skipped, doctests 4 per mode, independent tests 2332/28 skipped
 and 2322/38 skipped. Exact commands, times, environment, artifact identity
-and final-source limits are in REVIEW.md. Commit then request round 1/3.
+and final-source limits are in REVIEW.md. Initial commit 944582f.
+
+Round 1: fix-first for F-1, missing cutoff-derivative mutation coverage.
+Add an 18-line test-only fix-up; no runtime changes. Both dtype suites now
+14 passed, and the safe-cutoff-removal mutant fails the new test in both
+modes. Final statics clean. N-1/full-range evidence remains RMST.3;
+N-2/validation reuse remains RMST.2. S-1 invalid-entry tangent semantics
+is reserved for the maintainer; no implementation change for it. REVIEW.md
+records the reviewer gate's missing-wheel environment and artifact cleanup
+limits. Commit this bounded follow-up and request round 2/3, then stop.
 
 ---
 

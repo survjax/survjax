@@ -211,3 +211,21 @@ def test_rmst_derivatives_against_independent_integral(x64_enabled):
         atol=DERIVATIVE_ATOL[x64_enabled],
         rtol=DERIVATIVE_RTOL[x64_enabled],
     )
+
+
+def test_rmst_cutoff_derivatives_isolate_invalid_entries(x64_enabled):
+    """Spec 7.2/8.7: invalid cutoffs cannot poison a masked sum's tangents."""
+    cutoff = jnp.array([1.0, -1.0, jnp.nan, jnp.inf, -jnp.inf, 0.0])
+
+    def fn(t):
+        values = survjax.Exponential(rate=2.0).rmst(t)
+        valid = jnp.isfinite(t) & (t >= 0)
+        return jnp.where(valid, values, 0.0).sum()
+
+    # Fundamental theorem of calculus: d RMST/dtau=exp(-2*tau).
+    # Masked invalid entries contribute zero; at tau=0 the derivative is 1.
+    expected = [np.exp(-2), 0.0, 0.0, 0.0, 0.0, 1.0]
+    for transform in (jax.jacfwd, jax.jacrev):
+        np.testing.assert_allclose(
+            jax.jit(transform(fn))(cutoff), expected, rtol=RTOL[x64_enabled]
+        )
