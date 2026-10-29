@@ -24,13 +24,16 @@ def generate_weibull(
     censor_limit: ArrayLike,
     *,
     sample_shape: tuple[int, ...] = (),
+    log_hazard_ratio: ArrayLike = 0.0,
 ) -> GeneratedData:
     """Draw Weibull events and independent Uniform(0, c) censoring.
 
     Args:
         key: Explicit key, split in U-then-C order; callers own fold_in.
         shape: Positive finite k, broadcast against scale and censor_limit.
-        scale: Positive finite b in time units; PH uses b0*exp(-gamma*arm/k).
+        scale: Positive finite baseline b0, in time units.
+        log_hazard_ratio: Finite PH linear predictor eta (e.g. gamma*arm),
+            broadcast per row; H(t)=exp(eta)*(t/b0)**k. Zero gives scale b0.
         censor_limit: Positive finite c, in the same time units as scale.
         sample_shape: Static sample prefix before the broadcast parameter axes.
 
@@ -43,10 +46,13 @@ def generate_weibull(
         ValueError: Shapes cannot broadcast. Values are positive/finite
             preconditions, not host-validated inside this JIT-compatible function.
     """
-    dtype = jnp.result_type(shape, scale, censor_limit, float)
-    k, b, c = jnp.broadcast_arrays(
-        *(jnp.asarray(value, dtype=dtype) for value in (shape, scale, censor_limit))
+    parameters = (shape, scale, censor_limit, log_hazard_ratio)
+    dtype = jnp.result_type(*parameters, float)
+    k, b, c, eta = jnp.broadcast_arrays(
+        *(jnp.asarray(value, dtype=dtype) for value in parameters)
     )
+    # 01-details DGP: PH is Weibull with scale b0*exp(-eta/k).
+    b = b * jnp.exp(-eta / k)
     draw_shape = sample_shape + k.shape
     event_key, censor_key = jax.random.split(key)
     u = jax.random.uniform(event_key, draw_shape, dtype=dtype)
@@ -60,13 +66,24 @@ def generate_weibull(
     )
 
 
-def calibrate_censoring(shape: ArrayLike, scale: ArrayLike, target: float) -> float:
+def calibrate_censoring(
+    shape: ArrayLike,
+    scale: ArrayLike,
+    target: float,
+    *,
+    log_hazard_ratio: ArrayLike = 0.0,
+) -> float:
     """Solve mean_i integral_0^c S_i(t) dt / c = target on the host.
+
+    Run once per parameter cohort/target, before compiled replicate generation.
+    Host float64 quadrature and Python root-finding are deliberately not jitted.
 
     Args:
         shape: Concrete positive finite k, broadcast against scale per row.
-        scale: Concrete positive finite b; broadcast entries have equal weight.
+        scale: Concrete positive finite baseline b0.
         target: Expected censored fraction strictly between zero and one.
+        log_hazard_ratio: Concrete finite PH eta; all broadcast rows have equal
+            weight. Effective scales b0*exp(-eta/k) must be positive and finite.
 
     Returns:
         Positive c via host-only NumPy float64 quadrature/bisection, in the same
@@ -76,13 +93,25 @@ def calibrate_censoring(shape: ArrayLike, scale: ArrayLike, target: float) -> fl
         ValueError: Empty, nonfinite, nonpositive or incompatible inputs/target.
         RuntimeError: Bracketing, root-finding or quadrature checks fail.
     """
-    k, b = np.broadcast_arrays(
-        np.asarray(shape, dtype=np.float64), np.asarray(scale, dtype=np.float64)
+    k, b, eta = np.broadcast_arrays(
+        *(
+            np.asarray(value, dtype=np.float64)
+            for value in (shape, scale, log_hazard_ratio)
+        )
     )
     if not k.size or not np.all(np.isfinite(k) & (k > 0)):
         raise ValueError("shape must be nonempty, positive and finite")
-    if not np.all(np.isfinite(b) & (b > 0)) or not 0 < target < 1:
-        raise ValueError("scale must be positive/finite and 0 < target < 1")
+    if not np.all(np.isfinite(b) & (b > 0) & np.isfinite(eta)) or not 0 < target < 1:
+        raise ValueError("scale must be positive/finite, eta finite and 0 < target < 1")
+    with np.errstate(over="ignore", under="ignore"):
+        b = b * np.exp(-eta / k)
+    if not np.all(np.isfinite(b) & (b > 0)):
+        raise ValueError("effective PH scales must be positive and finite")
+
+    rules = {}
+    for order in (64, 128):
+        nodes, weights = np.polynomial.legendre.leggauss(order)
+        rules[order] = ((nodes + 1) / 2, weights / 2)
 
     def fraction(c: float, order: int) -> float:
         nodes, weights = rules[order]
@@ -92,10 +121,6 @@ def calibrate_censoring(shape: ArrayLike, scale: ArrayLike, target: float) -> fl
             survival = np.exp(-((t / b.ravel()) ** k.ravel()))
         return float(np.dot(weights * 8 * nodes**7, survival.mean(axis=1)))
 
-    rules = {}
-    for order in (64, 128):
-        nodes, weights = np.polynomial.legendre.leggauss(order)
-        rules[order] = ((nodes + 1) / 2, weights / 2)
     low, high = 0.0, float(np.median(b))
     for _ in range(128):
         if fraction(high, 128) < target:

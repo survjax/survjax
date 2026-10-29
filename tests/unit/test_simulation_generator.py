@@ -49,7 +49,7 @@ def test_simulation_calibration_matches_mpmath(target):
     """01 calibration: equal-arm integrated survivals, independently at 40 dps."""
     k, b0, gamma = 1.38, 11.42, np.log(0.7)
     b = b0 * np.exp(-gamma * np.array([0, 1]) / k)
-    c = calibrate_censoring(k, b, target)
+    c = calibrate_censoring(k, b0, target, log_hazard_ratio=gamma * np.array([0, 1]))
     with mp.workdps(40):
         pooled = (
             sum(
@@ -162,4 +162,75 @@ def test_generator_event_times_have_parameter_derivatives(x64_enabled):
         eps=tol.LIKELIHOOD_GRAD_EPS[x64_enabled],
         atol=tol.DERIVATIVE_ATOL[x64_enabled],
         rtol=tol.DERIVATIVE_RTOL[x64_enabled],
+    )
+
+
+def test_ph_generator_matches_equivalent_weibull_under_transformations(x64_enabled):
+    """Spec 4.4 / 01 DGP: PH changes b0 to b0*exp(-eta/k), with row broadcasting."""
+    k, b = jnp.array([[1.0], [1.38]]), jnp.array([3.0, 5.0, 8.0])
+    eta = jnp.array([[-0.3, 0.0, 0.2], [0.5, -0.7, 0.3]])
+    key = jax.random.key(20261025)
+
+    def draw(lp):
+        return generate_weibull(key, k, b, 10.0, log_hazard_ratio=lp)
+
+    expected = generate_weibull(key, k, b * jnp.exp(-eta / k), 10.0)
+    mapped = jax.tree.map(
+        lambda x: x[0], jax.jit(jax.vmap(draw))(jnp.stack([eta, eta]))
+    )
+    for result in (draw(eta), jax.jit(draw)(eta), mapped):
+        for actual, reference in zip(result, expected, strict=True):
+            np.testing.assert_allclose(
+                actual,
+                reference,
+                atol=tol.ATOL[x64_enabled],
+                rtol=tol.RTOL[x64_enabled],
+            )
+
+
+@pytest.mark.parametrize("eta", [np.nan, 1000.0])
+def test_ph_calibration_rejects_unusable_effective_scale(eta):
+    """01 DGP: calibration requires finite eta and representable positive scales."""
+    with pytest.raises(ValueError):
+        calibrate_censoring(1.0, 5.0, 0.5, log_hazard_ratio=eta)
+
+
+def test_ph_parameter_derivatives_match_inverse_cdf_algebra(x64_enabled):
+    """Spec 7.3 / 01 DGP: T=b*exp((log(-log(U))-eta)/k) gives all partials."""
+    key, p = jax.random.key(12), jnp.array([1.38, 2.0, 0.3])
+    u = np.asarray(jax.random.uniform(jax.random.split(key)[0], (3,), dtype=p.dtype))
+    k, b, eta = np.asarray(p)
+    a = np.log(-np.log(u)) - eta
+    t = b * np.exp(a / k)
+    expected_grad = np.array([np.sum(-a * t / k**2), np.sum(t / b), np.sum(-t / k)])
+    kk, kb, ke = (
+        np.sum(t * (a * a / k**4 + 2 * a / k**3)),
+        np.sum(-a * t / (b * k**2)),
+        np.sum(t * (1 / k**2 + a / k**3)),
+    )
+    be, ee = np.sum(-t / (b * k)), np.sum(t / k**2)
+    expected_hessian = np.array([[kk, kb, ke], [kb, 0.0, be], [ke, be, ee]])
+
+    def total(parameters):
+        return generate_weibull(
+            key,
+            parameters[0],
+            parameters[1],
+            5.0,
+            sample_shape=(3,),
+            log_hazard_ratio=parameters[2],
+        ).event_time.sum()
+
+    for derivative in (jax.jacfwd(total), jax.jacrev(total)):
+        np.testing.assert_allclose(
+            jax.jit(derivative)(p),
+            expected_grad,
+            atol=tol.ATOL[x64_enabled],
+            rtol=tol.RTOL[x64_enabled],
+        )
+    np.testing.assert_allclose(
+        jax.jit(jax.hessian(total))(p),
+        expected_hessian,
+        atol=tol.ATOL[x64_enabled],
+        rtol=tol.RTOL[x64_enabled],
     )

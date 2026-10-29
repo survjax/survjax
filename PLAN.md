@@ -1,3 +1,66 @@
+# SIM.2 — Address shared foundation questions and enable examples (2026-10-29)
+
+Start on `release-simulation` at `3556d12c1abca553f77607c1e1739df2bd1911f0`.
+The only initial dirty file is study.py with three maintainer question comments.
+SIM.1 round 2 returned merge. Preserve all unfinished history below.
+Maintainer approves the proposed dependencies in this turn; no renewed
+approval is needed for those exact pins. Keep PH fitting deferred.
+
+Files and scope:
+- `pyproject.toml` / `uv.lock`: examples group with exact tested Optimistix
+  0.1.0, Matplotlib 3.11.2, Equinox 0.13.8, Optax 0.2.8, NumPyro 0.22.0.
+  Keep existing runtime/dev/docs versions unchanged. The five-package lock
+  preview is 160 changed lines; full six-package setup is 295 lock lines
+  alone. Approved ArviZ 0.23.0/tail ESS is a separate later step so this step
+  including generator checks remains about 300 lines. No protected scripts.
+- `examples/weibull_simulation/study.py`: answer/consume the maintainer notes,
+  define quadrature rules before their closure, and explain calibration as
+  once-per-target host setup outside the compiled replicate loop. PH input
+  preference is asked asynchronously (baseline/log-HR versus PH rate m).
+  Preserve the current call contract; any PH convenience will be optional,
+  demo-only, and checked against the existing scale formulation.
+- `tests/unit/test_simulation_generator.py`: if adding PH input, analytical
+  PH/scale and calibration identities, row broadcasts and transformed values/
+  derivatives. Reuse existing tolerances. Existing numerical checks also
+  exercise the quadrature block reorder.
+- `examples/weibull_simulation/DEPENDENCIES.md`: mark approval, staged pins,
+  remaining approved ArviZ stage and exact optional-environment invocation.
+- Overwrite `REVIEW.md` with reading order, input-contract updates, evidence
+  and limits, preserving SIM.1's outcome in this plan and Git history.
+
+Spec 4.4/4.6/7.3/10.3; use-cases/00-common and 01-details DGP/calibration.
+No library API, shared docs/config or other workstream files. Docs to-do:
+future simulation page should show PH inputs and setup versus compiled work.
+Run generator checks in separate x64/float32 processes, approved-environment
+compatibility probe, Ruff, mypy, lock consistency and fresh-wheel through-A10
+gate. Inspect size before committing; split if needed. Commit, invoke exact
+independent-review skill for SIM.2 (max 3 rounds), then stop/report.
+
+
+Implementation: optional log_hazard_ratio=0.0 added to both generator and
+calibration, with unchanged no-keyword calls and U/C key split. Rules now
+precede the fraction closure; calibration explicitly remains host-only setup.
+No response to the optional PH-form preference arrived during environment
+work; used the stated baseline/log-HR convention from 01-details and spec 4.4.
+Approved five-package group resolves/installs; all 155 existing locked
+versions unchanged, 10 additions. Optional compiled BFGS/NN-update/NUTS/SVG
+probe passes in the actual group environment. ArviZ remains approved for its
+separate lockfile step. Total implementation/test/config/proposal diff is
+303 changed lines, including 160 lockfile lines.
+
+Focused final suites: 17 passed per dtype (10.17s/10.56s), Ruff/mypy/lock
+checks pass. A joint three-parameter check_grads initially failed a float32
+second-order projection near zero; no tolerance was changed. Retained the
+original k/b finite-difference checks and verified all PH gradient/Hessian
+entries against inverse-CDF algebra, including cross-partials. The full
+fresh-wheel through-A10 gate exited 0: own suites 1064/1071 passed (7/1
+skips), doctests 4 per mode, independent 2333/2323 passed (27/37 skips).
+NumPyro enables one acceptance check previously skipped. REVIEW.md records
+exact commands, times, initial numerical failure and final focused evidence.
+Commit and exact independent review follow, then stop/report.
+
+---
+
 # SIM.1 — Shared Weibull generator and censoring calibration (2026-10-29)
 
 Work on `release-simulation` from full base

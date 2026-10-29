@@ -13,6 +13,13 @@ authors = [{ name = "Wouter A.C. van Amsterdam" }]
 dependencies = ["jax>=0.11.2", "numpy>=2.5.3"]
 
 [dependency-groups]
+examples = [
+    "optimistix==0.1.0",
+    "matplotlib==3.11.2",
+    "equinox==0.13.8",
+    "optax==0.2.8",
+    "numpyro==0.22.0",
+]
 test = [
     "pytest>=9.1.1",
     "mpmath>=1.4.1",

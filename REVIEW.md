@@ -1,173 +1,138 @@
-Independent review: round 2/3
+Independent review: round 1/3
 
-# SIM.1 — Shared Weibull generator and censoring calibration
+# SIM.2 — Maintainer questions and approved examples environment
 
-Branch `release-simulation`; actual launch/base commit
-`8757c0fda78e34e6e818249adedd2a144a33c33d`. Reviewer checkout already existed.
-Initial commit: 300 implementation/test/proposal lines, excluding PLAN/REVIEW
-records. Review fix-up: 7 net added lines (307 total), same single concept.
-Unfinished PLAN history is preserved verbatim below the new section.
-
-## Round 1 response
-
-Written review: ../review/slices/SIM.1.md, round 1 on 1e3f5fc, fix-first.
-- F-1 fixed: add `test_calibration_rejects_unconverged_quadrature` for k=20,
-  b=5, target=.5; it requires RuntimeError matching "quadrature". The review
-  independently established that this call reaches the convergence guard and
-  that removing the guard previously survived the suite. No tolerance change.
-- N-1 fixed: document possible exact-zero underflow for extreme parameters;
-  no floors/clipping or unsupported robust sampling claim introduced.
-- N-2 fixed: c uses the same time units as scale, not multiples of scale.
-- N-3 deferred as suggested: only one source-demo test currently adjusts the
-  import path; a shared helper would be premature. No consumer files touched.
-- Reviewer's isolated dependency probe and proposed future docs command remain
-  unrerun by the reviewer; our compatibility evidence is below. A prunable
-  temporary mutation-worktree administrative entry is reviewer-owned cleanup;
-  no review-directory or Git worktree pruning performed by this implementer.
-
-Fix-up checks (both modes, sequential commands as above):
-focused 13 passed in 4.32s / 13 passed in 4.05s, no skips.
-Ruff: 114 files already formatted / All checks passed!
-mypy: Success: no issues found in 20 source files.
-This adds a regression test and docstrings only; initial full-gate evidence
-below remains the regression evidence. No implementation behavior changed.
-Reviewer round 1's raw `scripts/check.sh --through A10` exited 1: Ruff,
-mypy, both own suites and doctests passed; x64 independent selection had
-2327 passed / 28 skipped / 5 errors, all five A9 wheel fixtures requiring
-SURVJAX_WHEEL. The raw gate stops before x32 spec tests. Reviewer execution
-of the wheel wrapper was denied. Our fresh-wheel wrapper passed both full
-through-A10 selections (evidence below); no packaging/core code changed.
-This is a reviewer environment limitation, not a new implementation failure.
+Branch release-simulation; start 3556d12c1abca553f77607c1e1739df2bd1911f0.
+SIM.1 round 2 returned merge. Initial dirty file was study.py containing three
+maintainer questions; each is addressed here. Existing PLAN history preserved.
+About 300 source/test/config/lock/proposal changed lines (303 before records).
 
 ## Reading order
 
-1. PLAN.md's SIM.1 section; use-cases/00-common.md and both 01 files.
-2. examples/weibull_simulation/study.py: explicit-key inverse CDF followed by
-   independent censoring; host-only pooled numerical calibration.
-3. tests/unit/test_simulation_generator.py and tests/impl_tolerances.py.
-4. examples/weibull_simulation/DEPENDENCIES.md: proposal only; no dependency
-   group or lockfile edits. No optional imports in the generator or tests.
+1. PLAN.md SIM.2 and the maintainer questions recorded below.
+2. examples/weibull_simulation/study.py: optional PH input and calibration
+   setup order; host calibration remains outside compiled replicate work.
+3. tests/unit/test_simulation_generator.py: mpmath PH calibration, transformed
+   generator identity, unusable effective scales and analytical PH derivatives.
+4. pyproject.toml / uv.lock / examples/weibull_simulation/DEPENDENCIES.md:
+   approved exact pins, unchanged existing versions, staged ArviZ follow-up.
 
-## Invariants and requirement evidence
+## Questions and decisions
 
-- Shared convention / 01 DGP: T=b*(-log(U))**(1/k), C=c*Uniform(0,1),
-  observed min(T,C), event T<=C. `shape`, `scale`, `censor_limit` broadcast;
-  sample_shape prefixes these axes. Positive finite values are preconditions.
-  No arbitrary probability/time floors or clipping. JAX's representable U=0
-  yields latent T=inf and finite censored observation; no repair is applied.
-- 01 seeds: exactly split each supplied replicate key into U then C keys.
-  Caller owns root `jax.random.key(20261025)`, `fold_in(root,s)` with full
-  scenarios n ascending then censoring target, and `split(scenario_key,R)`.
-  No internal/global RNG state; no automatic root or scenario derivation.
-  Scenario runner is later work. Test checks the split numerically, scalar
-  and multi-axis broadcasts, prefix shape, eager/jit/vmap/jit-of-vmap.
-- Calibration: NumPy float64 only, equal weight per broadcast entry. Solve
-  mean integral_0^c S_i(t)dt/c=target, not F(c) or censoring of a single event
-  draw. 128-node Gauss-Legendre with t=c*x**8, bracket doubling/bisection,
-  fraction residual <=1e-12; independently repeat at 64 nodes within 1e-10.
-  These numerical stopping thresholds are solver settings, not test tolerance
-  changes. Failure to bracket/converge raises, without using core RMST.
-- Tests: exponential integral hand derivation at c=2b; heterogeneous 2x3
-  broadcast (k=.5/2.7) and both exact simulation arms/targets versus 40-digit
-  mpmath quadrature. Invalid calibration inputs fail explicitly.
-- Empirical: 100,000 draws per arm, each target; compare survival at 5/10/20
-  against exp(-(t/b)**k), log cumulative-hazard ratio at t=10 against log(.7),
-  joint exceedances against S_T(10)/2, pooled censoring against its target,
-  and observation construction exactly. Central six-MCSE bounds are fixed
-  binomial or delta-method bounds, with conservative p(1-p)<=1/4 for pooled
-  censoring. No fits, PH implementation or data-dependent tolerance tuning.
-- Spec 7.3: check_grads(order=2, modes=(fwd,rev)) for positive k/b with one
-  fixed key, latent event-time sum; current values/derivatives are O(1–10),
-  central differences retain the existing derivative tolerances and dtype
-  steps. No gradient claim for host calibration or discrete event flags.
-- Spec 10.3/12.2: no public library changes, optional packages, shared scripts,
-  docs/config/navigation, protected paths or another agent's files changed.
-  Fitting awaits reviewed PH integration. No full simulation/coverage claim.
+- "rules is used but not defined until below": Python resolves the closure
+  when fraction is called, after initialization. Valid but unnecessarily hard
+  to read; now initialize rules before defining the closure. A JAX function
+  can also close over constants; this ordering was not a JAX limitation.
+- "a lot of np code and python loops; will this ever be jitted?": no, this is
+  concrete once-per-cohort/target float64 setup. Its result c is reused by
+  compiled generation/fits. Calibrating inside each replicate would also
+  change the intended fixed-c experiment. Docstring makes this split explicit.
+- "explicit PH parameterization would be handy": expose optional keyword
+  log_hazard_ratio=0.0 on both generation and calibration; scale remains b0.
+  H(t)=exp(eta)*(t/b0)**k, equivalent to Weibull scale b0*exp(-eta/k).
+  Asked baseline/log-HR versus Weibull-PH rate m asynchronously; no answer
+  arrived while independent environment work ran. Proceeded with the stated
+  baseline/log-HR default, matching the 01-details gamma*arm formulation and
+  spec 4.4 wrapper input. No extra library wrapper or fitting implementation.
 
-## Consumer import contract (freeze if review approves)
+## Invariants and requirement/test mapping
 
-From a source checkout with repository root on Python's import path:
+- Shared 00 / 01 DGP: no-keyword calls preserve the old shape/scale generator.
+  The sole key still splits U then C; output remains the same GeneratedData
+  NamedTuple, sample_shape prefix and boolean event. eta participates in all
+  parameter broadcasting. Positive eta means higher hazard/shorter times.
+- Spec 4.4/4.6: PH transformation is a scale conversion, not a new distribution.
+  Multi-axis k/b0/eta test compares ordinary/eager/jit/jit-of-vmap outputs to
+  the verified equivalent Weibull law, with the identical supplied key.
+- Host calibration is still the equal-row mean of integral S/c, now after
+  optional PH scale conversion. Existing 40-digit mpmath checks for both
+  simulation targets now use baseline b0 and arm-wise eta. Existing plain
+  calibration/empirical checks remain. Invalid eta or unrepresentable positive
+  effective scales raise ValueError. No clipping, floors or epsilons.
+- Spec 7.3: original k/b check_grads(order=2,fwd/rev) retained. New PH test
+  derives all three first partials and the full 3x3 Hessian independently
+  from T=b*exp(a/k), a=log(-log(U))-eta. Checks compiled jacfwd/jacrev and
+  hessian against that algebra, including all cross-partials, both dtypes.
+- Spec 10.3: user explicitly approved the version proposal. The examples
+  group pins Optimistix .1.0, Matplotlib 3.11.2, Equinox .13.8, Optax .2.8,
+  NumPyro .22.0. Core dependencies remain jax/numpy only. All 155 prior lock
+  package versions are identical; 10 new transitive/direct packages added.
+  ArviZ .23.0 remains approved and isolated-probe tested but its six-package
+  transitive addition is staged separately: full group preview had 295 lock
+  lines alone; this stage's lock has 160 changed lines. No approval re-request.
+- No public library API, protected scripts, docs/config or another agent's
+  files changed. Existing demo entry points/imports remain valid. Consumer
+  coordination goes through the maintainer: optional eta is the only addition.
 
-```python
-from examples.weibull_simulation.study import (
-    GeneratedData,
-    calibrate_censoring,
-    generate_weibull,
-)
-```
+## Updated shared import contract
 
-`generate_weibull(key, shape, scale, censor_limit, *, sample_shape=())`
-returns `GeneratedData(time, event, event_time, censor_time)`: a NamedTuple
-PyTree of equal-shaped arrays, event boolean; JAX precision follows inputs
-and process configuration. Explicit float32 inputs retain float32 in x64 mode.
-`calibrate_censoring(shape, scale, target) -> float` requires concrete inputs,
-uses host float64 even in float32 processes, and is not jit/differentiable.
-Both k/b broadcast per row; consumers compute PH scales b0*exp(-gamma*arm/k).
-Consumers own their specified key derivation; scalar calls support MNIST's
-per-global-index key scheme and batched parameters support posterior draws.
-Not packaged/exported in the survjax wheel. Consumer coordination/integration
-is through the maintainer; no messages sent to other agents/services.
+From a source checkout with its root on sys.path, import from
+examples.weibull_simulation.study:
 
-Equal-arm k=1.38, b0=11.42, HR=.7 calibrated c values (years):
-25%: 47.793149053990135; 55%: 19.17253543619806.
-These are pilot calibrations, not committed full-run results metadata.
-Float64 seeded empirical censoring: .249355/.550485; survival-based HR at
-t=10: .6991430905461749/.7003407816242653 (100,000 rows per arm/target).
+- generate_weibull(key, shape, scale, censor_limit, *, sample_shape=(),
+  log_hazard_ratio=0.0) -> GeneratedData(time,event,event_time,censor_time).
+- calibrate_censoring(shape, scale, target, *, log_hazard_ratio=0.0) -> float.
 
-## Commands and actual results
+No-keyword calls and explicit-key scheme are unchanged. For a trial, pass
+lp=gamma*arm with baseline scale b0. Calibration remains host-only float64;
+generation supports JIT/vmap and follows input/process precision.
 
-Locked project: Python 3.12.9, JAX 0.11.2, NumPy 2.5.3, CPU.
-Final focused checks, separate processes:
+## Actual checks
+
+`uv lock --check`: Resolved 165 packages, exit 0.
+`uv sync --locked --group examples`: exit 0, installed approved packages.
+Compared parsed old/new lock package name/version mappings: all 155 existing
+versions unchanged, 10 additions. Initial preview mistakenly used a placeholder
+temporary path once (exit 2, no such directory); reran with the real temporary
+path, resolved successfully. No project changes resulted from that typo.
+
+Optional compatibility command:
+`JAX_ENABLE_X64=1 MPLCONFIGDIR=/private/tmp/survjax-sim-mpl uv run --locked --group examples python /private/tmp/survjax-sim-probe.py`
+Exit 0; prints JAX/jaxlib .11.2, NumPy 2.5.3, Optimistix .1.0,
+Matplotlib 3.11.2, Equinox .13.8, Optax .2.8, NumPyro .22.0, Lineax .1.1;
+then PASS: compiled vmapped BFGS, Equinox/Optax update, NUTS, SVG.
+The temporary probe source is preserved below for reproducibility.
+No PH fitting, neural training or Bayesian convergence claim follows from it.
+
+Focused final commands in separate processes:
 `JAX_ENABLE_X64=1 uv run pytest -q tests/unit/test_simulation_generator.py`:
-12 passed in 7.64s.
+17 passed in 10.17s.
 `JAX_ENABLE_X64=0 uv run pytest -q tests/unit/test_simulation_generator.py`:
-12 passed in 4.82s. No skips. Earlier 9/11-test iterations also passed.
+17 passed in 10.56s. No skips.
 `uv run ruff format --check .`: 114 files already formatted.
 `uv run ruff check .`: All checks passed!
 `uv run mypy src`: Success: no issues found in 20 source files.
+`git diff --check`: exit 0, no output.
 
-Initial focused collection failed because pytest's import path excludes the
-repository root; fixed the source-only example path explicitly in this own
-test module. Initial Ruff found import order, lambda assignment and unbound
-quadrature lambda loop variables; corrected before final checks.
+Initial attempt to expand check_grads to a joint (k,b,eta) projection passed
+float64 but failed the float32 second-order VJP projection: -0.00390816 versus
+-0.00765991 (difference .00375175, tolerance .001). Investigated with the
+full closed-form gradient/Hessian above: both AD modes match within the
+stricter ordinary dtype tolerances. Restored the original k/b finite-difference
+check and used the analytical PH test for the new directions. No tolerance
+or finite-difference step was loosened. Final suites above pass.
 
-Cumulative gate command: `scripts/check_wheel.sh --through A10`, which builds
-one fresh wheel then runs the unchanged `scripts/check.sh --through A10`.
-Log: /private/tmp/survjax-sim-gate.log. Exit 0; final output:
+`scripts/check_wheel.sh --through A10`: exit 0, final output
 `check: all gates passed through A10`.
-Own tests: 1059 passed, 7 skipped in 176.64s (float64); 1066 passed, 1 skipped
-in 200.21s (float32). Source doctests: 4 passed in each mode (1.87s/2.22s).
-Independent through-A10: 2332 passed, 28 skipped in 187.91s (float64);
-2322 passed, 38 skipped in 116.18s (float32).
+Log: /private/tmp/survjax-sim2-gate.log.
+Own suites: 1064 passed, 7 skipped in 177.60s (x64); 1071 passed, 1 skipped
+in 176.34s (x32). Source doctests: 4 passed per mode (2.11s/1.95s).
+Independent: 2333 passed, 27 skipped in 118.46s (x64); 2323 passed,
+37 skipped in 88.67s (x32). NumPyro availability enables one formerly skipped
+constraint test per mode. The full gate began before the mixed derivative
+test was replaced; final focused checks above verify all 17 final tests in
+both modes. No implementation behavior changed after the gate started.
 Wheel SHA-256: `8ca5093b02ae2ee23e85bc8feea86374f6ab2114906b5f3896a8b78c80af37f9`.
-Existing skips only. The x64 own-suite collection preceded addition of the
-new derivative test; final focused 12-test runs above verify it in both modes.
-No implementation behavior changed after the gate started.
 
-## Isolated dependency proposal probe
 
-Proposed exact pins: Optimistix 0.1.0, Matplotlib 3.11.2, Equinox 0.13.8,
-Optax 0.2.8, NumPyro 0.22.0. Tested together against locked JAX/jaxlib 0.11.2
-and NumPy 2.5.3; resolver selected transitive Lineax 0.1.1, 28 packages total.
-No extra diagnostics/loader dependency proposed. Approval is required by
-AGENTS.md before adding the examples group or changing the lockfile.
+## Limits
 
-Command (temporary probe preserved below; initially run at its transient
-source-tree path, moved to /private/tmp after Python loaded it, then rerun
-successfully using the exact command below):
+Calibration deliberately cannot be jitted or differentiated. PH fitting still
+waits for reviewed core integration. ArviZ's already-approved group addition
+is a separate dependency step; no full docs/demo execution in this step.
+No merge, push, publication, review-directory edits or reviewer cleanup.
 
-```sh
-JAX_ENABLE_X64=1 MPLCONFIGDIR=/private/tmp/survjax-sim-mpl uv run --isolated --no-project --python 3.12 --with jax==0.11.2 --with numpy==2.5.3 --with optimistix==0.1.0 --with matplotlib==3.11.2 --with equinox==0.13.8 --with optax==0.2.8 --with numpyro==0.22.0 python /private/tmp/survjax-sim-probe.py
-```
-
-Output lists the nine versions above, then
-`PASS: compiled vmapped BFGS, Equinox/Optax update, NUTS, SVG` (exit 0).
-First Matplotlib import warned its default home cache was unwritable and used
-a temporary cache; SVG export succeeded. Proposal validates compatibility,
-not PH integration, real fit acceptance, neural training or Bayesian diagnostics.
-No full demos, docs build, R generation, performance benchmark or remote work.
-
-Probe source, independent of survjax/PH and excluded from ordinary tests:
+## Temporary compatibility probe source
 
 ```python
 """Explicit optional-environment compatibility probe; not a regular test."""
