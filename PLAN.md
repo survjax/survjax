@@ -63,6 +63,13 @@ passed (28/38 existing skips); source doctests 4 per mode. REVIEW.md records
 exact timings, commands and the focused derivative-test evidence. Commit and
 independent round 1 now follow; stop after the review verdict.
 
+Round 1 on 1e3f5fc returned fix-first for F-1: add explicit quadrature-failure
+coverage. Add the k=20/b=5/target=.5 RuntimeError regression, and clarify N-1
+underflow and N-2 time units in docstrings; N-3 import-helper suggestion stays
+conditional. Fix-up is 7 net source/test lines (307 total), no behavior or
+contract change. Focused suites: 13 passed per mode (4.32s/4.05s), Ruff and
+mypy clean. Commit separately and request round 2 after round 1 completes.
+
 ---
 
 # PLAN.md: current sub-slice only

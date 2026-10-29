@@ -1,11 +1,43 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # SIM.1 — Shared Weibull generator and censoring calibration
 
 Branch `release-simulation`; actual launch/base commit
 `8757c0fda78e34e6e818249adedd2a144a33c33d`. Reviewer checkout already existed.
-300 implementation/test/proposal lines, excluding PLAN/REVIEW records.
+Initial commit: 300 implementation/test/proposal lines, excluding PLAN/REVIEW
+records. Review fix-up: 7 net added lines (307 total), same single concept.
 Unfinished PLAN history is preserved verbatim below the new section.
+
+## Round 1 response
+
+Written review: ../review/slices/SIM.1.md, round 1 on 1e3f5fc, fix-first.
+- F-1 fixed: add `test_calibration_rejects_unconverged_quadrature` for k=20,
+  b=5, target=.5; it requires RuntimeError matching "quadrature". The review
+  independently established that this call reaches the convergence guard and
+  that removing the guard previously survived the suite. No tolerance change.
+- N-1 fixed: document possible exact-zero underflow for extreme parameters;
+  no floors/clipping or unsupported robust sampling claim introduced.
+- N-2 fixed: c uses the same time units as scale, not multiples of scale.
+- N-3 deferred as suggested: only one source-demo test currently adjusts the
+  import path; a shared helper would be premature. No consumer files touched.
+- Reviewer's isolated dependency probe and proposed future docs command remain
+  unrerun by the reviewer; our compatibility evidence is below. A prunable
+  temporary mutation-worktree administrative entry is reviewer-owned cleanup;
+  no review-directory or Git worktree pruning performed by this implementer.
+
+Fix-up checks (both modes, sequential commands as above):
+focused 13 passed in 4.32s / 13 passed in 4.05s, no skips.
+Ruff: 114 files already formatted / All checks passed!
+mypy: Success: no issues found in 20 source files.
+This adds a regression test and docstrings only; initial full-gate evidence
+below remains the regression evidence. No implementation behavior changed.
+Reviewer round 1's raw `scripts/check.sh --through A10` exited 1: Ruff,
+mypy, both own suites and doctests passed; x64 independent selection had
+2327 passed / 28 skipped / 5 errors, all five A9 wheel fixtures requiring
+SURVJAX_WHEEL. The raw gate stops before x32 spec tests. Reviewer execution
+of the wheel wrapper was denied. Our fresh-wheel wrapper passed both full
+through-A10 selections (evidence below); no packaging/core code changed.
+This is a reviewer environment limitation, not a new implementation failure.
 
 ## Reading order
 

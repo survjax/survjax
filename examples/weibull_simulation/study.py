@@ -31,12 +31,13 @@ def generate_weibull(
         key: Explicit key, split in U-then-C order; callers own fold_in.
         shape: Positive finite k, broadcast against scale and censor_limit.
         scale: Positive finite b in time units; PH uses b0*exp(-gamma*arm/k).
-        censor_limit: Positive finite c, in scale units.
+        censor_limit: Positive finite c, in the same time units as scale.
         sample_shape: Static sample prefix before the broadcast parameter axes.
 
     Returns:
         Arrays of sample_shape + broadcast_shape; boolean event is T <= C.
         JAX precision and [0,1) U apply: U=0 gives latent T=inf, censored at C.
+        Extreme parameters can underflow T to zero, invalid as an exact time.
 
     Raises:
         ValueError: Shapes cannot broadcast. Values are positive/finite
@@ -68,8 +69,8 @@ def calibrate_censoring(shape: ArrayLike, scale: ArrayLike, target: float) -> fl
         target: Expected censored fraction strictly between zero and one.
 
     Returns:
-        Positive c via host-only NumPy float64 quadrature/bisection, in scale
-        units, not differentiable. Substitution x**8 smooths near zero for k < 1.
+        Positive c via host-only NumPy float64 quadrature/bisection, in the same
+        time units as scale, not differentiable. Substitution x**8 smooths for k < 1.
 
     Raises:
         ValueError: Empty, nonfinite, nonpositive or incompatible inputs/target.

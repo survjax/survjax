@@ -72,6 +72,12 @@ def test_calibration_rejects_invalid_inputs(k, b, target):
         calibrate_censoring(k, b, target)
 
 
+def test_calibration_rejects_unconverged_quadrature():
+    """00-common calibration: do not return a root with unverified quadrature."""
+    with pytest.raises(RuntimeError, match="quadrature"):
+        calibrate_censoring(20.0, 5.0, 0.5)
+
+
 def test_keys_broadcast_and_transformations_follow_details(x64_enabled):
     """01 seeds: root -> fold_in scenario -> split replicates -> split U/C."""
     keys = jax.random.split(jax.random.fold_in(jax.random.key(20261025), 2), 3)
