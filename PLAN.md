@@ -1,9 +1,44 @@
 # PLAN.md: current sub-slice only
 
 This file holds the plan of the sub-slice in progress, newest section first.
-Earlier A9 work is in `plans/A9.md`; A10 records are preserved verbatim in
+Earlier A9 work is in `plans/A9.md`; All incoming A10 records are preserved verbatim in
 `plans/A10.md` while this branch returns to A9 at the maintainer's request.
 A10 is unfinished; archiving its records does not claim completion.
+
+---
+
+# A9.4/main merge resolution (2026-10-29)
+
+Authorized by "merged main into the branch; fix conflicts". The maintainer's
+merge is in progress on a9b: HEAD 51319c8, incoming main 7eb2610.
+Only PLAN.md and REVIEW.md conflict; resolve these metadata files. No public
+API, code, docs, dependency, spec or test behavior changes are needed.
+
+- Preserve A9.4's complete plan and evidence below. Independent review round
+  1 on 51319c8 returned merge, with optional N-1/N-2; those nits remain open.
+- Preserve all main's A10 plan sections verbatim in plans/A10.md, including
+  A10.d2, A10.d1 and A10.4. Its older A10 history remains the unchanged suffix
+  of that archive. PLAN.md keeps only the current A9 sub-slice. A10's incoming
+  review record is preserved in REVIEW.md alongside the A9.4 record. These
+  are historical records; this merge starts no new implementation step.
+  This corrects the first resolution, which incorrectly kept incoming A10
+  sections in PLAN.md; the maintainer explicitly checked the current-slice
+  format before completing the merge.
+- Preserve every original stage-0 index entry except the intentional
+  plans/A10.md archive extension and plans/README.md index description.
+  Incoming docs, concordance fixtures/tests, release-agent plans and
+  .workmux.yaml remain untouched. The last is an incoming protected-path
+  change, not an agent edit.
+- Verify both parents' records are retained, no conflict markers/unmerged
+  entries remain, whitespace is clean and every other staged object is
+  unchanged from the captured merge index, apart from the two archive/index
+  changes above. No runtime/build reruns: neither
+  conflicted file affects execution, and no manual executable edit is needed.
+  Preserve incoming A10.d2's single-runner validation ownership.
+- Stage the two resolutions and archive/index corrections; leave the merge commit to the
+  maintainer under the working agreement. Do not create a merge commit,
+  start the next implementation step or rerun independent review for this
+  metadata-only resolution.
 
 ---
 

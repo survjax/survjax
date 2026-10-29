@@ -4,9 +4,12 @@
 kept here, moved verbatim (newest section first within each file). Read one
 only when a step needs it.
 
+Prospective worktree handoffs: [first-release agents](release-agents/README.md).
+These are future assignments, not completed-step archives or implementation approval.
+
 | File | Contents |
 | --- | --- |
-| `A10.md` | A10 concordance records through A10.3; unfinished, retained while returning to A9 |
+| `A10.md` | A10 concordance records through A10.d2, including A10.4/d1; unfinished, retained while A9 is current |
 | `A9.md` | A9 transformations, installation and Slice A evidence; open: "A9 Docs to-do" and "Final evidence audit" |
 | `A8.md` | A8 R fixtures and reference tests, with integration history; open: "Closure still required" |
 | `len-data.md` | SurvivalData size interface, spec revision 37 |
