@@ -9,6 +9,7 @@ from jax.typing import ArrayLike
 
 from survjax import constraints
 from survjax._dtypes import normalize_parameters
+from survjax._numerics import _rmst_cutoff
 from survjax.distributions._survival_methods import log_cdf_from_log_cumulative_hazard
 from survjax.distributions.base import SurvivalDistribution, param, register_family
 
@@ -66,21 +67,7 @@ class Exponential(SurvivalDistribution):
         Raises:
             TypeError: For nonreal cutoffs or incompatible batch shapes.
         """
-        try:
-            cutoff = jnp.asarray(tau)
-        except (TypeError, ValueError) as exc:
-            raise TypeError("tau must contain real numeric values") from exc
-        if not (
-            jnp.issubdtype(cutoff.dtype, jnp.integer)
-            or jnp.issubdtype(cutoff.dtype, jnp.floating)
-        ):
-            raise TypeError("tau must contain real numeric values")
-        try:
-            cutoff, rate = jnp.broadcast_arrays(cutoff, self.rate)
-        except ValueError as exc:
-            raise TypeError(
-                "tau and distribution batch shapes are incompatible"
-            ) from exc
+        cutoff = _rmst_cutoff(tau, self.batch_shape)
         invalid = (
             ~jnp.isfinite(cutoff)
             | (cutoff < 0)
@@ -89,7 +76,7 @@ class Exponential(SurvivalDistribution):
         # spec 8.7/7.2: mask both operands before arithmetic, including shared
         # parameters beside invalid cutoffs. Zero is active to retain d/dtau=1.
         safe_cutoff = jnp.where(invalid, jnp.zeros_like(cutoff), cutoff)
-        safe_rate = jnp.where(invalid, jnp.ones_like(rate), rate)
+        safe_rate = jnp.where(invalid, jnp.ones_like(self.rate), self.rate)
         value = -jnp.expm1(-safe_rate * safe_cutoff) / safe_rate
         return jnp.where(invalid, jnp.nan, value)
 

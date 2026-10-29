@@ -9,6 +9,7 @@ from jax.typing import ArrayLike
 
 from survjax import constraints
 from survjax._dtypes import normalize_parameters
+from survjax._numerics import _rmst_cutoff, _weibull_rmst
 from survjax.distributions._survival_methods import log_cdf_from_log_cumulative_hazard
 from survjax.distributions.base import SurvivalDistribution, param, register_family
 
@@ -71,6 +72,30 @@ class Weibull(SurvivalDistribution):
 
     shape: jax.Array = param(constraint=constraints.positive)
     scale: jax.Array = param(constraint=constraints.positive)
+
+    def rmst(self, tau: ArrayLike) -> jax.Array:
+        """Return the restricted mean event time, integral of S(t) to tau.
+
+        Args:
+            tau: Broadcast cutoffs; use trailing ones for a time-first grid.
+        Returns:
+            Broadcast RMST; NaN for invalid cutoffs or parameter issues.
+            At zero, value/parameter derivatives are 0 and d/dtau is 1.
+            First derivatives use JAX; higher shape derivatives are unsupported.
+        Raises:
+            TypeError: Nonreal cutoffs or incompatible shapes.
+            NotImplementedError: Higher derivatives involving shape.
+        """
+        cutoff = _rmst_cutoff(tau, self.batch_shape)
+        invalid = (
+            ~jnp.isfinite(cutoff)
+            | (cutoff < 0)
+            | self.parameter_issues().invalid_entries
+        )
+        shape = jnp.where(invalid, 1.0, self.shape)
+        scale = jnp.where(invalid, 1.0, self.scale)
+        cutoff = jnp.where(invalid, jnp.zeros_like(cutoff), cutoff)
+        return jnp.where(invalid, jnp.nan, _weibull_rmst(shape, scale, cutoff))
 
     @classmethod
     def from_log(cls, *, log_shape: ArrayLike, log_scale: ArrayLike) -> Self:

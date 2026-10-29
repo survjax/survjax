@@ -7,6 +7,66 @@ audit and planning checks") and A8 (`plans/A8.md`, "Closure still required").
 
 ---
 
+# RMST.2 — Weibull RMST values and safe tails (2026-10-29)
+
+Authorized by “ok for now; on to the next bit”. Continue clean release-rmst
+at 01b29dc9e0ea5830580770c0183865cb159fc376; original workstream base stays
+8757c0fda78e34e6e818249adedd2a144a33c33d. Same unfinished RMST sub-slice;
+keep RMST.1 and unfinished A9/A10 history below, with no archive commit.
+RMST.1 round 2 returned merge. Carry S-1 without a behavior change.
+
+One concept: staged Weibull RMST values, with safe lower/upper tails. Target
+at most about 300 changed source/test lines; split evidence before growing.
+Spec: 4.5, 5, 7.2–7.3, 8.7, 10.2, 12.1–12.2. No dependency, export,
+wrapper, docs, protected-path or generic quadrature changes.
+
+- Create src/survjax/_numerics.py, explicitly named by spec 10.2 (not an
+  unnamed module). Only shared RMST cutoff dtype/shape validation and the
+  private Weibull value expression belong here; no configuration/backend API.
+  Reuse validation in Exponential without changing its formula or policies
+  (review N-2). Keep invalid substitution in the public family methods.
+- Weibull.rmst(tau): thin typed method, parameter-issue/invalid-cutoff NaNs,
+  safe inputs before arithmetic. Keep weibull.py around 300 lines (275 now).
+  For log x=k*(log tau-log b), use the integrated exponential series for
+  x<0.1 (12 terms; next term <=0.1**13/13!); incomplete gamma in the middle;
+  the mean for x>64+4/k, safely classified in log space. The last threshold
+  is well beyond the gamma tail over the required k range. Evaluate every
+  inactive branch on finite safe inputs. Zero returns the active cutoff,
+  preserving d/dtau=1 and zero parameter derivatives. No custom JVP.
+- New tests/unit/test_weibull_rmst.py: independent mpmath quadrature values
+  across k=[0.2,50], tau/b=[0.01,1e5], scale changes, explicit power underflow
+  and overflow; k=1 identity, scalar and cutoff-grid broadcasting, dtype/shape
+  misuse, eager/jit/vmap, zero/invalid/parameter-issue policies, first
+  derivative and supported Hessian smoke checks, shape-Hessian failure.
+  Existing central tolerances only; no unmeasured tolerance additions.
+  Final audit adds common-dtype promotion plus its mixed-float32/float64
+  regression (9 lines): total 309 source/test lines, one numerical concept.
+- Overwrite REVIEW.md with round 1/3, reading order, invariants, evidence map,
+  actual commands/results and remaining RMST.3 derivative-range evidence.
+
+Checks: focused RMST/Weibull/Exponential suites in separate x64 and float32
+processes; Ruff format/check, mypy, unchanged fresh-wheel through-A10 gate.
+Inspect diff/size/scope; commit; use independent-review exactly for RMST.2,
+follow up to three rounds and stop. No further step or PH handoff yet.
+
+Implementation: 309 source/test changed lines after the mixed-dtype fix.
+Weibull 300 lines, private numerical module 70 lines; no new tolerances.
+Final focused four-module suites: 57 passed/1 existing skip (x64), 58 passed
+(x32). Ruff: 114 files formatted, all lint checks pass; mypy: 21 files clean.
+Final fresh-wheel through-A10 gate: exit 0; own tests 1069/7 skipped and
+1075/1 skipped, doctests 4 per mode, independent 2332/28 skipped and
+2322/38 skipped. REVIEW.md records exact commands/timings, the initial
+pre-correction gate, corrected artifact and mixed-dtype mutation proof.
+Commit and request independent-review round 1/3, then follow its verdict.
+
+Docs to-do: RMST topic after core/PH integration, stating the Weibull shape
+higher-derivative limit and the absolute-scale cutoff-derivative accuracy.
+RMST.3 still owns full-range measured derivative tolerances/evidence (N-1).
+PH owns wrappers.py/exports and waits for the reviewed Weibull core merge
+and explicit ownership handoff before private built-in closure edits.
+
+---
+
 # RMST.1 — Staged base surface and Exponential RMST (2026-10-29)
 
 Authorized release workstream on `release-rmst`; actual clean base:
