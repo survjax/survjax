@@ -226,6 +226,7 @@ def test_likelihood_hessian_matches_hand_derivation(pair, parameters, x64_enable
                 [-a, k * w / b, -w],
             ]
         )
+    # Entries are O(1); AD/analytic comparisons incur rounding, not finite-difference error.
     for differentiate in (jax.hessian, lambda f: jax.jacrev(jax.jacfwd(f))):
         np.testing.assert_allclose(
             jax.jit(differentiate(objective))(p),

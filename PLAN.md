@@ -58,6 +58,13 @@ module and plan/review records change; production code and tolerances remain
 unchanged. REVIEW.md records commands, timings, wheel identity and limitations.
 Commit and independent round 1/3 follow; stop after this next step's review.
 
+Independent review completed on 4194ac0: round 1 verdict merge; no blockers
+or should-fix findings. Hand Hessians independently match mpmath to <5e-41;
+all five targeted mutants are caught in both dtypes, including a zero-time
+Weibull hazard mutant missed by the earlier PH tests. Optional N-1 is
+addressed by one O(1)/rounding-scale comment, with identical test AST and no
+assertion/tolerance changes. Record the result and stop after PH.2a; no PH.2b.
+
 Docs to-do: the existing executable PH topic/export integration remains later;
 this test-only step introduces no new user-facing documentation requirement.
 

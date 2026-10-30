@@ -1,6 +1,6 @@
 # PH.2a — Built-in PH identities and interior derivative evidence
 
-Independent review: round 1/3
+Independent review: round 1/3 — completed; VERDICT: merge
 
 Branch release-ph; clean base before this step:
 88360950ecdbe7ecca2c5aff38162bdafe0a35c2. Explicit continuation: “after this:
@@ -117,3 +117,37 @@ executable PH topic remain separate. No R, docs-site build, demos, performance
 benchmark or general summaries were run or introduced by this test-only step.
 D-028's formal spec disposition stays with the maintainer; the constructor
 choice and PH.1 code are already explicitly approved.
+
+
+## Independent review outcome and final record
+
+Round 1 on 4194ac02dd747e9971102d66de7f7138811c43dd returns merge, with no
+blocker or should-fix finding. Report: ../review/slices/PH.2a.md. One round
+used, no retry. The reviewer independently differentiated the closed-form
+likelihoods with mpmath at 40 digits; the hand Hessians agree to 4.6e-41
+(Exponential) and 1.1e-41 (Weibull). All five targeted source mutants were
+caught by this module in both modes; the k<1 zero-time infinite-hazard mutant
+was caught only by the new grid-limit case, not the older PH suites.
+
+N-1 (optional nit) is addressed with one explanatory test comment: the
+Hessian entries are O(1), and AD versus hand formulas has rounding error,
+not finite-difference error, so the strict central value tolerances are
+appropriate. The separately calibrated finite-difference tolerance still
+applies to check_grads below. No assertion or tolerance changed. AST comparison
+of the final test module with the reviewed commit is identical; only a
+comment and these plan/review outcome records follow. No further numerical
+suite or review round is needed for that comment-only clarification.
+
+Reviewer checks: own suites 1104/8 and 1109/3 (passed/skipped), doctests 4
+per mode, Ruff/mypy clean. Its plain check.sh gate still lacks SURVJAX_WHEEL:
+float64 acceptance 2327/28 plus five wheel setup errors, then no float32
+acceptance run. The implementer's successful fresh-wheel through-A10 results
+above cover those stages independently. The reviewer reports refused cleanup
+of an unmodified temporary worktree at /tmp/survjax-mut-PH.2a; I have not
+edited or pruned reviewer-owned paths or shared worktree registrations.
+
+Final scope is test evidence only: production source, appendix and tolerances
+remain unchanged from 8836095. The one authorized pre-existing main merge is
+245219d. The appendix is approved in two rounds, PH.2a in one. Stop here:
+PH.2b invalid-row/extended evidence and the later RMST/export integration are
+not started. No push, remote setup, publication or further merge performed.
