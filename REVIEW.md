@@ -106,3 +106,29 @@ x64 and 1086 passed / 1 skipped x32; doctests four per mode; independent
 Numerical source/test total remains below about 300 changed lines. Round 1
 is reviewing ab7afb1; request round 2 on this meaningful fix-up only after
 its report is written. This is not a rerun of an unchanged snapshot.
+
+
+## Round 1 outcome and round 2 request
+
+Round 1 (ab7afb1) returned VERDICT: merge. Reviewer reproduced the measured
+error maxima; all derivative-breaking mutants were caught in both dtypes.
+S-1 is recorded as D-029 and the maintainer was asked to confirm the
+log-parameter normalization and clarify spec 12.1. No spec action pending
+that answer. The new failed-entry guard is independent of normalization.
+N-1: the old Weibull masked-invalid-cutoff test now asserts only valid cutoff
+positions. Applied the same correction to its Exponential counterpart. This
+implements the maintainer's already confirmed NaN-own-tangent decision,
+without removing valid-entry isolation coverage. Final focused checks for
+both cutoff-isolation tests and the failed-gamma regression passed in separate
+processes: 3 passed / 29 deselected per dtype (3.83s x64, 3.88s x32).
+Ruff and mypy passed; git diff --check passed. The fresh-wheel cumulative
+gate above covers the final production code/regression before narrowing these
+two old test assertions. No production change followed that gate.
+
+Root's final fresh-wheel gate after the source fix passes both modes (above).
+Round 1 reviewer's own gate had only the five known missing-wheel setup
+errors; its separately run x32 spec tests (excluding wheel setup) passed
+2317/38. Mutation worktrees requested for cleanup by the reviewer are
+maintainer-owned; no deletion or edit outside the allowed review paths.
+Round 2 must review the actual source guard and its first/second-order
+failed-entry isolation regression, not just the initial test-only snapshot.

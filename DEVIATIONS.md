@@ -1,5 +1,24 @@
 # Deviations and spec questions
 
+
+## D-029 RMST parameter-derivative tolerance coordinates
+
+- Step: RMST.3 independent review, S-1 (2026-10-30).
+- Spec section: 12.1 staged RMST derivative tolerance exception.
+- Spec says: compare parameter-derivative errors with an absolute tolerance
+  scaled by |rmst|, without specifying the parameter coordinates.
+- Observed: raw dM/db is dimensionless while M has time units. On the 142-case
+  grid, the raw error/|M| needs a float32 factor about 1.3e-2 at b=1e-4;
+  such a factor is weak at b=1. The scale-invariant errors
+  |k*error_k|/|M| and |b*error_b|/|M| have measured maxima 1.28e-5 and
+  1.54e-6 in float32 (1.72e-14 and 2.45e-15 in float64).
+- Did/propose: tests use log-parameter units k*dM/dk and b*dM/db with the
+  fixed measured factors. Reviewer agrees this reading is sensible and
+  recommends merge, but asks the maintainer to confirm and clarify 12.1.
+  Asked explicitly; no spec change pending that answer. Cutoff error stays
+  at absolute scale 1. Valid-entry isolation fix/review is independent.
+- Status: open.
+
 ## D-028 Higher cutoff derivatives at the staged RMST zero boundary
 
 - Step: RMST.2-report (2026-10-30), mathematical report requested before approval.

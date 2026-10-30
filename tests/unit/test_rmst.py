@@ -223,9 +223,11 @@ def test_rmst_cutoff_derivatives_isolate_invalid_entries(x64_enabled):
         return jnp.where(valid, values, 0.0).sum()
 
     # Fundamental theorem of calculus: d RMST/dtau=exp(-2*tau).
-    # Masked invalid entries contribute zero; at tau=0 the derivative is 1.
-    expected = [np.exp(-2), 0.0, 0.0, 0.0, 0.0, 1.0]
+    # Assert only valid-entry tangents; invalid entries' own tangents are unclaimed.
+    expected = [np.exp(-2), 1.0]
     for transform in (jax.jacfwd, jax.jacrev):
         np.testing.assert_allclose(
-            jax.jit(transform(fn))(cutoff), expected, rtol=RTOL[x64_enabled]
+            jax.jit(transform(fn))(cutoff)[jnp.array([0, 5])],
+            expected,
+            rtol=RTOL[x64_enabled],
         )

@@ -67,6 +67,17 @@ exactly as RMST.3, handle up to three rounds and stop/report. PH owns
 wrappers.py/exports and must wait for maintainer core integration and an
 explicit ownership handoff before built-in closure edits. No merge/push.
 
+## RMST.3 round 2 preparation
+
+Round 1 at ab7afb1 returned VERDICT: merge. Record S-1 as D-029 and ask
+whether to clarify 12.1 in log-parameter units; do not edit the spec until
+answered. N-1: narrow the old Weibull invalid-cutoff tangent assertion to
+valid entries only, matching the confirmed unclaimed NaN-own-tangent rule.
+Apply the same correction to the analogous Exponential test. The independent
+precision-failure fix is already committed at 106078d. Run those focused
+isolation tests per dtype, record round-1 outcome and final gate evidence,
+commit records/test corrections and invoke round 2 on the fix and N-1.
+
 ## RMST.3 precision-failure isolation fix-up
 
 A post-commit probe found a spec 8.7 isolation violation outside the accuracy
