@@ -156,7 +156,8 @@ These are discarded finite calculations, not replacements for valid active input
 All operands must use their common floating dtype before evaluating these
 expressions. A wider cutoff dtype can make the result representable when the
 parameter-storage dtype alone cannot. For example, $k=1/4$ gives
-$\mu=b\Gamma(5)=24b$.
+$\mu=b\Gamma(5)=24b$, so for $b$ near the float32 maximum, a sufficiently
+large cutoff in float64 permits a result outside the float32 range.
 
 ```{=latex}
 \clearpage

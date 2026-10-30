@@ -54,6 +54,7 @@ def _weibull_rmst(shape: jax.Array, scale: jax.Array, cutoff: jax.Array) -> jax.
         term = term * (-series_x / n)
         series = series + term / (series_shape * n + 1)
 
+    # Math: appendices/weibull-rmst.md#gamma-middle-region.
     gamma_shape = jnp.where(middle, safe_shape, 1.0)
     gamma_scale = jnp.where(middle, safe_scale, 1.0)
     gamma_x = jnp.exp(jnp.where(middle, log_x, 0.0))

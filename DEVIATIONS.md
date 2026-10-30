@@ -14,8 +14,8 @@
   Independent review S-2 also found k=2,b=2 has third right derivative -0.5
   versus autodiff 0; for 0<k<1 the second right derivative diverges to -inf.
   Hence a finite all-orders zero-boundary guarantee cannot cover the range.
-- What was done/proposed: explain it in reports/weibull-rmst-math.md and its
-  compiled PDF; leave production code and spec unchanged. Maintainer must
+- What was done/proposed: explain it in reports/weibull-rmst-math.md (since
+  replaced by appendices/weibull-rmst.md) and its compiled PDF; leave production code and spec unchanged. Maintainer must
   decide whether zero guarantees end at the stated first derivatives or
   whether existing higher right derivatives are also required. No boundary
   guarantee is silently adopted. This is distinct from invalid-own-tangent S-1.
@@ -25,6 +25,8 @@
   higher guarantees on valid smooth interior inputs. A NaN entry's own
   tangents are unclaimed in the staged subset; valid-entry isolation remains
   mandatory (also settles the interpretation requested by RMST.1 S-1).
+  Explicit follow-up confirmation: “yes, a NaN RMST result's own derivatives
+  may be unspecified”. Valid-entry isolation remains required.
   Spec revision 38 records this decision separately in the design repo.
   Permanent derivations are now in appendices/weibull-rmst.md; the historical
   approval report is retained by its earlier commits, not in the appendix.

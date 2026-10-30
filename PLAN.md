@@ -7,7 +7,77 @@ audit and planning checks") and A8 (`plans/A8.md`, "Closure still required").
 
 ---
 
+# RMST.3 — Weibull derivative and isolation evidence (2026-10-30)
+
+Start release-rmst at b2150e1fe10df97d7ac2d4e9926a2b8a803f90c4;
+original launch base remains 8757c0fda78e34e6e818249adedd2a144a33c33d.
+The maintainer explicitly requested the next implementation step. Appendix
+review is running in its separate checkout against the committed snapshot;
+its findings will be handled before this step is committed. Preserve history.
+
+Status: planning only until appendix fix-up review. The maintainer explicitly
+approved unspecified own derivatives for a NaN RMST result (2026-10-30),
+settling S-1b. No RMST.3 implementation or tests have been changed yet.
+
+One bounded numerical-verification concept, about 250 changed test lines:
+
+- New tests/unit/test_weibull_rmst_derivatives.py: independent 60-digit
+  mpmath quadrature of survival and its shape derivative integrand; derive
+  scale derivative from the exact homogeneity identity and cutoff derivative
+  from survival. Use actual dtype-rounded inputs for references. Cross
+  k={0.2,0.5,1,2,10,50}, tau/b={0.01,0.1,0.5,1,10,100,1e5},
+  b={1e-4,1,1e4}; straddle both branch thresholds at four shapes too.
+  Compare eager/jit/vmap forward and reverse natural Jacobians; express
+  parameter errors in log-coordinate units k*dM/dk and b*dM/db, divided
+  by |M|, so the section 12.1 value-scaled exception respects time units.
+  The cutoff derivative uses absolute scale 1 and the S(tau) identity.
+- tests/impl_tolerances.py: add only RMST-specific absolute error factors,
+  zero relative tolerance. Pre-test full-range probes (142 cases, both
+  dtypes) found maxima [shape,scale,cutoff] of
+  [1.72e-14,2.46e-15,1.56e-15] x64 and
+  [1.29e-5,1.55e-6,6.45e-7] x32 under the above normalization.
+  Fix parameter factors 2e-13/5e-5 and cutoff factors 2e-13/5e-6,
+  allowing rounding margin without changing any existing tolerance.
+- Verify finite supported (b,tau) Hessians across the grid and independent
+  analytical Hessian entries on lower-series and gamma interior cases.
+  Preserve explicit shape-Hessian NotImplementedError coverage; extend it
+  across forward/reverse combinations in the gamma middle branch.
+- Shared shape/scale parameters: valid entries beside invalid parameters
+  or cutoffs retain the isolated call's first derivatives in both modes;
+  supported scale Hessians stay isolated too. Do not assert a guarantee
+  about an invalid result's own tangent. Extend zero first-derivative checks
+  over shapes/scales, with eager/jit/vmap and debug_nans for valid entries.
+
+Spec 4.5, 7.2–7.3, 8.7 revision 38, 12.1–12.2 and the release handoff were
+read in full. No numerical algorithm/public API, wrappers, exports, modules
+in src/, dependencies, quadrature tangent, grids or ordinary docs changes.
+No new higher-order boundary or shape guarantee. Public docs to-do remains
+an executable RMST topic after the PH closure integration.
+
+Run focused RMST tests in separate x64/float32 processes, Ruff/mypy,
+whitespace checks, and unchanged scripts/check_wheel.sh --through A10
+(fresh wheel supplies the standard gate's required install artifact).
+Write REVIEW.md with exact outputs, commit, invoke independent-review
+exactly as RMST.3, handle up to three rounds and stop/report. PH owns
+wrappers.py/exports and must wait for maintainer core integration and an
+explicit ownership handoff before built-in closure edits. No merge/push.
+
 # RMST.appendix — Permanent mathematical appendix and conservative guarantees (2026-10-30)
+
+## Round 2 fix-up plan
+
+Maintainer explicitly confirmed S-1b: a NaN RMST result's own derivatives may
+be unspecified. Record the confirmation verbatim in D-028 and REVIEW.md;
+keep valid-entry isolation mandatory and leave deviation status maintainer-owned.
+F-1: extend both existing RMST Docs to-do records with the zero-boundary and
+NaN-own-tangent limits. F-2: add the missing gamma-middle section pointer.
+N-1: restore the mathematical reason the 24b example needs a wider dtype;
+rebuild and visually inspect the adjacent PDF. N-2: label the old report
+reference historical. No numerical/spec/API changes; current revision 38
+already says what the maintainer approved. S-1a's relation is symmetric;
+no further spec wording change is needed to preserve the approved meaning.
+Run static/whitespace checks and docs builds, commit the fix-up and invoke
+round 2/3 exactly before continuing with the authorized RMST.3 step.
 
 Maintainer approved the code/report and requested conservative guarantees,
 a permanent math-only appendix outside docs/, tied to code, then the next
@@ -165,7 +235,8 @@ modes; statics clean. N-1's promised value-range/float32 limitation is in
 Docs to-do below. Commit the fix-up, request round 2/3 and follow its verdict.
 
 Docs to-do: RMST topic after core/PH integration, stating the Weibull shape
-higher-derivative limit and the absolute-scale cutoff-derivative accuracy.
+higher-derivative limit, first-order-only zero boundary, unspecified own
+derivatives for NaN results, and absolute-scale cutoff-derivative accuracy.
 Accuracy is promised on k in [0.2,50], tau/b in [0.01,1e5]; outside that
 range, float32 can return NaN for valid inputs when the gamma probability
 underflows (review RMST.2 N-1).
@@ -207,7 +278,8 @@ Inspect diff and scope, commit, invoke exact independent-review skill for
 RMST.1 in `../review/code-release-rmst`, act on at most three rounds, stop.
 
 Docs to-do: separate executable RMST topic after core and PH integration;
-state staged surface and Weibull shape-derivative limitation. A9/A10 docs
+state staged surface, Weibull shape-derivative limitation, first-order-only
+zero boundary and unspecified own derivatives for NaN results. A9/A10 docs
 remain with their assigned implementers. Ownership handoff: after reviewed
 Exponential AND Weibull core merges, release-ph may edit built-in private
 closure hooks and integrate wrapper RMST in its own reviewed step. No core
