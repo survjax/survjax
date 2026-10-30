@@ -14,6 +14,28 @@ from survjax import Exponential, SurvivalDistribution, param, register_family
 from survjax.distributions.wrappers import ProportionalHazards
 
 
+@pytest.mark.parametrize("offset", [-0.25, 0.25], ids=["below-max", "above-max"])
+def test_finite_time_overflow_restores_infinity(offset, x64_enabled):
+    """Spec 4.4/7.1: at r=t=1, log S=-exp(eta); overflow is -inf, not a cap."""
+    dtype = np.float64 if x64_enabled else np.float32
+    eta = jnp.asarray(np.log(np.finfo(dtype).max) + offset)
+
+    def evaluate(predictor):
+        dist = ProportionalHazards(Exponential(rate=1), log_hazard_ratio=predictor)
+        return dist.log_survival(1.0), dist.survival(1.0)
+
+    for log_survival, survival in (evaluate(eta), jax.jit(evaluate)(eta)):
+        if offset > 0:
+            assert jnp.isneginf(log_survival)
+        else:
+            assert jnp.isfinite(log_survival)
+            expected = -np.exp(float(eta))
+            np.testing.assert_allclose(
+                log_survival, expected, atol=0, rtol=TAIL_RTOL[x64_enabled]
+            )
+        assert survival == 0
+
+
 def test_float64_warnings_deduplicate_two_user_call_sites(x64_enabled):
     """Spec 3.3: positional/keyword baseline forms warn once per user's line."""
     if x64_enabled:

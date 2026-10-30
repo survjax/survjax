@@ -1,6 +1,6 @@
 # PH.appendix — Clear scaling names, evaluated shapes and permanent mathematics
 
-Independent review: round 1/3
+Independent review: round 2/3
 
 The maintainer approves the PH.1 code except naming/shape-docstring nits,
 requests a permanent appendix outside standard docs, and explicitly requests
@@ -101,3 +101,34 @@ portion with its concrete <=300-line plan. Do not start RMST closure work or
 export integration, and do not count this as a fourth PH.1 numerical review.
 
 Temporary output backup (not a repository artifact): /private/tmp/ph-temporary-note-d5iw1e_1/output.
+
+
+## Independent round 1 and focused follow-up
+
+Round 1 on 5ff2768 returns fix-first. It confirms AST equivalence, the
+appendix's real-arithmetic bounds and examples, input/output shapes and all
+three code-to-appendix anchors. No mathematical or numerical-source finding.
+
+- F-1: add finite-time PH cases just below and above log(max), rather than
+  relying on base-supplied t=0/infinity values. Mathematical origin: at rate=1,
+  t=1, log survival=-exp(eta). Below the threshold it is finite; above it IEEE
+  overflow gives -inf, and survival gives zero. This catches deleting the
+  restore and an over-eager overflow threshold in the lower case.
+- N-1: explicitly state that only CDF entries at zero baseline log survival
+  are used; other entries can be evaluated at the inactive reference time.
+
+Reviewer checks: own suites 1069/8 and 1074/3 (passed/skipped); doctests 4
+per mode; Ruff/mypy clean; float64 acceptance 2327/28 with 5 unsupplied-wheel
+fixture errors, then no float32 acceptance run. It could not run the approved
+PDF build or check_wheel.sh under its permissions. PDF text was extracted;
+mathematics checked by hand. Its A2 mutant (delete overflow restore) survived,
+while A1/A3 were caught. It reports refused temporary-worktree cleanup; I do
+not edit reviewer-owned paths. No re-run of PH.1 or new spec decision is needed.
+
+Focused fix-up validation: both PH modules, JAX_ENABLE_X64=1 → 23 passed,
+1 skipped in 11.37s; JAX_ENABLE_X64=0 → 22 passed, 2 skipped in 11.37s.
+Ruff format: 120 files already formatted; lint: All checks passed!; mypy:
+no issues in 21 source files. Whitespace/scope clean. The initial full
+fresh-wheel gate above is pre-fix-up evidence; not rerun for this small
+assertion/docstring-only change. No PDF change is needed: the appendix already
+describes the cases and relevant masks. Commit and request round 2/3.

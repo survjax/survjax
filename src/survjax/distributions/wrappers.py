@@ -74,7 +74,8 @@ class ProportionalHazards(SurvivalDistribution):
             baseline_log_cdf: Optional baseline log CDF, with the same evaluated
                 shape E as log_s (not merely batch_shape on a grid). Finite
                 entries recover a tiny cumulative hazard where log_s rounded
-                to zero. The infinity hook passes None.
+                to zero. Only log_s == 0 entries are read; others may contain
+                reference-time values. The infinity hook passes None.
 
         Returns:
             Scaled log survival with shape E for these callers, using JAX

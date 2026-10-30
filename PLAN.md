@@ -17,6 +17,20 @@ expression, public API, parameter handling or export change. Spec 3.3,
 4.4–4.5, 5 and 7.2–7.3; the new RMST-only revision-38 changes are read but do
 not change these PH contracts. Retain all unfinished/incoming plan history.
 
+Round-1 follow-up: PH.appendix review confirms the expressions are unchanged,
+all mathematical claims/examples/shapes checked are correct, and stable code
+anchors resolve. It returns fix-first for F-1: the finite-time overflow restore
+has no direct regression test. Add above/below-log(max) finite-time cases to
+the PH guard module; no numerical source change. N-1 clarifies in the helper
+docstring that only log_s==0 CDF entries are read; others may be reference-time
+values. This is under 30 additional source/test lines and keeps the complete
+clarity/appendix step near 300 text lines. Run focused tests in both dtypes,
+Ruff/mypy and whitespace checks, commit separately and request round 2/3.
+The prior full fresh-wheel gate is retained as initial-commit evidence; this
+small fix-up adds only assertions and docstring wording. Focused PH suites
+pass: 23/1 float64 and 22/2 float32 (passed/skipped), 11.37s each; Ruff/mypy
+and whitespace clean. Commit the fix-up and request PH.appendix round 2/3.
+
 - `src/survjax/distributions/wrappers.py`: rename the ambiguous baseline and
   scaled log cumulative hazard locals; name the optional argument as baseline
   log CDF. Add the private helper's Args/Returns docstring with evaluated shape
