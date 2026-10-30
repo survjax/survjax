@@ -1,3 +1,44 @@
+# MNIST.1 — Verified data acquisition and deterministic splits (2026-10-30)
+
+Start clean on maintainer-created release-minst at ee72c83. Shared generator,
+examples dependencies and A10 are integrated. Preserve unfinished inherited
+SIM/A9 records below; do not archive another workstream as completed.
+
+One concept: data loading, before outcomes/calibration or neural training.
+Spec 10.3, 11.2, 12.2; use-cases/03 main and details Data acquisition,
+Precision, Splits and keys. No library API, dependencies or protected paths.
+
+Files:
+- examples/survival_mnist/data.py: published compressed IDX filenames/MD5s,
+  first-fetch SHA-256 values measured after MD5 verification, checked cache,
+  strict IDX parsing, float32 NCHW pixels, fixed full/smoke global indices.
+  Default cache SURVJAX_EXAMPLES_DATA or ~/.cache/survjax-examples/mnist.
+- examples/survival_mnist/README.md: attribution, checksum source, usage,
+  cache policy and honest pending implementation stages.
+- tests/unit/test_mnist_data.py: tiny synthetic IDX bytes and mocked network;
+  malformed format/counts/labels, corrupted cache/download, cache reuse,
+  pixel preprocessing, deterministic disjoint split/smoke prefix checks.
+- REVIEW.md: overwrite with reading order, invariants, evidence and limits.
+
+Target <=300 source/test/README changed lines; split further if needed.
+No outcomes, model, full results or docs in this step. Docs to-do: attribution,
+cache/network requirements and live smoke page when remaining steps are ready.
+Checks: offline focused tests in both dtype processes, Ruff, mypy, existing
+through-A10 gate; separate real four-file acquisition/cache-reuse probe in
+/private/tmp (never commit data). Commit then exact independent-review skill
+for MNIST.1, at most three rounds, fix-up commits as needed; stop and report.
+
+Implementation complete: 296 source/test/README lines; real four-file MD5
+verification and SHA-256 recording, two real cache loads, offline 11-test
+suite passing in both modes. Ruff/mypy pass. Direct cumulative gate hit five
+missing-SURVJAX_WHEEL setup errors; built a fresh wheel and reran acceptance
+in both modes successfully (2332/2322 passed, 28/38 skips). Prior own suites
+1076/1082 passed (7/1 skips), doctests 4 per mode. Exact commands, times and
+limits are in REVIEW.md. Commit and independent round 1 follow; stop after
+the verdict before outcomes/calibration.
+
+---
+
 # SIM.3 — Complete the approved examples diagnostics environment (2026-10-30)
 
 Start clean on release-simulation at
