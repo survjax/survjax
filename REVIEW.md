@@ -1,93 +1,79 @@
-Independent review: round 2/3
+Independent review: round 1/3
 
-# RMST.appendix — Permanent mathematical appendix and conservative guarantees
+# RMST.3 — Full-range Weibull RMST derivative and isolation evidence
 
-Read in order: PLAN.md RMST.appendix; spec 8.7/12.1 revision 38;
-appendices/README.md and weibull-rmst.md/PDF; section pointers in
-src/survjax/_numerics.py and Weibull.rmst's boundary docstring; D-028.
+Read PLAN.md RMST.3, spec 8.7/12.1 revision 38, then
+appendices/weibull-rmst.md; tests/unit/test_weibull_rmst_derivatives.py,
+tests/impl_tolerances.py and the expanded zero test in test_weibull_rmst.py.
+No production expression, public API, wrapper, export or dependency changed.
+This step adds about 220 numerical-test/tolerance changed lines.
 
-The maintainer approved conservative guarantees and requested a permanent
-math-only appendix outside docs/, then the next implementation step. The
-approved spec clarification is committed separately in the design repo on
-release-rmst as e4c1d50bcf480ef8535dd79fce12e695e564302d. .spec-seen
-records it. spec-since.sh dev-release-rmst --mark targets this dedicated
-checkout; literal dev targets the different canonical development checkout.
-D-028 records the decision without changing its maintainer-owned status.
+Invariants/reference origins:
+- 142 cases: six shapes × seven cutoff ratios × three scales (126), plus
+  16 points straddling both switches. Actual dtype-rounded inputs enter
+  independent mpmath quadrature at 60 decimal digits. The reference integrates
+  survival and its shape/scale derivative kernels directly, without gamma
+  functions. The scale kernel avoids cancellation in m-r*S. Cutoff reference
+  is exp(-(tau/b)**k), by the fundamental theorem of calculus.
+- Natural Jacobians are compared in log-parameter units k*dM/dk and b*dM/db
+  with absolute errors scaled by independent |M|; cutoff uses absolute scale
+  1, all with rtol=0. New factors were fixed from pre-test full-range probes,
+  not loosened after failures. Existing tolerances are unchanged. Max measured
+  parameter/cutoff errors: 1.72e-14/1.56e-15 x64; 1.29e-5/6.45e-7 x32.
+- Supported Hessians hold shape outside the differentiated argument. Packing
+  a constant shape and differentiable scale into one array can materialize a
+  zero shape tangent and make JAX invoke unsupported igamma_grad_a AD. The
+  scale-only check therefore uses separate k,b arguments with argnums=1;
+  no stop_gradient, custom rule or new higher shape guarantee is introduced.
+- Own derivatives of NaN results are unclaimed, explicitly approved by the
+  maintainer. Valid entries must remain isolated through shared parameters.
+  Weibull zero tests assert only value and first derivatives.
 
-Invariants: no numerical expression, signature, export or wrapper changes.
-Weibull/PH-Weibull zero-cutoff guarantees cover values and first derivatives;
-higher nonshape guarantees require smooth interior points. A NaN result's
-own tangent is unclaimed; valid-entry isolation remains required. Exponential
-keeps its existing all-orders contract. The appendix derives the integral,
-series/remainder, mean-tail bound and derivative identities; bounds concern
-real arithmetic and do not claim floating-point or arbitrary-derivative proofs.
-The source links to the helper and the helper links to the relevant sections.
-The historical approval report is replaced rather than duplicated; prior
-versions remain in git. No normal user-guide pages were changed.
+Spec evidence map (test names in the new file unless noted):
+- first_derivatives_full_range: forward/reverse, batched eager, jit(vmap),
+  vmap(jit), representative scalar eager; lower/upper tails, scale changes,
+  k=1 and switch neighbors against independent quadrature (8.7/12.1).
+- cutoff_derivative_equals_survival: dM/dtau=S(tau) over the same range.
+- supported_hessians_are_finite: both modes across all 142 cases under
+  debug_nans. supported_hessian_matches_calculus: independent analytical
+  bb/btau/tautau entries, series and gamma cases, all four AD compositions;
+  zero absolute tolerance prevents tiny expected Hessians accepting zero.
+- shape_hessian_raises_in_both_modes: all four AD compositions, gamma middle.
+- shared_parameters_isolate_valid_entries: valid rows beside zero, negative,
+  NaN and infinite parameter issues or invalid cutoffs; both first modes and
+  supported shared-scale Hessians equal the isolated valid call (7.2/8.7).
+- test_weibull_rmst_zero_derivatives (existing file): 12 shape/scale pairs,
+  eager/jit/vmap first derivatives under debug_nans are exactly (0,0,1).
+  Existing tests retain all staged surface, broadcasting and value policies.
 
-Validation:
-- Pandoc/XeLaTeX rebuilt the adjacent four-page PDF successfully. Poppler
-  rendered all pages and every page was visually inspected, including the
-  final revised page break; equations are legible and within margins.
-- Ruff format: 116 files already formatted; Ruff: all checks passed.
-- mypy: success, no issues in 21 source files. git diff --check passed.
-- Focused tests/unit/test_rmst.py + test_weibull_rmst.py, separate processes:
-  JAX_ENABLE_X64=1: 21 passed; JAX_ENABLE_X64=0: 21 passed. These retain the
-  value, zero/invalid, transformation and derivative-smoke evidence for 8.7.
-- scripts/build_docs.sh: both dtype builds succeeded under strict Sphinx
-  settings. Run with approved escalation for kernel process cleanup; kernel
-  TCP warnings were emitted, with no Sphinx errors.
+Validation so far:
+- JAX_ENABLE_X64=1 uv run --group test pytest tests/unit/test_rmst.py
+  tests/unit/test_weibull_rmst.py tests/unit/test_weibull_rmst_derivatives.py -q:
+  31 passed in 65.23s. Identical command in a separate X64=0 process:
+  31 passed in 65.91s. Ruff passed; mypy: no issues in 21 source files.
+- Initial test-authoring failures (four per mode) were corrected: NumPy 2.5
+  assert_allclose cannot format an array-valued atol, so scalar normalized
+  comparisons replace it; the scale-Hessian fixture must avoid packed shape
+  tangents as described above. No production changes or tolerance changes.
+- scripts/check_wheel.sh --through A10 exited 0: all gates passed through
+  A10. Own tests: 1079 passed / 7 skipped x64; 1085 passed / 1 skipped x32.
+  Source doctests: 4 passed per mode. Independent acceptance: 2332 passed /
+  28 skipped x64; 2322 passed / 38 skipped x32. Fresh wheel retained at
+  /var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/survjax-wheel.Jp77jX/
+  survjax-0.0.1.dev0-py3-none-any.whl. Final static checks: 117 files already
+  formatted, Ruff all checks passed, mypy clean (21 source files),
+  git diff --check clean.
+- Environment: Python 3.12.9, JAX 0.11.2, NumPy 2.5.3, mpmath 1.4.1,
+  pytest 9.1.1; CPU only. No new dependency/version claims or R regeneration.
 
-No new unresolved mathematical question. RMST.3 remains the next bounded
-implementation/evidence step: extend independent first-derivative checks and
-supported Hessian/isolation coverage before PH ownership handoff. The
-maintainer explicitly authorized continuing to it after storing this note.
+Appendix review round 2 at dc48b24 returned VERDICT: merge: F-1/F-2/N-1/N-2
+fixed, S-1a withdrawn, S-1b answered by maintainer; S-1c is integration only.
+The maintainer still owns D-028 status and integration of design revision 38
+(e4c1d50). This worktree does not merge either repository.
 
-## Independent review outcome — round 1/3
-
-Review: ../review/slices/RMST.appendix.md, VERDICT: maintainer.
-The reviewer independently verified every mathematical bound/identity and
-rebuilt the PDF; extracted text matches. Their unchanged gate passed lint,
-mypy, own tests (1069/7 x64, 1075/1 x32) and four doctests per mode. The
-x64 spec suite had 2327 passed, 28 skipped and five wheel-setup errors because
-SURVJAX_WHEEL was unset; x32 spec tests did not run in that review.
-
-S-1a: the maintainer already explicitly approved the conservative
-value-and-first-derivative-only zero boundary. Higher boundary derivatives
-remain outside the guarantee; this is not a new question for the maintainer.
-The suggested direction-of-comparison wording can be clarified on resumption.
-S-1b: my interpretation also deferred NaN-entry own tangents, beyond D-028.
-Asked the maintainer whether to retain that broader exclusion or restore the
-NaN-tangent requirement. Valid-entry isolation remains mandatory either way.
-S-1c: design integration is maintainer-owned; no merge is authorized.
-
-Pending factual fix-ups after the required maintainer stop: F-1 add both
-boundary/tangent limits (as finally decided) to Docs to-do; F-2 add the
-missing gamma-middle appendix pointer; N-1 explain the wider-dtype 24b
-example; N-2 label the deleted report path historical. No numerical defect
-was reported. The RMST.3 plan is drafted, but no implementation/test file
-has been changed. Preserve that unfinished plan until S-1b is decided.
-
-## Round 2 fixes and maintainer confirmation
-
-S-1b: maintainer explicitly replied, “yes, a NaN RMST result's own
-derivatives may be unspecified”. Revision 38 is now explicitly approved on
-both questioned boundaries; valid-entry isolation remains mandatory.
-S-1a: the prior approval already accepts no higher-order zero-boundary
-guarantee. “May differ” is a symmetric relation, not a reversal of mathematical
-authority: the appendix identifies the true right derivatives explicitly.
-No new spec edit is needed. S-1c is a maintainer integration handoff, not
-an outstanding implementation decision; we must not merge either repository.
-F-1: both RMST Docs to-do records now include the first-order-only zero
-boundary and unspecified NaN-own tangents. F-2: added gamma-middle pointer.
-N-1: explained why 24b can require float64 even with a float32 scale.
-N-2: identified the deleted report path as historical in D-028.
-No numerical expression or guarantee was added. Validation pending below.
-
-Round 2 validation: Pandoc/XeLaTeX compiled successfully; Poppler rendered
-all four pages and each was visually inspected without clipping. Ruff format
-reported 116 files already formatted; Ruff passed; mypy found no issues in
-21 source files; git diff --check passed. scripts/build_docs.sh completed
-both dtype builds successfully (only kernel TCP warnings). Numerical tests
-are unchanged and no executable expression changed in this fix-up; focused
-21-per-mode evidence and round 1 regressions remain applicable.
+Handoff after this core step is reviewed and integrated: PH owns wrappers.py
+and exports, and may then edit the built-in private closure hooks. PH must
+preserve the zero/invalid policies and native shape-derivative restriction.
+Its separate step supplies PH RMST value/derivative/broadcasting/unsupported-
+family evidence. Executable RMST user docs and the final combined release gate
+remain later work; this step makes no PH or complete-release claim.

@@ -15,16 +15,18 @@ The maintainer explicitly requested the next implementation step. Appendix
 review is running in its separate checkout against the committed snapshot;
 its findings will be handled before this step is committed. Preserve history.
 
-Status: planning only until appendix fix-up review. The maintainer explicitly
+Status: implementation resumed from appendix fix-up
+dc48b24cd89a571a082099f4055cd1669c8ff3cd. The maintainer explicitly
 approved unspecified own derivatives for a NaN RMST result (2026-10-30),
-settling S-1b. No RMST.3 implementation or tests have been changed yet.
+settling S-1b. Appendix round 2 returned VERDICT: merge, all findings fixed.
 
 One bounded numerical-verification concept, about 250 changed test lines:
 
 - New tests/unit/test_weibull_rmst_derivatives.py: independent 60-digit
-  mpmath quadrature of survival and its shape derivative integrand; derive
-  scale derivative from the exact homogeneity identity and cutoff derivative
-  from survival. Use actual dtype-rounded inputs for references. Cross
+  mpmath quadrature of survival and its shape/scale derivative integrands;
+  integrate the scale kernel directly to avoid cancellation in m-r*S,
+  and derive the cutoff derivative from survival. Use actual dtype-rounded
+  inputs for references. Cross
   k={0.2,0.5,1,2,10,50}, tau/b={0.01,0.1,0.5,1,10,100,1e5},
   b={1e-4,1,1e4}; straddle both branch thresholds at four shapes too.
   Compare eager/jit/vmap forward and reverse natural Jacobians; express
@@ -51,8 +53,11 @@ One bounded numerical-verification concept, about 250 changed test lines:
 Spec 4.5, 7.2–7.3, 8.7 revision 38, 12.1–12.2 and the release handoff were
 read in full. No numerical algorithm/public API, wrappers, exports, modules
 in src/, dependencies, quadrature tangent, grids or ordinary docs changes.
-No new higher-order boundary or shape guarantee. Public docs to-do remains
-an executable RMST topic after the PH closure integration.
+No new higher-order boundary or shape guarantee. Docs to-do: executable
+RMST topic after PH integration, with first-order-only zero boundary,
+unspecified NaN-own tangents, and the native higher-shape restriction. Explain
+keeping shape outside differentiated arguments for supported Hessians;
+packing it with scale can materialize a zero shape tangent in native JAX.
 
 Run focused RMST tests in separate x64/float32 processes, Ruff/mypy,
 whitespace checks, and unchanged scripts/check_wheel.sh --through A10
@@ -61,6 +66,13 @@ Write REVIEW.md with exact outputs, commit, invoke independent-review
 exactly as RMST.3, handle up to three rounds and stop/report. PH owns
 wrappers.py/exports and must wait for maintainer core integration and an
 explicit ownership handoff before built-in closure edits. No merge/push.
+
+Implementation evidence: 198 new derivative-test lines, 10 RMST tolerance
+lines and nine changed lines in the existing zero test (217 numerical-test/
+tolerance lines total). Focused tests pass 31 per dtype. The fresh-wheel A10
+gate exits 0: own 1079/7 x64 and 1085/1 x32 passed/skipped, doctests four
+per mode, independent 2332/28 x64 and 2322/38 x32. No algorithm change.
+Commit and independent review remain required before core handoff.
 
 # RMST.appendix — Permanent mathematical appendix and conservative guarantees (2026-10-30)
 

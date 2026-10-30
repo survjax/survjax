@@ -134,11 +134,14 @@ def test_weibull_rmst_zero_derivatives():
     def fn(x):
         return Weibull(shape=x[0], scale=x[1]).rmst(x[2])
 
-    point = jnp.array([1.0, 2.0, 0.0])
+    points = jnp.array(
+        [[k, b, 0.0] for k in (0.2, 1.0, 2.0, 50.0) for b in (1e-4, 1.0, 1e4)]
+    )
     with jax.debug_nans(True):
-        assert jax.jit(fn)(point) == 0
+        np.testing.assert_array_equal(jax.jit(jax.vmap(fn))(points), 0)
         for transform in (jax.jacfwd, jax.jacrev):
-            np.testing.assert_array_equal(jax.jit(transform(fn))(point), [0, 0, 1])
+            for call in (jax.vmap(transform(fn)), jax.jit(jax.vmap(transform(fn)))):
+                np.testing.assert_array_equal(call(points), np.tile([0, 0, 1], (12, 1)))
 
 
 def test_weibull_rmst_derivative_smoke(x64_enabled):
