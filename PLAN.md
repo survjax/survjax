@@ -6,6 +6,63 @@ is archived or declared complete by this resolution. New PH work goes first.
 
 ---
 
+# PH.2a — Built-in PH identities and interior derivatives (2026-10-30)
+
+Explicit continuation authorized by “after this: go and implement the next
+bit”. Start clean release-ph at 88360950ecdbe7ecca2c5aff38162bdafe0a35c2.
+PH.appendix round 2 returns merge: F-1/N-1 fixed, no new findings, all three
+overflow mutants caught in both modes. Its reviewer ran clean own suites
+1071/8 and 1076/3 (passed/skipped), with the known unsupplied-wheel setup
+limit on its acceptance gate. The successful implementer fresh-wheel gate
+and all appendix records remain above/below and in Git; preserve PH history.
+
+One test-only concept, target <=300 changed test lines. No API/export,
+production expression, dependency, protected-path, RMST-owned file or tolerance
+changes. Spec 4.4–4.5, 5, 6.1, 7.3 and 12.1–12.2. Keep broader PH.2 evidence
+and the closure/RMST handoff separate; this does not close the PH release gate.
+
+Create `tests/unit/test_proportional_hazards_identities.py`:
+
+- Express the analytical equivalences r_PH=r*exp(eta) and
+  b_PH=b*exp(-eta/k), with k unchanged. Compare every available direct method,
+  grid twin and exact/right likelihood; summaries are unavailable here.
+- Scalar baseline/predictor inputs: eager/jit/vmap values for the seven direct
+  methods at positive interior times; compare first derivatives in eta and
+  each natural baseline parameter using jit of forward/reverse Jacobians.
+- Baseline (3,1) × predictor (3,2): paired direct values and shared grid values
+  (K,3,2), including K=N, zero/infinite times and Weibull k<1, k=1 and k>1
+  limits. Interior grid Jacobians compare each original baseline/predictor
+  field; no derivatives at density/hazard discontinuities are asserted.
+- Exact/right likelihood: prepared/raw forms and first parameter Jacobians
+  against the equivalent family with the same broadcast inputs. Add direct
+  analytic Hessians for scalar mixed likelihood means in both families,
+  plus order-2 forward/reverse check_grads on smooth interior inputs.
+  Expected Hessians come from differentiating the PH likelihood formula,
+  never from the implementation. Keep existing central tolerances unchanged.
+- Tests name the equivalence/broadcast/derivative behavior and state the spec.
+  No helper layers outside this dedicated PH test module and no redundant
+  tests for implementation details. Split evidence if it would exceed budget.
+
+Overwrite REVIEW.md for PH.2a with reading order, math/invariants, coverage,
+commands and limits. Run focused PH suites in separate dtype processes,
+Ruff/mypy, fresh-wheel through-A10 gate, then whitespace/scope audit. Commit,
+invoke independent-review exactly for PH.2a round 1/3, address findings within
+three rounds, then stop/report this next implementation step. No PH.2b start.
+Implemented: 260 new test lines / 33 cases. Initial 32 new cases passed in
+both modes; a subsequent mechanical edit caused a syntax/collection error,
+corrected before final checks. Final combined PH suites: 56 passed/1 skipped
+float64 (28.00s), 55 passed/2 skipped float32 (28.61s). Ruff/mypy clean.
+Fresh-wheel through-A10 exits 0: own suites 1104/8 and 1109/3; doctests 4 each;
+independent acceptance 2332/28 and 2322/38 (passed/skipped). Only the new test
+module and plan/review records change; production code and tolerances remain
+unchanged. REVIEW.md records commands, timings, wheel identity and limitations.
+Commit and independent round 1/3 follow; stop after this next step's review.
+
+Docs to-do: the existing executable PH topic/export integration remains later;
+this test-only step introduces no new user-facing documentation requirement.
+
+---
+
 # PH.appendix — Explain the scaling helper and retain its mathematical appendix (2026-10-30)
 
 The maintainer approves PH.1 apart from naming/shape-documentation nits and
