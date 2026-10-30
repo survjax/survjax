@@ -7,6 +7,48 @@ audit and planning checks") and A8 (`plans/A8.md`, "Closure still required").
 
 ---
 
+# RMST.2-report — Mathematical approval report (2026-10-30)
+
+Requested before maintainer approval of _weibull_rmst; start clean at
+b3340749469e1513938a0cd5140f45305ab0d4bb on release-rmst. Preserve all
+unfinished PLAN history. This is a maintainer report, not the later user
+RMST guide or RMST.3 implementation. No production/spec/export changes.
+
+- reports/weibull-rmst-math.md: one PDF-ready mathematical report, about
+  300 source lines maximum. Derive the gamma identity, degree-12 series,
+  remainder bounds, the mean-tail Chernoff bound and threshold choices;
+  explain log arithmetic, safe operands, promotion, derivative limitations,
+  measured evidence versus proof, and the staged decision against rmst_grid.
+- output/pdf/weibull-rmst-math.pdf: compile with Pandoc/XeLaTeX; keep the
+  editable source and exact build command in the report. Render pages with
+  Poppler and inspect every page, extract text/check compile warnings.
+  Temporary render/LaTeX products go under tmp/pdfs, not into the commit.
+- DEVIATIONS.md: record D-028, discovered while explaining the zero branch:
+  at k=1,b=2,tau=0 the right second cutoff derivative is -1/2 but autodiff
+  returns 0. Ask whether 8.7's higher nonshape derivative promise includes
+  existing higher right derivatives at the zero boundary. Leave status open,
+  with no implementation/spec decision. Finishing the requested explanatory
+  artifact does not depend on that decision; stop/report it afterward.
+- REVIEW.md: overwrite for this report step, round 1/3; reading order,
+  mathematical assumptions, factual checks, build/render evidence and limits.
+
+References: spec 8.7/12.1; implementation at b334074; existing RMST tests and
+independent-review report; primary NIST DLMF 8.2/8.7 definitions. No new
+library/build dependencies. Existing Pandoc, XeLaTeX and Poppler are present.
+Run scripts/build_docs.sh as the documentation regression, static checks and
+whitespace checks; numerical report probes are separate from production tests.
+Report completed: 269 Markdown lines plus D-028, 5 compiled/visually checked
+PDF pages. Bound constants and zero-boundary probe verified at 60 digits /
+x64 respectively. Final XeLaTeX log has no layout/font warnings; docs builds
+pass in both modes after approved escalation removed sandbox cleanup errors.
+Production/spec/tests/docs sources and project metadata remain unchanged.
+REVIEW.md records exact checks, PDF identity, warning history and limits.
+Commit report/source/PDF and records; invoke independent-review exactly for
+RMST.2-report; act on factual/layout findings only, route spec questions to
+maintainer, then stop. No RMST.3 work, merge, push or publication.
+
+---
+
 # RMST.2 — Weibull RMST values and safe tails (2026-10-29)
 
 Authorized by “ok for now; on to the next bit”. Continue clean release-rmst

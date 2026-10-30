@@ -1,5 +1,23 @@
 # Deviations and spec questions
 
+## D-028 Higher cutoff derivatives at the staged RMST zero boundary
+
+- Step: RMST.2-report (2026-10-30), mathematical report requested before approval.
+- Spec section: 8.7 (derivatives and tau=0), with smooth-interior context in 7.3.
+- What the spec says: at tau=0, value and parameter derivatives are 0 and the
+  cutoff derivative is 1; derivatives not involving shape are supported to all
+  orders. It does not explicitly delimit that higher-order statement at zero.
+- What is observed: _weibull_rmst returns the active cutoff on its zero branch.
+  For k=1,b=2, the value and first derivative are 0 and 1, but autodiff's second
+  cutoff derivative is 0. The analytic right second derivative is -1/b=-0.5.
+  A float64 probe using jax.grad(jax.grad(f))(0.0) confirmed the discrepancy.
+- What was done/proposed: explain it in reports/weibull-rmst-math.md and its
+  compiled PDF; leave production code and spec unchanged. Maintainer must
+  decide whether zero guarantees end at the stated first derivatives or
+  whether existing higher right derivatives are also required. No boundary
+  guarantee is silently adopted. This is distinct from invalid-own-tangent S-1.
+- Status: open.
+
 ## D-027 Concordance result representation and undefined diagnostics
 
 - Step: A10 planning (2026-10-23), before public integration.
