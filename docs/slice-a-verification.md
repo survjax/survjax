@@ -122,9 +122,9 @@ scripts/check_wheel.sh --through A9
 ```
 
 The runner builds a fresh wheel, sets its absolute `SURVJAX_WHEEL` path,
-and runs the unchanged gate in separate float32/float64 processes. The gate
-includes lint/type checks, own tests, source doctests and independent tests
-through A9. Plain `scripts/check.sh --through A9` needs that wheel variable
+and runs the unchanged gate. Lint and type checks run once; own tests,
+source doctests and independent tests through A9 each run in separate
+float32/float64 processes. Plain `scripts/check.sh --through A9` needs that wheel variable
 already set; it does not build an artifact itself.
 
 Own installation checks create a fresh environment outside the source tree,
@@ -137,10 +137,11 @@ pre-release check. No publication or remote setup is performed.
 
 The R comparisons use committed synthetic data generated with R 4.4.2,
 flexsurv 2.3.2 and survival 3.7-0. Exponential and bc-like Weibull per-row
-likelihood/curve references are checked in both dtypes. These compare synthetic observations at fixed parameter values, not a fit
-to real breast-cancer data or
-evidence for unsupported observation modes. Ordinary tests need no R or
-network access; see each fixture set's README under `tests/fixtures/`.
+likelihood/curve references are checked in both dtypes. These compare
+synthetic observations at fixed parameter values. They do not establish
+agreement for a fit to real breast-cancer data or for unsupported observation
+modes. Ordinary tests need no R or network access; see each fixture set's
+README under `tests/fixtures/`.
 
 ## Reproduce the CPU baseline
 

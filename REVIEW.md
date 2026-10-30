@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # A9.d1 — Using and verifying the installed Slice A subset
 
@@ -22,9 +22,12 @@ changes. Earlier A9.4/integration reviews remain in Git at bd32ff9:REVIEW.md.
 ## Validation ownership
 
 The maintainer requested one runner per step, not duplicate implementer and
-reviewer runs. **The implementer owns the docs build, lint and browser audit
-for A9.d1. Review should inspect the source and recorded evidence rather than
-rerun the same build or full gate.** The maintainer also reported rerunning
+reviewer runs. The implementer owned initial execution/build/lint and browser
+inspection. The reviewer nevertheless reran build/lint in round 1 because
+its role requires it. **For this round-2 prose/metadata fix-up, the reviewer
+alone owns build/lint; the implementer does not repeat those checks.**
+Initial build and audit results are retained below, with round-1 results and
+fix-up details added separately. The maintainer reported rerunning
 `scripts/check_wheel.sh --through A9` without errors after completing the
 main merge, and manually cleaning the A9.4 throwaway worktree. Those are
 maintainer-provided outcomes, not commands rerun or counts inferred here.
@@ -155,6 +158,7 @@ interval/truncation mathematics and later-slice requirements are excluded.
 | Data diagnostics, indexing, size and metadata | test_data_issues.py, test_data_indexing.py, test_data_size.py, test_data_metadata.py (including test_static_flags_control_compilation_reuse) | Gate pass reported by maintainer |
 | Parameter diagnostics and stored raw issues | test_constraints.py, test_parameter_issues.py, test_parameter_issue_container.py, test_likelihood_parameters_depth.py; test_likelihood_core.py::test_stored_input_issues_survive_indexing_and_reconstruction; test_observation_inputs.py | Gate pass reported by maintainer |
 | Likelihood evaluation, both public input forms and shapes | test_likelihood_core.py, test_likelihood_entry_points.py; direct/grid shapes in test_family_batching.py and test_survival_grid.py | Gate pass reported by maintainer |
+| Unsupported-mode NaN, preserved supported rows and triage support check | tests/unit/test_likelihood_core.py::test_unsupported_modes_preserve_supported_values_and_derivatives; tests/spec/test_a6_unsupported_modes.py; executed docs/likelihood.md#telling-the-causes-apart (`supported_mode`, `unsupported_nan`, `other`) | Existing test gate pass reported by maintainer; triage cells executed in both fresh dtype builds |
 | First/second derivatives and compiled composition | test_likelihood_transformations.py, test_likelihood_composition.py, test_likelihood_custom_derivatives.py; test_survival_grid.py::test_grid_analytic_rate_gradient_hessian_and_order_two | Gate pass reported by maintainer; exact new docs assertions pass both modes |
 | Stable tails and independent math | test_likelihood_tails.py, test_log_cdf_tails.py (mpmath values and differentiated identities), test_likelihood_boundaries.py | Gate pass reported by maintainer |
 | Boundaries and inactive-input safety | test_family_boundaries.py, test_family_infinity.py, test_family_mixed_infinity.py; test_survival_grid.py::test_weibull_shape_one_zero_grid_and_nan_isolation | Gate pass reported by maintainer |
@@ -165,6 +169,49 @@ interval/truncation mathematics and later-slice requirements are excluded.
 | Recorded CPU baseline | scripts/benchmark_slice_a.py, benchmarks/slice_a_cpu.json; A9.4 review round 1 merge on 51319c8; 48 cases with analytical checks/reuse | Accepted by maintainer; no rerun, optional N-1/N-2 remain |
 | Executable docs and editable playground | All nine runnable documents/137 cells per mode, clean source notebook, CLI 4.6.4, build command above | Fresh two-mode builds pass; interactive server not opened |
 | Rendered pages and accurate subset/failure descriptions | 11-page audit above, both builds, corrected data note and current diagnostic/tail/unsupported guides | Implementer desktop audit complete; no mobile/external-link claim |
+
+### Required narrative coverage (spec 12.2 paragraph after the gate table)
+
+| Required explanation | Executed/rendered page coverage |
+| --- | --- |
+| Both observation constructors; represented v0 kinds versus supported likelihood modes | docs/survival-data.md: Time and status, The same cohort as endpoints, interval/left/truncation sections and corrected opening note; docs/likelihood.md opening support note |
+| data.issues and explicit host validation | docs/survival-data.md: Finding bad rows and Inside jax.jit; docs/slice-a-verification.md: Construction and derivatives inside JIT |
+| Dtype behavior | docs/survival-data.md: Floating-point precision; docs/distributions.md: Details; both modes executed separately |
+| Direct methods, limits and grids | docs/builtin-families.md: What happens at time zero and at infinity / Precision in both tails; docs/distributions.md: method table and boundary sections; docs/grids.md |
+| Transformations and parameter derivative limits | docs/slice-a-verification.md: checked eager/jit/vmap recipe; docs/grids.md: Grids inside jit and vmap; docs/playground.ipynb |
+| Explicit unsupported-mode failures and NaN-triage support check | docs/likelihood.md: When a contribution is NaN / Telling the causes apart, including `supported_mode`; docs/slice-a-verification.md opening subset explanation |
+| Working local build and editable playground | scripts/build_docs.sh results above; docs/index.md Local commands and docs/playground.ipynb launch instructions; outputs cleared in source |
+
+All pages in this narrative map ran/rendered in the initial two-mode audit.
+The fix-up changes only plain text in the verification page and this map;
+no code cell, supported-mode predicate, expected value or test is changed.
+
+## Round 1 findings and round-2 fix-up
+
+Round 1 on 2c8cd60 returned **fix-first** with no blockers/spec questions:
+
+- **F-1, should-fix:** add the explicit unsupported-mode row above, naming
+  the own mixed-row preservation test, independent A6 unsupported suite and
+  executed triage recipe. Add the paragraph's narrative coverage map so
+  constructors, issues/host validation, dtype, direct methods, transformations
+  and unsupported failures each point to the actual page/section.
+- **N-1:** rewrap the synthetic R comparison paragraph; unchanged claim.
+- **N-2:** say lint/type checks run once and tests/doctests run separately in
+  each dtype, matching scripts/check.sh. No command or behavior changes.
+
+Reviewer-owned round-1 checks: initial sandbox build failed at uv cache
+access (exit 2); permitted rerun exited 0, both dtype builds succeeded.
+New page execution: 3.12s float32 / 3.07s float64. Ruff format/check passed
+(115 files). No wheel gate, mutation, benchmark or interactive session ran;
+no reviewer browser inspection. Its checkout is detached at 2c8cd60; no
+throwaway mutant worktree reported. It reran build/lint despite initial
+ownership, explaining that its role requires them.
+
+Implementer fix-up checks: source/diff/whitespace and byte-identical code
+cells only. No automated build/lint/pytest rerun; round 2's sole runner is
+the reviewer. The initial counts/visual evidence above are not new runs
+on this follow-up. Commit these F-1/N-1/N-2 changes separately and request
+round 2; don't claim review acceptance before the next verdict.
 
 ## Closure and remaining work
 

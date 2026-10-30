@@ -97,6 +97,24 @@ A9's verification evidence is now ready for independent review and maintainer
 acceptance. No claim that A10, Slice A as a whole or the release is complete.
 Stop after this docs step's review; no additional implementation starts.
 
+## A9.d1 round-1 follow-up
+
+Round 1 on 2c8cd60 returned fix-first for should-fix F-1: cite the explicit
+unsupported-mode NaN/preserved-neighbor requirement and executed triage
+recipe in the gate map, and map each narrative item in spec 12.2's paragraph
+to its docs page. Existing code/tests already cover this behavior; no new
+implementation or test is required. Also fix trivial N-1 (R paragraph line
+wrap) and N-2 (clarify that tests/doctests, rather than static checks, run
+in separate dtype processes). Code cells remain byte-identical.
+
+The reviewer reran the build because its role requires it, despite the
+initial ownership request. Its build passed in both modes (new page 3.12s /
+3.07s); Ruff passed. No wheel gate or mutations were rerun. For this prose/
+metadata fix-up, the reviewer alone owns round-2 builds/lint. The implementer
+checks only the diff and unchanged cells, records F-1/N-1/N-2, commits a
+separate fix-up and requests round 2. No duplicate build/full-gate run by
+implementer; maximum three rounds, then stop.
+
 ---
 
 # A9.4/main merge resolution (2026-10-29)
