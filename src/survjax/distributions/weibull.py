@@ -81,7 +81,8 @@ class Weibull(SurvivalDistribution):
         Returns:
             Broadcast RMST; NaN for invalid cutoffs or parameter issues.
             At zero, value/parameter derivatives are 0 and d/dtau is 1.
-            First derivatives use JAX; higher shape derivatives are unsupported.
+            Only first derivatives are guaranteed at zero; higher shape
+            derivatives are unsupported in the interior too.
         Raises:
             TypeError: Nonreal cutoffs or incompatible shapes.
             NotImplementedError: Higher derivatives involving shape.

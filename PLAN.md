@@ -7,6 +7,52 @@ audit and planning checks") and A8 (`plans/A8.md`, "Closure still required").
 
 ---
 
+# RMST.appendix — Permanent mathematical appendix and conservative guarantees (2026-10-30)
+
+Maintainer approved the code/report and requested conservative guarantees,
+a permanent math-only appendix outside docs/, tied to code, then the next
+implementation step. Start clean release-rmst at
+1a007fceb52ef1303cd739f14b58ce9d67f1cce9. Preserve unfinished PLAN history.
+
+One documentation/contract concept; no numerical behavior change:
+
+- Clarify spec 8.7/12.1: Weibull/PH-Weibull zero-cutoff guarantees cover
+  value and first derivatives only; higher guarantees require valid smooth
+  interior inputs. A NaN result's own tangents have no staged guarantee;
+  valid-entry derivative isolation remains mandatory (also settles S-1).
+  Bump revision 37 to 38 and commit this alone in the design repo. Its
+  tracked files are clean; leave unrelated untracked .claude/ alone. The
+  launch authorizes branch creation: use release-rmst there too, avoiding
+  main. Mark this dedicated worktree via spec-since.sh dev-release-rmst
+  --mark; literal dev would mark a different checkout. Commit .spec-seen here.
+- Move/refine reports/weibull-rmst-math.md to appendices/weibull-rmst.md:
+  retain the mathematical derivations and bounds; remove commit/step/review
+  context, API proposals, empirical evidence and approval questions. Add
+  appendices/README.md as the list of mathematical appendices with code
+  pointers. Keep an adjacent rebuilt PDF; retire the old report/PDF paths.
+- Add stable appendix-section references beside the three code branches
+  and zero boundary; correct Weibull.rmst's boundary docstring. Do not
+  alter its numerical expression, exports, wrappers or public docs pages.
+- Record the maintainer decision in D-028 while leaving its status field
+  maintainer-owned. Overwrite REVIEW.md with the contract and appendix map.
+
+Aim at about 300 changed text lines, using a rename/extraction rather than
+copying the historical report. Pandoc/XeLaTeX compilation, all-page Poppler
+visual inspection, Ruff/mypy, focused RMST tests in separate dtype processes
+and scripts/build_docs.sh (approved escalation for kernel cleanup) validate
+this step. Commit and invoke independent-review exactly as RMST.appendix;
+fix factual findings, then continue to the explicitly authorized next step.
+No merge, rebase, push, tags or publication.
+
+Next implementation: RMST.3 full-range derivative verification. Write its
+concrete bounded plan after this appendix step; measure value-scaled error
+factors before choosing any new RMST derivative tolerances. Keep the native
+shape-Hessian restriction and code ownership; PH closure still waits for
+reviewed core integration and handoff. Split evidence if about 300 lines
+would be exceeded. No generic quadrature tangent or summary options/API.
+
+---
+
 # RMST.2-report — Mathematical approval report (2026-10-30)
 
 Requested before maintainer approval of _weibull_rmst; start clean at

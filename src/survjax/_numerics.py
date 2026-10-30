@@ -31,6 +31,7 @@ def _weibull_rmst(shape: jax.Array, scale: jax.Array, cutoff: jax.Array) -> jax.
     scale = scale.astype(dtype)
     cutoff = cutoff.astype(dtype)
     zero = cutoff == 0
+    # Math: appendices/weibull-rmst.md#derivatives-and-zero-cutoff.
     # spec 8.7/7.2: zero must not reach log; replace its parameters too.
     safe_cutoff = jnp.where(zero, 1.0, cutoff)
     safe_shape = jnp.where(zero, 1.0, shape)
@@ -46,6 +47,7 @@ def _weibull_rmst(shape: jax.Array, scale: jax.Array, cutoff: jax.Array) -> jax.
     series_shape = jnp.where(small, safe_shape, 1.0)
     term = jnp.ones_like(series_x)
     series = term
+    # Math: appendices/weibull-rmst.md#lower-tail-series.
     # Integrate exp(-x*u**k) termwise: sum (-x)^n/(n!*(k*n+1)).
     # At x<0.1, the omitted term is bounded by 0.1**13/13! < 2e-23.
     for n in range(1, 13):
@@ -62,6 +64,7 @@ def _weibull_rmst(shape: jax.Array, scale: jax.Array, cutoff: jax.Array) -> jax.
     log_value = jnp.log(gamma_scale) + gammaln(1 + a) + jnp.log(safe_probability)
     gamma_value = jnp.where(probability > 0, jnp.exp(log_value), jnp.nan)
 
+    # Math: appendices/weibull-rmst.md#mean-tail-approximation.
     tail_shape = jnp.where(large, safe_shape, 1.0)
     tail_scale = jnp.where(large, safe_scale, 1.0)
     mean = jnp.exp(jnp.log(tail_scale) + gammaln(1 + 1 / tail_shape))

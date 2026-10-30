@@ -19,6 +19,15 @@
   decide whether zero guarantees end at the stated first derivatives or
   whether existing higher right derivatives are also required. No boundary
   guarantee is silently adopted. This is distinct from invalid-own-tangent S-1.
+- Maintainer decision (2026-10-30): after reading the code and report,
+  requested “take the conservative action” for guarantees. Adopt value and
+  first derivatives only at the Weibull/PH-Weibull zero boundary; retain
+  higher guarantees on valid smooth interior inputs. A NaN entry's own
+  tangents are unclaimed in the staged subset; valid-entry isolation remains
+  mandatory (also settles the interpretation requested by RMST.1 S-1).
+  Spec revision 38 records this decision separately in the design repo.
+  Permanent derivations are now in appendices/weibull-rmst.md; the historical
+  approval report is retained by its earlier commits, not in the appendix.
 - Status: open.
 
 ## D-027 Concordance result representation and undefined diagnostics
