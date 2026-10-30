@@ -37,6 +37,13 @@ in both modes successfully (2332/2322 passed, 28/38 skips). Prior own suites
 limits are in REVIEW.md. Commit and independent round 1 follow; stop after
 the verdict before outcomes/calibration.
 
+Round 1 returned fix-first for F-1 (default cache path test gap). Extend the
+existing synthetic load check to exercise unset SURVJAX_EXAMPLES_DATA and
+assert the expanded home path without any writes or HOME changes. Clarify
+N-1's fresh-download failure message; leave optional N-2/N-3 unchanged.
+Run focused tests per dtype and static checks, commit the fix-up, then request
+round 2. No repeat full gate: no parsing, split or packaging change.
+
 ---
 
 # SIM.3 — Complete the approved examples diagnostics environment (2026-10-30)

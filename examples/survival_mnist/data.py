@@ -46,7 +46,8 @@ def _fetch(name: str, cache: Path) -> bytes:
     if hashlib.sha256(payload).hexdigest() != sha256 or (
         not cached and hashlib.md5(payload).hexdigest() != md5
     ):
-        raise ValueError(f"MNIST checksum mismatch: {path}; remove it and retry")
+        action = "remove it and retry" if cached else "download rejected; retry"
+        raise ValueError(f"MNIST checksum mismatch: {path}; {action}")
     if not cached:
         cache.mkdir(parents=True, exist_ok=True)
         # A failed/interrupted transfer must never become a trusted cache entry.

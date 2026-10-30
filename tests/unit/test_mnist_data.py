@@ -94,12 +94,19 @@ def test_bad_download_is_never_cached(tmp_path, monkeypatch, hashes):
     assert list(tmp_path.iterdir()) == []
 
 
-def test_loader_preprocessing_and_global_order(tmp_path, monkeypatch):
+@pytest.mark.parametrize("env_cache", [True, False])
+def test_loader_preprocessing_and_global_order(tmp_path, monkeypatch, env_cache):
     """03: fixed sizes/order, float32 NCHW and division by 255, in either mode."""
-    monkeypatch.setenv("SURVJAX_EXAMPLES_DATA", str(tmp_path))
+    if env_cache:
+        monkeypatch.setenv("SURVJAX_EXAMPLES_DATA", str(tmp_path))
+    else:
+        monkeypatch.delenv("SURVJAX_EXAMPLES_DATA", raising=False)
+    expected_cache = (
+        tmp_path if env_cache else Path.home() / ".cache/survjax-examples/mnist"
+    )
 
     def fetch(name, cache):
-        assert cache == tmp_path
+        assert cache == expected_cache
         return idx("images" in name, 60000 if name.startswith("train") else 10000)
 
     monkeypatch.setattr(data, "_fetch", fetch)

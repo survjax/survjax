@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # MNIST.1 — Verified acquisition and fixed cohorts
 
@@ -64,3 +64,24 @@ Environment: Python 3.12.9, JAX 0.11.2, NumPy 2.5.3, CPU device 0.
 No docs build (no docs changed), training, oracle computation or full demo.
 Fresh wheel built to satisfy the independent installation acceptance tests;
 passed earlier own/static/doctest checks are not repeated. No claim that the full use case or release is complete.
+
+## Round 1 follow-up
+
+Round 1 on 4162924 returned fix-first for should-fix F-1: default cache
+path expansion lacked coverage. Parameterized the existing synthetic loader
+test for both the environment override and the unset-variable default. The
+mock asserts Path.home()/.cache/survjax-examples/mnist without writing there
+or changing HOME. Removing expanduser now fails the default branch.
+N-1 fixed with distinct fresh-download versus corrupted-cache instructions.
+N-2/N-3 remain optional: integer width does not affect index values, and
+cohort provenance will record versions in later results. No runtime split
+behavior is changed here. Reviewer-owned temporary worktree cleanup remains
+maintainer-owned, as required by AGENTS.md; no reviewer files were edited.
+No full gate repeat for this message-only change and added coverage. Focused
+checks in both modes and static checks follow; prior full evidence above
+remains applicable. Reviewer independently confirmed real-file hashes and
+cross-mode cohort values.
+
+Fix-up validation: Ruff formatting (1 reformatted, 2 unchanged) and lint
+(All checks passed!), mypy (20 source files) pass. Focused suite now has
+12 passed in 1.29s (x64), 12 passed in 0.78s (float32).
