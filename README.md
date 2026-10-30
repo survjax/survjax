@@ -52,18 +52,18 @@ hessian = jax.hessian(loss)
 
 All distributions and metrics have a default data first-argument API (`model.log_likelihood(data)`) and - for exact right-censored data only - `model.log_likelihood(time=time, event=event)`.
 
-## Goals are
+## Goals and guiding principles
 
 - consistent API
 - numerical accuracy (no floors, clamps, added epsilons) and speed (functions tested with and without `jit` and `vmap`)
 - speed
+- safe log-space calculations to prevent underflow and overflow (as survival analysis often works with exponentials of exponentials)
+- gradients come 'for free' by using `JAX`
 
 ## Documentation
 
-`survjax` comes with documentation on the choices for implementing functions in a certain way, where these principles are guiding:
-
-- safe log-space calculations to prevent underflow and overflow (as survival analysis often works with exponentials of exponentials)
-- gradients come 'for free' by using `JAX`
+`survjax` comes with documentation which can be found at [https://survjax.readthedocs.io](https://survjax.readthedocs.io).
+The documentation contains a user guide, API reference, and examples.
 
 ## Development status
 
