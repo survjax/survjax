@@ -75,7 +75,7 @@ def test_outcome_keys_match_explicit_uniform_algebra():
     """03/00-common: per-global-index key, then split U/C, not a batch key."""
     labels = jnp.array([0, 4, 9])
     indices = jnp.array([0, 59999, 69999])
-    actual = model.generate_outcomes(labels, 7.0, global_indices=indices)
+    actual = model.generate_outcomes(labels, np.float64(7.0), global_indices=indices)
     base = jax.random.fold_in(jax.random.fold_in(jax.random.key(20261025), 3), 0)
     for row, (digit, index) in enumerate(
         zip((0, 4, 9), (0, 59999, 69999), strict=True)

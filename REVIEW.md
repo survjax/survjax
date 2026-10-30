@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # MNIST.2 — Digit outcomes and calibrated censoring
 
@@ -92,3 +92,30 @@ No optional demo dependency is needed for this preparation step. No docs
 build (no docs edits), training run, fitted-reference/evaluation or full demo.
 CNN/loss/finite-gradient/checkpoint selection are the next separate steps.
 Independent review follows after committing; stop after this step's verdict.
+
+## Round 1 follow-up
+
+Round 1 on 7e5217c returned fix-first for should-fix F-1: the dtype
+assertions used only weak Python-float c, so dropping the float32 cast
+escaped them. The key-algebra/dtype test now passes np.float64(7.0),
+retaining the float32 dtype assertions in both processes. This exercises
+the strongly typed float64 input path without requesting unavailable JAX
+float64 in float32 mode. No runtime or stored-output changes.
+
+N-1 remains an optional documented numeric precondition, as in the shared
+generator. Verified loader labels and generated global indices satisfy it.
+N-2 is recorded for the later run.py/metadata step: recompute calibration
+and split fractions, compare them with calibration.json before recording
+training results, and commit the executable metadata writer. Current README
+recipe reproduces all values; the reviewer verified bit-identical c and all
+six fractions in both modes, plus identical cross-mode outcomes.
+
+Reviewer-owned temporary worktree cleanup remains maintainer-owned under
+AGENTS.md; no reviewer files were edited. Reviewer direct gate reproduced
+its known missing-SURVJAX_WHEEL setup errors; implementer fresh-wheel gate
+passed before this test-only fix. Only focused suites and static checks are
+repeated for this stronger input, with no runtime/packaging change.
+
+Fix-up evidence: Ruff formatting (123 files already formatted), lint (All
+checks passed!) and mypy (20 source files) pass. Focused tests with the
+strong float64 c input: 22 passed in 6.08s (x64), 22 passed in 6.01s (x32).

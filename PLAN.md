@@ -52,6 +52,15 @@ blank-line formatting failure was corrected before the successful gate.
 Source/test/artifact diff about 276 lines. Exact commands/timings/limits in
 REVIEW.md. Commit then independent MNIST.2 round 1; stop after verdict.
 
+Round 1 returned fix-first for F-1: dtype assertions lacked a strongly
+typed float64 c input. Pass np.float64(7.0) in the existing per-key/dtype
+test, retain all dtype assertions, run focused checks in both modes and
+static checks, commit a test-only fix-up and request round 2. No runtime
+change; prior fresh-wheel gate remains applicable. Optional N-1 preconditions
+remain documented. N-2 to-do for the eventual run.py step: commit the metadata
+writer and compare recomputed c/fractions with calibration.json. Reviewer
+independently reproduced all stored values and cross-mode identical outcomes.
+
 ---
 
 # MNIST.1 — Verified data acquisition and deterministic splits (2026-10-30)
