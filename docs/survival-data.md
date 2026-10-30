@@ -10,9 +10,12 @@ kernelspec:
 # Describing survival observations
 
 ```{note}
-survjax can currently build and check survival observations with
-`SurvivalData`. Likelihoods, distributions and evaluation are not implemented
-yet, so this page stops once the data are described.
+This page describes and checks observations with `SurvivalData`.
+For exact/right-censored likelihoods without truncation, see
+[Log likelihoods](likelihood.md); for evaluating caller-supplied risk scores,
+see [Harrell's concordance](concordance.md). Left/interval censoring and
+truncation can be represented here, but their likelihoods are not yet
+implemented.
 ```
 
 This page follows a small synthetic cohort of six patients. Time is months
