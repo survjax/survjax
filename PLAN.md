@@ -6,6 +6,67 @@ is archived or declared complete by this resolution. New PH work goes first.
 
 ---
 
+# PH.appendix — Explain the scaling helper and retain its mathematical appendix (2026-10-30)
+
+The maintainer approves PH.1 apart from naming/shape-documentation nits and
+requests a permanent appendix outside the normal docs, matching release-rmst,
+then explicitly authorizes the next PH implementation step after this one.
+
+One bounded clarity/appendix step, about 300 changed text lines. No numerical
+expression, public API, parameter handling or export change. Spec 3.3,
+4.4–4.5, 5 and 7.2–7.3; the new RMST-only revision-38 changes are read but do
+not change these PH contracts. Retain all unfinished/incoming plan history.
+
+- `src/survjax/distributions/wrappers.py`: rename the ambiguous baseline and
+  scaled log cumulative hazard locals; name the optional argument as baseline
+  log CDF. Add the private helper's Args/Returns docstring with evaluated shape
+  E, field batch shape B, scalar-time/infinity B, grid (K,*B), promotion and
+  the None infinity-hook path. Add stable appendix references at the branches.
+- `appendices/ph-log-survival.md` plus adjacent PDF: permanent mathematical
+  appendix derived from the temporary reading note. Keep definitions, input
+  shapes, guard meanings, real-arithmetic tail/derivative bounds and explicit
+  information-loss limits; remove snapshot/review/check history. Use code-
+  aligned names. No docs/ page or navigation change. The old output note is
+  a temporary artifact, not another authoritative source.
+- `appendices/README.md`: follow the RMST worktree's common table convention,
+  listing this appendix, code and PDF with a reproducible Pandoc command.
+  This branch lists PH only; integration must retain the RMST row too.
+- If needed, retain the tiny pagination Lua filter alongside the appendix;
+  no package dependency or shared build-tool changes. Keep combined text diff
+  near 300 lines; split before implementing any additional concept.
+- Record this step in REVIEW.md after the existing integration is committed.
+  Focused PH tests run separately in both dtypes; Ruff/mypy, Pandoc compilation
+  (normal and formatted), all-page Poppler inspection and whitespace audit.
+  Existing tests already cover the unchanged scalar/grid/infinity shapes;
+  no redundant tests for local renames. Commit and independent-review this
+  new clarity step, not a fourth PH.1 numerical-review round.
+
+The main merge was already in progress before this request. Both conflicted
+record files are now resolved by preserving both parents verbatim; every
+other staged incoming entry is unchanged. The merge-only index is prepared.
+The maintainer explicitly authorized finishing this prepared merge (“jok
+agreed”). Commit 245219d records the staged integration only; PH changes
+remain separate. The older temporary output notes are backed up under
+/private/tmp after migration to the canonical appendices/ source and PDF.
+
+Implementation verified: private naming/docstrings/comments plus the permanent
+appendix total 249 changed text lines (excluding plan/review records and the
+PDF binary). Full-wrapper AST equivalence, focused PH tests in both modes,
+Ruff/mypy, both Pandoc builds and all-page PDF inspection pass. Fresh-wheel
+through-A10 exits 0: own suites 1069/8 and 1074/3, doctests 4 each, independent
+2332/28 and 2322/38 (passed/skipped). Exact commands and times in REVIEW.md.
+Commit PH.appendix and request independent round 1; then continue to PH.2
+under the maintainer's explicit “after this” instruction, subject to findings.
+
+Next authorized implementation: PH.2, split into <=300-line test portions.
+Start with the built-in direct/grid/likelihood PH identities in values and
+first derivatives, including scalar and (S,1) baseline × (S,2) eta batches,
+plus representative second-order interior evidence. A concrete file/test
+plan will precede that code after this appendix step's review; additional
+invalid-row isolation/tail coverage and closure/RMST remain separate portions.
+
+---
+
 # Release-ph planning record (68bd461)
 
 # PLAN.md: current sub-slice only

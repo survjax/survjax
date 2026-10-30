@@ -1,0 +1,21 @@
+# Mathematical appendices
+
+These notes contain the mathematics behind specific code paths. They are
+separate from user guides and from step plans, reviews and approval reports.
+Keep derivations and numerical bounds aligned with the linked implementation;
+keep workstream history and empirical check results in PLAN.md / REVIEW.md.
+
+| Appendix | Code | Export |
+| --- | --- | --- |
+| [PH log-survival scaling](ph-log-survival.md) | [_scale_log_survival](../src/survjax/distributions/wrappers.py) | [PDF](ph-log-survival.pdf) |
+
+Rebuild the companion PDF after changing its mathematical source:
+
+```bash
+pandoc appendices/ph-log-survival.md --standalone --pdf-engine=xelatex \
+  --lua-filter=appendices/ph-log-survival-pages.lua \
+  -o appendices/ph-log-survival.pdf
+```
+
+Plain Pandoc conversion also compiles; the optional filter puts each main
+topic on a fresh page. These appendices are not included in the docs site.

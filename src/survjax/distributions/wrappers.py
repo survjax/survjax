@@ -61,8 +61,28 @@ class ProportionalHazards(SurvivalDistribution):
         )
 
     def _scale_log_survival(
-        self, log_s: jax.Array, log_lower_tail: jax.Array | None = None
+        self, log_s: jax.Array, baseline_log_cdf: jax.Array | None = None
     ) -> jax.Array:
+        """Apply the PH multiplier to baseline log survival, guarding tails.
+
+        Args:
+            log_s: Baseline log survival with evaluated shape E, containing no
+                component axes. Pointwise callers use the broadcast shape of
+                time and ``self.batch_shape``. Scalar time and the infinity
+                hook give E = batch_shape; a shared grid gives
+                E = (K, *batch_shape), including all leading time axes.
+            baseline_log_cdf: Optional baseline log CDF, with the same evaluated
+                shape E as log_s (not merely batch_shape on a grid). Finite
+                entries recover a tiny cumulative hazard where log_s rounded
+                to zero. The infinity hook passes None.
+
+        Returns:
+            Scaled log survival with shape E for these callers, using JAX
+            floating promotion. The predictor has shape self.batch_shape and
+            broadcasts across any leading evaluated-time axes.
+
+        Mathematical appendix: ``appendices/ph-log-survival.md``.
+        """
         eta = jnp.asarray(
             self.log_hazard_ratio, dtype=jnp.result_type(log_s, self.log_hazard_ratio)
         )
@@ -71,24 +91,30 @@ class ProportionalHazards(SurvivalDistribution):
         # Infinite limits and overflow are restored after substituting operands.
         zero = log_s == 0
         recover = jnp.zeros_like(zero)
-        if log_lower_tail is not None:
-            recover = zero & jnp.isfinite(log_lower_tail)
+        if baseline_log_cdf is not None:
+            recover = zero & jnp.isfinite(baseline_log_cdf)
         boundary = (zero | jnp.isinf(log_s)) & jnp.isfinite(eta) & ~recover
         # spec 7.2: avoid exp(eta)*0 and exp(eta)*inf, including in the hook.
         safe_log_s = jnp.where(boundary | recover, -jnp.ones_like(log_s), log_s)
         safe_eta = jnp.where(boundary, jnp.zeros_like(eta), eta)
-        log_h = jnp.log(jnp.abs(safe_log_s))
-        if log_lower_tail is not None:
-            # spec 4.4/7.2: when H0 underflows, log H0 = log F0 to rounding precision.
-            log_h = jnp.where(recover, log_lower_tail, log_h)
-        log_magnitude = safe_eta + log_h
-        overflow = log_magnitude >= jnp.log(jnp.finfo(log_magnitude.dtype).max)
-        # spec 7.1/7.2: restore IEEE overflow without an inactive exp tangent.
-        magnitude = jnp.exp(jnp.where(overflow, 0.0, log_magnitude))
-        value = jnp.sign(safe_log_s) * magnitude
+        log_baseline_cumulative_hazard = jnp.log(jnp.abs(safe_log_s))
+        if baseline_log_cdf is not None:
+            # Math: appendices/ph-log-survival.md#lower-tail-recovery (spec 4.4/7.2).
+            log_baseline_cumulative_hazard = jnp.where(
+                recover, baseline_log_cdf, log_baseline_cumulative_hazard
+            )
+        log_scaled_cumulative_hazard = safe_eta + log_baseline_cumulative_hazard
+        overflow = log_scaled_cumulative_hazard >= jnp.log(
+            jnp.finfo(log_scaled_cumulative_hazard.dtype).max
+        )
+        # Math: appendices/ph-log-survival.md#safe-overflow (spec 7.1/7.2).
+        cumulative_hazard_magnitude = jnp.exp(
+            jnp.where(overflow, 0.0, log_scaled_cumulative_hazard)
+        )
+        value = jnp.sign(safe_log_s) * cumulative_hazard_magnitude
         overflow_value = jnp.where(safe_log_s < 0, -jnp.inf, jnp.inf)
         value = jnp.where(overflow, overflow_value, value)
-        # A true zero log-limit may still have a nonzero baseline tangent.
+        # Math: appendices/ph-log-survival.md#zero-limit-tangents.
         linear = zero & boundary & (eta < jnp.log(jnp.finfo(eta.dtype).max))
         zero_value = jnp.where(linear, log_s, 0.0) * jnp.exp(
             jnp.where(linear, eta, 0.0)
@@ -117,8 +143,8 @@ class ProportionalHazards(SurvivalDistribution):
         log_s = self.baseline.log_survival(t)
         reference = jax.lax.stop_gradient(self.baseline.reference_time())
         lower_tail_time = jnp.where(log_s == 0, jnp.asarray(t), reference)
-        log_lower_tail = self.baseline.log_cdf(lower_tail_time)
-        return self._scale_log_survival(log_s, log_lower_tail)
+        baseline_log_cdf = self.baseline.log_cdf(lower_tail_time)
+        return self._scale_log_survival(log_s, baseline_log_cdf)
 
     def log_hazard(self, t: ArrayLike) -> jax.Array:
         """Return log h0(t) + eta, including baseline hazard limits.
