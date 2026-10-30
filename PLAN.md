@@ -1,3 +1,21 @@
+# README.1 — Draft the alpha README (2026-10-30)
+
+Rewrite README.md at the maintainer's request on add-readme. Preserve the
+unfinished existing plan history below. One documentation topic; no API,
+dependencies, protected paths, or spec changes. Spec 4.1–4.2, 6.1, 7.3,
+9.2, 10.3, 12.2. Exponential/Weibull and concordance are the first built-ins;
+more families and metrics are planned, not advertised as available.
+
+Files: README.md, PLAN.md, REVIEW.md. Present current supported likelihood
+scope, extension requirements, a core-only runnable gradient example, local
+installation, principles and documentation. No new tests: execute the README
+snippet against the source in both dtype modes with an analytical check, run
+scripts/build_docs.sh directly, and check whitespace. Overwrite REVIEW.md,
+commit, then run independent-review for README.1 and stop after its verdict.
+Target under 300 changed content lines, excluding existing review records.
+
+---
+
 # SIM.3 — Complete the approved examples diagnostics environment (2026-10-30)
 
 Start clean on release-simulation at
