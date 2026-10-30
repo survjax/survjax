@@ -11,6 +11,9 @@
   For k=1,b=2, the value and first derivative are 0 and 1, but autodiff's second
   cutoff derivative is 0. The analytic right second derivative is -1/b=-0.5.
   A float64 probe using jax.grad(jax.grad(f))(0.0) confirmed the discrepancy.
+  Independent review S-2 also found k=2,b=2 has third right derivative -0.5
+  versus autodiff 0; for 0<k<1 the second right derivative diverges to -inf.
+  Hence a finite all-orders zero-boundary guarantee cannot cover the range.
 - What was done/proposed: explain it in reports/weibull-rmst-math.md and its
   compiled PDF; leave production code and spec unchanged. Maintainer must
   decide whether zero guarantees end at the stated first derivatives or

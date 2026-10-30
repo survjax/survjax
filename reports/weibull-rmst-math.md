@@ -1,9 +1,8 @@
 ---
 title: "Weibull RMST: mathematics and numerical choices"
-subtitle: "Approval report for the current staged implementation"
 date: "30 October 2026"
 fontsize: 11pt
-geometry: margin=0.95in
+geometry: margin=0.8in
 colorlinks: true
 ---
 
@@ -88,6 +87,23 @@ $$
 Thus `0.1` makes convergence rapid and the fixed loop simple; degree 12 gives
 ample margin below float64 rounding. These choices are conservative, not
 claimed to be the smallest sufficient degree or an optimized crossover.
+
+The Python `for` is JAX-compatible here because its trip count is fixed:
+`jit` unrolls the 12 iterations while tracing; array arithmetic then executes
+in the compiled program. It is not a data-dependent Python stopping rule.
+See the [JAX scan documentation](https://docs.jax.dev/en/latest/_autosummary/jax.lax.scan.html).
+A static `lax.fori_loop` or `lax.scan` could instead keep the recurrence rolled
+and reduce graph size; a speed advantage has not been measured. The current
+`jit`/`vmap`/derivative tests establish compatibility, not optimal performance.
+
+The degree and crossover should be treated as documented internal numerical
+choices, preferably with named constants if the implementation is refined.
+The current source gives their literals and remainder comment; this report
+makes their coupling explicit. Degree 12 is sufficient, not uniquely required.
+I would not expose a raw term-count knob: a smaller count could silently break
+the accuracy guarantee. A future configurable summary API should express an
+accuracy/work budget, with a verified backend choosing terms. Staged section
+8.7 explicitly provides no `options` argument, so no such API is added here.
 
 Differentiating the polynomial with respect to the cutoff also has a useful form:
 $$
@@ -177,8 +193,9 @@ branches. Each branch therefore receives its own safe operands *before* the
 logarithm, exponential, or gamma call. Inactive gamma inputs use $k=b=x=1$;
 inactive series inputs use $k=x=1$; inactive mean inputs use $k=b=1$.
 These are discarded finite calculations, not replacements for valid active inputs.
-The mutant tests demonstrate that removing either protected exponential gives
-NaN gradients even while final values still pass.
+Review-time mutation runs demonstrated that removing either protected
+exponential gives NaN gradients while final values still pass. The committed
+tail-gradient test now detects both mutations; mutations are not stored tests.
 
 The public method masks invalid parameters and negative, infinite, or NaN
 cutoffs before calling the numerical helper, then restores NaN results.
@@ -209,7 +226,11 @@ The explicit zero branch gives $M(0)=0$, parameter derivatives 0 and first
 cutoff derivative 1. **Do not infer higher right-cutoff derivatives from this.**
 For $k=1$, $M=b(1-e^{-\tau/b})$, so its second right derivative at zero is
 $-1/b$. At $b=2$, the current implementation returns autodiff second derivative
-0 instead of $-1/2$. A float64 probe confirmed this. D-028 asks whether section
+0 instead of $-1/2$. A float64 probe confirmed this. For $k=2$, $b=2$ the
+third right derivative is also $-1/2$, while autodiff returns 0. For $0<k<1$,
+the second right derivative diverges to $-\infty$. Thus finite derivatives of
+all orders at zero cannot hold throughout the promised shape range.
+D-028 asks whether section
 8.7 intends its general higher-derivative promise to cover existing higher
 right derivatives at zero, or only smooth interior points beyond the explicitly
 specified first boundary derivatives. This report does not settle that contract
@@ -229,8 +250,9 @@ fresh-wheel through-A10 regression gate before the test-only tail-gradient fix.
 Independent review round 2 returned `merge` for the implementation step. Its
 extra value probes reported worst relative errors about $4.0\times10^{-15}$
 (float64) and $2.0\times10^{-6}$ (float32). These are measured samples, not
-uniform proofs. That reviewer could not run wheel smoke tests because its
-wheel environment was missing; our fresh-wheel gate included them.
+uniform proofs. Its direct gate had five wheel-test setup errors from an unset wheel
+variable; permissions blocked its fresh-wheel wrapper. Our fresh-wheel gate
+included those tests.
 The complete measured first-derivative sweep and derivative tolerance factors
 remain RMST.3 work. D-028 must be considered before approving boundary claims.
 
@@ -255,11 +277,9 @@ with a batch axis instead of producing a Cartesian grid.
 
 Full source commit: `b3340749469e1513938a0cd5140f45305ab0d4bb`.
 
-Local authority: `spec/SPECIFICATION.md` sections 7.2, 8.7 and 12.1;
-`src/survjax/_numerics.py`; `tests/unit/test_weibull_rmst.py`;
-`tests/unit/test_rmst.py`; `REVIEW.md` at commit `b334074`;
-and independent `review/slices/RMST.2.md`. Gamma definitions and series are
-linked above; the truncation and Chernoff bounds are derived in this report.
+Local authority: spec sections 7.2, 8.7 and 12.1, the code and RMST tests
+at the source commit above, and `review/slices/RMST.2.md`. DLMF links accompany
+the identities; the error bounds are derived here.
 
 From the repository root, with the existing Pandoc and XeLaTeX installations:
 

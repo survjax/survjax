@@ -45,7 +45,18 @@ Production/spec/tests/docs sources and project metadata remain unchanged.
 REVIEW.md records exact checks, PDF identity, warning history and limits.
 Commit report/source/PDF and records; invoke independent-review exactly for
 RMST.2-report; act on factual/layout findings only, route spec questions to
-maintainer, then stop. No RMST.3 work, merge, push or publication.
+maintainer, then stop.
+
+Review round 1 on 6448c46: maintainer; proofs/constants/PDF verified.
+S-2 expands D-028 (k=2 third derivative; k<1 divergent second derivative).
+The user's loop question arrived during that review: add the explicit JAX
+staging/count/option discussion with official documentation and a local
+Jaxpr check; correct factual nits N-1/N-2. Final report is 289 lines / 5 PDF
+pages, recompiled and visually checked. Follow-up additions are not separately
+reviewed because the verdict requires a maintainer decision, not another
+round seeking approval. N-3 artifact repository placement remains a maintainer
+integration choice. Commit this bounded report update; stop and ask D-028.
+No production, spec, test or website source change. No RMST.3 work, merge, push or publication.
 
 ---
 

@@ -81,3 +81,55 @@ also remains maintainer-owned. This report does not authorize implementation
 approval, a grid API, PH handoff, merge, push or publication. Preserve prior
 PLAN history and prior implementation evidence by commit. Independent
 review is requested only after report/source/PDF and these records commit.
+
+## Review outcome and user-requested clarification
+
+Round 1 on 6448c46 returned `maintainer`, not merge. Reviewer verified every
+checked derivation, the 60-digit constants, the threshold table, code mapping
+and a PDF rebuild with identical extracted text. S-2/D-028 requires the
+maintainer's boundary-contract decision; no implementation or spec change.
+N-3 (whether to retain source and generated PDF in these repository folders)
+is also left for the maintainer at integration. No review retry is requested
+while that verdict is pending; no attempt to obtain a different verdict.
+
+While round 1 was running, the maintainer asked whether the Python loop is
+JAX-compatible and whether its count should be explicit/user-controlled.
+The final report now answers that question in section 3: fixed Python loop
+unrolling, a rolled scan/fori alternative, no unmeasured performance claim,
+internal named constants as a refinement, and accuracy/work options rather
+than a raw term-count knob in a future API. This added explanation is not
+independently reviewed; it was verified against official JAX scan/fori docs
+and the installed JAX 0.11.2 Jaxpr. The mathematical proofs are unchanged.
+
+- `JAX_ENABLE_X64=1 uv run --group test python -`: make_jaxpr of the current
+  helper at (k,b,tau)=(2,1,.1): 140 top-level equations, no scan/while at
+  that level; mul/add/div counts 26/29/26. This confirms static staging;
+  it is not a benchmark and says nothing about special-function internals.
+- Corrected N-1: the reviewer's direct gate lacked SURVJAX_WHEEL, while its
+  permission mode prevented the fresh-wheel wrapper. Corrected N-2: the
+  committed tail-gradient test catches changes introduced by review-time
+  mutation runs; mutants themselves are not committed tests.
+- Expanded D-028 with S-2's k=2 third-derivative and k<1 divergence cases,
+  without adopting a spec interpretation. Our follow-up float64 probe at
+  k=.5,1,2 and b=2 confirms AD derivatives d1,d2,d3 at zero are [1,0,0]
+  for each. Analytical right derivatives, not the AD outputs, determine the
+  discrepancy; no test is added to approve disputed behavior.
+- Recompiled the final 289-line report with the documented Pandoc/XeLaTeX
+  command: exit 0, 5 letter pages, 65287 bytes. SHA-256:
+  fcae8ab9fc72a211cd2f0901d1871436cd9ed66a0fbdf14a43de72511f165fc0.
+  Viewed all 5 final page PNGs again. Adjusted margins and title/reference
+  spacing so the build command is not orphaned on a sixth page; no clipping
+  or overlap. Final two-pass XeLaTeX log: 5 pages, no overfull/underfull,
+  missing-character or LaTeX-warning matches.
+- Final Pandoc AST: 88 inline, 16 display math nodes, no raw LaTeX nodes;
+  extracted text has 5 pages. Ruff: 115 files formatted / All checks passed;
+  git diff --check clean. Removed only this task's temporary render/TeX files.
+  Earlier successful docs build remains applicable: this follow-up changes
+  the standalone report and deviation record only, not website sources.
+
+Reviewer gate: statics, own tests and doctests passed; x64 spec acceptance
+2327 passed, 28 skipped, 5 missing-wheel setup errors. x32 acceptance stopped
+with that gate; no fresh-wheel wrapper/build_docs/LaTeX-log check by reviewer.
+No reviewer mutation worktree was made for this report step.
+Commit the bounded factual/user-requested follow-up and stop with the report
+ready and D-028/S-2, S-1 and N-3 explicitly pending. No further code step.
