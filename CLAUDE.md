@@ -102,6 +102,7 @@ The maintainer reviews all code, so optimise for reviewability over speed.
 - **Code steps:** don't edit `docs/`. Write docstrings for public API with the code (summary, args, returns, raises). Examples longer than a few lines belong in the docs pages, not in docstrings.
 - If a code step makes docs necessary, add a line to `PLAN.md` under the sub-slice's "Docs to-do" instead of writing them.
 - **Docs steps:** edit `docs/` (and docstrings only where they are wrong). One page or topic per step, at most 300 changed lines, `scripts/build_docs.sh` clean.
+- Run scripts/build_docs.sh directly, without redirects, environment assignments, or shell wrappers. When sandbox restrictions require escalation, use the existing approved prefix ["scripts/build_docs.sh"].
 
 ## Code style (optimised for a human reader)
 
