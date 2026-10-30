@@ -27,7 +27,7 @@ The fixed validation permutation and smoke prefixes follow use-case 03.
 Outcome preparation (run before choosing smoke/full cohorts):
 
 ```python
-from examples.survival_mnist.model import calibrate_mnist, generate_outcomes
+from examples.survival_mnist.data import calibrate_mnist, generate_outcomes
 
 c = calibrate_mnist(labels[:60000])  # float64 host computation, all source digits
 outcomes = generate_outcomes(labels, c)  # all 70k, float32 in either JAX mode
@@ -43,5 +43,8 @@ fraction as `(~outcomes.event[rows]).mean()` using `split_indices(config)`.
 Every image has its own fixed global-index key; generate once before slicing.
 When generating reordered rows explicitly, supply their original global indices.
 
-CNN training, references, metrics, full results and the executable documentation
-page remain to be implemented.
+The float32 CNN and likelihood loss are in `model.py` (requires `examples`).
+Run its offline checks explicitly in each mode:
+`JAX_ENABLE_X64=0 uv run --group examples pytest -q tests/unit/check_mnist_model.py`
+and repeat with `JAX_ENABLE_X64=1`. Ordinary tests need no demo dependencies.
+Epoch training, references, metrics, full results and the executable page remain.

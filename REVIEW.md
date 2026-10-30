@@ -1,121 +1,102 @@
-Independent review: round 2/3
+Independent review: round 1/3
 
-# MNIST.2 — Digit outcomes and calibrated censoring
+# MNIST.3 — Float32 CNN and public likelihood loss
 
 Read first:
-1. PLAN.md MNIST.2; use-cases/03 details Precision, Splits and keys, Outcome
-   generator; 00-common and spec 11.2.
-2. examples/survival_mnist/model.py; unchanged shared generator study.py.
-3. tests/unit/test_mnist_outcomes.py; small data.py/test_mnist_data.py changes.
-4. calibration.json and README preparation recipe.
+1. PLAN.md MNIST.3; use-case 03 details Network/Precision and spec 11.2.
+2. examples/survival_mnist/model.py (CNN and loss, 65 lines).
+3. tests/unit/check_mnist_model.py (explicit optional checks).
+4. data.py's moved preparation helpers, ordinary test import and README.
 
 Scope/invariants:
-- This is outcome preparation only: no CNN, training, reference fit, metrics,
-  docs, dependency, core API or shared-generator change. MNIST.1 was approved
-  by maintainer after round-2 merge. Same branch and sub-slice; inherited
-  unfinished workstream plans retained. About 276 changed source/test/artifact
-  lines, excluding plan/review records.
-- NumPy float64 k/log-scale table obeys k=1.38 and log b=log 10 - 0.2*d.
-  Calibration explicitly requires the 60000 training-source integer labels;
-  official test rows and smoke subsets cannot be passed as a whole. Every
-  label frequency is retained by passing per-row scales to the unchanged
-  shared float64 host quadrature solver, target .5. No test-data calibration.
-- Float32 shape/scales/c go to the shared JAX generator, even in x64 mode.
-  Per-image keys are fold_in(fold_in(fold_in(key(20261025),3),0),global_index).
-  Shared generator splits each key U-then-C; events use inverse CDF and
-  independent Uniform(0,c) censoring. No new random sampling implementation.
-- Default indices 0..N-1 require official global order. Explicit global
-  indices preserve rows under subsets/reordering. Numeric value domains are
-  documented preconditions as in the shared JIT-compatible generator; the
-  verified loader supplies digits and split_indices supplies valid indices.
-  Shape mismatches and nonscalar censor limits raise explicitly.
-- Event-generation precision is float32, with float64 oracle parameters and
-  calibration saved in calibration.json. That file records aggregates/hashes,
-  no image or label rows. Later oracle likelihood evaluation will use float32
-  per the design; no test-model metrics are reported now.
-- Prior optional N-2 is addressed: train/validation host indices now int64 in
-  either mode, matching test indices. Prior N-3 is addressed by a labelled
-  JAX 0.11.2 prefix anchor measured by the MNIST.1 independent reviewer.
-  Neither change alters cohort membership.
+- MNIST.2 was approved after its round-2 merge verdict. This step adds the
+  CNN and loss, before epoch training, checkpoint selection or result metrics.
+  No library API, dependency, core, protected, shared-generator or docs edit.
+  318 source/test/README changed lines including the mechanical helper move.
+- Preparation helpers/constants moved unchanged from model.py to data.py
+  (222 lines total). Ordinary offline tests import data.py, which needs only
+  core JAX/NumPy. model.py re-exports existing helper names but now requires
+  Equinox; README preparation uses data.py directly. No calibration artifact
+  or generation/key behavior is changed.
+- Exactly Conv2d(1,16,3) → ReLU → pool2/stride2 → Conv2d(16,32,3) →
+  ReLU → pool2/stride2 → flatten800 → Linear800→64 → ReLU → Linear64→1.
+  Equinox defaults pool stride to 1, so stride=2 is explicit to satisfy the
+  specified 26→13 and 11→5 dimensions. Output is scalar log scale per image.
+- All layer arrays and final bias are explicitly float32 even in x64 mode.
+  Bias is log(mean observed training time), a positive finite scalar supplied
+  by the caller; no epsilon/floor. Caller supplies the prescribed init key.
+  CNN receives only pixels, never digit labels.
+- Loss accepts (CNN, scalar log_k), uses jax.vmap over images, public
+  Weibull.from_log and negative mean log_likelihood(data). Test initializes
+  log_k to float32 zero. Epoch runner will own that initialization and the
+  actual training-row mean/key; neither is hidden in the loss.
+- Optional tests live in check_mnist_model.py, deliberately outside default
+  test_*.py discovery. Explicit --group examples commands fail if optional
+  deps are missing; there is no importorskip or silent skipping. Ordinary
+  core tests remain runnable without Equinox/Optax.
+- Filtered gradients contain array leaves only. Equinox's pooling module
+  contains Python metadata including its -inf reduction initializer, which
+  must not be treated as a trainable parameter or a numerical failure.
 
 Tests → requirements:
-- test_oracle_parameters_follow_digit_rule: float64 table compared with
-  independent 40-digit mpmath digit formula (03 Precision/Outcome generator).
-- test_calibration_matches_independent_weighted_integral: synthetic 60k
-  digits in a 3:2:1 mixture, shared calibration checked by mpmath integration;
-  catches incorrect equal-digit weighting (03 Outcome generator/00-common).
-- test_calibration_rejects_wrong_source_cohorts_or_digits: rejects 70k,
-  smoke size, float labels and out-of-range digits (03 training-only setup).
-- test_outcome_keys_match_explicit_uniform_algebra: first/source-boundary/
-  last-global index, independent scalar U/C inverse-CDF algebra, float32
-  output fields in both processes (03 Splits and keys/Precision).
-- test_outcomes_are_stable_under_subsets_jit_and_vmap: default official
-  indices vs explicit reordered selection, jit/vmap agreement; public
-  SurvivalData accepts generated exact/right rows and oracle likelihood is
-  finite (03 outcomes, minibatch readiness). No derivative promises added:
-  generation here has fixed true parameters and is outside the training loss.
-- test_outcome_shapes_must_align: explicit shape errors. Existing split test
-  now checks prefix anchor and host dtype in both modes.
+- test_cnn_geometry_bias_precision_and_batching: specified channel/kernel/
+  dense shapes and pool geometry; float32 arrays from a strongly typed
+  float64 mean; bias log(2); single-image/batched outputs agree (03 Network,
+  Precision). Synthetic observation mean is (1+2+3)/3=2.
+- test_loss_matches_exponential_algebra_and_second_derivatives: zero final
+  weight gives constant b=2, log_k=0 means k=1. Exact/right times [1,2,3],
+  events [1,0,1] give NLL=mean(t/2+event*log2)=1+2log2/3. Analytic d/dbias
+  is mean(event-t/2)=-1/3 and second derivative mean(t/2)=1. Independent
+  check_grads(order=2,fwd/rev) perturbs head bias and log shape on smooth
+  interior cases using existing float32 derivative tolerances. This checks
+  likelihood composition, without claiming smoothness at ReLU/maxpool ties.
+- test_filtered_gradients_are_finite_before_and_after_adam_step: nonconstant
+  random CNN, filtered eager/compiled full-tree values and gradients agree;
+  sliced images/data[idx], scalar log_k and CNN arrays participate in one
+  Adam(1e-3) update. Parameter arrays, losses and all gradient arrays remain
+  finite before and after, and loss stays float32 (03 Training readiness).
+  These are synthetic model checks, not the full training acceptance gate.
+- Existing 22 ordinary preparation tests verify the mechanical move; their
+  independent mpmath/key/precision checks are unchanged. No real data/network.
 
-Actual evidence:
+Actual commands/results:
+- uv run --group examples python inspected installed signatures: Equinox
+  0.13.8, Optax 0.2.8; Conv2d/Linear accept explicit dtype, MaxPool2d stride
+  defaults to 1. No dependency/lock changes.
+- Initial optional run: 1 passed, 2 failed (12.22s). The checks incorrectly
+  treated pool metadata as arrays (AttributeError for float.dtype) and
+  treated its legitimate -inf initializer as a nonfinite parameter. Changed
+  the checks to filter inexact arrays; no production-code change or tolerance
+  relaxation was needed. Analytic second-derivative check passed initially.
+- JAX_ENABLE_X64=0 uv run --group examples pytest -q
+  tests/unit/check_mnist_model.py: 3 passed in 15.68s.
+- Same explicit command with JAX_ENABLE_X64=1: 3 passed in 12.09s.
 - JAX_ENABLE_X64=1 uv run pytest -q tests/unit/test_mnist_data.py
-  tests/unit/test_mnist_outcomes.py: 22 passed in 5.54s.
-- Same command JAX_ENABLE_X64=0: 22 passed in 5.00s.
-- Ruff lint: All checks passed! Mypy: no issues in 20 source files.
-  Initial formatting check found one README code-block blank line; formatted
-  it. First fresh-wheel gate stopped there, before tests; no code failure.
-- Warm-cache real-data probe, JAX_ENABLE_X64=0 uv run python, loaded the
-  MD5/SHA-verified four files from /private/tmp/survjax-mnist-verification.
-  It called calibrate_mnist(labels[:60000]), generated all 70k once, blocked
-  time array for timing, constructed public SurvivalData and explicitly
-  raised on invalid issues (none). For each config/name it recorded
-  mean(~outcomes.event[split_indices(config)[name]]). Recorded JSON is the
-  actual probe output. Censor calibration: 2.201846s; draw including compile:
-  .364040s on CPU. No dataset transfer/network was needed.
-- Measured c = 6.9890429382458406. Full train/validation/test censored
-  fractions .50036/.5079/.4995, smoke .5022/.499/.5045. NumPy float64 oracle
-  parameters and training source counts/hash, versions, seed and timings
-  recorded in calibration.json. Generated rows were not written to Git.
-- Independent uv run python mpmath probe at 40 digits: sum_d count_d/60000
-  * integral_0^c exp(-(t/(10*exp(-d/5)))**1.38) dt/c =
-  0.500000000000193332962136588715 (within existing 1e-10 tolerance).
-- scripts/check_wheel.sh --through A10: exit 0, all gates passed through A10.
-  Guard, Ruff (123 formatted)/lint and mypy (20 files) passed. Own suites:
-  1087 passed/7 skipped (83.64s) x64, 1093 passed/1 skipped (93.75s) x32.
-  Source doctests: 4 passed per mode (1.22s/1.15s). Acceptance suites:
-  2332 passed/28 skipped (100.36s) x64, 2322 passed/38 skipped (83.54s) x32.
-  Fresh artifact: /var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/
-  survjax-wheel.PwJRKN/survjax-0.0.1.dev0-py3-none-any.whl.
+  tests/unit/test_mnist_outcomes.py: 22 passed in 6.68s.
+- Same ordinary command with JAX_ENABLE_X64=0: 22 passed in 7.03s.
+- Ruff: 124 files already formatted, All checks passed! Mypy: Success:
+  no issues found in 20 source files.
+- JAX_ENABLE_X64=0 uv run --offline --isolated --group test python: asserted
+  find_spec('equinox') and find_spec('optax') are None; imported data helpers
+  and generated two rows. Output: Preparation imports and generates without
+  Equinox/Optax: float32 (2,). No downloads or data cache required.
+- scripts/check_wheel.sh --through A10: exit 0; all gates passed through A10.
+  Guard/Ruff/mypy pass. Own suites: 1087 passed/7 skipped (88.92s) x64,
+  1093 passed/1 skipped (70.60s) x32. Doctests: 4 passed per mode
+  (1.06s/.92s). Acceptance: 2333 passed/27 skipped (67.10s) x64,
+  2324 passed/36 skipped (61.87s) x32. Approved examples packages present
+  enable the existing optional NumPyro/pandas acceptance checks.
+  Fresh artifact /var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/
+  survjax-wheel.lBjqN3/survjax-0.0.1.dev0-py3-none-any.whl.
 
-Environment: Python 3.12.9, JAX 0.11.2, NumPy 2.5.3, macOS arm64 CPU.
-No optional demo dependency is needed for this preparation step. No docs
-build (no docs edits), training run, fitted-reference/evaluation or full demo.
-CNN/loss/finite-gradient/checkpoint selection are the next separate steps.
-Independent review follows after committing; stop after this step's verdict.
+Environment: Python 3.12.9, JAX 0.11.2, NumPy 2.5.3, CPU. Optional neural
+checks use the already approved examples group. No docs build or real-MNIST
+training run: no docs or epoch runner in this step. Mypy covers core src,
+not examples. No claim that the full demo or neural acceptance is complete.
 
-## Round 1 follow-up
-
-Round 1 on 7e5217c returned fix-first for should-fix F-1: the dtype
-assertions used only weak Python-float c, so dropping the float32 cast
-escaped them. The key-algebra/dtype test now passes np.float64(7.0),
-retaining the float32 dtype assertions in both processes. This exercises
-the strongly typed float64 input path without requesting unavailable JAX
-float64 in float32 mode. No runtime or stored-output changes.
-
-N-1 remains an optional documented numeric precondition, as in the shared
-generator. Verified loader labels and generated global indices satisfy it.
-N-2 is recorded for the later run.py/metadata step: recompute calibration
-and split fractions, compare them with calibration.json before recording
-training results, and commit the executable metadata writer. Current README
-recipe reproduces all values; the reviewer verified bit-identical c and all
-six fractions in both modes, plus identical cross-mode outcomes.
-
-Reviewer-owned temporary worktree cleanup remains maintainer-owned under
-AGENTS.md; no reviewer files were edited. Reviewer direct gate reproduced
-its known missing-SURVJAX_WHEEL setup errors; implementer fresh-wheel gate
-passed before this test-only fix. Only focused suites and static checks are
-repeated for this stronger input, with no runtime/packaging change.
-
-Fix-up evidence: Ruff formatting (123 files already formatted), lint (All
-checks passed!) and mypy (20 source files) pass. Focused tests with the
-strong float64 c input: 22 passed in 6.08s (x64), 22 passed in 6.01s (x32).
+Next-step obligations: epoch runner must initialize log_k=0 and CNN from
+training mean with fold_in(uc,2), use prescribed shuffle keys/batch/epoch
+budgets, loudly reject nonfinite gradients at initialization and after step
+1, record epoch NLL, and retain only the earliest best validation checkpoint.
+MNIST.2 N-2 metadata writer/recomputation comparison remains for run.py.
+Independent review follows commit, then stop after this step's verdict.

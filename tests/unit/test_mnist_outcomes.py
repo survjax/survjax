@@ -13,7 +13,7 @@ import pytest
 import survjax
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from examples.survival_mnist import model  # noqa: E402
+from examples.survival_mnist import data as model  # noqa: E402
 
 
 def test_oracle_parameters_follow_digit_rule():

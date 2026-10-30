@@ -1,3 +1,62 @@
+# MNIST.3 — Float32 CNN and likelihood loss (2026-10-30)
+
+Start clean on release-minst at f232294. Maintainer approved MNIST.2 and
+requested the next bit. MNIST.2 round 2 returned merge (F-1 fixed;
+N-1 preconditions accepted, N-2 metadata writer remains for run.py).
+Continue MNIST; preserve all current and inherited plan records below.
+
+One concept: CNN/loss integration, before the epoch runner. Spec 11.2,
+10.3, 7.2–7.3; 03 details Precision, Network, Training (one update only).
+No library API, dependency, protected path, shared generator or docs edits.
+
+Files:
+- examples/survival_mnist/data.py: move the existing outcome constants and
+  helpers here unchanged, keeping ordinary preparation checks free of demo
+  dependencies. Existing model.py helper names remain re-exported.
+- examples/survival_mnist/model.py: exact Equinox CNN, explicit float32
+  Conv2d/Linear parameters, pool stride 2 for the specified geometry, scalar
+  per-image log scale; final bias log(mean observed training time). CNN
+  accepts an explicit initialization key (runner will use fold_in(uc,2)).
+  Plain loss((cnn,log_k), images, data) uses vmap, Weibull.from_log and mean
+  negative public likelihood. Runner will initialize scalar log_k=0.
+- tests/unit/test_mnist_outcomes.py: import preparation from data.py.
+- tests/unit/check_mnist_model.py: explicitly invoked optional-environment
+  checks, not silently skipped or included in ordinary pytest discovery.
+  Synthetic images/observations only: architecture/dtype/batch geometry,
+  analytic constant-head exponential loss and derivatives, second-order
+  forward/reverse checks on smooth head parameters, filtered-jit agreement,
+  finite gradients before/after one Adam(1e-3) update with data[idx].
+- README.md: preparation import update and exact optional-check commands.
+- REVIEW.md: overwrite with reading order, invariants, evidence and limits.
+
+Aim about 300 changed lines including mechanical move/tests. No training
+loop, checkpointing, smoke/full run, reference fit or figure in this step.
+Docs to-do: model/loss explanation and finite-gradient checks in live smoke.
+Next training step must implement loud finite-gradient failures, prescribed
+initialization/shuffle keys, epoch/batch budgets, validation-only selection
+and history. MNIST.2 N-2 metadata writer remains assigned to later run.py.
+
+Checks: focused ordinary preparation suite in separate dtype processes;
+explicit JAX_ENABLE_X64={0,1} uv run --group examples pytest -q
+ tests/unit/check_mnist_model.py (float32 neural arithmetic in both);
+Ruff/mypy and fresh-wheel scripts/check_wheel.sh --through A10. No network
+or real MNIST needed for this step. Record exact outputs/versions, commit,
+invoke independent-review skill for MNIST.3 (max 3 rounds/fix-ups), then stop.
+
+Implementation complete: CNN/loss and explicit optional checks, with unchanged
+outcome helpers moved to data.py. Raw source/test/README diff 318 changed
+lines including the mechanical move (new model module 65 lines). Initial
+checks incorrectly included MaxPool Python metadata/-inf initializer; fixed
+checks to select inexact arrays, with no runtime or tolerance change. Neural
+checks pass 3 per mode (15.68s/12.09s); ordinary preparation 22 per mode
+(6.68s/7.03s). Isolated offline test environment confirms preparation works
+without Equinox/Optax. Fresh-wheel through-A10 gate exited 0: own suites
+1087/1093 passed (7/1 skips), doctests 4 per mode, acceptance 2333/2324
+passed (27/36 skips); Ruff/mypy clean. Exact commands and limits in REVIEW.md.
+Commit, invoke independent MNIST.3 round 1, then stop after verdict.
+
+---
+
 # MNIST.2 — Fixed synthetic outcomes and censoring calibration (2026-10-30)
 
 Start clean on release-minst at e63220b; maintainer approved MNIST.1 and
