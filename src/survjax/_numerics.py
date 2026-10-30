@@ -63,7 +63,9 @@ def _weibull_rmst(shape: jax.Array, scale: jax.Array, cutoff: jax.Array) -> jax.
     # spec 7.1: a lost gamma probability must not become a false zero RMST.
     safe_probability = jnp.where(probability > 0, probability, 1.0)
     log_value = jnp.log(gamma_scale) + gammaln(1 + a) + jnp.log(safe_probability)
-    gamma_value = jnp.where(probability > 0, jnp.exp(log_value), jnp.nan)
+    # spec 7.2/8.7: lost P must not overflow an inactive exponential.
+    safe_log_value = jnp.where(probability > 0, log_value, 0.0)
+    gamma_value = jnp.where(probability > 0, jnp.exp(safe_log_value), jnp.nan)
 
     # Math: appendices/weibull-rmst.md#mean-tail-approximation.
     tail_shape = jnp.where(large, safe_shape, 1.0)

@@ -67,7 +67,24 @@ exactly as RMST.3, handle up to three rounds and stop/report. PH owns
 wrappers.py/exports and must wait for maintainer core integration and an
 explicit ownership handoff before built-in closure edits. No merge/push.
 
-Implementation evidence: 198 new derivative-test lines, 10 RMST tolerance
+## RMST.3 precision-failure isolation fix-up
+
+A post-commit probe found a spec 8.7 isolation violation outside the accuracy
+range: float32 k=[2,0.01], b=1.25 shared, tau=[0.75,0.01] gives a valid
+first value and a NaN failed second value, but the first reverse scale derivative
+is NaN (forward is finite). The gamma probability underflows; the inactive
+exp(log_value) then overflows because its substituted probability was one.
+Protect the exponentiation operand before it runs in src/survjax/_numerics.py;
+keep NaN as the failed value. Add a dtype-specific regression for failed-entry
+shared-scale isolation (k=0.005 in x64). No floors or tangent rule changes.
+The extra source/test lines keep this step below about 300 numerical lines.
+Validation: failed-entry first/second derivatives pass in both dtypes; the
+fresh-wheel A10 gate passes with own 1080/7 and 1086/1, doctests four
+per dtype, acceptance 2332/28 and 2322/38 passed/skipped. Record results,
+commit a fix-up, then request
+round 2 only after the current round 1 report is written.
+
+Initial implementation evidence at ab7afb1: 198 new derivative-test lines, 10 RMST tolerance
 lines and nine changed lines in the existing zero test (217 numerical-test/
 tolerance lines total). Focused tests pass 31 per dtype. The fresh-wheel A10
 gate exits 0: own 1079/7 x64 and 1085/1 x32 passed/skipped, doctests four

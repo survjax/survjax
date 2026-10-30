@@ -1,12 +1,13 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # RMST.3 — Full-range Weibull RMST derivative and isolation evidence
 
 Read PLAN.md RMST.3, spec 8.7/12.1 revision 38, then
 appendices/weibull-rmst.md; tests/unit/test_weibull_rmst_derivatives.py,
 tests/impl_tolerances.py and the expanded zero test in test_weibull_rmst.py.
-No production expression, public API, wrapper, export or dependency changed.
-This step adds about 220 numerical-test/tolerance changed lines.
+At ab7afb1 only tests/tolerances changed (about 220 numerical lines).
+The follow-up below also guards an inactive exponential after a gamma
+precision failure. No public API, wrapper, export or dependency changed.
 
 Invariants/reference origins:
 - 142 cases: six shapes × seven cutoff ratios × three scales (126), plus
@@ -77,3 +78,31 @@ preserve the zero/invalid policies and native shape-derivative restriction.
 Its separate step supplies PH RMST value/derivative/broadcasting/unsupported-
 family evidence. Executable RMST user docs and the final combined release gate
 remain later work; this step makes no PH or complete-release claim.
+
+## Implementer-found precision-failure isolation regression
+
+After ab7afb1 was committed and round 1 started, a targeted additional probe
+found that valid entries can receive NaN reverse derivatives from a failed
+NaN row outside the value-accuracy range. In x32 use k=[2,0.01], b=1.25
+shared, tau=[0.75,0.01]. In x64 use k=[2,0.005]. The valid row has a finite
+value/forward derivative, but its reverse scale derivative is NaN. Both
+pre-fix failures were reproduced against the committed helper. The failed
+row's gamma P underflows while Gamma(1+1/k) overflows; substituting P=1
+before log is insufficient because exp(log_value) then overflows in the
+inactive expression and contributes 0*inf in reverse AD.
+
+The fix substitutes a finite log operand before exponentiation when P is
+lost. It preserves the failed result as NaN and does not floor probabilities
+or alter valid active calculations. New failed_gamma_entry_isolates_shared_scale
+covers first and second scale derivatives in both modes/dtypes. This enforces
+the retained valid-entry isolation requirement; it adds no guarantee about
+the failed result's own tangent. Targeted first/second-order tests passed in both separate dtype processes:
+1 passed / 10 deselected, 11.01s x64 and 10.62s x32. The final unchanged
+scripts/check_wheel.sh --through A10 exited 0: own 1080 passed / 7 skipped
+x64 and 1086 passed / 1 skipped x32; doctests four per mode; independent
+2332 passed / 28 skipped x64 and 2322 passed / 38 skipped x32. Ruff format
+117 files, Ruff check and mypy (21 source files) passed. Final wheel is under
+/var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/survjax-wheel.AxC1Lt/.
+Numerical source/test total remains below about 300 changed lines. Round 1
+is reviewing ab7afb1; request round 2 on this meaningful fix-up only after
+its report is written. This is not a rerun of an unchanged snapshot.

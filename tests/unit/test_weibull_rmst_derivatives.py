@@ -196,3 +196,29 @@ def test_weibull_rmst_shared_parameters_isolate_valid_entries(field, x64_enabled
         np.testing.assert_allclose(
             jax.jit(hessian)(2.0, 1.25), reference(2.0, 1.25), rtol=RTOL[x64_enabled]
         )
+
+
+def test_weibull_rmst_failed_gamma_entry_isolates_shared_scale(x64_enabled):
+    """Spec 8.7: even a failed NaN result cannot poison a valid shared tangent."""
+    # Outside the accuracy range, P underflows while Gamma(1+1/k) overflows.
+    # The failed row must return NaN and remain isolated from the k=2 row.
+    shape = jnp.array([2.0, 0.005 if x64_enabled else 0.01])
+    cutoff = jnp.array([0.75, 0.01])
+
+    def mixed(b):
+        return Weibull(shape=shape, scale=b).rmst(cutoff)
+
+    def isolated(b):
+        return Weibull(shape=2.0, scale=b).rmst(0.75)
+
+    assert jnp.isnan(mixed(1.25)[1])
+    for transform in (jax.jacfwd, jax.jacrev):
+        derivative, reference = lambda b: mixed(b)[0], isolated
+        for _order in (1, 2):
+            derivative, reference = transform(derivative), transform(reference)
+            np.testing.assert_allclose(
+                jax.jit(derivative)(1.25),
+                reference(1.25),
+                rtol=RTOL[x64_enabled],
+                atol=TAIL_ATOL[x64_enabled],
+            )
