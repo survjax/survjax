@@ -1370,3 +1370,199 @@ harness corrections and limits are in REVIEW.md. Final whitespace/scope
 checks, commit and independent review follow. No library,
 docs, dependency, fixture or protected-path change. Remaining A9 steps above
 are still pending; this evidence does not close Slice A.
+
+---
+
+# Incoming main simulation planning records
+
+Preserved from the incoming main parent during this merge. The shared older
+plan history is retained above; PH remains the active branch work.
+
+# SIM.3 — Complete the approved examples diagnostics environment (2026-10-30)
+
+Start clean on release-simulation at
+`ce68f76ffc4ee0fdcda1757232f88ee57ff13c3d`; SIM.2 round 1 returned merge.
+Preserve the unfinished SIM/A10 plan history below. The maintainer approved
+ArviZ 0.23.0 in the existing dependency proposal and now requests the next step.
+One concept: finish the examples dependency group for Bayesian tail ESS.
+
+Files and scope:
+- `pyproject.toml` / `uv.lock`: add exact `arviz==0.23.0` to examples;
+  resolve without upgrading existing packages or changing runtime dependencies.
+- `examples/weibull_simulation/DEPENDENCIES.md`: mark the six-package setup
+  complete, record the actual installed diagnostics probe and its command.
+- Overwrite `REVIEW.md`: reading order, dependency isolation, actual evidence
+  and limits; preserve the short temporary probe source for reproducibility.
+
+Spec 10.3; shared use-case 00 dependency-group rule and Bayesian details
+Sampling/Diagnostics: NumPyro split R-hat/ESS, ArviZ tail ESS. No source API,
+shared generator, ordinary tests, docs/navigation/config or protected scripts.
+Docs to-do: the future Bayesian page should use this group for tail ESS.
+Target below 300 changed implementation/config/lock lines, records excluded.
+
+Checks: `uv lock --check`, `uv sync --locked --group examples`, compare old/new
+lock name/version mappings. Explicit optional-environment probe uses seeded
+4x1000 iid Normal draws (known equal-chain law) and deliberately shifted
+chains to verify the chain/draw axes, NumPyro summary and ArviZ bulk/tail ESS
+and R-hat; this is compatibility evidence, not posterior convergence evidence.
+The pinned ArviZ import writes a daily stamp under Path.home()/arviz_data, so
+run that probe with required sandbox escalation rather than modifying HOME.
+No new ordinary tests for the dependency-only change. Run the existing focused
+generator suite in both dtype processes, Ruff, mypy, and unchanged fresh-wheel
+through-A10 gate. Record versions/results, write REVIEW.md, commit, invoke the
+exact independent-review skill for SIM.3, follow at most 3 rounds and stop.
+PH fitting still waits for maintainer integration of reviewed prerequisites.
+
+
+Implementation: added the approved ArviZ pin and six lock packages. All 165
+prior package versions unchanged; runtime dependencies remain jax/numpy.
+Actual installed-group CPU probe passes named chain/draw axes, iid gates and
+shifted-chain detection: NumPyro R-hat 1.0000270083 / ESS 3976.58; ArviZ
+R-hat 1.0001031616 / bulk ESS 3979.33 / tail ESS 3931.29. ArviZ's expected
+import warning was emitted; sandbox escalation allowed its home-cache stamp.
+Existing generator suites: 17 passed per mode (3.60s/3.18s), Ruff/mypy/lock
+checks pass. Fresh-wheel through-A10 gate exited 0: own suites 1065/1071
+passed (7/1 skipped), doctests 4 per mode, independent 2333/2324 passed
+(27/36 skipped). ArviZ's pandas dependency enabled the existing x32 pandas
+conversion test. Wheel hash is identical to SIM.2 and runtime METADATA still
+requires only jax/numpy. REVIEW.md records exact commands, outputs and limits.
+Commit and exact independent review follow; stop after the verdict.
+
+---
+
+# SIM.2 — Address shared foundation questions and enable examples (2026-10-29)
+
+Start on `release-simulation` at `3556d12c1abca553f77607c1e1739df2bd1911f0`.
+The only initial dirty file is study.py with three maintainer question comments.
+SIM.1 round 2 returned merge. Preserve all unfinished history below.
+Maintainer approves the proposed dependencies in this turn; no renewed
+approval is needed for those exact pins. Keep PH fitting deferred.
+
+Files and scope:
+- `pyproject.toml` / `uv.lock`: examples group with exact tested Optimistix
+  0.1.0, Matplotlib 3.11.2, Equinox 0.13.8, Optax 0.2.8, NumPyro 0.22.0.
+  Keep existing runtime/dev/docs versions unchanged. The five-package lock
+  preview is 160 changed lines; full six-package setup is 295 lock lines
+  alone. Approved ArviZ 0.23.0/tail ESS is a separate later step so this step
+  including generator checks remains about 300 lines. No protected scripts.
+- `examples/weibull_simulation/study.py`: answer/consume the maintainer notes,
+  define quadrature rules before their closure, and explain calibration as
+  once-per-target host setup outside the compiled replicate loop. PH input
+  preference is asked asynchronously (baseline/log-HR versus PH rate m).
+  Preserve the current call contract; any PH convenience will be optional,
+  demo-only, and checked against the existing scale formulation.
+- `tests/unit/test_simulation_generator.py`: if adding PH input, analytical
+  PH/scale and calibration identities, row broadcasts and transformed values/
+  derivatives. Reuse existing tolerances. Existing numerical checks also
+  exercise the quadrature block reorder.
+- `examples/weibull_simulation/DEPENDENCIES.md`: mark approval, staged pins,
+  remaining approved ArviZ stage and exact optional-environment invocation.
+- Overwrite `REVIEW.md` with reading order, input-contract updates, evidence
+  and limits, preserving SIM.1's outcome in this plan and Git history.
+
+Spec 4.4/4.6/7.3/10.3; use-cases/00-common and 01-details DGP/calibration.
+No library API, shared docs/config or other workstream files. Docs to-do:
+future simulation page should show PH inputs and setup versus compiled work.
+Run generator checks in separate x64/float32 processes, approved-environment
+compatibility probe, Ruff, mypy, lock consistency and fresh-wheel through-A10
+gate. Inspect size before committing; split if needed. Commit, invoke exact
+independent-review skill for SIM.2 (max 3 rounds), then stop/report.
+
+
+Implementation: optional log_hazard_ratio=0.0 added to both generator and
+calibration, with unchanged no-keyword calls and U/C key split. Rules now
+precede the fraction closure; calibration explicitly remains host-only setup.
+No response to the optional PH-form preference arrived during environment
+work; used the stated baseline/log-HR convention from 01-details and spec 4.4.
+Approved five-package group resolves/installs; all 155 existing locked
+versions unchanged, 10 additions. Optional compiled BFGS/NN-update/NUTS/SVG
+probe passes in the actual group environment. ArviZ remains approved for its
+separate lockfile step. Total implementation/test/config/proposal diff is
+303 changed lines, including 160 lockfile lines.
+
+Focused final suites: 17 passed per dtype (10.17s/10.56s), Ruff/mypy/lock
+checks pass. A joint three-parameter check_grads initially failed a float32
+second-order projection near zero; no tolerance was changed. Retained the
+original k/b finite-difference checks and verified all PH gradient/Hessian
+entries against inverse-CDF algebra, including cross-partials. The full
+fresh-wheel through-A10 gate exited 0: own suites 1064/1071 passed (7/1
+skips), doctests 4 per mode, independent 2333/2323 passed (27/37 skips).
+NumPyro enables one acceptance check previously skipped. REVIEW.md records
+exact commands, times, initial numerical failure and final focused evidence.
+Commit and exact independent review follow, then stop/report.
+
+---
+
+# SIM.1 — Shared Weibull generator and censoring calibration (2026-10-29)
+
+Work on `release-simulation` from full base
+`8757c0fda78e34e6e818249adedd2a144a33c33d` (clean launch snapshot).
+The matching reviewer checkout already exists. Preserve the unfinished A10
+history below; its docs and A9/PH/RMST work belong to other implementers.
+
+One concept: reusable demo-only inverse-CDF generation and host-side numerical
+calibration, without PH, fitting, core changes or optional dependencies.
+Spec revision 37: 3.3, 4.4 (generating PH-equivalent scales only), 7.3,
+10.3, 11.4, 12.1–12.3; use-cases/00-common.md and both 01 files.
+
+Files and contract to implement:
+- `examples/weibull_simulation/study.py`: `generate_weibull(key, shape, scale,
+  censor_limit, *, sample_shape=())`, returning a named tuple with `time`,
+  `event`, `event_time`, `censor_time`. Parameters broadcast to row/batch axes;
+  sample_shape prefixes those axes. Exactly split the supplied key into U/C
+  keys; callers derive scenario/replicate keys with the specified fold/split
+  scheme. JAX generation supports jit/vmap and selected process precision.
+- Same module: `calibrate_censoring(shape, scale, target) -> float` uses NumPy
+  float64 quadrature and bracketed bisection of the mean integrated survival.
+  Concrete positive finite broadcast parameters only; calibration is host-only,
+  not an RMST implementation or differentiable library API. Check quadrature
+  convergence; fail explicitly rather than return an unverified calibration.
+- `tests/unit/test_simulation_generator.py`: analytical exponential calibration,
+  independent mpmath Weibull quadrature, heterogeneous broadcasting, key mapping,
+  transformation agreement and fixed-seed large-sample survival/HR/censoring
+  recovery with justified statistical bounds. Centralize any new test bounds
+  in `tests/impl_tolerances.py`. Ordinary checks remain offline.
+- `examples/weibull_simulation/DEPENDENCIES.md` and a temporary isolated environment
+  probe (record the exact invocation in REVIEW.md): concrete exact-version proposal for the later examples group, test
+  Optimistix/Matplotlib/Equinox/Optax/NumPyro against locked Python/JAX/NumPy.
+  No pyproject/lock edits or added diagnostics/loader packages in this step.
+- `REVIEW.md`: reading order, invariants, evidence and limitations; freeze the
+  reviewed consumer import contract and calibrated simulation c values.
+
+Target at most about 300 implementation/test/proposal lines (plan/review
+records separate); split fitting, scenario runner, results and docs into later
+steps. Docs to-do: executable simulation page and recorded full results after
+reviewed PH integration; propose fresh docs command with examples selected.
+
+Checks: focused tests in separate JAX_ENABLE_X64=1/0 processes, Ruff formatting
+and lint, mypy src, unchanged `scripts/check.sh --through A10` cumulative gate.
+Record exact versions, commands and outputs. Commit the step, invoke the exact
+independent-review skill command for SIM.1, follow up to three rounds, then stop.
+Dependency installation into the project still awaits maintainer approval;
+only an isolated proposal probe is authorized here. Never merge/push/publish.
+
+
+Implementation: 300 added source/test/proposal lines, excluding plan/review
+records; no library API, dependencies, lockfile or protected-file edits.
+Reviewed consumer contract is recorded in REVIEW.md pending round 1.
+Both simulation targets independently match 40-digit mpmath quadrature;
+focused final suites: 12 passed in each dtype, including second derivatives.
+Ruff formatting/lint and mypy pass. Calibrated c values: 47.793149053990135
+and 19.17253543619806 years; pilot empirical censoring .249355/.550485.
+Dependency versions proposed and tested in isolation: Optimistix 0.1.0,
+Matplotlib 3.11.2, Equinox 0.13.8, Optax 0.2.8, NumPyro 0.22.0 against the
+existing locked JAX/jaxlib 0.11.2 and NumPy 2.5.3; group/lock approval pending.
+Cumulative fresh-wheel through-A10 gate: exit 0, all gates passed.
+Own suites 1059/1066 passed (7/1 existing skips); independent 2332/2322
+passed (28/38 existing skips); source doctests 4 per mode. REVIEW.md records
+exact timings, commands and the focused derivative-test evidence. Commit and
+independent round 1 now follow; stop after the review verdict.
+
+Round 1 on 1e3f5fc returned fix-first for F-1: add explicit quadrature-failure
+coverage. Add the k=20/b=5/target=.5 RuntimeError regression, and clarify N-1
+underflow and N-2 time units in docstrings; N-3 import-helper suggestion stays
+conditional. Fix-up is 7 net source/test lines (307 total), no behavior or
+contract change. Focused suites: 13 passed per mode (4.32s/4.05s), Ruff and
+mypy clean. Commit separately and request round 2 after round 1 completes.
+
+---
