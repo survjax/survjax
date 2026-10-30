@@ -1,5 +1,21 @@
 # Deviations and spec questions
 
+## D-028 MNIST preparation placement
+
+- Step: MNIST.3 independent review, S-1.
+- Spec section: 11.2 delegates exact demo layout to use-cases/03 details,
+  "Files and commands".
+- What the spec says: data.py covers acquisition/parsing/splits; model.py
+  covers generator use, CNN, loss, training and metrics.
+- What was done: moved unchanged outcome constants/calibration/generation
+  from model.py to data.py so ordinary preparation tests need no Equinox.
+  Both named files remain; no additional module or dependency was added.
+- Proposal: accept preparation in data.py, leaving optional neural code in
+  model.py. The reviewer identified the placement as a maintainer question;
+  no spec change or further placement change has been made. Maintainer
+  decision is required before continuing to the training step.
+- Status: open.
+
 ## D-027 Concordance result representation and undefined diagnostics
 
 - Step: A10 planning (2026-10-23), before public integration.

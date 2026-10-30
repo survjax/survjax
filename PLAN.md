@@ -55,6 +55,17 @@ without Equinox/Optax. Fresh-wheel through-A10 gate exited 0: own suites
 passed (27/36 skips); Ruff/mypy clean. Exact commands and limits in REVIEW.md.
 Commit, invoke independent MNIST.3 round 1, then stop after verdict.
 
+Round 1 returned fix-first for F-1: a missing dense ReLU escaped checks. Add
+an independent NumPy forward reference; remove unused re-exports (N-1) and
+rename the preparation test alias (N-2). N-3: next runner must construct data
+from float32 outcomes. S-1 invocation already follows the handoff's explicit
+optional-check instructions; future standing-gate policy is maintainer-owned.
+Record the file-role question as open D-028 without further layout/spec changes.
+Complete the authorized test fix and review, then stop for maintainer's layout
+decision before training. Focused suites in both modes and static checks;
+no repeated full gate for these test/import/record-only changes. Commit a
+fix-up and invoke MNIST.3 round 2, then stop/report all open questions.
+
 ---
 
 # MNIST.2 — Fixed synthetic outcomes and censoring calibration (2026-10-30)

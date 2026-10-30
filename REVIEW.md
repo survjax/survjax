@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # MNIST.3 — Float32 CNN and public likelihood loss
 
@@ -100,3 +100,39 @@ budgets, loudly reject nonfinite gradients at initialization and after step
 1, record epoch NLL, and retain only the earliest best validation checkpoint.
 MNIST.2 N-2 metadata writer/recomputation comparison remains for run.py.
 Independent review follows commit, then stop after this step's verdict.
+
+## Round 1 follow-up
+
+Round 1 on 6c6db1a returned fix-first for F-1: missing dense ReLU escaped
+all tests. Added a NumPy reference pass using only layer weights/biases:
+valid 3x3 cross-correlation, explicit ReLU, cropped stride-2 block max,
+flatten/dense/ReLU/head. Expected output never calls Equinox layers or CNN.
+No production forward/loss or tolerance changes. N-1 removed unused helper
+re-exports; N-2 renamed the misleading data-as-model alias to mnist. N-3 is
+recorded for the runner: construct SurvivalData from float32 outcome times.
+
+S-1 remains for maintainer review, with no spec/gate changes:
+- Optional checks follow plans/release-agents/mnist.md ("dedicated optional-
+  environment checks") and plans/release-agents/README.md lines 77 onward ("Give demo checks an
+  explicit optional-environment invocation without changing the standard
+  runner or silently skipping failures"). This supplies the task's existing
+  invocation policy; a future standing gate policy remains maintainer-owned.
+- File-role placement is recorded as open D-028 in DEVIATIONS.md. I should
+  have surfaced that layout choice before moving helpers. Proposed acceptance
+  keeps preparation independent of demo packages; no further placement or
+  spec change is made while awaiting the maintainer. Complete the already
+  authorized F-1 fix/review, then stop for that decision before training.
+
+Reviewer verified the helper move byte-identical, reproduced the analytic
+loss/derivatives, and ran 25 focused tests per mode. Its direct cumulative
+gate reproduced the known missing-SURVJAX_WHEEL setup errors; the implementer
+fresh-wheel gate passed as recorded above. No full gate repeat for a test
+addition, alias/re-export cleanup and records; focused suites and static
+checks follow. Reviewer worktree cleanup remains maintainer-owned.
+
+Fix-up evidence: uv run ruff format (2 reformatted/1 unchanged), Ruff lint
+(All checks passed!), mypy (20 source files) pass. Combined explicit optional
+and preparation suites: 26 passed in 14.37s (JAX_ENABLE_X64=0), 26 passed
+in 13.52s (JAX_ENABLE_X64=1), using uv run --group examples pytest -q
+tests/unit/check_mnist_model.py tests/unit/test_mnist_outcomes.py
+tests/unit/test_mnist_data.py. No tolerance or expected-value relaxation.

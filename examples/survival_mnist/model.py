@@ -7,12 +7,6 @@ from jax.typing import ArrayLike
 
 import survjax
 
-# Preserve the preparation names introduced in MNIST.2; data.py needs no Equinox.
-from examples.survival_mnist.data import TRUE_LOG_SCALES as TRUE_LOG_SCALES
-from examples.survival_mnist.data import TRUE_SHAPE as TRUE_SHAPE
-from examples.survival_mnist.data import calibrate_mnist as calibrate_mnist
-from examples.survival_mnist.data import generate_outcomes as generate_outcomes
-
 
 class CNN(eqx.Module):
     """Map one (1,28,28) float32 image to scalar Weibull log scale."""

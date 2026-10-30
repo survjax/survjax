@@ -47,6 +47,33 @@ def test_cnn_geometry_bias_precision_and_batching():
     )
 
 
+def test_forward_matches_numpy_cross_correlation_relu_and_max_pool():
+    """03 Network: independent NumPy operations pin every activation and pool."""
+    cnn, images, _ = setup()
+    hidden = np.asarray(images[0])
+    for layer in (cnn.conv1, cnn.conv2):
+        windows = np.lib.stride_tricks.sliding_window_view(hidden, (3, 3), axis=(1, 2))
+        hidden = np.einsum("chwkl,ockl->ohw", windows, np.asarray(layer.weight))
+        hidden = np.maximum(hidden + np.asarray(layer.bias), 0)
+        channels, height, width = hidden.shape
+        height, width = height // 2 * 2, width // 2 * 2
+        hidden = (
+            hidden[:, :height, :width]
+            .reshape(channels, height // 2, 2, width // 2, 2)
+            .max(axis=(2, 4))
+        )
+    features = np.asarray(cnn.dense1.weight) @ hidden.ravel() + np.asarray(
+        cnn.dense1.bias
+    )
+    expected = (
+        np.asarray(cnn.dense2.weight) @ np.maximum(features, 0)
+        + np.asarray(cnn.dense2.bias)
+    )[0]
+    np.testing.assert_allclose(
+        cnn(images[0]), expected, atol=tol.ATOL[False], rtol=tol.RTOL[False]
+    )
+
+
 def test_loss_matches_exponential_algebra_and_second_derivatives():
     """03 loss/spec 7.3: constant b=2,k=1 yields NLL=1+2*log(2)/3."""
     cnn, images, data = setup()
