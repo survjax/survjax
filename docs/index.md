@@ -10,6 +10,8 @@ available, along with Harrell's concordance for caller-supplied risk scores.
 Other likelihood modes, families, summaries and evaluation metrics are
 planned; the Slice A completion gate has not yet been met.
 
+[Verifying the Slice A subset](slice-a-verification.md) covers compiled
+derivatives, installed-wheel checks and reproducing the CPU baseline.
 [Log likelihoods](likelihood.md) explains how survjax computes likelihood
 contributions and how to call it, illustrated by fitting exponential and
 Weibull models with JAX.
@@ -39,6 +41,7 @@ survival-data
 builtin-families
 likelihood
 numerical-behaviour
+slice-a-verification
 concordance
 grids
 distributions
