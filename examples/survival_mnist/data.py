@@ -128,7 +128,9 @@ def split_indices(config: str = "full") -> dict[str, np.ndarray]:
     if config not in ("full", "smoke"):
         raise ValueError("config must be 'full' or 'smoke'")
     uc = jax.random.fold_in(jax.random.key(20261025), 3)
-    permutation = np.asarray(jax.random.permutation(jax.random.fold_in(uc, 1), 60000))
+    permutation = np.asarray(
+        jax.random.permutation(jax.random.fold_in(uc, 1), 60000), dtype=np.int64
+    )
     cohorts = {
         "train": permutation[10000:],
         "validation": permutation[:10000],

@@ -124,6 +124,11 @@ def test_fixed_splits_and_smoke_prefixes():
     np.testing.assert_array_equal(full["validation"], expected[:10000])
     np.testing.assert_array_equal(full["train"], expected[10000:])
     np.testing.assert_array_equal(full["test"], np.arange(60000, 70000))
+    # Reviewed JAX 0.11.2 cohort anchor (MNIST.1 review N-3), not new expected data.
+    np.testing.assert_array_equal(
+        full["validation"][:5], [16629, 39411, 48950, 18316, 47095]
+    )
+    assert all(indices.dtype == np.int64 for indices in full.values())
     assert len(np.unique(np.concatenate(list(full.values())))) == 70000
     for name, size in zip(full, (5000, 1000, 2000), strict=True):
         np.testing.assert_array_equal(smoke[name], full[name][:size])

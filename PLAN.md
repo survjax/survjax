@@ -1,3 +1,59 @@
+# MNIST.2 — Fixed synthetic outcomes and censoring calibration (2026-10-30)
+
+Start clean on release-minst at e63220b; maintainer approved MNIST.1 and
+requested the next step. MNIST.1 round 2 returned merge (F-1/N-1 fixed;
+optional N-2/N-3 remained). Continue the same MNIST sub-slice; retain its
+sections and inherited unfinished SIM/A9 records below.
+
+One concept: outcome preparation, before network/training/reference fitting.
+Spec 11.2, 10.3; 03 details Precision, Splits and keys, Outcome generator;
+00-common shared generator. No library API, dependency or protected edits.
+
+Files:
+- examples/survival_mnist/model.py: demo-only float64 oracle log-scale table,
+  host calibration from exactly the 60k training-source labels with the
+  unchanged shared calibrator; float32 outcomes via the shared generator,
+  one fold_in(fold_in(fold_in(key(20261025),3),0),global_index) per image.
+  Explicit indices permit checking subset/reordering stability; the eventual
+  runner generates all 70k outcomes before splitting. Expose existing shared
+  GeneratedData result, avoiding a new container or core sampling API.
+- examples/survival_mnist/calibration.json: measured c, float64 oracle table,
+  aggregate training digit counts, input hashes, versions, key scheme and
+  realized full/smoke censoring fractions from one fixed run. No image rows.
+- examples/survival_mnist/data.py and tests/unit/test_mnist_data.py: resolve
+  prior optional N-2/N-3 with stable host integer dtype and the reviewed
+  JAX 0.11.2 validation-prefix regression anchor.
+- tests/unit/test_mnist_outcomes.py: offline synthetic digit labels; analytical
+  oracle formula, independent high-precision quadrature of calibrated mixture,
+  training-source-only calibration inputs, direct per-index U/C key algebra,
+  eager/jit/vmap agreement and reordered/subset outcome identity; float32
+  fields in both modes, valid SurvivalData and finite oracle likelihood.
+- README.md: minimal preparation recipe and recorded calibration provenance;
+  overwrite REVIEW.md with reading order, invariants, evidence and limits.
+
+Target about 300 changed source/test/artifact lines; no MNIST data, network,
+CNN, optimizer, full result claim, docs or shared generator/lock edits. Docs
+to-do: generating rule, calibration c, split censoring and float32 exception.
+Checks: focused tests both processes, Ruff/mypy; real warm-cache 70k outcome
+probe (float32 draws, NumPy float64 calibration/oracle); independent mpmath
+mixture integral; fresh-wheel scripts/check_wheel.sh --through A10. Keep
+ordinary tests offline with synthetic labels only. Record exact evidence,
+commit, invoke independent-review skill for MNIST.2 (max three rounds with
+fix-ups), then stop after the verdict.
+
+Implementation/evidence: float64 c=6.9890429382458406, independently checked
+with 40-digit mixture quadrature (.5000000000001933). All 70k outcomes were
+generated once in float32; public data validation passed; full censoring
+fractions train/validation/test .50036/.5079/.4995 recorded with metadata.
+Offline focused suites 22 passed per mode (5.54s/5.00s). Fresh-wheel gate
+exited 0: own tests 1087/1093 passed (7/1 skips), doctests 4 per mode,
+acceptance 2332/2322 passed (28/38 skips), Ruff/mypy clean. Initial README
+blank-line formatting failure was corrected before the successful gate.
+Source/test/artifact diff about 276 lines. Exact commands/timings/limits in
+REVIEW.md. Commit then independent MNIST.2 round 1; stop after verdict.
+
+---
+
 # MNIST.1 — Verified data acquisition and deterministic splits (2026-10-30)
 
 Start clean on maintainer-created release-minst at ee72c83. Shared generator,
