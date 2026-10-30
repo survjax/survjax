@@ -1,4 +1,4 @@
-# Approved examples environment (SIM.2)
+# Approved examples environment (completed in SIM.3)
 
 The maintainer approved these exact pins; they now form the `examples` group:
 
@@ -9,12 +9,17 @@ The maintainer approved these exact pins; they now form the `examples` group:
 | Equinox | 0.13.8 | MNIST model; Optimistix also needs it |
 | Optax | 0.2.8 | MNIST training |
 | NumPyro | 0.22.0 | Bayesian inference and built-in diagnostics |
+| ArviZ | 0.23.0 | Bayesian tail ESS |
 
 Tested on CPU: Python 3.12.9, locked JAX/jaxlib 0.11.2/NumPy 2.5.3; transitive Lineax 0.1.1.
 Compiled vmapped BFGS, Equinox/Optax update, short NUTS and Agg SVG export pass.
-REVIEW.md records the isolated command/limits; full demos/other versions remain untested.
-ArviZ 0.23.0 is also approved and isolated-probe tested for Bayesian tail ESS;
-its lockfile addition is a separate step to keep this change reviewable.
+Commit `ce68f76` (SIM.2) records that compatibility probe; full demos/other versions remain untested.
+The complete six-package group is now locked and installed. SIM.3 verified
+chain/draw axes, NumPyro split R-hat/ESS and ArviZ bulk/tail ESS on seeded iid
+Normal draws; shifted chains were detected. These are environment checks,
+not convergence evidence for the Bayesian demo. Probe source and exact
+invocation are preserved in REVIEW.md. ArviZ 0.23.0 writes a daily import
+warning stamp under ~/arviz_data; the probe required sandbox escalation.
 No loader dependency is required for the standard-library IDX reader.
 
 Install with `uv sync --locked --group examples`; use `uv sync --locked --group docs --group examples` for future demo docs builds.

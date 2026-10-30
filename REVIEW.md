@@ -1,157 +1,102 @@
 Independent review: round 1/3
 
-# SIM.2 — Maintainer questions and approved examples environment
+# SIM.3 — Complete the approved diagnostics environment
 
-Branch release-simulation; start 3556d12c1abca553f77607c1e1739df2bd1911f0.
-SIM.1 round 2 returned merge. Initial dirty file was study.py containing three
-maintainer questions; each is addressed here. Existing PLAN history preserved.
-About 300 source/test/config/lock/proposal changed lines (303 before records).
+Branch release-simulation, clean start ce68f76ffc4ee0fdcda1757232f88ee57ff13c3d.
+SIM.2 round 1 returned merge. Maintainer previously approved ArviZ .23.0 and
+now requests the next step. No new API, demo/source behavior or ordinary tests.
+Existing PLAN history remains. Under 200 changed config/lock/proposal lines.
 
 ## Reading order
 
-1. PLAN.md SIM.2 and the maintainer questions recorded below.
-2. examples/weibull_simulation/study.py: optional PH input and calibration
-   setup order; host calibration remains outside compiled replicate work.
-3. tests/unit/test_simulation_generator.py: mpmath PH calibration, transformed
-   generator identity, unusable effective scales and analytical PH derivatives.
-4. pyproject.toml / uv.lock / examples/weibull_simulation/DEPENDENCIES.md:
-   approved exact pins, unchanged existing versions, staged ArviZ follow-up.
+1. PLAN.md SIM.3; spec 10.3 and Bayesian details Sampling/Diagnostics.
+2. pyproject.toml and uv.lock: the final approved examples pin and its six
+   packages, with all 165 prior package versions unchanged.
+3. examples/weibull_simulation/DEPENDENCIES.md: completed group and actual
+   environment evidence; the optional diagnostics probe below.
 
-## Questions and decisions
+## Invariants and verification mapping
 
-- "rules is used but not defined until below": Python resolves the closure
-  when fraction is called, after initialization. Valid but unnecessarily hard
-  to read; now initialize rules before defining the closure. A JAX function
-  can also close over constants; this ordering was not a JAX limitation.
-- "a lot of np code and python loops; will this ever be jitted?": no, this is
-  concrete once-per-cohort/target float64 setup. Its result c is reused by
-  compiled generation/fits. Calibrating inside each replicate would also
-  change the intended fixed-c experiment. Docstring makes this split explicit.
-- "explicit PH parameterization would be handy": expose optional keyword
-  log_hazard_ratio=0.0 on both generation and calibration; scale remains b0.
-  H(t)=exp(eta)*(t/b0)**k, equivalent to Weibull scale b0*exp(-eta/k).
-  Asked baseline/log-HR versus Weibull-PH rate m asynchronously; no answer
-  arrived while independent environment work ran. Proceeded with the stated
-  baseline/log-HR default, matching the 01-details gamma*arm formulation and
-  spec 4.4 wrapper input. No extra library wrapper or fitting implementation.
+- Spec 10.3 / use-case 00: ArviZ belongs only to the examples dependency group.
+  Core runtime dependencies remain jax and numpy. No protected build scripts,
+  docs config/navigation, exports or other workstream files touched.
+- Bayesian details require NumPyro split R-hat/ESS and ArviZ tail ESS. The
+  compatibility probe takes four independently seeded Normal chains with
+  shape (4,1000), converts to InferenceData and checks named chain/draw axes.
+  Both R-hat values <1.01 and all ESS values >400, using the use-case gates.
+  It then shifts chain means by 0,2,4,6 and requires both R-hat implementations
+  to notice nonmatching chains. This catches mistakenly pooled chains.
+  It is not a posterior-convergence check or an implementation of the demo.
+- No library code, shared generator/import contract, fitting, numerical
+  tolerances or tests changed. Existing independent install checks establish
+  core isolation; inspect the fresh-wheel hash below too.
+- All 165 existing locked package versions are identical by parsed name/version
+  comparison. Only ArviZ .23.0, h5netcdf 1.8.2, pandas 3.1.0, setuptools 84.2.1,
+  xarray 2026.9.0, xarray-einstats .11.0 are added. Original proposal approval
+  persists; no renewed dependency approval requested.
+- The exact pinned ArviZ package source confirms a daily import warning stamp
+  under Path.home()/arviz_data. Probe ran with required sandbox escalation;
+  HOME and package code were not modified. FutureWarning was emitted normally.
 
-## Invariants and requirement/test mapping
+## Actual commands/results
 
-- Shared 00 / 01 DGP: no-keyword calls preserve the old shape/scale generator.
-  The sole key still splits U then C; output remains the same GeneratedData
-  NamedTuple, sample_shape prefix and boolean event. eta participates in all
-  parameter broadcasting. Positive eta means higher hazard/shorter times.
-- Spec 4.4/4.6: PH transformation is a scale conversion, not a new distribution.
-  Multi-axis k/b0/eta test compares ordinary/eager/jit/jit-of-vmap outputs to
-  the verified equivalent Weibull law, with the identical supplied key.
-- Host calibration is still the equal-row mean of integral S/c, now after
-  optional PH scale conversion. Existing 40-digit mpmath checks for both
-  simulation targets now use baseline b0 and arm-wise eta. Existing plain
-  calibration/empirical checks remain. Invalid eta or unrepresentable positive
-  effective scales raise ValueError. No clipping, floors or epsilons.
-- Spec 7.3: original k/b check_grads(order=2,fwd/rev) retained. New PH test
-  derives all three first partials and the full 3x3 Hessian independently
-  from T=b*exp(a/k), a=log(-log(U))-eta. Checks compiled jacfwd/jacrev and
-  hessian against that algebra, including all cross-partials, both dtypes.
-- Spec 10.3: user explicitly approved the version proposal. The examples
-  group pins Optimistix .1.0, Matplotlib 3.11.2, Equinox .13.8, Optax .2.8,
-  NumPyro .22.0. Core dependencies remain jax/numpy only. All 155 prior lock
-  package versions are identical; 10 new transitive/direct packages added.
-  ArviZ .23.0 remains approved and isolated-probe tested but its six-package
-  transitive addition is staged separately: full group preview had 295 lock
-  lines alone; this stage's lock has 160 changed lines. No approval re-request.
-- No public library API, protected scripts, docs/config or another agent's
-  files changed. Existing demo entry points/imports remain valid. Consumer
-  coordination goes through the maintainer: optional eta is the only addition.
+`uv lock`: resolved 171 packages, added the six packages listed above.
+`uv lock --check`: exit 0, resolved 171 packages.
+`uv sync --locked --group examples`: exit 0, installed six new packages and
+rebuilt the local editable package. No earlier package version changed.
 
-## Updated shared import contract
+Optional-environment probe (source preserved below):
+`uv run --locked --group examples env JAX_ENABLE_X64=1 MPLCONFIGDIR=/private/tmp/survjax-sim-mpl python /private/tmp/survjax-sim3-diagnostics.py`
+Exit 0, devices [CpuDevice(id=0)]. Python 3.12.9, JAX/jaxlib .11.2,
+NumPy 2.5.3; approved Optimistix .1.0, Matplotlib 3.11.2, Equinox .13.8,
+Optax .2.8, NumPyro .22.0, ArviZ .23.0. Also prints the six new package
+versions above. NumPyro split R-hat 1.0000270082954177, ESS 3976.5802682493636;
+ArviZ R-hat 1.0001031616427534, bulk ESS 3979.3278033665047,
+tail ESS 3931.288721722709. Both shifted-chain checks pass.
+Final output: PASS: chain/draw axes, iid diagnostic gates and shifted-chain detection.
 
-From a source checkout with its root on sys.path, import from
-examples.weibull_simulation.study:
-
-- generate_weibull(key, shape, scale, censor_limit, *, sample_shape=(),
-  log_hazard_ratio=0.0) -> GeneratedData(time,event,event_time,censor_time).
-- calibrate_censoring(shape, scale, target, *, log_hazard_ratio=0.0) -> float.
-
-No-keyword calls and explicit-key scheme are unchanged. For a trial, pass
-lp=gamma*arm with baseline scale b0. Calibration remains host-only float64;
-generation supports JIT/vmap and follows input/process precision.
-
-## Actual checks
-
-`uv lock --check`: Resolved 165 packages, exit 0.
-`uv sync --locked --group examples`: exit 0, installed approved packages.
-Compared parsed old/new lock package name/version mappings: all 155 existing
-versions unchanged, 10 additions. Initial preview mistakenly used a placeholder
-temporary path once (exit 2, no such directory); reran with the real temporary
-path, resolved successfully. No project changes resulted from that typo.
-
-Optional compatibility command:
-`JAX_ENABLE_X64=1 MPLCONFIGDIR=/private/tmp/survjax-sim-mpl uv run --locked --group examples python /private/tmp/survjax-sim-probe.py`
-Exit 0; prints JAX/jaxlib .11.2, NumPy 2.5.3, Optimistix .1.0,
-Matplotlib 3.11.2, Equinox .13.8, Optax .2.8, NumPyro .22.0, Lineax .1.1;
-then PASS: compiled vmapped BFGS, Equinox/Optax update, NUTS, SVG.
-The temporary probe source is preserved below for reproducibility.
-No PH fitting, neural training or Bayesian convergence claim follows from it.
-
-Focused final commands in separate processes:
+Existing focused generator suite (unchanged), separate processes:
 `JAX_ENABLE_X64=1 uv run pytest -q tests/unit/test_simulation_generator.py`:
-17 passed in 10.17s.
+17 passed in 3.60s.
 `JAX_ENABLE_X64=0 uv run pytest -q tests/unit/test_simulation_generator.py`:
-17 passed in 10.56s. No skips.
+17 passed in 3.18s, no skips.
 `uv run ruff format --check .`: 114 files already formatted.
 `uv run ruff check .`: All checks passed!
 `uv run mypy src`: Success: no issues found in 20 source files.
+
+`scripts/check_wheel.sh --through A10`: exit 0;
+final `check: all gates passed through A10`.
+Log: /private/tmp/survjax-sim3-gate.log.
+Own tests: 1065 passed / 7 skipped in 63.32s (x64); 1071 passed / 1 skipped
+in 63.34s (x32). Doctests: 4 passed per mode (1.13s/1.03s).
+Independent through-A10: 2333 passed / 27 skipped in 72.13s (x64),
+2324 passed / 36 skipped in 65.11s (x32). The one additional x32 pass versus
+SIM.2 is the already-authored optional pandas float64 conversion test;
+pandas now arrives transitively with ArviZ. No spec-test changes.
+Wheel SHA-256: `8ca5093b02ae2ee23e85bc8feea86374f6ab2114906b5f3896a8b78c80af37f9` (identical to SIM.2).
+Wheel METADATA runtime requirements: ['jax>=0.11.2', 'numpy>=2.5.3'].
 `git diff --check`: exit 0, no output.
 
-Initial attempt to expand check_grads to a joint (k,b,eta) projection passed
-float64 but failed the float32 second-order VJP projection: -0.00390816 versus
--0.00765991 (difference .00375175, tolerance .001). Investigated with the
-full closed-form gradient/Hessian above: both AD modes match within the
-stricter ordinary dtype tolerances. Restored the original k/b finite-difference
-check and used the analytical PH test for the new directions. No tolerance
-or finite-difference step was loosened. Final suites above pass.
+## Limits and remaining integration
 
-`scripts/check_wheel.sh --through A10`: exit 0, final output
-`check: all gates passed through A10`.
-Log: /private/tmp/survjax-sim2-gate.log.
-Own suites: 1064 passed, 7 skipped in 177.60s (x64); 1071 passed, 1 skipped
-in 176.34s (x32). Source doctests: 4 passed per mode (2.11s/1.95s).
-Independent: 2333 passed, 27 skipped in 118.46s (x64); 2323 passed,
-37 skipped in 88.67s (x32). NumPyro availability enables one formerly skipped
-constraint test per mode. The full gate began before the mixed derivative
-test was replaced; final focused checks above verify all 17 final tests in
-both modes. No implementation behavior changed after the gate started.
-Wheel SHA-256: `8ca5093b02ae2ee23e85bc8feea86374f6ab2114906b5f3896a8b78c80af37f9`.
+No full Bayesian sampling or diagnostic acceptance claim, simulation fit,
+MNIST training, docs execution, PH/RMST integration, or publication.
+The shared examples environment is complete after this step. Next simulation
+fitting needs maintainer integration of the reviewed PH prerequisite into this
+worktree; no merge/rebase/cherry-pick is performed here. Prior reviewer-owned
+mutation worktrees/administrative entries are untouched.
 
-
-## Limits
-
-Calibration deliberately cannot be jitted or differentiated. PH fitting still
-waits for reviewed core integration. ArviZ's already-approved group addition
-is a separate dependency step; no full docs/demo execution in this step.
-No merge, push, publication, review-directory edits or reviewer cleanup.
-
-## Temporary compatibility probe source
+## Reproducible temporary diagnostics probe
 
 ```python
-"""Explicit optional-environment compatibility probe; not a regular test."""
+"""Seeded optional-environment compatibility probe, not posterior validation."""
 
 import importlib.metadata as metadata
-import tempfile
-from pathlib import Path
 
-import equinox as eqx
+import arviz as az
 import jax
-import jax.numpy as jnp
-import matplotlib
-import numpyro
-import numpyro.distributions as dist
-import optax
-import optimistix as optx
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np
+from numpyro.diagnostics import summary
 
 for name in (
     "jax",
@@ -162,42 +107,31 @@ for name in (
     "equinox",
     "optax",
     "numpyro",
-    "lineax",
+    "arviz",
+    "h5netcdf",
+    "pandas",
+    "setuptools",
+    "xarray",
+    "xarray-einstats",
 ):
     print(name, metadata.version(name))
-solver = optx.BFGS(rtol=1e-8, atol=1e-8)
-
-
-def fit(start):
-    return optx.minimise(
-        lambda x, _: (x - 2) ** 2, solver, start, max_steps=1000, throw=False
-    )
-
-
-solutions = jax.jit(jax.vmap(fit))(jnp.array([-1.0, 0.0, 4.0]))
-assert bool(jnp.all(solutions.result == optx.RESULTS.successful))
-assert bool(jnp.all(jnp.abs(solutions.value - 2) < 1e-8))
-linear = eqx.nn.Linear(2, 1, key=jax.random.key(0))
-params = eqx.filter(linear, eqx.is_inexact_array)
-optimizer = optax.adam(1e-3)
-grads = eqx.filter_grad(lambda model: jnp.sum(model(jnp.ones(2)) ** 2))(linear)
-updates, _ = optimizer.update(grads, optimizer.init(params), params)
-assert bool(jnp.all(jnp.isfinite(eqx.apply_updates(linear, updates)(jnp.ones(2)))))
-
-
-def model():
-    numpyro.sample("x", dist.Normal(0.0, 1.0))
-
-
-mcmc = numpyro.infer.MCMC(
-    numpyro.infer.NUTS(model), num_warmup=16, num_samples=32, progress_bar=False
-)
-mcmc.run(jax.random.key(1))
-assert bool(jnp.all(jnp.isfinite(mcmc.get_samples()["x"])))
-with tempfile.TemporaryDirectory() as directory:
-    fig, ax = plt.subplots()
-    ax.plot([0, 1], [1, 0])
-    fig.savefig(Path(directory) / "probe.svg")
-    plt.close(fig)
-print("PASS: compiled vmapped BFGS, Equinox/Optax update, NUTS, SVG")
+print("devices", jax.devices())
+# Known equal-chain law and fixed seed; thresholds are from Bayesian details.
+samples = {"x": np.random.default_rng(20261025).normal(size=(4, 1000))}
+posterior = az.from_dict(posterior=samples)
+assert posterior.posterior["x"].dims == ("chain", "draw")
+result = summary(samples, group_by_chain=True)["x"]
+bulk = float(az.ess(posterior, method="bulk")["x"])
+tail = float(az.ess(posterior, method="tail")["x"])
+rhat = float(az.rhat(posterior)["x"])
+assert np.isfinite([result["r_hat"], result["n_eff"], bulk, tail, rhat]).all()
+assert result["r_hat"] < 1.01 and rhat < 1.01
+assert result["n_eff"] > 400 and bulk > 400 and tail > 400
+# Different chain means must be noticed; accidentally pooled draws would hide it.
+shifted = {"x": samples["x"] + 2 * np.arange(4)[:, None]}
+assert summary(shifted, group_by_chain=True)["x"]["r_hat"] > 1.01
+assert float(az.rhat(shifted)["x"]) > 1.01
+print("NumPyro split Rhat", result["r_hat"], "ESS", result["n_eff"])
+print("ArviZ Rhat", rhat, "bulk ESS", bulk, "tail ESS", tail)
+print("PASS: chain/draw axes, iid diagnostic gates and shifted-chain detection")
 ```

@@ -1,3 +1,55 @@
+# SIM.3 — Complete the approved examples diagnostics environment (2026-10-30)
+
+Start clean on release-simulation at
+`ce68f76ffc4ee0fdcda1757232f88ee57ff13c3d`; SIM.2 round 1 returned merge.
+Preserve the unfinished SIM/A10 plan history below. The maintainer approved
+ArviZ 0.23.0 in the existing dependency proposal and now requests the next step.
+One concept: finish the examples dependency group for Bayesian tail ESS.
+
+Files and scope:
+- `pyproject.toml` / `uv.lock`: add exact `arviz==0.23.0` to examples;
+  resolve without upgrading existing packages or changing runtime dependencies.
+- `examples/weibull_simulation/DEPENDENCIES.md`: mark the six-package setup
+  complete, record the actual installed diagnostics probe and its command.
+- Overwrite `REVIEW.md`: reading order, dependency isolation, actual evidence
+  and limits; preserve the short temporary probe source for reproducibility.
+
+Spec 10.3; shared use-case 00 dependency-group rule and Bayesian details
+Sampling/Diagnostics: NumPyro split R-hat/ESS, ArviZ tail ESS. No source API,
+shared generator, ordinary tests, docs/navigation/config or protected scripts.
+Docs to-do: the future Bayesian page should use this group for tail ESS.
+Target below 300 changed implementation/config/lock lines, records excluded.
+
+Checks: `uv lock --check`, `uv sync --locked --group examples`, compare old/new
+lock name/version mappings. Explicit optional-environment probe uses seeded
+4x1000 iid Normal draws (known equal-chain law) and deliberately shifted
+chains to verify the chain/draw axes, NumPyro summary and ArviZ bulk/tail ESS
+and R-hat; this is compatibility evidence, not posterior convergence evidence.
+The pinned ArviZ import writes a daily stamp under Path.home()/arviz_data, so
+run that probe with required sandbox escalation rather than modifying HOME.
+No new ordinary tests for the dependency-only change. Run the existing focused
+generator suite in both dtype processes, Ruff, mypy, and unchanged fresh-wheel
+through-A10 gate. Record versions/results, write REVIEW.md, commit, invoke the
+exact independent-review skill for SIM.3, follow at most 3 rounds and stop.
+PH fitting still waits for maintainer integration of reviewed prerequisites.
+
+
+Implementation: added the approved ArviZ pin and six lock packages. All 165
+prior package versions unchanged; runtime dependencies remain jax/numpy.
+Actual installed-group CPU probe passes named chain/draw axes, iid gates and
+shifted-chain detection: NumPyro R-hat 1.0000270083 / ESS 3976.58; ArviZ
+R-hat 1.0001031616 / bulk ESS 3979.33 / tail ESS 3931.29. ArviZ's expected
+import warning was emitted; sandbox escalation allowed its home-cache stamp.
+Existing generator suites: 17 passed per mode (3.60s/3.18s), Ruff/mypy/lock
+checks pass. Fresh-wheel through-A10 gate exited 0: own suites 1065/1071
+passed (7/1 skipped), doctests 4 per mode, independent 2333/2324 passed
+(27/36 skipped). ArviZ's pandas dependency enabled the existing x32 pandas
+conversion test. Wheel hash is identical to SIM.2 and runtime METADATA still
+requires only jax/numpy. REVIEW.md records exact commands, outputs and limits.
+Commit and exact independent review follow; stop after the verdict.
+
+---
+
 # SIM.2 — Address shared foundation questions and enable examples (2026-10-29)
 
 Start on `release-simulation` at `3556d12c1abca553f77607c1e1739df2bd1911f0`.
