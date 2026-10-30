@@ -6,6 +6,70 @@ is archived or declared complete by this resolution. New PH work goes first.
 
 ---
 
+# PH.2b — Declared-invalid row isolation and custom-baseline composition (2026-10-30)
+
+Authorized by “ok on to next bit”. Clean release-ph base 813ee36d5ec51649386b633f0c131d1e39b220b7.
+Same PH sub-slice; preserve the earlier PH and integration records. PH.2a
+round 1 was merge, with its optional scale-comment nit fixed without changing
+its test AST. This step targets <=300 changed test lines, one concept: PH's
+public likelihood composition preserves valid rows when declared parameters
+are invalid, including the custom-baseline path and runtime issue-mask changes.
+Spec 4.2/4.4/4.7, 5, 6.1, 7.1–7.3 and 12.1–12.2.
+
+Create `tests/unit/test_proportional_hazards_isolation.py`:
+
+- Exponential rate and Weibull shape/scale invalid at 0, -1, NaN and ±inf;
+  PH eta invalid at NaN and ±inf over both built-ins (zero/negative eta
+  remain valid). Include shared healthy baseline parameters or shared eta,
+  so reverse-mode poisoning cannot hide behind independent parameter rows.
+- A tiny registered custom baseline has rate sqrt(upper-lower), positive
+  declared fields and a named nonpositive-gap condition. Zero/negative gaps
+  violate only that condition. Default density/hazard/CDF methods exercise
+  extension composition. Its valid PH law is Exponential with the scaled rate.
+- Check eager/jit/vmap likelihood values, exact prefixed field/condition masks,
+  union polarity and NaN only at the bad row. Expected valid contributions
+  come from explicit Exponential/Weibull PH formulas with invalid operands
+  removed before every calculation, not from another likelihood call.
+- Differentiate only valid contribution outputs. For every violation class,
+  compare first derivatives and all four forward/reverse second-order
+  combinations to the isolated formula, eager and under jit/vmap. Do not
+  assert the invalid contribution's own derivatives or upstream exp overflow.
+  Use unchanged central tolerances, justified by O(1–10) AD/analytic entries
+  and rounding-only error; no finite differences across invalid coordinates.
+- On valid custom-baseline parameters, compare all seven grid methods and
+  their first derivatives with the analytical Exponential equivalent, eagerly,
+  jit and vmap, at positive interior times. No unsupported generic hazard
+  boundary derivative is asserted.
+- Trace counters in compiled raw construction/diagnostics/likelihood calls
+  change numeric parameters, valid/invalid masks, times and events while
+  retaining shapes/dtypes/weak types/structure. Require a single trace.
+
+Overwrite REVIEW.md with reading order, invariants, formula origins and
+actual commands/limits. Run focused PH tests in separate dtype processes,
+Ruff/mypy and the unchanged fresh-wheel through-A10 gate; audit whitespace
+and scope, commit and invoke independent-review exactly (PH.2b, round 1/3).
+Address findings within three rounds, then stop/report. No exports, docs,
+production expressions, dependencies, protected paths, tolerance changes,
+RMST-owned files or closure work. Split if new test text exceeds the budget.
+Docs to-do: existing PH topic/export integration remains later; no new user
+API or docs page is required by this test-only step. Extended-tail/range
+coverage and RMST integration remain separate; do not claim the PH gate done.
+
+
+PH.2b execution: added 259 test lines / 55 cases, no production changes.
+Final float32 focused run: 55 passed (274.00s). Initial x64 version: 54 passed,
+1 failed due to bit-equality of a compiled/eager value differing by 1.1e-16;
+fixed to analytical-oracle comparison with unchanged central tolerances and
+separate NaN check. Corrected x64 value/diagnostics family: 6 passed (19.76s).
+Final full fresh-wheel A10 gate also reran all final tests in both modes:
+own 1159/8 x64 and 1164/3 float32; doctests 4 each; independent acceptance
+2332/28 x64 and 2322/38 float32 (passed/skipped). Gate exit 0. Ruff format,
+Ruff check, mypy and whitespace clean. Full commands, wheel identity, timings
+and limits are in REVIEW.md. Commit then PH.2b independent review round 1/3;
+stop after its verdict. No unfinished history archived.
+
+---
+
 # PH.2a — Built-in PH identities and interior derivatives (2026-10-30)
 
 Explicit continuation authorized by “after this: go and implement the next
