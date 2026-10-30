@@ -102,3 +102,8 @@ higher scores indicate higher risk.
 The [documentation](https://survjax.readthedocs.io) contains the user guide,
 API reference, and examples, including data validation, numerical behavior,
 and custom distributions.
+
+## Development
+
+`survjax` is under active development. Contributions and co-maintenance are welcome.
+If you're interested in helping, please open an issue or reach out directly.
