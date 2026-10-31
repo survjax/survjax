@@ -65,3 +65,13 @@ The CNN constructor takes the initial log scale. No JAX global setting is change
 optimization or nonfinite results. Run its explicit checks with
 `JAX_ENABLE_X64=1 uv run --group examples pytest -q tests/unit/check_mnist_reference.py`;
 repeat with `JAX_ENABLE_X64=0` to check refusal of unavailable float64 fitting.
+
+Evaluate a selected CNN with `model.evaluate(log_k, predicted_log_scales, data)`;
+use the fitted intercept pair or the oracle's true parameters for the other rows.
+The result contains `n`, `mean_log_likelihood`, `shape`, `concordance` and
+`concordance_seconds`. Predictions are explicitly cast to float32; observations
+must already be float32. Every row is included. Higher risk is minus log scale;
+a constant intercept gives C=0.5 when comparable pairs exist. Undefined or
+nonfinite metrics raise. C wall time includes first-call compilation and waits
+for completion, so report whether a call was cold or warm. Run offline checks
+with the examples group using `tests/unit/check_mnist_metrics.py` in both modes.

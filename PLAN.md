@@ -1,3 +1,32 @@
+# MNIST.6 — Evaluation metrics (2026-10-31)
+
+Start clean at 4a4fb99 (previous integration step); branch base ee72c83.
+One concept: evaluate supplied predictions for CNN/intercept/oracle consistently.
+Spec 11.2, use-case 03 References and metrics/Precision/Acceptance checks;
+public concordance convention in spec 9.1. No core API, module, dependency,
+protected path or spec change. Existing maintainer initialization decisions stand.
+
+Files:
+- examples/survival_mnist/model.py: evaluate(log_shape, log_scale, data),
+  float32 predictions and observations, scalar shared shape, scalar or per-row
+  scales. Return cohort size, mean log likelihood, k, C and C wall time.
+  Use public likelihood and concordance_index with score -log_scale;
+  broadcast the intercept scale so constant predictions give C=0.5.
+  Include all rows; fail loudly for invalid/nonfinite or undefined metrics.
+  Host evaluation only, not a differentiable or jittable reporting API.
+- tests/unit/check_mnist_metrics.py: explicit examples-group offline checks
+  for independent exponential likelihood, score direction/ties, oracle constants,
+  actual CNN predictions, full-cohort tail, float32 cast and invalid inputs.
+- examples/survival_mnist/README.md: invocation and first-call-inclusive timing.
+- REVIEW.md: reading order, invariants, checks and independent-review record.
+
+About 300 implementation lines maximum; keep model.py about 300 lines.
+Checks: both dtype optional suites, Ruff/mypy, fresh-wheel A10 gate; synthetic
+10k concordance timing with independently known C, no held-out MNIST metrics.
+Commit, independent review MNIST.6 (maximum three rounds), then stop.
+Docs to-do: evaluation table, cohort sizes and timing semantics on the eventual
+page. Later steps own runner, metadata/full results, figures and docs.
+
 # MNIST.integration — Resolve incoming main (2026-10-31)
 
 Complete the maintainer-started merge of main ae569e4 into release-minst at

@@ -1,45 +1,57 @@
 Independent review: round 1/3
 
-# MNIST.integration — Resolve incoming main
+# MNIST.6 — Evaluate CNN and references
 
-Read PLAN.md MNIST.integration, then DEVIATIONS.md and the merge parents
-1d06cc9 (MNIST) and ae569e4 (incoming main with RMST). Review the merge
-resolution against both parents rather than treating inherited code as new.
+Read first: PLAN.md MNIST.6; use-case 03 References and metrics/Precision;
+examples/survival_mnist/model.py evaluate; tests/unit/check_mnist_metrics.py.
 
 Invariants:
-- Only the three workflow records conflicted. Source, tests, tolerances,
-  appendix, README, .spec-seen and incoming CLAUDE.md retain the automatic
-  merge result without local changes. No protected-path edit is introduced.
-- Both complete parent plans are preserved verbatim under labelled headings.
-- Distinct MNIST and RMST deviations are retained with unchanged statuses;
-  shared D-027-and-earlier history is identical and retained once. Historical
-  D-028/D-029 collisions are explained by topic; no IDs or decisions change.
-- The previous MNIST.5s review is available at 1d06cc9:REVIEW.md; the incoming
-  RMST.integration review is at ae569e4:REVIEW.md. This file follows the
-  overwrite convention. No new MNIST implementation step begins here.
+- Caller supplies already-selected CNN predictions or the fitted intercept/
+  stored oracle parameters. No fitting, checkpoint selection or labels enter
+  evaluate. All observations enter both metrics; no partial-batch dropping.
+- Explicit float32 parameter casts, float32 data requirement. Scalar shared
+  shape, scalar intercept or aligned per-row scales. Never change global JAX
+  precision. Reporting is eager host code, not a transformed numerical API.
+- Public survjax Weibull log_likelihood mean and concordance_index; higher
+  risk is -log scale. Scalar intercept broadcasts to all rows and has C=0.5
+  when pairs exist. Undefined/nonfinite metrics fail loudly. Invalid observation
+  diagnostics raise before evaluation; unsupported modes still fail via library.
+- C wall timing includes possible compilation and explicitly waits by converting
+  the scalar result to a Python float. It measures the C call, not likelihood.
+- No dependency, core API, protected file or spec edits. D-030 initialization
+  decision remains in effect; this step does not reopen or alter it.
 
-Checks and requirement evidence: complete. Static checks and cumulative
-fresh-wheel gate through A10 cover inherited core behavior and packaging;
-optional MNIST checks in separate dtype processes cover the existing demo
-against the incoming numerical methods. No new behavioral test is needed
-for the record-only conflict resolutions. No new spec interpretation.
+Tests and requirements:
+- Exponential hand algebra pins mean LL and C direction (C=1 versus C=0).
+- Mixed exact/right intercept algebra pins scalar broadcast and C=0.5.
+- Independent generating rule pins oracle k=1.38 and per-digit scales.
+- Real CNN forward output reaches metrics without digit labels.
+- 129-row example pins full-tail observation weighting, not minibatch mean.
+- Near-equal float64 predictions pin float32 casting before score comparison.
+- Invalid shapes/observations, empty cohort, nonfinite predictions, no comparable
+  pairs and float64 observations pin explicit failures in either dtype process.
 
-Completed checks (all exit 0):
-- scripts/check_wheel.sh --through A10: all gates passed; Ruff format 133
-  files already formatted, Ruff all checks passed, mypy no issues in 21 source
-  files. Own suites: x64 1119 passed/7 skipped (76.73s), x32 1125 passed/1
-  skipped (79.41s). Source doctests: 4 passed each mode. Acceptance: x64
-  2333 passed/27 skipped (68.79s), x32 2324 passed/36 skipped (67.15s).
-- JAX_ENABLE_X64=1 and =0 uv run --group examples --group test pytest with
-  check_mnist_model.py, check_mnist_reference.py, check_mnist_training.py,
-  test_mnist_data.py, test_mnist_outcomes.py: respectively 58 passed/1 skipped
-  (27.79s) and 38 passed/21 skipped (18.63s).
-- Parent preservation script: both full parent plans and every deviation entry
-  preserved exactly; all inherited staged files outside the three resolutions
-  equal incoming main. git diff --check and git diff --cached --check clean;
-  no unmerged entries or conflict markers in the resolved files.
+Checks: results appended below. A first gate attempt stopped at Ruff C408
+(dict constructor); replaced it with a literal and reran the complete gate.
+No tolerances changed and no additional testing requirement inferred.
 
-No docs build, R generation, full MNIST training or new performance result is
-claimed. This is a merge-resolution step, not new numerical or docs authorship.
-Previous step: 1d06cc9. Worktree branch starting point: ee72c83. Incoming main:
-ae569e4. Remaining MNIST work and docs ownership are unchanged by this merge.
+Synthetic timing (CPU, x64-enabled process but float32 evaluation): permutation
+of 10,000 distinct exact event times, log scales=log times, hence C=1 by strict
+ordering. C=1 observed both times; first-call 0.298767 seconds, warm 0.184139
+seconds. This is a synthetic public-API timing probe, not held-out MNIST or
+full-run performance evidence. Actual 10k MNIST timing remains for the runner.
+
+No full MNIST training, test-set metrics, docs build or R generation run.
+No new uncertainty/deviation. Runner, result artifacts and docs remain later.
+Previous step final commit: 4a4fb99d9c39e64430c6fd29ef4ad35da5b8a419.
+Worktree original base: ee72c837549d14cb26e9983bf6d63ac54563f189.
+
+Completed checks:
+- Optional six-file MNIST suites: x64 72 passed/1 skipped (44.65s), float32
+  51 passed/22 skipped (25.60s). New metrics file alone: x64 14 passed.
+- scripts/check_wheel.sh --through A10: all gates passed. Ruff format 134
+  files already formatted; Ruff all checks passed; mypy no issues in 21 files.
+  Own suites: x64 1119 passed/7 skipped (110.03s), float32 1125 passed/1
+  skipped (78.82s). Doctests: 4 passed each mode. Acceptance: x64 2333
+  passed/27 skipped (67.40s), float32 2324 passed/36 skipped (60.88s).
+- git diff --check clean.

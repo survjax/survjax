@@ -1,5 +1,6 @@
 """Float32 neural survival model (use-case 03 Network)."""
 
+from time import perf_counter
 from typing import NamedTuple
 
 import equinox as eqx
@@ -254,3 +255,47 @@ def fit_intercept(time: ArrayLike, event: ArrayLike) -> np.ndarray:
             "intercept BFGS returned nonfinite parameters, loss or gradient"
         )
     return np.asarray(solution.value, dtype=np.float64)
+
+
+def evaluate(
+    log_shape: ArrayLike, log_scale: ArrayLike, data: survjax.SurvivalData
+) -> dict[str, float | int]:
+    """Report float32 metrics for supplied CNN, intercept or oracle predictions.
+
+    Args:
+        log_shape: Scalar shared log shape, explicitly cast to float32.
+        log_scale: Scalar intercept or aligned (N,) predictions; cast to float32.
+        data: Nonempty float32 observations (N,); all rows are evaluated.
+    Returns:
+        n, mean_log_likelihood, shape, concordance, concordance_seconds.
+        C uses higher risk = -log scale. Wall time includes any first-call
+        compilation and waits for completion; subsequent calls may reuse it.
+    Raises:
+        ValueError: Cohort dtype/shape or parameter shapes are invalid.
+        FloatingPointError: Any metric is nonfinite, including undefined C.
+    """
+    log_k = jnp.asarray(log_shape, dtype=jnp.float32)
+    log_b = jnp.asarray(log_scale, dtype=jnp.float32)
+    if data.lower.ndim != 1 or len(data) == 0 or data.lower.dtype != jnp.float32:
+        raise ValueError("evaluation requires nonempty float32 observations (N,)")
+    if log_k.shape != () or log_b.shape not in ((), data.shape):
+        raise ValueError(
+            "evaluation requires scalar log shape and scalar or (N,) log scale"
+        )
+    data.issues.raise_if_invalid()
+    log_b = jnp.broadcast_to(log_b, data.shape)
+    dist = survjax.Weibull.from_log(log_shape=log_k, log_scale=log_b)
+    mean_ll = float(dist.log_likelihood(data).mean())
+    shape = float(jnp.exp(log_k))
+    start = perf_counter()
+    concordance = float(survjax.concordance_index(-log_b, data))
+    seconds = perf_counter() - start
+    if not np.all(np.isfinite([mean_ll, shape, concordance])):
+        raise FloatingPointError("evaluation produced nonfinite or undefined metrics")
+    return {
+        "n": len(data),
+        "mean_log_likelihood": mean_ll,
+        "shape": shape,
+        "concordance": concordance,
+        "concordance_seconds": seconds,
+    }
