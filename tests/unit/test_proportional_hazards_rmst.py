@@ -169,23 +169,20 @@ def test_weibull_shape_hessian_remains_explicitly_unsupported():
 )
 def test_invalid_rows_preserve_shared_parameter_derivatives(family, field, x64_enabled):
     """Spec 7.2/8.7: mask original operands before constructing any closure."""
-    bad = jnp.array([1.3, 0, -1, jnp.nan, jnp.inf, -jnp.inf])
+    constants = jnp.array([1.3, 0, -1, jnp.nan, jnp.inf, -jnp.inf])
+    sign = jnp.array([1.0, -1.0, 0.0, 0.0, 0.0, 0.0])
 
     def fn(q, mixed=True):
+        # No upstream NaN arithmetic: only finite signed entries depend on q.
+        bad = jnp.where(jnp.arange(6) < 3, q * sign, constants)
         baseline = (
-            bad
-            if mixed and field == "baseline"
-            else (1.3 if field in ("baseline", "shape") else q)
+            bad if mixed and field == "baseline" else (1.3 if field == "shape" else q)
         )
-        shape = bad if mixed and field == "shape" else 1.3
+        shape = bad if mixed and field == "shape" else (q if field == "shape" else 1.3)
         eta = (
-            q
-            if field in ("baseline", "shape")
-            else (
-                jnp.array([0.2, jnp.nan, jnp.inf, -jnp.inf, jnp.nan, jnp.inf])
-                if mixed and field == "eta"
-                else 0.2
-            )
+            jnp.array([0.2, jnp.nan, jnp.inf, -jnp.inf, jnp.nan, jnp.inf])
+            if mixed and field == "eta"
+            else 0.2
         )
         tau = (
             jnp.array([0.75, -1, jnp.nan, jnp.inf, -jnp.inf, -2])
@@ -199,7 +196,7 @@ def test_invalid_rows_preserve_shared_parameter_derivatives(family, field, x64_e
         )
         return ProportionalHazards(base, log_hazard_ratio=eta).rmst(tau)
 
-    q = 0.2 if field in ("baseline", "shape") else 1.3
+    q = 1.3
     for value in (fn(q), jax.jit(fn)(q)):
         assert np.isnan(value[1:]).all()
         np.testing.assert_allclose(
@@ -227,6 +224,9 @@ class CustomBaseline(SurvivalDistribution):
 
     def reference_time(self):
         return jnp.ones(self.batch_shape)
+
+    def parameter_conditions(self):
+        raise AssertionError("unsupported family diagnostics must not run")
 
 
 def test_custom_baseline_rmst_has_no_generic_fallback():

@@ -80,6 +80,37 @@ commands, timings, numerical invariants, wheel identity and deferred evidence.
 Revision 40 is read and .spec-seen aligned; no spec/dependency/protected edit.
 Commit this step, then invoke independent PH.3a review round 1/3 and stop.
 
+
+PH.3a independent round 1 on 97dd11a returned fix-first:
+- F-1: strengthen the existing seven invalid-row cases so a finite shared
+  scalar feeds positive/negative/zero baseline entries via q*sign. Inject
+  NaN/inf constants via where; do not create upstream q*NaN/inf arithmetic.
+  Rate, shape and scale substitutions must each be observable in reverse AD.
+- N-2: reject the base-default (unsupported) hook by class before diagnostics,
+  cutoff conversion or casting. The custom test now has a raising diagnostic
+  condition to prove that it is not called.
+- N-1 / PH.3b release-gate list: first-derivative closure identities for every
+  baseline field and eta under (S,1)x(S,2) broadcasting, plus independent
+  supported nonshape Hessians (scale,eta,tau; Exponential full Hessians),
+  all fwd/rev combinations, eager/jit/vmap, broad RMST range and scale changes.
+  Keep Weibull shape outside differentiated arguments for supported Hessians.
+- N-3: acknowledge Weibull's 311 lines (301 inherited +10 closure); no unrelated
+  refactor/module is added to this step.
+- S-1: log D-032 without choosing a policy or changing numerical code. It is
+  a separate RMST value question, not covered by revision 40's derivative
+  exception. The reviewer marked it non-blocking for this round.
+Round-2 scope is 302 code/test lines (64 source +238 tests), approximately the
+300-line target: the extra two source lines are the optional early type gate.
+Run both-dtype focused tests, local process-only mutants, static checks and a
+fresh final-wheel A10 gate. Commit this fix-up, request independent round 2/3,
+then follow its verdict and stop. No extra reviewer prompt/context or edits.
+Round-2 validation: 19 focused cases pass per mode (12.89s/13.00s); all three
+missing baseline-substitution mutants are caught in BOTH modes. Fresh-wheel
+A10 exits 0: own 1261/8 and 1266/3; doctests 4 each; independent 2332/28 and
+2322/38 (passed/skipped). Ruff/mypy/whitespace clean; records include the final
+wheel hash and timings. D-032 remains an open value-policy question; no
+numerical source change answers it. Commit fix-up and invoke round 2/3.
+
 ---
 
 # PH / RMST merge conflict resolution (2026-10-31)

@@ -1,14 +1,59 @@
 # PH.3a — Built-in PH closure and delegated RMST
 
-Independent review: round 1/3
+Independent review: round 2/3
 
 Base: 2e6b55a9610e6733bf539d420d7a2f6d52ee355e, clean release-ph after
 completing the maintainer-started RMST merge. That prerequisite merge preserves
 both parent plans/reviews and the original imported RMST code/tests. It was
 requested by the maintainer before “get on with the PH implementation”.
-This implementation step is separate: 62 production additions + 238 test
-lines = exactly 300 implementation lines. Plan/review/deviation/spec-seen
+This implementation step is separate: initial 62 production additions +238
+test lines =300; round 2 adds two early unsupported-type gate lines, for
+64+238=302 code/test lines (about 300). Plan/review/deviation/spec-seen
 records are excluded under the updated agreement.
+
+## Round-1 findings and round-2 response
+
+Independent report: ../review/slices/PH.3a.md, round 1 on 97dd11a, fix-first.
+F-1 is a test gap: constant invalid baseline fields did not test upstream
+shared-baseline cotangents. Revised the same seven cases to let q feed valid,
+negative and zero baseline entries via q*sign; NaN/inf constants are selected
+with where, so no upstream NaN/inf arithmetic is introduced. Only valid output
+is differentiated. Isolated reference values still use the same valid field
+values. Source numerical guards are unchanged. The revised cases must catch
+missing rate, shape and scale substitutions independently.
+
+N-2 fixed: class-level default-hook identity is checked before any numeric
+work, using ordinary type/method lookup. A custom parameter_conditions that
+raises now proves unsupported-family diagnostics are never evaluated.
+The later None check remains defensive for any internal override returning None.
+
+N-1 tracked explicitly in PLAN.md PH.3b: broadcast first-derivative identities
+and supported nonshape Hessians are required release evidence; not claimed
+complete here. N-3 acknowledged: Weibull is 311 lines, 301 inherited plus 10
+closure lines; no unrelated module refactor. S-1 is recorded as open D-032;
+no value policy is adopted and no numerical route changed to answer it. The
+reviewer labelled S-1 non-blocking for this round; the maintainer must decide
+whether valid but unrepresentable closures may yield NaN outside the accuracy
+domain. Revision 40's derivative exception leaves staged RMST unchanged.
+
+Round-2 focused tests: 19 passed x64 (12.89s), 19 passed float32 (13.00s).
+Process-local safety mutants (unittest.mock.patch.object on the hooks,
+without editing source/review worktrees) reject all three missing substitutions
+independently in BOTH modes: Exponential rate, Weibull shape, Weibull scale.
+Command: JAX_ENABLE_X64={1,0} uv run python /private/tmp/ph3a-safety-mutants.py,
+separate processes. Each prints three CAUGHT lines and exits 0.
+Final static checks: 133 files formatted; Ruff all checks passed; mypy no
+issues in 22 source files; whitespace clean.
+
+`scripts/check_wheel.sh --through A10`: round-2 fresh gate **exits 0**.
+Own suites: **1261 passed, 8 skipped** x64 (115.28s), **1266 passed, 3 skipped**
+float32 (101.27s); source doctests **4 passed** per mode (0.99s/1.02s).
+Independent acceptance **2332 passed, 28 skipped** x64 (67.20s), **2322 passed,
+38 skipped** float32 (66.43s).
+Wheel `/var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/survjax-wheel.pDpiiJ/survjax-0.0.1.dev0-py3-none-any.whl`,
+SHA256 `95048399fc88f32e4dbab03c6eed7c626b37e3624a1f2d62bb68eefe940ef515`.
+Log `/private/tmp/ph3a-round2-wheel-gate.log`. Round-1 results below are kept
+as history, not represented as the final artifact.
 
 ## Read first
 
@@ -68,9 +113,10 @@ original invalid rows are NaN even if their neutral closure is finite. Shared
 parameter derivatives of valid entries stay isolated from invalid neighbors.
 
 Overflowing log-rate/log-scale inputs are replaced by zero BEFORE exp, then
-infinity is restored. This is not clipping to a finite cap. A closure with
-unrepresentable natural parameters can fail for positive cutoffs (NaN from
-its staged family); no inaccurate finite value is invented. At zero, section
+infinity is restored. This is not clipping to a finite cap. Current behavior: a closure with unrepresentable natural parameters can
+fail for positive cutoffs (NaN from its staged family). Whether this is an
+acceptable numerical-failure signal on valid PH inputs is open D-032/S-1,
+not a settled contract; no inaccurate finite value is invented. At zero, section
 8.7's exact value/first derivatives still apply: if a closure parameter is
 invalid due to representability, replace that closure's leaves by neutral
 ones BEFORE delegating. Native RMST at active tau=0 then returns 0 with
@@ -163,5 +209,5 @@ leaves before log/exp and added mixed-dtype coverage; final numerical suite:
 No protected paths, dependencies, exports, tolerance constants, ordinary docs,
 PDF source/artifact or RMST numerical expressions changed. Base/built-ins are
 edited only for the PH-owned private closure hooks after the core handoff.
-The numerical scope is 300 additions, with a staged release marker and process
+The round-2 numerical/test scope is 302 additions, with a release marker and process
 records separately. Commit this step, run independent PH.3a review, and stop.

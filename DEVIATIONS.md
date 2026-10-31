@@ -5,6 +5,29 @@ D-028. PH's constructor entry retains D-028; RMST's zero-boundary entry is
 now D-030. Historical RMST plans/reviews citing D-028 refer to D-030 here;
 those records remain verbatim. No entry body, decision or status is changed.
 
+## D-032 PH RMST when the equivalent natural parameter is unrepresentable
+
+- Step: PH.3a independent review round 1, S-1 (non-blocking for that round).
+- Spec sections: 4.4, 7.1, 8.7, 12.1, revision 40.
+- Spec says: PH RMST delegates through the built-in closure; RMST is NaN for
+  invalid cutoffs or parameter issues. Accuracy is required on the stated
+  k / tau-to-equivalent-scale domain; NaN is called the invalid-input signal.
+- Observed: valid original PH inputs can produce an unrepresentable natural
+  closure and NaN despite a finite representable mathematical RMST. In
+  float32, Weibull k=0.2,b=1,eta=-18,tau=1 gives NaN (true approximately
+  0.99999999) because exp(-eta/k) overflows. k=0.5,eta=-50 in float32 and
+  k=0.2,eta=-200 in float64 similarly give NaN instead of approximately 1.
+  The original parameter_issues() is clean. The examples are outside the
+  mandated tau/b_PH accuracy range; zero cutoff is handled exactly.
+- Did/propose: retain the reviewed implementation while fixing the unrelated
+  isolation test gap. Ask whether NaN is an acceptable detectable numerical
+  failure outside closure representability, or whether a log-scale RMST
+  route is required. No interpretation/exception adopted here; revision 40's
+  PH direct/likelihood derivative deferral does not cover this value question.
+  Record the current behavior for the future docs topic pending the decision.
+- Status: open; maintainer decision required. Reviewer marked it non-blocking
+  for round 1, so independent round-1 code/test findings are handled first.
+
 ## D-031 PH extreme-range parameter derivatives deferred after initial release
 
 - Step: PH.2c independent review, F-1/F-2/S-1; decision recorded during PH.3a.

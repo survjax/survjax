@@ -65,6 +65,8 @@ class ProportionalHazards(SurvivalDistribution):
             NotImplementedError: Baseline has no staged PH closure, or an
                 unsupported higher Weibull shape derivative is requested.
         """
+        if type(self.baseline)._ph_equivalent is SurvivalDistribution._ph_equivalent:
+            raise NotImplementedError("rmst requires a supported baseline PH closure")
         cutoff = _rmst_cutoff(tau, self.batch_shape)
         invalid = (
             ~jnp.isfinite(cutoff)
