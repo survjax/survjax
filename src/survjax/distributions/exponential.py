@@ -9,6 +9,7 @@ from jax.typing import ArrayLike
 
 from survjax import constraints
 from survjax._dtypes import normalize_parameters
+from survjax._numerics import _rmst_cutoff
 from survjax.distributions._survival_methods import log_cdf_from_log_cumulative_hazard
 from survjax.distributions.base import SurvivalDistribution, param, register_family
 
@@ -49,6 +50,35 @@ class Exponential(SurvivalDistribution):
     """
 
     rate: jax.Array = param(constraint=constraints.positive)
+
+    def rmst(self, tau: ArrayLike) -> jax.Array:
+        """Return restricted mean event time, ``-expm1(-rate*tau)/rate``.
+
+        Args:
+            tau: Cutoffs, broadcast against ``batch_shape``. For a time-first
+                cutoff grid, add one trailing singleton per batch axis.
+
+        Returns:
+            RMST with the broadcast shape. Negative, NaN or infinite cutoffs
+            and entries with parameter issues give NaN. At zero the value and
+            parameter derivatives are zero and the cutoff derivative is one.
+            JAX supports derivatives of all orders on valid smooth inputs.
+
+        Raises:
+            TypeError: For nonreal cutoffs or incompatible batch shapes.
+        """
+        cutoff = _rmst_cutoff(tau, self.batch_shape)
+        invalid = (
+            ~jnp.isfinite(cutoff)
+            | (cutoff < 0)
+            | self.parameter_issues().invalid_entries
+        )
+        # spec 8.7/7.2: mask both operands before arithmetic, including shared
+        # parameters beside invalid cutoffs. Zero is active to retain d/dtau=1.
+        safe_cutoff = jnp.where(invalid, jnp.zeros_like(cutoff), cutoff)
+        safe_rate = jnp.where(invalid, jnp.ones_like(self.rate), self.rate)
+        value = -jnp.expm1(-safe_rate * safe_cutoff) / safe_rate
+        return jnp.where(invalid, jnp.nan, value)
 
     @classmethod
     def from_log(cls, *, log_rate: ArrayLike) -> Self:

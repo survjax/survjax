@@ -134,7 +134,7 @@ class SurvivalDistribution:
     remain trailing. Use ``batch_shape`` for the batch dimensions: ``shape``
     is available as a parameter name and has no special meaning in the base.
 
-    Every method accepts any real time and never raises for a value. Times
+    Pointwise methods accept any real time and never raise for a value. Times
     before the origin (t < 0) give S = 1 and the matching constants; NaN
     times give NaN. The base supplies survival/CDF/cumulative-hazard limits
     at zero and infinity, using ``log_survival_at_infinity()`` (default -inf).
@@ -160,6 +160,48 @@ class SurvivalDistribution:
     log_hazard_grid = _grid_methods.log_hazard_grid
     hazard_grid = _grid_methods.hazard_grid
     parameter_issues = _parameter_issues.parameter_issues
+
+    def rmst(self, tau: ArrayLike) -> jax.Array:
+        """Return the restricted mean event time, integral of S(t) to tau.
+
+        Args:
+            tau: Finite nonnegative cutoffs, broadcast against ``batch_shape``.
+                Add leading axes explicitly for a time-first cutoff grid.
+
+        Returns:
+            RMST with the broadcast shape on supported families.
+
+        Raises:
+            NotImplementedError: For families without staged RMST support.
+        """
+        raise NotImplementedError("rmst is unavailable for this family")
+
+    def mean(self) -> jax.Array:
+        """Return the population mean event time.
+
+        Raises:
+            NotImplementedError: On every family in the staged release.
+        """
+        raise NotImplementedError("mean is unavailable in the staged release")
+
+    def median(self) -> jax.Array:
+        """Return the population median event time.
+
+        Raises:
+            NotImplementedError: On every family in the staged release.
+        """
+        raise NotImplementedError("median is unavailable in the staged release")
+
+    def quantile(self, p: ArrayLike) -> jax.Array:
+        """Return the population event-time quantile at probability p.
+
+        Args:
+            p: Probabilities, broadcast against ``batch_shape``.
+
+        Raises:
+            NotImplementedError: On every family in the staged release.
+        """
+        raise NotImplementedError("quantile is unavailable in the staged release")
 
     def log_likelihood(
         self,

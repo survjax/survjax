@@ -52,8 +52,8 @@ The maintainer reviews all code, so optimise for reviewability over speed.
    its own with no other changes. Read an archived plan only when a step
    needs it.
 2. **Small steps.** One concept per step, ending in one commit. Aim for a diff
-   of about 300 lines or less, tests included. If a step grows past that,
-   split it and say so.
+   of about 300 lines or less for code, tests and other implementation files.
+   If a step grows past that, split it and say so.
 3. **Independent review, then stop after every step.** Write `REVIEW.md`
    (overwrite it at the start of each step; update it in later review rounds of
    the same step):
@@ -96,6 +96,12 @@ The maintainer reviews all code, so optimise for reviewability over speed.
     review to get a different verdict (one retry only when no new round was
     written). If you disagree with a finding, give your reasons in `REVIEW.md`
     instead of working around it. Spec-questions are for the maintainer.
+11. **Report back commits that were starting points** If you start with a
+    new step and take 1-N commits to finish it, when reporting back,
+    always mention the last commit of the step, the last commit of the
+    previous step and the last commit the working-tree was based on.
+    This is to ensure that the maintainer can easily track the
+    progress of the work for every step and on the entire worktree.
 
 ## Docs
 

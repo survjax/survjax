@@ -29,5 +29,15 @@ RTOL = {True: 1e-8, False: 1e-4}
 TAIL_ATOL = {True: 0.0, False: 0.0}
 TAIL_RTOL = {True: 1e-8, False: 1e-4}
 
+# Spec 12.1 RMST exception: compare k*dM/dk and b*dM/db errors against |M|,
+# i.e. log-parameter units; cutoff derivative error has absolute scale 1.
+# Pre-test 60-digit quadrature probes: 126 full-grid points (six shapes,
+# seven ratios, three scales) plus 16 switch neighbors, both dtypes.
+# Maximum parameter/cutoff errors were 1.72e-14/1.56e-15 (x64) and
+# 1.29e-5/6.45e-7 (x32). Fixed factors allow modest rounding margin;
+# these are absolute factors with rtol=0, not relative-to-tiny-derivative tests.
+RMST_PARAMETER_ATOL = {True: 2e-13, False: 5e-5}
+RMST_CUTOFF_ATOL = {True: 2e-13, False: 5e-6}
+
 # Six binomial/delta-method MCSEs allow this fixed-seed family of empirical checks.
 SIMULATION_SIGMAS = 6

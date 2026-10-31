@@ -1,61 +1,45 @@
 Independent review: round 1/3
 
-# MNIST.5s — Replace the custom optimizer with stock BFGS
+# MNIST.integration — Resolve incoming main
 
-Maintainer explicitly rejected the custom RoundoffArmijo optimizer and directed
-plain optx.BFGS for the intercept estimate. This corrective step removes both
-optimizer subclasses; MNIST.5's three review rounds remain recorded separately.
+Read PLAN.md MNIST.integration, then DEVIATIONS.md and the merge parents
+1d06cc9 (MNIST) and ae569e4 (incoming main with RMST). Review the merge
+resolution against both parents rather than treating inherited code as new.
 
-Read first:
-1. PLAN.md, MNIST.5s, and the maintainer decision in D-029.
-2. examples/survival_mnist/model.py, fit_intercept.
-3. tests/unit/check_mnist_reference.py, independent profile optimum check.
+Invariants:
+- Only the three workflow records conflicted. Source, tests, tolerances,
+  appendix, README, .spec-seen and incoming CLAUDE.md retain the automatic
+  merge result without local changes. No protected-path edit is introduced.
+- Both complete parent plans are preserved verbatim under labelled headings.
+- Distinct MNIST and RMST deviations are retained with unchanged statuses;
+  shared D-027-and-earlier history is identical and retained once. Historical
+  D-028/D-029 collisions are explained by topic; no IDs or decisions change.
+- The previous MNIST.5s review is available at 1d06cc9:REVIEW.md; the incoming
+  RMST.integration review is at ae569e4:REVIEW.md. This file follows the
+  overwrite convention. No new MNIST implementation step begins here.
 
-Invariants: stock optx.BFGS(rtol=1e-5, atol=1e-5), default line search and
-AD, maximum 256 steps. Public likelihood, float64 process boundary, input
-validation and explicit unsuccessful/nonfinite result errors remain. No
-custom convergence logic, likelihood adjustment, new dependency or core API.
-Maintainer additionally confirmed "Initialize the CNN too". train now requires
-initial_intercept=(log shape, log scale) from the separate float64 training-only
-fit. It casts to float32, validates finite shape (2,), initializes the shared
-log shape and CNN final bias. CNN takes log scale directly. D-030 records this
-authorized change from the documented zero/observed-mean initialization;
-no spec edit is requested or made.
+Checks and requirement evidence: complete. Static checks and cumulative
+fresh-wheel gate through A10 cover inherited core behavior and packaging;
+optional MNIST checks in separate dtype processes cover the existing demo
+against the incoming numerical methods. No new behavioral test is needed
+for the record-only conflict resolutions. No new spec interpretation.
 
-The previous coefficient-precision target was unnecessary for this estimate.
-The replacement test independently derives the optimum mean NLL from the
-50-digit mpmath profile-score root and compares fitted likelihood using the
-unchanged float64 tolerance constants. Eight exact/mixed cohorts include
-censoring at zero and both fixed random seeds. Existing transformation,
-second derivative, precision, invalid-observation and solver-failure checks
-remain. Tests specific to the deleted custom line search are removed.
+Completed checks (all exit 0):
+- scripts/check_wheel.sh --through A10: all gates passed; Ruff format 133
+  files already formatted, Ruff all checks passed, mypy no issues in 21 source
+  files. Own suites: x64 1119 passed/7 skipped (76.73s), x32 1125 passed/1
+  skipped (79.41s). Source doctests: 4 passed each mode. Acceptance: x64
+  2333 passed/27 skipped (68.79s), x32 2324 passed/36 skipped (67.15s).
+- JAX_ENABLE_X64=1 and =0 uv run --group examples --group test pytest with
+  check_mnist_model.py, check_mnist_reference.py, check_mnist_training.py,
+  test_mnist_data.py, test_mnist_outcomes.py: respectively 58 passed/1 skipped
+  (27.79s) and 38 passed/21 skipped (18.63s).
+- Parent preservation script: both full parent plans and every deviation entry
+  preserved exactly; all inherited staged files outside the three resolutions
+  equal incoming main. git diff --check and git diff --cached --check clean;
+  no unmerged entries or conflict markers in the resolved files.
 
-Evidence:
-- Before selecting 1e-5, stock BFGS at 1e-6 passed the small cohorts but hit
-  max_steps on the actual smoke cohort; this failure was reported, not accepted.
-- Stock BFGS at 1e-5 succeeds in seven iterations for both cached training
-  cohorts: smoke log parameters [0.16221817, 1.42582022], full
-  [0.17199414, 1.43252349]. No held-out metric or seed selection.
-- Optional five-file checks at 1e-6: x64 55 passed, 1 skipped; float32
-  35 passed, 21 skipped. Final reference checks at 1e-5 recorded below.
-- Cumulative fresh-wheel gate and final reference results recorded below.
-
-The training schedule test captures the supplied log scale, verifies actual
-initial bias and nonzero log shape before the first Adam update, and checks
-float32 dtype even with a float64 input. Invalid initialization checks cover
-wrong shape, NaN and infinity. The CNN geometry/algebra tests now supply log
-scale directly; their independent expected values remain unchanged.
-
-Open records: D-029 and D-030 retain maintainer-owned open statuses, with the
-explicit decisions above recorded. No unresolved implementation choice.
-
-Final checks:
-- Optional five-file suite after both corrections: x64 58 passed, 1 skipped;
-  float32 38 passed, 21 skipped.
-- Ruff format: 126 files already formatted; Ruff: All checks passed;
-  mypy: Success, no issues found in 20 source files; git diff --check clean.
-- scripts/check_wheel.sh --through A10: all gates passed. Implementation
-  suites: x64 1087 passed/7 skipped, float32 1093 passed/1 skipped; source
-  doctests 4 passed in each mode; acceptance suites: x64 2333 passed/27 skipped,
-  float32 2324 passed/36 skipped. Gate started before the CNN initialization
-  edit; the final optional suites above cover that edit (core was unchanged).
+No docs build, R generation, full MNIST training or new performance result is
+claimed. This is a merge-resolution step, not new numerical or docs authorship.
+Previous step: 1d06cc9. Worktree branch starting point: ee72c83. Incoming main:
+ae569e4. Remaining MNIST work and docs ownership are unchanged by this merge.
