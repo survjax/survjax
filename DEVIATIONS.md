@@ -1,5 +1,65 @@
 # Deviations and spec questions
 
+Merge ID reconciliation (2026-10-31): both workstreams independently assigned
+D-028. PH's constructor entry retains D-028; RMST's zero-boundary entry is
+now D-030. Historical RMST plans/reviews citing D-028 refer to D-030 here;
+those records remain verbatim. No entry body, decision or status is changed.
+
+## D-030 Higher cutoff derivatives at the staged RMST zero boundary
+
+- Step: RMST.2-report (2026-10-30), mathematical report requested before approval.
+- Spec section: 8.7 (derivatives and tau=0), with smooth-interior context in 7.3.
+- What the spec says: at tau=0, value and parameter derivatives are 0 and the
+  cutoff derivative is 1; derivatives not involving shape are supported to all
+  orders. It does not explicitly delimit that higher-order statement at zero.
+- What is observed: _weibull_rmst returns the active cutoff on its zero branch.
+  For k=1,b=2, the value and first derivative are 0 and 1, but autodiff's second
+  cutoff derivative is 0. The analytic right second derivative is -1/b=-0.5.
+  A float64 probe using jax.grad(jax.grad(f))(0.0) confirmed the discrepancy.
+  Independent review S-2 also found k=2,b=2 has third right derivative -0.5
+  versus autodiff 0; for 0<k<1 the second right derivative diverges to -inf.
+  Hence a finite all-orders zero-boundary guarantee cannot cover the range.
+- What was done/proposed: explain it in reports/weibull-rmst-math.md (since
+  replaced by appendices/weibull-rmst.md) and its compiled PDF; leave production code and spec unchanged. Maintainer must
+  decide whether zero guarantees end at the stated first derivatives or
+  whether existing higher right derivatives are also required. No boundary
+  guarantee is silently adopted. This is distinct from invalid-own-tangent S-1.
+- Maintainer decision (2026-10-30): after reading the code and report,
+  requested “take the conservative action” for guarantees. Adopt value and
+  first derivatives only at the Weibull/PH-Weibull zero boundary; retain
+  higher guarantees on valid smooth interior inputs. A NaN entry's own
+  tangents are unclaimed in the staged subset; valid-entry isolation remains
+  mandatory (also settles the interpretation requested by RMST.1 S-1).
+  Explicit follow-up confirmation: “yes, a NaN RMST result's own derivatives
+  may be unspecified”. Valid-entry isolation remains required.
+  Spec revision 38 records this decision separately in the design repo.
+  Permanent derivations are now in appendices/weibull-rmst.md; the historical
+  approval report is retained by its earlier commits, not in the appendix.
+- Status: open.
+
+## D-029 RMST parameter-derivative tolerance coordinates
+
+- Step: RMST.3 independent review, S-1 (2026-10-30).
+- Spec section: 12.1 staged RMST derivative tolerance exception.
+- Spec says: compare parameter-derivative errors with an absolute tolerance
+  scaled by |rmst|, without specifying the parameter coordinates.
+- Observed: raw dM/db is dimensionless while M has time units. On the 142-case
+  grid, the raw error/|M| needs a float32 factor about 1.3e-2 at b=1e-4;
+  such a factor is weak at b=1. The scale-invariant errors
+  |k*error_k|/|M| and |b*error_b|/|M| have measured maxima 1.28e-5 and
+  1.54e-6 in float32 (1.72e-14 and 2.45e-15 in float64).
+- Did/propose: tests use log-parameter units k*dM/dk and b*dM/db with the
+  fixed measured factors. Reviewer describes the reading as scale-invariant
+  and prefers it, while leaving the decision to the maintainer. Compared with
+  the literal reading, it is 5 times looser on dM/dk at k=0.2 and stricter
+  where k>1 or b>1; the natural scale is |M|/k or |M|/b.
+- Maintainer decision: explicitly answered “Confirm log-parameter scaling”
+  to the request to clarify 12.1. Spec revision 39 records that decision in
+  design commit 1389af4da8cd23f7c0d38da047ba14b5ac0801f2. Numerical code,
+  references and measured factors are unchanged; cutoff error retains
+  absolute scale 1. The status remains maintainer-owned.
+- Status: open.
+
 ## D-028 PH baseline positional versus keyword-only construction
 
 - Step: PH.1 independent review round 1, 2026-10-29 (S-1).
