@@ -72,12 +72,18 @@ def model(
     """
     if compute_rmst and tau_grid is None:
         raise ValueError("tau_grid is required when compute_rmst=True")
-    log_k = numpyro.sample("log_k", distributions.Normal(0.0, 0.5))
-    log_b0 = numpyro.sample("log_b0", distributions.Normal(jnp.log(10.0), 1.5))
-    gamma = numpyro.sample("gamma", distributions.Normal(0.0, 1.0))
+
+    # sample parameters
+    log_k = numpyro.sample("log_k", distributions.Normal(0, 5))
+    log_b0 = numpyro.sample("log_b0", distributions.Normal(0, 5))
+    # sample log-hazard ratio for treatment arm
+    gamma = numpyro.sample("gamma", distributions.Normal(0, 5))
+
+    # set up survival model and likelihood factor
     base = survjax.Weibull.from_log(log_shape=log_k, log_scale=log_b0)
     survival = survjax.ProportionalHazards(base, log_hazard_ratio=gamma * arm)
     with numpyro.plate("observations", len(data), dim=-1):
+        # compute the survival log likelihood and add to sampler target
         # Spec 11.3: summing here would multiply the total likelihood by N.
         numpyro.factor("survival", survival.log_likelihood(data))
     if compute_rmst:
