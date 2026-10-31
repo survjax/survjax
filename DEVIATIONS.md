@@ -25,8 +25,14 @@ those records remain verbatim. No entry body, decision or status is changed.
   route is required. No interpretation/exception adopted here; revision 40's
   PH direct/likelihood derivative deferral does not cover this value question.
   Record the current behavior for the future docs topic pending the decision.
-- Status: open; maintainer decision required. Reviewer marked it non-blocking
-  for round 1, so independent round-1 code/test findings are handled first.
+- Maintainer decision (2026-10-31): “ok agreed and on to the next bit” accepts
+  NaN as a detectable numerical-failure signal for unrepresentable PH closures
+  outside the promised accuracy range in this initial release. Document that
+  original parameter diagnostics may be clean; defer log-scale support to the
+  post-release numerical roadmap. This does not weaken the mandatory RMST
+  accuracy domain or its zero-boundary/valid-entry-isolation requirements.
+- Status: open (formal disposition remains maintainer-owned). The original
+  implementation is retained under that explicit decision; no spec edit here.
 
 ## D-031 PH extreme-range parameter derivatives deferred after initial release
 

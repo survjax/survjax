@@ -1,3 +1,101 @@
+# PH.3b — RMST range, broadcast derivatives and supported Hessians (2026-10-31)
+
+Authorized by “ok agreed and on to the next bit”, resumed after the explicit
+request to reread the updated AGENTS.md/CLAUDE.md (the former symlinks to the
+latter). Clean release-ph start: 61327fd4cb3a7b8d4f67c4a95b8c09d910c28bb8,
+the maintainer's agreement merge. Previous PH step final:
+b49638e2aec294bcaa0bab0c07443e2bf249aedd. Original worktree launch base:
+8757c0fda78e34e6e818249adedd2a144a33c33d. No interrupted mutation/process was
+started: the interrupted turn only read files. Preserve all unfinished history.
+
+PH.3a round 2 left no code/test fix, only D-032; record the maintainer's
+acceptance of a detectable NaN outside closure representability/accuracy range
+without marking its status resolved. Keep mandatory-domain accuracy and zero
+boundary/invalid-neighbor isolation. Spec revision 40 remains read-only;
+.spec-seen already records 765c65b. Do not imply the direct/likelihood derivative
+exception changes staged RMST. No public-export/docsite integration here.
+
+One numerical-verification concept, about 300 changed implementation/test lines:
+- Create tests/unit/test_proportional_hazards_rmst_derivatives.py. No public API.
+- Broadcast (S,1) baseline fields × (S,2) eta: first-derivative closure identities
+  for rate or shape/scale and eta, scalar cutoff and explicit leading cutoff
+  axes (m=S), eager/jit/vmap and forward/reverse Jacobians.
+- Independent 60-digit physical PH survival quadrature, with derivative
+  integrands, across Weibull k={0.2,0.5,1,2,10,50}, tau/b_PH in
+  {0.01,0.1,0.5,1,10,100,1e5}, baseline scales {1e-4,1,1e4}, both eta signs.
+  Include both sides of the native lower/gamma/mean branch thresholds. Include
+  analogous Exponential rate/eta/cutoff values and derivatives across scales.
+  References use actual dtype-rounded inputs, never code-under-test outputs.
+- Reuse unchanged native RMST value-scaled parameter and absolute-cutoff bounds;
+  eta is already a log coordinate. State normalization and chain-factor scales.
+  Measure rather than loosen any tolerance if composition exposes a failure.
+- Supported Hessians: all four fwd/rev combinations, full Exponential and
+  Weibull scale/eta/tau with shape OUTSIDE differentiated arguments. Check
+  finiteness across the grid and independent integral Hessians at interior
+  points; include check_grads order=2 in supported directions.
+- Restore a shared-eta invalid-neighbor case (PH.3a N-4 defence in depth), plus
+  ordinary representable Exponential zero-boundary Hessian evidence if space
+  permits. Accepted outside-domain failures must not be mistaken for invalid
+  parameters or generalized into allowed in-domain NaNs.
+- Anticipate a small closure-precision correction in exponential.py/weibull.py
+  or wrappers.py ONLY if these checks expose a settled-contract failure in the
+  mandatory domain. Keep all work within about 300 changed code/test lines;
+  split optional evidence before exceeding the budget. No new module,
+  dependency, protected path, tolerance change, generic summary or sampling.
+
+Read spec 4.4–4.5, 5, 7.2–7.3, 8.7, 12.1–12.2 and the PH handoff. Write
+REVIEW.md with oracle derivations, invariants, requirement/test mapping and
+actual commands/results. Run focused both-dtype tests, Ruff/mypy, unchanged
+fresh-wheel A10 gate, whitespace/scope audit. Commit and invoke independent-review
+exactly for PH.3b round 1/3; fix blockers/should-fix within three rounds, then
+stop/report. Report final, previous PH-step, step-start and original worktree
+base commits, plus remaining sub-steps, under the updated agreement.
+
+PH.3b implementation findings: the first 142-point Weibull /21-point
+Exponential grid alternated eta signs and passed all 10 new cases per mode
+(46.16s/46.10s). Expand to BOTH eta signs at every shape/ratio/scale tuple,
+not just alternating signs. A targeted pre-fix probe then found an in-domain
+float32 cutoff derivative error 1.777321e-5 at k=50,b=1e4,eta=0.3 and
+physical tau/b_PH approximately 1, versus the unchanged 5e-6 bound. The log(b)
+then exp round trip in the private closure, amplified by large k, caused it.
+This is a settled-contract ordinary-domain precision failure, not covered by
+D-031/D-032. Correct only Weibull._ph_equivalent: use b*exp(-eta/k) when both
+factor and final parameter are normal and finite; retain the guarded log-space
+route otherwise, substituting operands in BOTH branches before operations.
+No clipping, epsilon or tolerance change. After correction, forward/reverse
+errors on that point are 1.8775e-8 /4.8577e-8.
+
+The numerical fix adds a direct-product / guarded-log fallback branch.
+Replace the optional new shared-eta isolation cases (already passed twice)
+with positive-cutoff fallback regressions: the multiplier over/underflows,
+but effective scale and RMST remain representable. Existing PH.3a isolation
+regressions remain unchanged; N-4 defence-in-depth stays a future coverage item.
+This prioritizes regression evidence for BOTH branches of the new code.
+
+Final range grid: 252 Weibull Cartesian rows plus 16 threshold neighbors;
+42 Exponential rows. New test module 266 lines; source fix 22 additions/3
+removals =25, total 291 changed implementation/test lines. Shared-eta
+first/second isolation (PH.3a N-4) and ordinary Exponential zero-Hessian evidence
+is left to existing/native tests and later integration rather than exceed
+this step's budget. The pre-swap 29 focused cases passed (67.00s float32,66.34s x64), including
+shared-eta first/second isolation on the corrected production code. The final
+29-case selection with both guarded fallback regressions passes too:
+70.89s x64 /71.64s float32. Static checks clean; fresh-wheel A10 gate exits 0
+on the final production source: own 1271/8 and 1276/3, doctests four per mode,
+independent 2332/28 and 2322/38 (passed/skipped). The gate began before the
+optional shared-eta test was exchanged for fallback cases; the production
+source did not change and the final focused selection verifies those cases.
+Record exact commands/timings/wheel in REVIEW.md, commit and request PH.3b
+independent round 1/3. Stop after its verdict.
+
+Docs to-do: executable PH topic with RMST examples, shape-Hessian and zero
+boundary restrictions, revision-40 extreme derivative limitation and accepted
+D-032 numerical-failure behavior. Exports/install/API-reference integration
+still needs the narrow docs/api.md code-step exception; exact export/API tests
+remain unchanged. No unfinished sub-slice is archived or called complete.
+
+---
+
 # PH.3a — Built-in PH closure and delegated RMST (2026-10-31)
 
 Authorized by “get on with the PH implementation”. Complete the maintainer's
