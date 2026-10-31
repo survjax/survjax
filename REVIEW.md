@@ -1,6 +1,54 @@
-Independent review: round 1/3
+Independent review: round 2/3 pending (not invoked)
 
-# BAYES.1 — Fixed trial, NumPyro wiring and sampling pilot
+# BAYES.1 follow-up — Direct execution and independent trial oracle
+
+Round 1 returned maintainer. The maintainer requests continuation and reports
+`uv run examples/bayesian_rmst/run.py` fails to import examples. This fix-up
+supports that command and addresses F-002 and N-001 without changing core.
+
+Follow-up reading order: PLAN.md follow-up, run.py bootstrap, check_model.py
+independent trial oracle. Prior round context and evidence are preserved below.
+
+Changes and findings:
+- Direct-file execution now inserts the resolved checkout root into sys.path
+  before importing examples. Module execution keeps its existing search path.
+  Configuration of device count/x64 remains before backend initialization.
+- F-002: expected c comes from the equal-weight two-arm calibration, and
+  expected observations use the literal data key and fixed design values.
+  Compare time, exact/event and c instead of comparing make_trial to itself.
+- N-001: deterministic wiring check uses literal key(0), leaving reserved
+  predictive streams unambiguous.
+- F-001 and S-001 remain pending prerequisite integration, including PH RMST.
+
+Follow-up checks:
+- `uv run examples/bayesian_rmst/run.py --help` and
+  `uv run --group examples python -m examples.bayesian_rmst.run --help`:
+  both exit 0 with smoke/full choices.
+- `uv run examples/bayesian_rmst/run.py` and the module smoke command:
+  both now reach MCMC model initialization and exit 1 because survjax has no
+  ProportionalHazards. No examples import error. No sampling/timing evidence.
+- Explicit x64 optional-process check_trial passes, c=19.1725354361981.
+  In the same process unittest.mock.patch replaces model.calibrate_censoring
+  with target=0.25, model.generate_weibull with negated eta, then
+  model.use_case_key with stream+1: all three raise AssertionError as expected.
+- `uv run ruff check .`: All checks passed!
+- `uv run mypy src`: Success: no issues found in 20 source files.
+- Format check of run.py/check_model.py: 2 files already formatted.
+- `git diff --check`: exit 0.
+- No repeat core suite or cumulative gate for this isolated demo fix; earlier
+  results and the unchanged README gate failure are recorded below.
+
+Initial user edits in model.py change the three priors to Normal(0,5) and add
+comments. They are preserved, excluded from this fix-up commit, and awaiting
+clarification. These edits differ from the agreed design and factor oracle;
+no attempt was made to change the oracle to accommodate them. The independent
+review skill requires a clean git status before invocation, so round 2 cannot
+start while these user edits remain pending. No review retry or new round has
+been requested for this fix-up yet.
+
+---
+
+# Prior BAYES.1 implementation record
 
 Read first:
 1. PLAN.md BAYES.1 and plans/release-agents/bayesian.md.

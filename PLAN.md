@@ -1,3 +1,29 @@
+# BAYES.1 follow-up — Direct entry point and independent trial oracle (2026-10-31)
+
+Maintainer authorizes continuing after round 1 and reports direct-file import
+failure. First finish the existing concept: support direct-file invocation,
+fix F-002's self-comparison and clarify N-001's test-only key. Files: run.py,
+check_model.py, PLAN.md, REVIEW.md. No new API/module/dependency or core changes.
+Spec 11.3 and 02-details Data/Sampling. Keep changes well below 300 lines.
+Add the repository root to sys.path only for direct-file execution, before
+importing examples; preserve device setup before JAX backend initialization.
+Independently construct expected trial from fixed values and the literal key
+mapping using the reviewed shared generator, and compare observed time/event
+and censoring limit. Check three deliberate DGP mutations are detected.
+Verify direct and module --help; execute both smoke entry points to distinguish
+import resolution from the still-missing PH API. Run trial checks in x64 and
+Ruff/mypy. Cumulative gate's known README formatting issue remains recorded.
+Do not broaden repeated core tests for this demo-only fix.
+
+Initial dirty model.py contains maintainer edits changing all three priors to
+Normal(0,5). Preserve them pending clarification; do not silently commit or
+revert them. The prior/factor contract is unchanged by this follow-up.
+After the authorized fixes, update REVIEW.md and commit; request independent
+review round 2/3 of BAYES.1 and stop. Full sampling and posterior routes remain
+later reviewed steps; runtime evidence still depends on PH/RMST integration.
+
+---
+
 # BAYES.1 — Fixed trial, NumPyro wiring and sampling pilot (2026-10-31)
 
 Start on clean maintainer-created `release-bayes` at

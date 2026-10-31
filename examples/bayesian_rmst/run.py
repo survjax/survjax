@@ -1,9 +1,11 @@
-"""Run from checkout: uv run --group examples python -m examples.bayesian_rmst.run."""
+"""Run from checkout: uv run --group examples examples/bayesian_rmst/run.py."""
 
 import argparse
 import importlib.metadata
 import json
+import sys
 import time
+from pathlib import Path
 
 
 def main() -> None:
@@ -22,6 +24,9 @@ def main() -> None:
     from numpyro.diagnostics import summary
     from numpyro.infer import MCMC, NUTS
 
+    # File execution adds this directory, rather than the checkout root.
+    if __package__ in (None, ""):
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     from examples.bayesian_rmst.model import make_trial, model, use_case_key
 
     trial = make_trial()

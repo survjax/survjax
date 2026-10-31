@@ -9,21 +9,29 @@ from numpyro.infer.util import log_density
 
 import survjax
 from examples.bayesian_rmst.model import make_trial, model, use_case_key
+from examples.weibull_simulation.study import calibrate_censoring, generate_weibull
 
 
 def check_trial() -> None:
     """02-details: balanced fixed trial, valid float64 rows and stable keys."""
     trial = make_trial()
-    repeated = make_trial()
+    # 02-details Data: independent fixed-value oracle using the shared generator.
+    expected_arm = jnp.repeat(jnp.array([0.0, 1.0]), 150)
+    expected_eta = jnp.log(0.7) * expected_arm
+    expected_c = calibrate_censoring(
+        1.38, 11.42, 0.55, log_hazard_ratio=jnp.log(0.7) * jnp.array([0.0, 1.0])
+    )
+    data_key = jax.random.fold_in(jax.random.fold_in(jax.random.key(20261025), 2), 0)
+    expected = generate_weibull(
+        data_key, 1.38, 11.42, expected_c, log_hazard_ratio=expected_eta
+    )
     assert trial.data.shape == (300,)
     assert trial.data.lower.dtype == jnp.float64
     np.testing.assert_array_equal(trial.arm, np.repeat([0.0, 1.0], 150))
-    for left, right in zip(
-        jax.tree.leaves(trial.data), jax.tree.leaves(repeated.data), strict=True
-    ):
-        np.testing.assert_array_equal(left, right)
+    np.testing.assert_array_equal(trial.data.lower, expected.time)
+    np.testing.assert_array_equal(trial.data.exact, expected.event)
     assert bool(trial.data.issues.ok)
-    assert trial.censor_limit == repeated.censor_limit
+    assert trial.censor_limit == expected_c
     root = jax.random.key(20261025)
     for stream in range(4):
         expected = jax.random.fold_in(jax.random.fold_in(root, 2), stream)
@@ -63,7 +71,7 @@ def check_factor() -> None:
         posterior_samples={
             name: jnp.asarray([value]) for name, value in params.items()
         },
-    )(use_case_key(2), trial.data, trial.arm, compute_rmst=True, tau_grid=grid)
+    )(jax.random.key(0), trial.data, trial.arm, compute_rmst=True, tau_grid=grid)
     assert result["rmst_tau"].shape == (1, 2)
     assert result["rmst_curve"].shape == (1, 3, 2)
     print(
