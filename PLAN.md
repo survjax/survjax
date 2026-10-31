@@ -1,3 +1,22 @@
+# BAYES.1 follow-up — Record committed prior choice (2026-10-31)
+
+Maintainer committed Normal(0,5) for all three log parameters in 3c554be and
+requests continuation. Treat that as the explicit prior choice; preserve it.
+Before review round 2, align check_model.py's independent prior log-density
+term and run.py's recorded settings with that choice. Record the departure
+from 02-details in DEVIATIONS.md as open (only the maintainer resolves it),
+without editing spec. No new dependency/API/module or numerical core changes.
+REVIEW.md records the choice, removes the now-obsolete dirty-checkout block,
+and retains the outstanding PH/RMST integration limitations.
+
+Check trial oracle and prior-density arithmetic in an explicit x64 optional
+process; rerun Ruff/mypy, both help entry points and whitespace. Sampling
+remains unavailable without PH; no replacement implementation or integration.
+Commit, invoke independent-review round 2/3 for BAYES.1, then follow its verdict
+and stop. This finishes the reviewable first step before posterior-route work.
+
+---
+
 # BAYES.1 follow-up — Direct entry point and independent trial oracle (2026-10-31)
 
 Maintainer authorizes continuing after round 1 and reports direct-file import

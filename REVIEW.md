@@ -1,4 +1,4 @@
-Independent review: round 2/3 pending (not invoked)
+Independent review: round 2/3
 
 # BAYES.1 follow-up — Direct execution and independent trial oracle
 
@@ -38,13 +38,28 @@ Follow-up checks:
 - No repeat core suite or cumulative gate for this isolated demo fix; earlier
   results and the unchanged README gate failure are recorded below.
 
-Initial user edits in model.py change the three priors to Normal(0,5) and add
-comments. They are preserved, excluded from this fix-up commit, and awaiting
-clarification. These edits differ from the agreed design and factor oracle;
-no attempt was made to change the oracle to accommodate them. The independent
-review skill requires a clean git status before invocation, so round 2 cannot
-start while these user edits remain pending. No review retry or new round has
-been requested for this fix-up yet.
+Maintainer committed all three Normal(0,5) priors in 3c554be and requests
+continuation. The checkout is now clean before this follow-up. This explicitly
+authorizes retaining those priors; the factor-check prior term now matches the
+committed model and run metadata records distribution/loc/scale for each site.
+D-028 records the departure from the delegated design (open, not resolved here).
+Prior predictive assessment is still pending. No spec file is edited.
+
+Current follow-up checks: Ruff format (3 files) and lint pass; mypy passes
+for 20 source files; both help entry points exit 0; whitespace check passes.
+Explicit x64 trial oracle passes with c=19.1725354361981. At the specified
+factor-check parameters, the three Normal(0,5) terms sum to
+-7.6936321221273225 and agree with the independent analytical Normal formula
+to atol=1e-12, rtol=0. This verifies only the prior arithmetic, not NumPyro's
+full factor density (still unexecuted without PH). Ordinary core suites and
+full gate are not repeated for this seven-line example-only alignment.
+
+Round 2 includes b92ccf4's direct-entrypoint and independent-trial fixes, the
+maintainer's 3c554be prior choice, and this alignment/metadata follow-up.
+F-002 and N-001 are addressed. F-001 and S-001 still require integrated PH/RMST
+execution; authorization to proceed against their specified APIs remains the
+maintainer's original instruction. Please assess the prepared implementation
+with those runtime limitations, which are not claimed as passing evidence.
 
 ---
 

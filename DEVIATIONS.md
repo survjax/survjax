@@ -1,5 +1,18 @@
 # Deviations and spec questions
 
+## D-028 Bayesian demo prior choice
+- Step: BAYES.1 follow-up
+- Spec: 11.3, delegated 02-bayesian-survival-details Model sketch
+- Spec says: log_k ~ Normal(0,0.5), log_b0 ~ Normal(log(10),1.5),
+  gamma ~ Normal(0,1).
+- Did / propose: maintainer changed all three priors to Normal(0,5) in
+  3c554be and explicitly requests continuation with those edits committed.
+  Preserve that choice; align the independent factor-density check and record
+  priors in run metadata. Design files remain unchanged. The broader priors
+  still need prior-predictive assessment in the later plots step.
+- Status: open.
+
+
 ## D-027 Concordance result representation and undefined diagnostics
 
 - Step: A10 planning (2026-10-23), before public integration.

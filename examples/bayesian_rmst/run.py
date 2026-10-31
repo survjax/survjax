@@ -57,6 +57,10 @@ def main() -> None:
         "draws_per_chain": draws,
         "chain_method": chain_method,
         "initialization": "NumPyro default init_to_uniform",
+        "priors": {
+            name: {"distribution": "Normal", "loc": 0.0, "scale": 5.0}
+            for name in ("log_k", "log_b0", "gamma")
+        },
         "x64": jax.config.x64_enabled,
         "backend": jax.default_backend(),
         "versions": {

@@ -53,9 +53,9 @@ def check_factor() -> None:
         base, log_hazard_ratio=params["gamma"] * trial.arm
     )
     prior = (
-        distributions.Normal(0.0, 0.5).log_prob(params["log_k"])
-        + distributions.Normal(jnp.log(10.0), 1.5).log_prob(params["log_b0"])
-        + distributions.Normal(0.0, 1.0).log_prob(params["gamma"])
+        distributions.Normal(0.0, 5.0).log_prob(params["log_k"])
+        + distributions.Normal(0.0, 5.0).log_prob(params["log_b0"])
+        + distributions.Normal(0.0, 5.0).log_prob(params["gamma"])
     )
     expected = prior + survival.log_likelihood(trial.data).sum()
     np.testing.assert_allclose(actual, expected, atol=1e-10, rtol=0)
