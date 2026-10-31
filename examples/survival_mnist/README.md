@@ -51,7 +51,7 @@ and repeat with `JAX_ENABLE_X64=1`. Ordinary tests need no demo dependencies.
 initial_intercept=fitted_log_parameters, config="smoke")` now returns the selected parameters, NLL histories and selected
 epoch. Use float32 outcome data and pixels; batch size is 128, with 1/10 epochs
 for smoke/full. Check training separately with the same command above using
-`tests/unit/check_mnist_training.py`. CLI, oracle/held-out metrics, full results and
+`tests/unit/check_mnist_training.py`. Full results and
 the executable page remain to be implemented.
 
 The intercept-only reference is `model.fit_intercept(training_time, training_event)`.
@@ -75,3 +75,16 @@ a constant intercept gives C=0.5 when comparable pairs exist. Undefined or
 nonfinite metrics raise. C wall time includes first-call compilation and waits
 for completion, so report whether a call was cold or warm. Run offline checks
 with the examples group using `tests/unit/check_mnist_metrics.py` in both modes.
+
+Run the pipeline from the repository root:
+
+```bash
+uv run --group examples python -m examples.survival_mnist.run --config smoke --out /tmp/survjax-mnist-smoke
+```
+
+The parent launches CPU-only float64 preparation/fit, then float32 training and
+evaluation, independent of its own precision setting. It writes `metrics.csv`
+and `history.csv`, and prints calibration/fit values, timings, the selected
+epoch and three metric rows. Use
+`--config full` for the fixed ten-epoch configuration. The metadata writer,
+figures, committed full results and executable page are still pending.

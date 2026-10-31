@@ -102,6 +102,10 @@ The maintainer reviews all code, so optimise for reviewability over speed.
     previous step and the last commit the working-tree was based on.
     This is to ensure that the maintainer can easily track the
     progress of the work for every step and on the entire worktree.
+12. **Mention remaining sub-steps** when reporting back.
+    If a step has multiple sub-steps, mention which sub-step you are reporting
+    back on, and which sub-steps remain to be done. This helps the maintainer
+    understand the progress of the work and what is left to be done.
 
 ## Docs
 

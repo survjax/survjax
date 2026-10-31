@@ -1,3 +1,35 @@
+# MNIST.7 — CLI and CSV records (2026-10-31)
+
+Start clean at 45850eb; original branch base ee72c83. Implement the named
+run.py CLI --config {smoke,full} --out DIR. Spec 11.2 and use-case 03 Files
+and commands, Precision, Splits and keys, References and metrics, Run and budget.
+No new dependency/core API/protected path/spec edit. D-030 initialization stands.
+
+Files:
+- examples/survival_mnist/run.py: standard-library parent launches sequential
+  CPU subprocesses with explicit JAX_ENABLE_X64=1 then =0 before importing JAX.
+  Temporary JSON carries calibrated c and fitted log parameters. Preparation
+  uses all source training digits for calibration, generates all 70k outcomes,
+  and fits only the selected training rows. Training uses fixed train/validation
+  cohorts and supplied intercept; selected CNN predicts in batches of128 with
+  tail retained. Evaluate CNN/intercept/oracle on test once selection is done.
+  Write metrics.csv and history.csv; print selected epoch/metrics. Metadata
+  writer split out to the next step to keep this implementation about300 lines.
+  Errors propagate, never continue after failed preparation or invalid metrics.
+- tests/unit/check_mnist_run.py: offline optional checks for child precision
+  environment, failure propagation, data split boundaries, selected predictions,
+  batch tail/order and exact output records with controlled collaborators.
+- examples/survival_mnist/README.md: executable command and staged scope.
+- REVIEW.md: invariants, evidence, independent review MNIST.7 then stop.
+
+Target about300 implementation/test lines. Run optional checks in both modes,
+static checks and cumulative fresh-wheel A10 gate; exercise actual smoke via
+verified warm cache into /tmp. Do not tune from smoke/test results. Report
+failed acceptance observations honestly; full-run acceptance belongs to the
+later fixed10-epoch run. No committed MNIST data/row outputs or results here.
+Docs to-do: CLI, records and precision boundary. Later: reproducibility metadata, figures, full run,
+committed result artifacts, executable documentation page.
+
 # MNIST.6 — Evaluation metrics (2026-10-31)
 
 Start clean at 4a4fb99 (previous integration step); branch base ee72c83.
