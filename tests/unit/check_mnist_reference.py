@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import equinox as eqx
 import impl_tolerances as tol
 import jax
 import jax.numpy as jnp
@@ -24,34 +25,53 @@ requires_x64 = pytest.mark.skipif(
 )
 
 
+def _profile_cases():
+    for censor in (0, 2, 16):
+        yield pytest.param([1, censor, 4, 8], [1, 0, 1, 1], id=f"censor-{censor}")
+    yield pytest.param([1, 4, 8], [1, 1, 1], id="exact-only-three")
+    for seed in (0, 20261025):
+        rng = np.random.default_rng(seed)
+        latent = 4.2 * rng.weibull(1.38, 10)
+        censor = rng.uniform(0, 7, 10)
+        yield pytest.param(
+            np.minimum(latent, censor), latent <= censor, id=f"mixed-n10-seed{seed}"
+        )
+        yield pytest.param(latent, np.ones(10, dtype=bool), id=f"exact-n10-seed{seed}")
+
+
 @requires_x64
-@pytest.mark.parametrize("censor_time", [0, 2, 16])
-def test_intercept_fit_matches_independent_profile_score_root(censor_time):
-    """03 Reference: profile b^k=sum(t^k)/d; solve d/k+sum_event(log t)-d*weighted_log_t=0."""
-    times = [1, censor_time, 4, 8]
-    fitted = model.fit_intercept(jnp.array(times, dtype=jnp.float32), [1, 0, 1, 1])
+@pytest.mark.parametrize("times,event", list(_profile_cases()))
+def test_intercept_fit_matches_independent_profile_score_root(times, event):
+    """03: independent profile b^k=sum(t^k)/d and positive shape-score root."""
+    times = np.asarray(times, dtype=np.float32)  # Same precision as generated outcomes.
+    event = np.asarray(event, dtype=bool)
+    fitted = model.fit_intercept(times, event)
     with mp.workdps(50):
         # At t=0, both t^k and its k derivative vanish for k>0.
-        logs = [mp.log(t) for t in times if t > 0]
+        logs = [mp.log(float(t)) for t in times if t > 0]
+        event_log_sum = sum(
+            mp.log(float(t)) for t, exact in zip(times, event, strict=True) if exact
+        )
+        count = int(event.sum())
 
         def score(k):
             powers = [mp.exp(k * x) for x in logs]
             return (
-                3 / k
-                + mp.log(32)
-                - 3
+                count / k
+                + event_log_sum
+                - count
                 * sum(p * x for p, x in zip(powers, logs, strict=True))
                 / sum(powers)
             )
 
         k = mp.findroot(score, (0.5, 2))
-        log_b = mp.log(sum(mp.exp(k * x) for x in logs) / 3) / k
+        log_b = mp.log(sum(mp.exp(k * x) for x in logs) / count) / k
         expected = [float(mp.log(k)), float(log_b)]
     assert fitted.dtype == np.float64 and fitted.shape == (2,)
     np.testing.assert_allclose(
         fitted, expected, atol=tol.ATOL[True], rtol=tol.RTOL[True]
     )
-    data = survjax.SurvivalData(jnp.array(times, dtype=jnp.float64), [1, 0, 1, 1])
+    data = survjax.SurvivalData(jnp.array(times, dtype=jnp.float64), event)
     gradient = jax.grad(model._intercept_nll)(jnp.asarray(fitted), data)
     np.testing.assert_allclose(
         gradient, 0, atol=tol.DERIVATIVE_ATOL[True], rtol=tol.DERIVATIVE_RTOL[True]
@@ -163,3 +183,41 @@ def test_nonfinite_success_result_never_returns_reference(
     )
     with pytest.raises(RuntimeError, match="nonfinite"):
         model.fit_intercept([1, 2], [1, 0])
+
+
+@requires_x64
+@pytest.mark.parametrize(
+    "gradient,delta,trial,expected",
+    [
+        pytest.param(
+            1e-8, -1e-8, np.nextafter(1.0, np.inf), True, id="roundoff-descent"
+        ),
+        pytest.param(1e-8, -1e-8, 1 + 1e-6, False, id="real-worsening"),
+        pytest.param(1e-8, -1e-8, np.inf, False, id="nonfinite-trial"),
+        pytest.param(
+            1.0, -1e-16, np.nextafter(1.0, np.inf), False, id="large-gradient"
+        ),
+    ],
+)
+def test_reference_line_search_bounds_roundoff_acceptance(
+    gradient, delta, trial, expected
+):
+    """03 Reference: only near-stationary, finite, roundoff-sized descent is allowed."""
+    search = model._RoundoffArmijo()
+    y = jnp.ones(1, dtype=jnp.float64)
+    before = optx.FunctionInfo.EvalGrad(jnp.float64(1), jnp.array([gradient]))
+    after = optx.FunctionInfo.Eval(jnp.float64(trial))
+    state = search.init(y, before)
+    step, accepted, _, state = search.step(
+        jnp.asarray(False), y, y + delta, before, after, state
+    )
+    assert bool(accepted) is expected
+    assert state.step_size == step
+    if expected:
+        shortened = eqx.tree_at(
+            lambda s: s.step_size, search.init(y, before), jnp.float64(0.5)
+        )
+        _, accepted, _, _ = search.step(
+            jnp.asarray(False), y, y + delta / 2, before, after, shortened
+        )
+        assert not bool(accepted)

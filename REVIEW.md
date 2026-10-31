@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # MNIST.5 — Float64 intercept-only reference fit
 
@@ -22,12 +22,14 @@ Scope/invariants:
   or test input/selection enters the fit. Full runner later selects 50k rows.
 - Matching nonempty vectors are required; the public SurvivalData constructor
   with dtype=float64 and issues.raise_if_invalid validates types/values.
-  At least one event is required; all-censored likelihood has no finite MLE.
+  At least one event is required; all-censored data have no finite identifiable MLE.
   Censor-at-zero is admitted as an uninformative row and is tested.
 - Optimize negative mean public Weibull.log_likelihood with from_log. Initial
   shape=1; scale=sum(all observed times)/event_count, the exponential MLE.
   Event count is summed explicitly as float64 before division (spec3.3).
-- Fixed Optimistix BFGS, forward autodiff for two parameters, rtol/atol=1e-10,
+- Fixed Optimistix BFGS recurrence/descent and normal termination, with a
+  private roundoff-aware Armijo comparison (described under F-1 below).
+  Forward autodiff for two parameters, rtol/atol=1e-10,
   max_steps256, throw=False. Unsupported/unsuccessful results raise, rather
   than returning an initial guess or relabeling a max-step result success.
   Successful solutions must have finite parameters, objective and gradients.
@@ -76,7 +78,7 @@ Actual numerical investigation (no tests/tolerances loosened):
 - Supported options.autodiff_mode='fwd' is suitable for two parameters and
   avoids a large reverse tape; with1e-12 it reduced score residuals to
   <=1.3e-10/6.7e-12 and passed all original parameter assertions. No new
-  solver abstraction or custom differentiation rule was introduced.
+  custom differentiation rule was introduced at that point.
 - Actual 50k training-only forward fit at1e-12 hit256 steps; the guard raised
   RuntimeError. Diagnostic solves at1e-8/1e-10 return success in9 steps at
   exactly the same parameters as the max-step1e-12 result, with gradient
@@ -122,7 +124,8 @@ Final commands/results:
   acceptance cases are enabled by the already approved examples environment.
   Fresh wheel: /var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/
   survjax-wheel.EXiQnX/survjax-0.0.1.dev0-py3-none-any.whl.
-- Source/test/README diff238 lines; model.py247, reference checks165 lines.
+- Initial commit: source/test/README diff238 lines; model.py247, reference checks165.
+  Final after required review fix: diff343 lines, model.py292, checks223.
 - No docs build, full neural run, metric/C timing, reference-result artifact
   committed, CLI or figure. Those remain later reviewed steps.
 
@@ -148,3 +151,74 @@ Python3.12.9, JAX0.11.2, NumPy2.5.3, Optimistix0.1.0, CPU. Optional checks
 need examples; ordinary discovery remains demo-free. Mypy covers src only.
 Commit, invoke exact independent-review for MNIST.5, max3 rounds/fix-ups,
 then stop after verdict before adding metrics.
+
+## Round1 follow-up (F-1 and N-1)
+
+Reviewer reproduced the full50k fit but found1e-10 fails on the actual5k
+smoke cohort and some valid small samples; exact-only [1,4,8] stalls even
+with4096 steps at a ~5e-9 score/parameter residual. This is a coverage gap in
+my original probes. It confirms that tightening a loss/iterate-change
+stopping rule below its near-optimum float64 resolution is not robust.
+Investigate fixed1e-8 termination near sqrt(eps64), using the same BFGS and
+public likelihood. Solver failures are still errors; no accepted max-step
+iterate or fallback. All previous MP assertions/tolerances retained; extend
+that oracle to exact-only and seeded mixed/exact10-row samples. Both actual
+smoke/full training-only cohorts must return successful finite fits. N-1
+updates the main Files bullet instead of leaving a conflicting old setting.
+No new dependency, precision toggle, likelihood change, clipping or floor.
+
+### Final resolution of F-1
+
+Changing the Cauchy tolerance to1e-8 alone still stalled the retained seeded
+exact n10 case (accepted score max6.14e-10). Public Armijo slope1e-4 and RMS/
+two-norm probes did not resolve it. An experimental additional gradient-only
+termination condition1e-9 passed small cases but still stalled the actual
+smoke fit, whose score max was1.06e-8. It is not in the final code.
+
+The final fix retains standard BFGS recurrence/descent and1e-10 Cauchy
+termination. _ReferenceBFGS only attaches _RoundoffArmijo, a concrete subclass
+of the existing search. The usual Armijo comparison is supplemented only when:
+- both scalar objective values are finite;
+- this is a full trial (never an already shortened step), not initialization;
+- accepted-gradient max <=sqrt(eps64), i.e. already near stationarity;
+- the predicted descent is nonpositive and its magnitude is below the comparison
+  allowance4*eps64*(1+abs(f)+abs(f_trial));
+- the trial objective does not worsen by more than that same allowance.
+
+This permits a final BFGS correction that its scalar objective cannot resolve,
+rather than returning the stalled iterate. Both returned step and search state
+are reset coherently on acceptance. The objective, likelihood, observations and
+parameters are never clipped/floored/altered. No Newton/root fallback, gradient-
+only exit or promotion of failed/max-step results. The two concrete private
+classes implement the prescribed BFGS fit's numerical comparison, not a new
+optimizer API/framework; they use Optimistix0.1.0's existing extension protocol.
+All extension arguments/returns are annotated (opaque third-party info/state
+use Any); no shape-typing dependency is introduced.
+
+Tests: same MP profile oracle generalized to d=event_count and
+sum_event(log t), with its original parameter assertions/tolerances unchanged.
+Old0/2/16 censor cases remain; add exact-only [1,4,8] and independent NumPy
+seed0/20261025 n10 mixed/exact samples, quantized to the same float32 input
+precision as generated outcomes. All8 MLE cases pass. Direct search controls
+pin bounded acceptance: one-ulp unresolved descent accepted,1e-6 genuine
+worsening rejected, nonfinite trial rejected, large gradient rejected, shortened
+step rejected; next state and returned step agree.
+
+Actual repeat, JAX_ENABLE_X64=1, same warm-cache/preparation recipe as above,
+loop over split_indices(config)['train'] for smoke/full (no held-out inputs):
+- smoke5000: logs [.16221816847747333,1.4258202396725628], k1.1761168049456001,
+  b4.161269681783087, training NLL1.2264619928696128, gradients
+  [-1.795408940186372e-15,-8.084890471682817e-16],1.429775084s CPU incl.compile.
+- full50000: original logs/k/b/NLL unchanged, gradients still <=2.1e-14;
+  1.321508459s CPU incl.compile.
+Temporary output: /private/tmp/survjax-mnist-reference-fits-r2.json.
+A separate JAX_ENABLE_X64=0 process reads both records and explicitly casts
+logs to float32; public likelihoods on [1,0,3]/[1,0,1] are finite float32,
+with x64 still disabled. No test-set metrics, tuning or accepted failed fit.
+
+Final validation: all five explicit MNIST files, same --group examples
+command as above:59 passed/1 skipped x64 in19.90s;35 passed/25 explicit precision
+skips x32 in13.93s. Ruff126 formatted/All checks passed; mypy20 source files pass.
+No repeat core/wheel gate after this example-only fix; the earlier fresh-wheel
+pass remains recorded. Round1 reviewer's direct gate had the known missing-
+SURVJAX_WHEEL setup errors; no core, packaging or protected path changed here.

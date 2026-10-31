@@ -17,8 +17,9 @@ Files:
   Supplied training rows only, matching nonempty vectors, public SurvivalData
   validation and at least one event. Start k=1, b=sum(observed time)/events,
   with event count cast to float64 before division. Fixed approved Optimistix
-  BFGS minimizes public survjax likelihood in log parameters, rtol/atol=1e-12,
-  max_steps256. Explicit failure on solver failure/nonfinite results or
+  BFGS minimizes public survjax likelihood in log parameters, rtol/atol=1e-10,
+  max_steps256, with a bounded roundoff-aware Armijo comparison near stationarity.
+  Explicit failure on solver failure/nonfinite results or
   gradients; no floors, clipping, penalty likelihoods or fallback fits.
 - tests/unit/check_mnist_reference.py: explicit examples-group offline checks.
   Float64 MLE against an independently derived mpmath profile-score root,
@@ -78,6 +79,56 @@ doctests4 per mode, acceptance2333/2324 passed (27/36 skips), Ruff/mypy pass.
 REVIEW.md records initial API/numerical failures, diagnosis, exact commands
 and limits; no test assertions/tolerances loosened, no test-set model tuning.
 Commit, invoke independent MNIST.5 round1, then stop before metric helpers.
+
+Round1 F-1:1e-10 still stalls on the real5k smoke cohort and valid exact-only
+and seeded n10 samples. The full50k probe missed this coverage gap. Near an
+optimum, mean-NLL changes are quadratic in parameter errors, so float64
+objective resolution limits loss-based line searches around sqrt(eps64).
+Investigate fixed1e-8 BFGS termination (rtol/atol), retaining all prior accuracy
+assertions and strict solver-status failure. Extend the same independent
+profile-score oracle to exact-only [1,4,8] and fixed-seed small mixed/exact
+cohorts; do not drop or loosen the original cases. Verify both real5k/50k
+training-only fits and separate32bit conversion. N-1: update the Files bullet
+in place to the final setting. Update REVIEW.md with all outcomes. Focused
+checks both processes/static checks; no repeated core/wheel gate for this
+example-only fix. Commit then exact MNIST.5 round2, max3 rounds total.
+
+Fixed1e-8 resolves most new controls but seeded exact n10 still stalls, despite
+accepted-iterate gradient max6.14e-10. Public Armijo slope1e-4 and RMS/two-norm
+probes do not fix it. Source diagnosis: Cauchy termination is checked only on
+accepted steps; Armijo can keep rejecting near roundoff at an already stationary
+iterate. Implement one private concrete BFGS specialization with an additional
+accepted-gradient max-norm<=1e-9 termination condition, guarded against the dummy
+initial gradient. Preserve stock BFGS steps/search and result status; never
+reclassify failed/max-step solves. This is the required BFGS fitter's stopping
+rule, not a new optimizer framework, public API, module or fallback algorithm.
+Keep all MP assertions unchanged and verify the broader controls plus5k/50k.
+
+Gradient-only termination is insufficient for robust high precision: smoke's
+accepted score max1.06e-8 and predicted correction [3.24e-9,-1.64e-8] still
+need a final step. Replace that experimental specialization with a concrete
+roundoff-aware Armijo search attached to stock BFGS. Keep its normal1e-10
+Cauchy termination. Only when accepted gradient max<=sqrt(eps64), descent is
+nonpositive/tiny and both objective values finite, permit a full trial whose
+objective difference is within4*eps64*(1+abs(f)+abs(f_trial)). This changes only
+the optimizer comparison, never likelihood/data/parameters. Reset step state
+consistently on acceptance. Strict failure/max-step guards remain. Add direct
+search checks for roundoff, real worsening, nonfinite trial and large gradient,
+alongside unchanged MP regressions. No gradient-only early exit or fallback.
+
+Final F-1 resolution: retained normal BFGS1e-10 termination; attached a private
+roundoff-aware Armijo search. Only finite full-step trials, nonpositive descent
+with predicted change below4*eps64*(1+abs(f)+abs(f_trial)), and accepted gradient
+max<=sqrt(eps64) can use the allowance. Real increases, nonfinite trials, large
+gradients and already shortened steps remain rejected; coherent search state
+is tested. No likelihood value/data/parameter change or failed-status promotion.
+All8 independent MP cases pass at their original assertions. Both real fits
+now succeed: smoke5k logparams [.16221816847747333,1.4258202396725628], gradients
+<=1.8e-15,1.42978s; full50k original logparams unchanged, gradients<=2.1e-14,
+1.32151s. Both convert/evaluate float32 in a separate process. Combined focused
+checks:59 passed/1 skip x64 (19.90s),35 passed/25 skips x32 (13.93s); Ruff/mypy
+pass. All source files remain <300 lines (model292, checks223). Record exact
+comparisons/limits in REVIEW.md, commit and request MNIST.5 round2, then stop.
 
 ---
 

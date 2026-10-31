@@ -1,6 +1,6 @@
 """Float32 neural survival model (use-case 03 Network)."""
 
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import equinox as eqx
 import jax
@@ -192,6 +192,50 @@ def _intercept_nll(theta: jax.Array, data: survjax.SurvivalData) -> jax.Array:
     return -dist.log_likelihood(data).mean()
 
 
+class _RoundoffArmijo(optx.BacktrackingArmijo):
+    """Allow unresolved objective changes only for near-stationary descent."""
+
+    def step(
+        self,
+        first_step: jax.Array,
+        y: jax.Array,
+        y_eval: jax.Array,
+        f_info: Any,
+        f_eval_info: Any,
+        state: Any,
+    ) -> tuple[jax.Array, jax.Array, optx.RESULTS, Any]:
+        _, accept, result, next_state = super().step(
+            first_step, y, y_eval, f_info, f_eval_info, state
+        )
+        before, after = f_info.as_min(), f_eval_info.as_min()
+        predicted = f_info.compute_grad_dot(y_eval - y)
+        eps = jnp.finfo(y.dtype).eps
+        allowance = 4 * eps * (1 + jnp.abs(before) + jnp.abs(after))
+        # This is a solver comparison tolerance, not a change to the likelihood.
+        roundoff = (
+            ~first_step
+            & (state.step_size == self.step_init)
+            & jnp.isfinite(before)
+            & jnp.isfinite(after)
+            & (jnp.max(jnp.abs(f_info.grad)) <= jnp.sqrt(eps))
+            & (predicted <= 0)
+            & (jnp.abs(predicted) <= allowance)
+            & (after - before <= allowance)
+        )
+        accept = accept | roundoff
+        step = jnp.where(accept, self.step_init, next_state.step_size)
+        next_state = eqx.tree_at(lambda s: s.step_size, next_state, step)
+        return step, accept, result, next_state
+
+
+class _ReferenceBFGS(optx.BFGS):
+    """Standard BFGS with an Armijo comparison aware of float64 roundoff."""
+
+    def __init__(self) -> None:
+        super().__init__(rtol=1e-10, atol=1e-10)
+        self.search = _RoundoffArmijo()
+
+
 def fit_intercept(time: ArrayLike, event: ArrayLike) -> np.ndarray:
     """Fit the intercept-only Weibull on supplied training rows in float64.
 
@@ -203,7 +247,8 @@ def fit_intercept(time: ArrayLike, event: ArrayLike) -> np.ndarray:
         event: Matching 0/1 or boolean vector; at least one event is required.
     Returns:
         Host float64 array (2,) containing log shape and log scale. Uses
-        Optimistix BFGS, rtol/atol=1e-10, at most 256 iterations.
+        Optimistix BFGS with roundoff-aware Armijo, rtol/atol=1e-10,
+        at most 256 iterations.
     Raises:
         RuntimeError: x64 is disabled, solver fails or fit results are nonfinite.
         ValueError: Shapes, observation values or event count are invalid.
@@ -226,7 +271,7 @@ def fit_intercept(time: ArrayLike, event: ArrayLike) -> np.ndarray:
     initial = jnp.stack((jnp.zeros((), dtype=jnp.float64), jnp.log(initial_scale)))
     solution = optx.minimise(
         _intercept_nll,
-        optx.BFGS(rtol=1e-10, atol=1e-10),
+        _ReferenceBFGS(),
         initial,
         args=data,
         options={"autodiff_mode": "fwd"},
