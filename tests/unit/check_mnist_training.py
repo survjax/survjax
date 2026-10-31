@@ -21,7 +21,7 @@ def cohorts():
     markers = jnp.arange(257, dtype=jnp.float32)[:, None, None, None] / 256
     images = jnp.broadcast_to(markers, (257, 1, 28, 28))
     data = survjax.SurvivalData(
-        jnp.arange(1, 258, dtype=jnp.float32), jnp.arange(257) % 2
+        jnp.arange(1, 258, dtype=jnp.float32), jnp.arange(257) < 100
     )
     validation = survjax.SurvivalData(jnp.array([999, 999], dtype=jnp.float32), [0, 1])
     return images, data, images[:2], validation
@@ -80,7 +80,8 @@ def test_ten_epoch_schedule_shuffling_history_and_earliest_best(monkeypatch):
     monkeypatch.setattr(model, "_validation_nll", evaluate)
     result = model.train(images, data, validation_images, validation, config="full")
     uc = jax.random.fold_in(jax.random.key(20261025), 3)
-    assert captured["mean"] == 129  # mean(1..257), never validation's 999.
+    # mean(1..257)=129, event-only mean(1..100)=50.5; validation mean999.
+    assert captured["mean"] == 129
     np.testing.assert_array_equal(
         jax.random.key_data(captured["key"]),
         jax.random.key_data(jax.random.fold_in(uc, 2)),

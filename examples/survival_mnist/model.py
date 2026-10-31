@@ -72,6 +72,7 @@ class TrainingResult(NamedTuple):
     selected_epoch: int
 
 
+_optimizer = optax.adam(1e-3)
 _value_grad = eqx.filter_jit(eqx.filter_value_and_grad(loss))
 _batch_loss = eqx.filter_jit(loss)
 
@@ -79,7 +80,7 @@ _batch_loss = eqx.filter_jit(loss)
 @eqx.filter_jit
 def _train_step(params, state, images, data):
     value, grads = eqx.filter_value_and_grad(loss)(params, images, data)
-    updates, state = optax.adam(1e-3).update(grads, state, params)
+    updates, state = _optimizer.update(grads, state, params)
     return eqx.apply_updates(params, updates), state, value
 
 
@@ -149,10 +150,11 @@ def train(
         CNN(jnp.mean(data.lower), key=jax.random.fold_in(uc, 2)),
         jnp.zeros((), dtype=jnp.float32),
     )
-    state = optax.adam(1e-3).init(eqx.filter(params, eqx.is_inexact_array))
+    state = _optimizer.init(eqx.filter(params, eqx.is_inexact_array))
     best_params, best_nll, selected_epoch = params, float("inf"), 0
     training_history, validation_history = [], []
     first_step = True
+    # 03 Splits and keys: shuffle epochs are zero-based; selection is one-based.
     for epoch in range(1 if config == "smoke" else 10):
         key = jax.random.fold_in(jax.random.fold_in(uc, 3), epoch)
         permutation = jax.random.permutation(key, len(data))

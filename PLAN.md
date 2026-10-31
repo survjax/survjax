@@ -59,6 +59,23 @@ checks pass. Exact commands/evidence/limits in REVIEW.md. Record D-028
 acceptance without changing its formal status. Commit, independent MNIST.4
 round 1, then stop after verdict.
 
+Round 1 on 3f1f36c returned fix-first for F-1: symmetric event flags made
+observed and event-only time means equal (129). Change fixture events to
+rows 1..100 (event mean 50.5), retaining hand-derived observed mean129.
+N-1: share one fixed Adam transformation for init/update, with all state
+still local per run. N-2: comment the zero-based shuffle/one-based selected
+convention. D-028 acceptance is recognized; no outstanding question there.
+Run all optional/preparation checks in both modes, static checks, and repeat
+the warm-cache smoke to compare metrics against the original. No duplicate
+core/wheel gate for this example-only small refactor/test strengthening.
+Commit fix-up and invoke independent MNIST.4 round 2, then stop/report.
+
+Fix-up validation: combined suites 34 passed/1 precision skip x32 (14.91s),
+35 passed x64 (15.07s); Ruff/mypy clean. Repeated actual smoke after shared
+optimizer change is exactly identical in histories/selected epoch/shape
+(2.37785s CPU wall time). Source/test/README total321 changed lines after
+this fix-up. Commit and request MNIST.4 round2, then stop after verdict.
+
 ---
 
 # MNIST.3 — Float32 CNN and likelihood loss (2026-10-30)

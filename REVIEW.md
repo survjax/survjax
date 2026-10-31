@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # MNIST.4 — Epoch training and validation checkpoint selection
 
@@ -17,9 +17,9 @@ Authorization/scope:
   again and no requested spec edit. Dedicated optional checks continue under
   the existing release-agent handoff's explicit examples-group policy.
 - One concept: host epoch orchestration and compiled updates. No new module,
-  core API/dependency/protected/docs/generator change. 318 source/test/README
-  changed lines (125 source + 186 test + 7 README), plus decision/plan/review
-  records. model.py is 184 lines; the optional check file is 186.
+  core API/dependency/protected/docs/generator change. 321 source/test/README
+  changed lines (127 source + 187 test + 7 README), plus decision/plan/review
+  records. model.py is 186 lines; the optional check file is 187.
 - No CLI, fitted references, test metrics, figures or full-run results yet.
   MNIST.2 N-2 recomputation/metadata writer remains assigned to later run.py.
 
@@ -149,3 +149,31 @@ Python 3.12.9, JAX 0.11.2, NumPy 2.5.3, Equinox .13.8, Optax .2.8, CPU.
 No docs build (no docs changed), test model evaluation, reference fit, full
 run, CLI or figure. Commit then independent MNIST.4 review, max 3 rounds;
 stop/report after this step's verdict. D-028 acceptance is recorded above.
+
+## Round 1 follow-up
+
+Round 1 returned fix-first for F-1: alternating event flags gave event-only
+mean129, identical to the observed-time mean129, so a bias-input mutant
+escaped. Fixture events now cover times1..100 only (event mean50.5), while
+all observed times remain1..257 (mean129). The captured initializer mean
+assertion remains129; no expected-value or tolerance relaxation.
+
+N-1 fixed with one module-level immutable Adam transformation used for
+init/update; optimizer state remains local to each train call. N-2 fixed
+with a code comment recording zero-based shuffle versus one-based selection.
+Public train/CNN behavior and stored calibration are unchanged. D-028's
+accepted decision is recognized by the reviewer; no renewed approval needed.
+No core/packaging changes, so no repeated full gate; repeat targeted checks
+and real smoke for the optimizer-sharing refactor, recording evidence below.
+The round-1 reviewer gate again hit the missing-SURVJAX_WHEEL setup errors;
+implementer fresh-wheel evidence is recorded above. Reviewer cleanup remains
+maintainer-owned per AGENTS.md.
+
+Fix-up evidence: Ruff format (2 unchanged; 125 files already formatted), lint
+(All checks passed!) and mypy (20 source files) pass. Same combined optional/
+preparation invocation: 34 passed/1 precision skip in 14.91s (x32), 35 passed
+in 15.07s (x64). Repeated warm-cache 5k/1k smoke with the same recipe after
+optimizer sharing: 2.377853625s; training/validation histories, selected epoch
+and learned shape match the original recorded run exactly. No test-set metrics
+or tuning; this checks reproducibility across the refactor, not an independent
+numerical reference. Analytical correctness checks remain the tests above.
