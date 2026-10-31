@@ -1,3 +1,66 @@
+# BAYES.1 — Fixed trial, NumPyro wiring and sampling pilot (2026-10-31)
+
+Start on clean maintainer-created `release-bayes` at
+`b1291a8d232191e18adc193170fb39c295bc72ac`.
+Maintainer authorizes starting Bayesian work and treating incoming PH/RMST
+as available prerequisites. Use their specified public APIs; no temporary
+implementations, core changes, merges or cherry-picks. Shared generator and
+approved examples group are already present. Preserve incoming unfinished
+plan records below; no completed sub-slice is being archived here.
+
+One concept: reproducible model/factor wiring and a timed NUTS pilot.
+Spec 4.4, 8.7, 10.3, 11.3, 12.1–12.2; shared use-case conventions and both
+02-bayesian-survival files. Target at most about 300 implementation/test lines.
+
+Files:
+- `examples/bayesian_rmst/model.py`: shared generator import, fixed balanced
+  n=300 trial, root/folded keys, 55% censoring calibration, and the three-prior
+  NumPyro model with per-row factor inside the observation plate. Keep the
+  specified compute_rmst=False branch and deterministic per-arm RMST sites
+  outside the plate, using the incoming library methods.
+- `examples/bayesian_rmst/run.py`: explicit smoke/full configurations, x64
+  and four host devices configured before JAX initializes, default NUTS
+  initialization, parallel chains with recorded vectorized fallback, timing
+  with synchronization, and divergences per chain. Full settings remain
+  four chains, 1000 warmup and 1000 retained draws. Pilot diagnostics are
+  exploratory and never evidence of full-run convergence.
+- Dedicated optional-environment checks under `examples/bayesian_rmst/`:
+  fixed trial/key reproducibility and row counts; fixed-parameter factor
+  equality against prior density plus summed survjax likelihood at atol=1e-10;
+  plate shape/independence structure; deterministic sites absent during NUTS
+  and correctly shaped when requested. Do not add optional imports to the
+  ordinary test collection or change its runner.
+- Overwrite `REVIEW.md` when implementation starts: reading order, invariants,
+  actual commands/output, timing, versions, limitations and round count.
+
+Maintainer-approved smoke settings (2026-10-31): four chains, 100 warmup + 100 retained draws each, same data, priors,
+keys and default NUTS settings as full. This is a runtime/wiring smoke check;
+full diagnostic thresholds do not apply to the short chains. Time this pilot
+and then the fixed full configuration to decide the 120-second docs budget.
+No automatic tuning, reseeding or diagnostic threshold changes.
+
+Checks: `uv run --group examples` for the explicit float64 optional checks
+and pilot; Ruff format/lint, mypy src, unchanged cumulative through-A10 gate.
+Record unavailable prerequisites as unexecuted evidence, never replace PH or
+RMST for a test. Commit implementation and REVIEW.md, invoke the exact
+independent-review skill (at most three rounds), then stop/report.
+
+Implementation: 239 source/check lines. Trial/key checks pass with
+c=19.1725354361981 years. Factor checks and smoke execution stop at missing
+incoming ProportionalHazards; RMST execution and pilot timing remain pending.
+Ruff lint and mypy pass. Ordinary suites pass: x64 1065/7 skipped; x32
+1071/1 skipped. Cumulative gate stops at the existing README formatting
+failure; no unrelated edit made. REVIEW.md records exact evidence and limits.
+
+Later steps, each separately planned/reviewed: full-run diagnostic/truth
+investigation and recorded results; routes A/B agreement and summaries;
+KM external validation and predictive plots; executable docs/rendered HTML.
+Docs to-do: Bayesian page with plate recipe, runtime decision, diagnostic/truth
+table and five figures; shared navigation/build integration stays with its owner.
+No dependency, protected-file or spec edits in this step.
+
+---
+
 # README.1 — Draft the alpha README (2026-10-30)
 
 Rewrite README.md at the maintainer's request on add-readme. Preserve the
