@@ -1,6 +1,5 @@
 # Deviations and spec questions
 
-
 ## D-029 RMST parameter-derivative tolerance coordinates
 
 - Step: RMST.3 independent review, S-1 (2026-10-30).
@@ -13,10 +12,15 @@
   |k*error_k|/|M| and |b*error_b|/|M| have measured maxima 1.28e-5 and
   1.54e-6 in float32 (1.72e-14 and 2.45e-15 in float64).
 - Did/propose: tests use log-parameter units k*dM/dk and b*dM/db with the
-  fixed measured factors. Reviewer agrees this reading is sensible and
-  recommends merge, but asks the maintainer to confirm and clarify 12.1.
-  Asked explicitly; no spec change pending that answer. Cutoff error stays
-  at absolute scale 1. Valid-entry isolation fix/review is independent.
+  fixed measured factors. Reviewer describes the reading as scale-invariant
+  and prefers it, while leaving the decision to the maintainer. Compared with
+  the literal reading, it is 5 times looser on dM/dk at k=0.2 and stricter
+  where k>1 or b>1; the natural scale is |M|/k or |M|/b.
+- Maintainer decision: explicitly answered “Confirm log-parameter scaling”
+  to the request to clarify 12.1. Spec revision 39 records that decision in
+  design commit 1389af4da8cd23f7c0d38da047ba14b5ac0801f2. Numerical code,
+  references and measured factors are unchanged; cutoff error retains
+  absolute scale 1. The status remains maintainer-owned.
 - Status: open.
 
 ## D-028 Higher cutoff derivatives at the staged RMST zero boundary

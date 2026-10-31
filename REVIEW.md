@@ -1,4 +1,4 @@
-Independent review: round 2/3
+Independent review: round 3/3
 
 # RMST.3 — Full-range Weibull RMST derivative and isolation evidence
 
@@ -132,3 +132,31 @@ errors; its separately run x32 spec tests (excluding wheel setup) passed
 maintainer-owned; no deletion or edit outside the allowed review paths.
 Round 2 must review the actual source guard and its first/second-order
 failed-entry isolation regression, not just the initial test-only snapshot.
+
+
+## Round 2 outcome; approved contract clarification for round 3
+
+Round 2 (33a763b) returned VERDICT: maintainer solely because D-029 awaited
+a decision. It reports no code finding and says the code is ready to merge.
+N-1 is fixed in both families. Independent probes verified failed-row
+isolation in all first directions and nonshape Hessians in both dtypes.
+Mutants reverting the exp guard or safe probability were caught by the new
+regression in both modes. The role's cumulative check again had only the
+known five missing-wheel setup errors; root's fresh-wheel gate above passes.
+
+The maintainer has now explicitly answered “Confirm log-parameter scaling”
+to the question naming k*dM/dk and b*dM/db at |RMST| scale. Spec revision 39
+clarifies 12.1, also spelling out the equivalent natural-derivative scales
+|M|/k, |M|/b and |M|/r for Exponential, with cutoff scale 1 unchanged.
+Design commit 1389af4da8cd23f7c0d38da047ba14b5ac0801f2 is separate on
+release-rmst; .spec-seen marks that exact revision in this checkout.
+D-029 now quotes the approval, records the 5x raw-k tradeoff at k=0.2, and
+avoids overstating the reviewer's earlier endorsement. Status stays open
+for the maintainer, as does D-028. Neither spec revision 38 nor 39 is merged.
+
+This round changes contract/decision records and .spec-seen only. No source,
+reference, tolerance or test changes follow the passing gate and final focused
+checks above. Static and whitespace checks validate the final snapshot;
+repeat numerical regression is not needed for a wording-only clarification.
+All RMST implementation findings/questions are addressed; no new step is
+started. Round 3 is the last permitted review for RMST.3, then stop/report.

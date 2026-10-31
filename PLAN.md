@@ -67,6 +67,19 @@ exactly as RMST.3, handle up to three rounds and stop/report. PH owns
 wrappers.py/exports and must wait for maintainer core integration and an
 explicit ownership handoff before built-in closure edits. No merge/push.
 
+## RMST.3 approved tolerance clarification
+
+Maintainer explicitly answered “Confirm log-parameter scaling” to S-1/D-029.
+Approved clarification: change spec 12.1's exception to name k*dM/dk and b*dM/db, with cutoff error
+still at absolute scale 1. Bump specification revision 38 to 39, commit alone
+on design release-rmst, then mark this worktree via spec-since.sh
+dev-release-rmst --mark and commit .spec-seen plus decision/review records.
+Committed separately in design as
+1389af4da8cd23f7c0d38da047ba14b5ac0801f2; .spec-seen now records it.
+No numerical code, tests or factor changes are needed. Leave D-029's status
+maintainer-owned. Finish round 2's source-fix review before invoking round 3
+on the approved contract/records; do not exceed three rounds for RMST.3.
+
 ## RMST.3 round 2 preparation
 
 Round 1 at ab7afb1 returned VERDICT: merge. Record S-1 as D-029 and ask
