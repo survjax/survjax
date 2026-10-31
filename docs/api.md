@@ -14,6 +14,9 @@ For worked examples, see the guides:
 
 ## Concordance
 
+See [Harrell's concordance](concordance.md) for pair rules, score direction,
+batching and diagnostic examples.
+
 ```{eval-rst}
 .. autofunction:: survjax.concordance_index
 .. autofunction:: survjax.concordance_index_with_info

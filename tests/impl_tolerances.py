@@ -38,3 +38,6 @@ TAIL_RTOL = {True: 1e-8, False: 1e-4}
 # these are absolute factors with rtol=0, not relative-to-tiny-derivative tests.
 RMST_PARAMETER_ATOL = {True: 2e-13, False: 5e-5}
 RMST_CUTOFF_ATOL = {True: 2e-13, False: 5e-6}
+
+# Six binomial/delta-method MCSEs allow this fixed-seed family of empirical checks.
+SIMULATION_SIGMAS = 6
