@@ -1,3 +1,66 @@
+# MNIST.4 — Deterministic epoch training and checkpoint selection (2026-10-31)
+
+Start clean on release-minst at 3d99b3d. Maintainer reviewed/agreed and asks
+for next step, accepting D-028 preparation placement and the reviewed code.
+Record that decision in D-028 without marking it resolved (maintainer-owned).
+No spec edit is requested. Explicit optional checks follow the existing handoff.
+
+One concept: host epoch orchestration with compiled float32 minibatch updates.
+Spec 11.2, 7.2–7.3, 10.3; 03 details Precision, Splits and keys, Training.
+No core API, dependency, protected, docs, generator or placement changes.
+
+Files:
+- examples/survival_mnist/model.py: train(train images/data, validation
+  images/data, config=smoke/full), typed result with selected parameters,
+  epoch train/validation NLL columns and 1-based selected epoch. Scalar
+  log_k=0; CNN bias uses training observed mean only; init fold_in(uc,2).
+  Adam(1e-3), batch128, epochs1/10, drop training remainder. Shuffle with
+  fold_in(fold_in(uc,3), zero-based epoch). eqx.filter_jit updates and
+  filter_value_and_grad; explicit finite loss/gradient host checkpoints on
+  the first actual minibatch at initialization and after update1. Float32
+  cohort inputs required; invalid data rejected at host entry. Full validation
+  includes its remainder and is accumulated in float32, in bounded batches.
+  Retain earliest strictly best finite validation result; epoch histories
+  record mean minibatch training NLL and full validation NLL. No test inputs.
+- tests/unit/check_mnist_training.py: explicit examples-group offline checks:
+  independent constant-exponential validation mean including tail, instrumented
+  10-epoch schedule/key/batch/initialization/checkpoint/history tests, initial
+  and post-update nonfinite failures and float32/shape/config entry checks.
+  Existing neural checks cover actual Adam/gradients; run actual one-epoch
+  smoke training on verified warm-cache MNIST as separate integration evidence.
+- README.md: training call and explicit optional check command.
+- DEVIATIONS.md: dated D-028 acceptance note, status not changed.
+- REVIEW.md: overwrite with reading order, invariants, evidence and limits.
+
+Aim <=300 source/test/README changed lines. No CLI/metadata writer,
+intercept/oracle metrics, full training results, figures or docs page yet.
+Docs to-do: smoke training/history/selection and explicit runtime diagnostics.
+Later run.py still owns calibration comparison/writer from MNIST.2 N-2.
+
+Checks: optional suites in separate x64/float32 processes (neural work always
+float32), Ruff/mypy; warm-cache 5k/1k one-epoch smoke with recorded timings,
+finite gradients/history/selected model (no test-set model selection). Fresh
+wheel scripts/check_wheel.sh --through A10. Ordinary tests stay offline and
+need no demo packages. Commit and exact independent-review for MNIST.4,
+max 3 rounds with fix-ups; stop after this step's verdict.
+
+Implementation/evidence: 318 source/test/README changed lines; model.py 184
+lines and optional training checks 186. Final combined suites before row-
+marker strengthening: 34 passed/1 precision skip x32 (19.66s), 35 passed x64
+(20.39s). Final strengthened training tests: 8 passed/1 skip x32 (6.48s),
+9 passed x64 (8.06s). Actual fixed warm-cache smoke: 5k/1k, one epoch,
+39 minibatches, 8 rows dropped, selected epoch1; required gradient checks
+passed, training/validation NLL 1.244823575/1.246947408, CPU training incl.
+compile 4.66429s. No test cohort used and no full-run acceptance claim.
+Fresh-wheel gate exited 0: own tests 1087/1093 passed (7/1 skips), doctests
+4 per mode, acceptance 2333/2324 passed (27/36 skips). Only optional-test
+row markers and review-record formatting changed after that gate; targeted
+checks pass. Exact commands/evidence/limits in REVIEW.md. Record D-028
+acceptance without changing its formal status. Commit, independent MNIST.4
+round 1, then stop after verdict.
+
+---
+
 # MNIST.3 — Float32 CNN and likelihood loss (2026-10-30)
 
 Start clean on release-minst at f232294. Maintainer approved MNIST.2 and

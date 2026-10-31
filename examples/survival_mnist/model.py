@@ -1,8 +1,12 @@
 """Float32 neural survival model (use-case 03 Network)."""
 
+from typing import NamedTuple
+
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+import numpy as np
+import optax
 from jax.typing import ArrayLike
 
 import survjax
@@ -57,3 +61,124 @@ def loss(
     cnn, log_k = params
     dist = survjax.Weibull.from_log(log_shape=log_k, log_scale=jax.vmap(cnn)(images))
     return -dist.log_likelihood(data).mean()
+
+
+class TrainingResult(NamedTuple):
+    """Selected parameters, epoch NLL columns and 1-based selected epoch."""
+
+    params: tuple[CNN, jax.Array]
+    training_nll: tuple[float, ...]
+    validation_nll: tuple[float, ...]
+    selected_epoch: int
+
+
+_value_grad = eqx.filter_jit(eqx.filter_value_and_grad(loss))
+_batch_loss = eqx.filter_jit(loss)
+
+
+@eqx.filter_jit
+def _train_step(params, state, images, data):
+    value, grads = eqx.filter_value_and_grad(loss)(params, images, data)
+    updates, state = optax.adam(1e-3).update(grads, state, params)
+    return eqx.apply_updates(params, updates), state, value
+
+
+def _require_finite(value_and_grads, stage: str) -> None:
+    arrays = jax.tree.leaves(eqx.filter(value_and_grads, eqx.is_inexact_array))
+    finite = jnp.all(jnp.stack([jnp.all(jnp.isfinite(x)) for x in arrays]))
+    if not bool(finite):
+        raise FloatingPointError(f"nonfinite loss or gradients {stage}")
+
+
+def _validation_nll(params, images, data) -> float:
+    # 03 Training: cover the full validation cohort without a giant CNN batch.
+    total = jnp.zeros((), dtype=jnp.float32)
+    for start in range(0, len(data), 128):
+        stop = min(start + 128, len(data))
+        mean = _batch_loss(params, images[start:stop], data[start:stop])
+        total = total + mean * jnp.float32(stop - start)
+    return float(total / jnp.float32(len(data)))
+
+
+def train(
+    images: jax.Array,
+    data: survjax.SurvivalData,
+    validation_images: jax.Array,
+    validation_data: survjax.SurvivalData,
+    *,
+    config: str = "smoke",
+) -> TrainingResult:
+    """Train on float32 cohorts and select by validation NLL only.
+
+    Args:
+        images: Training pixels (N,1,28,28), N >= 128; no digit labels.
+        data: Aligned training observations (N,), from float32 outcomes.
+        validation_images: Validation pixels (M,1,28,28), M > 0.
+        validation_data: Aligned float32 validation observations (M,).
+        config: 'smoke' for one epoch, 'full' for ten. Caller supplies the
+            prescribed 5k/1k or 50k/10k cohorts; test rows are never accepted
+            separately or consulted. Batch size is always 128.
+    Returns:
+        Best parameters, epoch-mean training/full-validation NLL histories,
+        and 1-based selected epoch; ties retain the earlier checkpoint.
+    Raises:
+        ValueError: Config, cohort shapes, precision or observations are invalid.
+        FloatingPointError: Initial/post-step1 loss/gradients or epoch NLL fail.
+    """
+    if config not in ("smoke", "full"):
+        raise ValueError("config must be 'smoke' or 'full'")
+    images, validation_images = jnp.asarray(images), jnp.asarray(validation_images)
+    for pixels, observations, minimum in (
+        (images, data, 128),
+        (validation_images, validation_data, 1),
+    ):
+        if (
+            pixels.ndim != 4
+            or pixels.shape[1:] != (1, 28, 28)
+            or observations.shape != (len(pixels),)
+            or len(pixels) < minimum
+        ):
+            raise ValueError(
+                "cohorts must be aligned NCHW images and observation vectors"
+            )
+        if pixels.dtype != jnp.float32 or observations.lower.dtype != jnp.float32:
+            raise ValueError("training and validation cohorts must be float32")
+        observations.issues.raise_if_invalid()
+    uc = jax.random.fold_in(jax.random.key(20261025), 3)
+    params = (
+        CNN(jnp.mean(data.lower), key=jax.random.fold_in(uc, 2)),
+        jnp.zeros((), dtype=jnp.float32),
+    )
+    state = optax.adam(1e-3).init(eqx.filter(params, eqx.is_inexact_array))
+    best_params, best_nll, selected_epoch = params, float("inf"), 0
+    training_history, validation_history = [], []
+    first_step = True
+    for epoch in range(1 if config == "smoke" else 10):
+        key = jax.random.fold_in(jax.random.fold_in(uc, 3), epoch)
+        permutation = jax.random.permutation(key, len(data))
+        losses = []
+        for start in range(0, len(data) - 127, 128):
+            indices = permutation[start : start + 128]
+            batch_images, batch_data = images[indices], data[indices]
+            if first_step:
+                _require_finite(
+                    _value_grad(params, batch_images, batch_data), "at initialization"
+                )
+            params, state, value = _train_step(params, state, batch_images, batch_data)
+            if first_step:
+                _require_finite(
+                    _value_grad(params, batch_images, batch_data), "after step 1"
+                )
+                first_step = False
+            losses.append(value)
+        training_nll = float(jnp.mean(jnp.stack(losses)))
+        validation_nll = _validation_nll(params, validation_images, validation_data)
+        if not np.isfinite(training_nll) or not np.isfinite(validation_nll):
+            raise FloatingPointError("nonfinite epoch training or validation NLL")
+        training_history.append(training_nll)
+        validation_history.append(validation_nll)
+        if validation_nll < best_nll:
+            best_params, best_nll, selected_epoch = params, validation_nll, epoch + 1
+    return TrainingResult(
+        best_params, tuple(training_history), tuple(validation_history), selected_epoch
+    )

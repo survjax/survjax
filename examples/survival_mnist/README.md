@@ -47,4 +47,9 @@ The float32 CNN and likelihood loss are in `model.py` (requires `examples`).
 Run its offline checks explicitly in each mode:
 `JAX_ENABLE_X64=0 uv run --group examples pytest -q tests/unit/check_mnist_model.py`
 and repeat with `JAX_ENABLE_X64=1`. Ordinary tests need no demo dependencies.
-Epoch training, references, metrics, full results and the executable page remain.
+`model.train(train_images, train_data, validation_images, validation_data,
+config="smoke")` now returns the selected parameters, NLL histories and selected
+epoch. Use float32 outcome data and pixels; batch size is 128, with 1/10 epochs
+for smoke/full. Check training separately with the same command above using
+`tests/unit/check_mnist_training.py`. CLI, references, metrics, full results and
+the executable page remain to be implemented.

@@ -14,6 +14,9 @@
   model.py. The reviewer identified the placement as a maintainer question;
   no spec change or further placement change has been made. Maintainer
   decision is required before continuing to the training step.
+- Maintainer decision (2026-10-31): "ok reviewed and agreed; on to next step"
+  accepts the proposed preparation placement and authorizes continuing training.
+  No spec edit requested. Formal status bookkeeping remains maintainer-owned.
 - Status: open.
 
 ## D-027 Concordance result representation and undefined diagnostics
