@@ -6,6 +6,75 @@ is archived or declared complete by this resolution. New PH work goes first.
 
 ---
 
+# PH.2c — High-precision tails and direct time-value policy (2026-10-31)
+
+Authorized by “ok on to next part”. Clean release-ph base:
+796085ec9c000996d467609b94090235a2a4548f (maintainer's agreement merge).
+Original launch base remains 8757c0fda78e34e6e818249adedd2a144a33c33d below.
+Same unfinished PH sub-slice; retain its history. PH.2b round 1 was merge,
+with two optional nits. Its reviewer independently checked eager second-order
+isolation (92 comparisons per mode) and caught five mutants in both modes.
+The current spec is revision 39; the revision-39 RMST tolerance clarification
+adds no PH direct-method work. No core RMST implementation/handoff is in this
+checkout, so closure remains deferred and the RMST-owned files stay untouched.
+
+One concept: numerical PH evidence outside the ordinary interior. Target
+<=300 changed code/test/other implementation lines; PLAN/REVIEW are excluded
+under the updated working agreement. Create
+`tests/unit/test_proportional_hazards_tails.py` (no public API change):
+
+- Use mpmath at 100 decimal digits, with actual dtype-rounded input values,
+  for independent Exponential and Weibull PH formulas. Compare all seven
+  direct methods in lower-tail recovery, predictor-exponential overflow,
+  predictor-exponential underflow with a finite scaled hazard, and a late tail
+  with representable tiny survival/log CDF. Eager/jit/vmap agreement, no
+  matching-NaN acceptance and zero absolute tolerance for nonzero tails.
+- Compare eta first and all four second-order AD compositions of log survival
+  against -H, eager and jit/vmap, on those finite smooth cases. Check natural
+  baseline first derivatives on the lower-tail recovery cases. Do not assert
+  unrepresentable derivatives or arbitrary extreme natural-parameter Hessians.
+- Verify direct/grid values at negative/infinite/zero/NaN times using spec 4.5
+  and hand boundary limits, plus finite policy values' zero parameter gradients.
+  The additional mixed exact/right Weibull debug_nans check is deferred
+  below to keep the formatted implementation diff under the budget.
+- Use existing central/tail tolerances without changes; explain scales and
+  references. If a numerical failure calls for production changes, keep those
+  in wrappers.py within the same budget or split before exceeding it. Never
+  edit base.py/exponential.py/weibull.py or RMST tolerances.
+
+Spec: 3.3, 4.4–4.5, 5, 6.1, 7.1–7.3, 12.1–12.2. No new dependencies,
+exports, docs-site edits, protected paths, AFT, summaries or sampling. Docs
+to-do remains the later PH topic/export integration; appendix stays unchanged.
+Clarify PH.2b N-1 in this record: its committed derivative loop used vmap and
+jit(vmap); the independent reviewer separately verified unmapped eager AD.
+
+Split after the initial formatted draft reached 315 test lines: defer the
+extra 28-line Weibull mixed-batch debug_nans test. The current test module
+is 287 lines before any numerical fixes. If a fix needs more room, split
+the entire time-policy group into the next step rather than exceed budget.
+
+Overwrite REVIEW.md with reading order, oracle derivations, safeguards,
+requirement/test mapping, actual commands/results and remaining limits. Run
+focused tests in separate x64/float32 processes, Ruff/mypy, then unchanged
+fresh-wheel through-A10 gate. Commit and invoke independent-review exactly
+for PH.2c round 1/3, address blocker/should-fix findings within three rounds,
+then stop/report. No merge, push or publishing; no next step in this launch.
+
+
+PH.2c execution: final 288 test lines, 34 cases, no production changes. The
+first draft's eta test rebuilt the parameter vector and exposed a NaN in
+forward-over-forward at an underflowing baseline. The final test varies eta
+as a distinct constructor argument; all six AD orders pass there. REVIEW.md
+records the reproduction and remaining rebuilt-vector limitation explicitly.
+No tolerance was changed. Final focused tests: 34 passed x64 (16.32s),
+34 passed float32 (17.13s). Ruff format/check and mypy clean; fresh-wheel
+through-A10 gate exits 0: own 1210/8 and 1215/3, doctests 4 each, independent
+acceptance 2332/28 and 2322/38 (passed/skipped). Full commands, wheel hash,
+timings and limits are in REVIEW.md. Commit, then PH.2c independent round
+1/3 and stop. No unfinished sub-slice was archived or declared complete.
+
+---
+
 # PH.2b — Declared-invalid row isolation and custom-baseline composition (2026-10-30)
 
 Authorized by “ok on to next bit”. Clean release-ph base 813ee36d5ec51649386b633f0c131d1e39b220b7.
