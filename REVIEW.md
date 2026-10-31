@@ -87,3 +87,14 @@ unresolved conflicts. Git refused the scoped commit: "cannot do a partial
 commit during a merge". No commit created. All runner files remain staged.
 AGENTS forbids merging without maintainer direction; independent review has
 not run. Await merge completion or explicit authorization to conclude it.
+
+Maintainer completed the merge and committed the staged runner at
+1b7dc5bb28bcb39c9d43d6c8605a476eac937cf9 (finish merge and updates).
+The tree is now clean. The incoming84d2943 instruction adds reporting of
+remaining sub-steps; .spec-seen is maintainer-updated. Neither was authored
+by this implementation step. The pending-merge text above is historical.
+Independent review MNIST.7 round1 can now proceed. No production changes
+since the warning-free smoke and complete cumulative gate recorded above.
+Remaining sub-steps: reproducibility metadata, figures and prescribed full
+run/committed results, executable docs page. Do not begin them before this
+step's review and maintainer handoff.
