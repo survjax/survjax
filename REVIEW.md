@@ -1,125 +1,83 @@
-Independent review: round 2/3
+Independent review: round 1/3
 
-# BAYES.1 follow-up — Direct execution and independent trial oracle
-
-Round 1 returned maintainer. The maintainer requests continuation and reports
-`uv run examples/bayesian_rmst/run.py` fails to import examples. This fix-up
-supports that command and addresses F-002 and N-001 without changing core.
-
-Follow-up reading order: PLAN.md follow-up, run.py bootstrap, check_model.py
-independent trial oracle. Prior round context and evidence are preserved below.
-
-Changes and findings:
-- Direct-file execution now inserts the resolved checkout root into sys.path
-  before importing examples. Module execution keeps its existing search path.
-  Configuration of device count/x64 remains before backend initialization.
-- F-002: expected c comes from the equal-weight two-arm calibration, and
-  expected observations use the literal data key and fixed design values.
-  Compare time, exact/event and c instead of comparing make_trial to itself.
-- N-001: deterministic wiring check uses literal key(0), leaving reserved
-  predictive streams unambiguous.
-- F-001 and S-001 remain pending prerequisite integration, including PH RMST.
-
-Follow-up checks:
-- `uv run examples/bayesian_rmst/run.py --help` and
-  `uv run --group examples python -m examples.bayesian_rmst.run --help`:
-  both exit 0 with smoke/full choices.
-- `uv run examples/bayesian_rmst/run.py` and the module smoke command:
-  both now reach MCMC model initialization and exit 1 because survjax has no
-  ProportionalHazards. No examples import error. No sampling/timing evidence.
-- Explicit x64 optional-process check_trial passes, c=19.1725354361981.
-  In the same process unittest.mock.patch replaces model.calibrate_censoring
-  with target=0.25, model.generate_weibull with negated eta, then
-  model.use_case_key with stream+1: all three raise AssertionError as expected.
-- `uv run ruff check .`: All checks passed!
-- `uv run mypy src`: Success: no issues found in 20 source files.
-- Format check of run.py/check_model.py: 2 files already formatted.
-- `git diff --check`: exit 0.
-- No repeat core suite or cumulative gate for this isolated demo fix; earlier
-  results and the unchanged README gate failure are recorded below.
-
-Maintainer committed all three Normal(0,5) priors in 3c554be and requests
-continuation. The checkout is now clean before this follow-up. This explicitly
-authorizes retaining those priors; the factor-check prior term now matches the
-committed model and run metadata records distribution/loc/scale for each site.
-D-028 records the departure from the delegated design (open, not resolved here).
-Prior predictive assessment is still pending. No spec file is edited.
-
-Current follow-up checks: Ruff format (3 files) and lint pass; mypy passes
-for 20 source files; both help entry points exit 0; whitespace check passes.
-Explicit x64 trial oracle passes with c=19.1725354361981. At the specified
-factor-check parameters, the three Normal(0,5) terms sum to
--7.6936321221273225 and agree with the independent analytical Normal formula
-to atol=1e-12, rtol=0. This verifies only the prior arithmetic, not NumPyro's
-full factor density (still unexecuted without PH). Ordinary core suites and
-full gate are not repeated for this seven-line example-only alignment.
-
-Round 2 includes b92ccf4's direct-entrypoint and independent-trial fixes, the
-maintainer's 3c554be prior choice, and this alignment/metadata follow-up.
-F-002 and N-001 are addressed. F-001 and S-001 still require integrated PH/RMST
-execution; authorization to proceed against their specified APIs remains the
-maintainer's original instruction. Please assess the prepared implementation
-with those runtime limitations, which are not claimed as passing evidence.
-
----
-
-# Prior BAYES.1 implementation record
+# BAYES.2 — Batched posterior RMST and per-draw summaries
 
 Read first:
-1. PLAN.md BAYES.1 and plans/release-agents/bayesian.md.
-2. Both spec/use-cases/02-bayesian-survival files, spec 11.3 and shared 00.
-3. examples/bayesian_rmst/model.py, check_model.py, then run.py.
+1. PLAN.md BAYES.2; spec 11.3 and 02-details Route A, Sampling, Grids.
+2. model.py PosteriorDraws, time_grids, posterior_draws, check_rmst_routes,
+   summarize_draws (the existing model/priors are unchanged).
+3. check_model.py check_aggregation_and_grids and check_posterior_routes.
+4. run.py postprocessing and output metadata.
 
-The maintainer explicitly says to assume incoming PH/RMST are present and
-approves smoke = four chains with 100 warmup + 100 retained draws per chain.
-This commit targets those specified APIs without adding temporary core code.
-The current checkout does not yet export ProportionalHazards or provide rmst.
-Consequently this is implementation prepared for integration, not a successful
-pilot or verified factor wiring. Runtime/docs-budget decisions remain pending.
+Scope: 234 changed example/check lines (plan/review records excluded), no new
+module, public library API, dependencies, core, protected paths or docs.
+Maintainer approves the earlier BAYES.1 work and explicitly requests this next
+step. Same Bayesian sub-slice: its PLAN records remain in place. Previous step
+head 12bc641; worktree original base b1291a8. Prior independent review is in
+review/slices/BAYES.1.md, round 2. Its integration findings F-001/S-001 remain;
+D-028 remains open for the maintainer, and the committed Normal(0,5) priors are
+preserved. No claim that they match the delegated design.
 
 Invariants:
-- Fixed balanced 150/150 synthetic trial; float64 is required. Shared generator
-  alone owns U/C splitting and host censoring calibration.
-- Root 20261025, use-case fold 2, separate folds 0–3 exactly as designed.
-- Three scalar Normal priors and one (300,) likelihood factor inside the
-  observations plate. No sum inside that plate. Per-arm deterministic sites
-  remain outside it and disabled during NUTS.
-- Runner configures x64 and four devices before backend initialization,
-  preserves default NUTS settings/init, and reports actual chain method,
-  synchronized sampling timing and per-chain divergences. Full remains
-  4x(1000+1000); its eventual bulk/tail ESS and truth audit are a later step.
-- Optional checks live outside ordinary pytest collection; core dependencies,
-  source, docs, shared generator and lockfile are unchanged.
+- Flatten chains only through sampler.get_samples(); no hand flatten order.
+- Route A: base (S,1), PH log-HR (S,2), RMST(5) (S,2), RMST grid (m,S,2),
+  survival grid (K,S,2). Arms are always control then treatment.
+- Route B uses conditioned parameters and deterministic sites outside the
+  observation plate, enabled only after NUTS. Its (S,m,2) curve is swapped
+  to (m,S,2). Require identical shapes and finite equality at absolute-only
+  1e-12 (equal_nan=False). Return the maximum absolute discrepancy.
+- Differences are paired per draw before mean/SD/quantiles/P(delta>0).
+  SD uses ddof=1; intervals are equal-tail 2.5/97.5 percentiles. Curves stay
+  draw-level for later plotting rather than evaluating at mean parameters.
+- Host grid setup uses observed lower (valid for this exact/right-only demo):
+  p90 rounded down to half-years; reject tau_max<5 or nonfinite. Grids are
+  201 points on [0,20] and 101 points on [0,tau_max], including zero.
+- JAX distribution evaluation is followed by host NumPy aggregation. These
+  host helpers are demo-only; no jit/derivative promise is made for them.
+- Sampling timing still measures sampling/compile only. New postprocessing
+  timing includes both summary routes/aggregation and synchronizes output.
 
 Evidence (2026-10-31):
-- `JAX_ENABLE_X64=1 uv run --group examples python -m
-  examples.bayesian_rmst.check_model`: exit 1. Trial reproducibility, exact
-  150/150 arms, dtype, validity and all four key mappings passed;
-  c=19.1725354361981 years. Factor check then stops with AttributeError:
-  survjax has no ProportionalHazards. Factor equality/plate structure and
-  optional deterministic-site checks are implemented but NOT verified.
-- `uv run --group examples python -m examples.bayesian_rmst.run --config smoke`:
-  exit 1 at the same missing PH API during parallel MCMC initialization.
-  No retained draws, timing or diagnostic claims. Full run not attempted.
-- `uv run ruff check .`: All checks passed!
+- Explicit `JAX_ENABLE_X64=1 uv run --group examples python` process called
+  check_trial(), check_aggregation_and_grids(), time_grids(make_trial().data):
+  exit 0. Trial c=19.1725354361981; arithmetic and grid checks passed;
+  actual trial grids (201,)/(101,), tau_max=13.0 years.
+- Hand arithmetic check: deltas [1,-1,0], mean 0, sample SD 1,
+  95% interval [-.95,.95], P(delta>0)=1/3; k draws [1,3,5] have sample SD 2.
+  This checks pairing, strict positivity and aggregation independently of PH.
+- Grids: p90([1,6])=5.5 and p90([1,6.4])=5.86 both give tau_max=5.5;
+  short follow-up [1,4] raises. Exact expected linspaces check all points.
+- `JAX_ENABLE_X64=1 uv run --group examples python -c 'from
+  examples.bayesian_rmst.check_model import check_posterior_routes;
+  check_posterior_routes()'`: exit 1, AttributeError: survjax has no
+  ProportionalHazards, before RMST/survival evaluation. These analytical
+  exponential and route-agreement assertions are implemented, NOT verified.
+- `uv run ruff format --check examples/bayesian_rmst`: 3 files formatted.
+- `uv run ruff check .`: All checks passed! (initial import-order lint fixed).
 - `uv run mypy src`: Success: no issues found in 20 source files.
-- `uv run ruff format --check examples/bayesian_rmst`: 3 files already formatted.
 - `git diff --check`: exit 0.
-- `uv run ruff format --check .`: exit 1, pre-existing README.md embedded
-  Python requires blank lines at 67 and 72; 121 files already formatted.
-- `scripts/check.sh --through A10`: exit 1 at that same README formatter
-  failure after `guard: ok (release-bayes)`; later gate checks did not run.
-- `scripts/run_tests.sh`: exit 0; float64 1065 passed, 7 skipped in
-  91.22s; float32 1071 passed, 1 skipped in 73.05s.
-- Fresh optional-process device probe: 4 devices, cpu backend, x64 True.
-- Installed optional environment: JAX/jaxlib 0.11.2, NumPy 2.5.3,
-  NumPyro 0.22.0; no dependency edits.
+- Direct-file and module runner --help both exit 0 with smoke/full choices.
+- `scripts/check.sh --through A10`: exit 1 at unchanged README.md:67/72
+  embedded-code format failure after guard ok. Later checks did not execute.
+- Ordinary core suites are not repeated: no source/core/test changes; the
+  previous step's suites were 1065/1071 passing in x64/x32. This is historical
+  evidence, not a run for this commit. Float32 demo checks are not applicable:
+  the design requires float64.
 
-Coverage mapping: fixed-trial/key checks cover 02-details Data; density and
-plate assertions target spec 11.3's no-overcounting recipe; Predictive shapes
-and site absence target its optional derived-quantity wiring. No claim of
-route A/B numerical agreement, full convergence, posterior truth coverage,
-KM verification, plots, predictive checks or executable docs yet.
+Requirements mapped to checks:
+- 02-details Grids: full expected linspaces, exact/rounded endpoint and
+  insufficient follow-up failure.
+- Spec 11.3 per-draw effects: paired differences and independently derived
+  summary statistics. RMST/survival batch axes: analytical shape-one cases
+  with distinct scales/HRs (pending PH execution).
+- Spec 11.3 route agreement: Predictive alignment and strict absolute 1e-12,
+  with zero in the grid (pending PH/RMST execution).
 
-Uncertainty: integrated PH/RMST execution and actual pilot time are unknown.
-Do not merge prerequisites or modify reviewer checkout from this session.
+Unknown / later steps:
+- All PH-dependent execution, the approved smoke/full posterior, route errors
+  and timings remain unverified until integration. No substitute core is added.
+- Full convergence/truth audit, per-summary diagnostics, prior/posterior plots,
+  posterior predictive KM, external KM validation and executable docs/results
+  are later work. This step records means/intervals/probability, not those gates.
+- Full smoke/module execution is not repeated: the PH API is still absent and
+  the explicit posterior check confirms that boundary. No NUTS result claimed.

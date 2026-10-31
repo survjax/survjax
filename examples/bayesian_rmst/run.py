@@ -27,7 +27,15 @@ def main() -> None:
     # File execution adds this directory, rather than the checkout root.
     if __package__ in (None, ""):
         sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-    from examples.bayesian_rmst.model import make_trial, model, use_case_key
+    from examples.bayesian_rmst.model import (
+        check_rmst_routes,
+        make_trial,
+        model,
+        posterior_draws,
+        summarize_draws,
+        time_grids,
+        use_case_key,
+    )
 
     trial = make_trial()
     draws = 100 if args.config == "smoke" else 1000
@@ -47,8 +55,21 @@ def main() -> None:
     jax.block_until_ready((samples, extra))
     elapsed = time.perf_counter() - start
     diagnostics = summary(samples, group_by_chain=True)
+    post_start = time.perf_counter()
+    t_grid, tau_grid = time_grids(trial.data)
+    flat_samples = sampler.get_samples()
+    derived = posterior_draws(flat_samples, t_grid, tau_grid)
+    route_error = check_rmst_routes(flat_samples, trial, tau_grid, derived)
+    table, positive_probability = summarize_draws(derived)
+    jax.block_until_ready(derived)
+    post_elapsed = time.perf_counter() - post_start
     record = {
         "config": args.config,
+        "posterior_table": table,
+        "probability_delta_rmst_positive": positive_probability,
+        "tau_max_years": float(tau_grid[-1]),
+        "rmst_route_max_absolute_error": route_error,
+        "postprocessing_seconds_including_compile": post_elapsed,
         "root_seed": 20261025,
         "use_case": 2,
         "nuts_stream": 1,

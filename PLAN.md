@@ -1,3 +1,47 @@
+# BAYES.2 — Batched posterior RMST and per-draw summaries (2026-10-31)
+
+Maintainer approves BAYES.1 through 12bc641 and requests the next step.
+Start clean on release-bayes; worktree base remains b1291a8. This is the same
+Bayesian sub-slice, so preserve its records below; do not archive unrelated
+unfinished incoming plans. No prerequisite integration or core substitutes.
+
+One concept: evaluate and summarize posterior draws through both specified
+RMST routes. Spec 8.7/11.3 and 02-details Route A/Grids; retain the explicitly
+chosen Normal(0,5) priors and existing D-028. No new spec decisions, public
+library API, modules, dependencies, docs or protected paths.
+
+Files:
+- model.py: typed demo-only time grids (201 survival points 0–20; 101 tau
+  points ending at observed-time p90 rounded down to half-years; require >=5),
+  named draw container, batched (S,2) PH distribution and time-first curves,
+  Predictive route B with aligned axes and absolute-only 1e-12 agreement,
+  mean/sample SD/equal-tail 95% intervals and P(delta>0) from per-draw values.
+- run.py: after NUTS, flatten chain/draw axes with NumPyro's get_samples;
+  evaluate routes once, summarize and record tau_max/probability/agreement.
+  Sampling timing keeps its existing meaning; add postprocessing timing.
+- check_model.py: independent arithmetic cases for aggregation and grid
+  rounding/short-followup failure; fixed exponential draws with analytical
+  survival/RMST values exercise batch axes and treatment differences; route
+  A/B absolute agreement over distinct draws and a grid including zero.
+- REVIEW.md: overwrite with this step's reading order/invariants/evidence.
+
+Target <=300 changed source/check lines; split plots, prior/predictive KM,
+full convergence/truth audit and artifacts into later steps. Existing fixed
+posterior parameter checks are optional-environment commands, never silently
+skipped. Run pure arithmetic/grid checks and attempt the PH-dependent checks,
+record limitations if prerequisites remain absent. Ruff/mypy/whitespace and
+unchanged through-A10 gate; avoid repeating unchanged ordinary core suites.
+Commit; independent-review round 1/3 for BAYES.2, then stop per verdict.
+Docs to-do: explain axis alignment and why summaries precede aggregation.
+
+Implementation: 234 changed example/check lines. Grid/aggregation and fixed
+trial checks pass; actual tau_max=13.0 years. Ruff/mypy/whitespace and both
+help entry points pass. Analytical posterior-route check stops at missing PH;
+no numerical agreement claimed. Through-A10 gate still stops at the existing
+README embedded-code formatting failure. REVIEW.md records exact evidence.
+
+---
+
 # BAYES.1 follow-up — Record committed prior choice (2026-10-31)
 
 Maintainer committed Normal(0,5) for all three log parameters in 3c554be and
