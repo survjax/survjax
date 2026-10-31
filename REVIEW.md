@@ -1,179 +1,150 @@
-Independent review: round 2/3
+Independent review: round 1/3
 
-# MNIST.4 — Epoch training and validation checkpoint selection
+# MNIST.5 — Float64 intercept-only reference fit
 
 Read first:
-1. PLAN.md MNIST.4; 03 details Training, Precision and Splits and keys.
-2. examples/survival_mnist/model.py TrainingResult/train and private helpers.
-3. tests/unit/check_mnist_training.py; README training/check invocation.
-4. D-028's dated maintainer acceptance note, then evidence below.
+1. PLAN.md MNIST.5; 03 details References and metrics/Precision; spec 11.2.
+2. examples/survival_mnist/model.py _intercept_nll/fit_intercept.
+3. tests/unit/check_mnist_reference.py; README process-boundary recipe.
+4. Numerical investigation and actual training-only evidence below.
 
-Authorization/scope:
-- Maintainer explicitly answered the MNIST.3/D-028 question on 2026-10-31:
-  "ok reviewed and agreed; on to next step". This accepts preparation in
-  data.py and authorizes training; the user decision is recorded in D-028.
-  Its formal status remains unchanged because AGENTS.md forbids implementers
-  marking entries resolved. There is no remaining placement decision to ask
-  again and no requested spec edit. Dedicated optional checks continue under
-  the existing release-agent handoff's explicit examples-group policy.
-- One concept: host epoch orchestration and compiled updates. No new module,
-  core API/dependency/protected/docs/generator change. 321 source/test/README
-  changed lines (127 source + 187 test + 7 README), plus decision/plan/review
-  records. model.py is 186 lines; the optional check file is 187.
-- No CLI, fitted references, test metrics, figures or full-run results yet.
-  MNIST.2 N-2 recomputation/metadata writer remains assigned to later run.py.
-
-Invariants:
-- Inputs are selected float32 training/validation cohorts; train has no test
-  set or digit-label argument. Exact/right data come from generated float32
-  outcomes. Shape/dtype checks and explicit data diagnostic host checkpoints
-  precede initialization. No silent float64 loss promotion (MNIST.3 N-3).
-- Init uses fold_in(fold_in(key(20261025),3),2), log_k is scalar float32 zero,
-  CNN bias uses the mean observed training lower/time only. Validation data
-  never determine initialization or optimizer updates.
-- Adam(1e-3), fixed 128-row minibatches; smoke/full mean 1/10 epochs. Per-epoch
-  shuffle key is fold_in(fold_in(uc,3), zero-based epoch). Histories/selected
-  epoch are presented in 1-based order. Training remainder is dropped.
-- eqx.filter_jit wraps actual optimizer updates and value/grad evaluations.
-  Initial and post-update1 finite loss/gradient checks inspect all inexact
-  arrays and synchronize explicitly on the host. MaxPool's Python -inf
-  metadata is not a trainable parameter. Failures raise FloatingPointError;
-  no clipping/floors or silent replacement. All epoch NLL must be finite.
-- Validation visits every observation, including its last partial batch.
-  Float32 batch means are multiplied by float32 observation counts, summed
-  and divided by a float32 total count. This bounds CNN memory while retaining
-  the full-cohort mean. No integer-count division or float64 evaluation.
-- Histories retain mean online minibatch NLL per training epoch and mean
-  full-validation NLL after that epoch. Strict improvement only selects a new
-  immutable parameter tuple, so an exact tie keeps the earlier epoch.
+Scope/invariants:
+- Maintainer approved MNIST.4 (round2 merge, F-1/N-1/N-2 fixed) and requests
+  the next bit. This is the fitting part of references/metrics; metric helpers
+  are a separate step so the model file remains below about300 lines.
+- No core/public library API, dependency, module, protected, spec or docs edit.
+  Only existing examples-group Optimistix .1.0 is used. D-028 acceptance is
+  unchanged; no pending placement question or renewed approval needed.
+- fit_intercept is a host function, not a differentiable/JIT estimator API.
+  It requires an already enabled x64 process and never changes global mode.
+  Returns a host NumPy float64 array [log_shape,log_scale], not float32 values
+  cast back to double. Caller supplies training-only rows; no labels, validation
+  or test input/selection enters the fit. Full runner later selects 50k rows.
+- Matching nonempty vectors are required; the public SurvivalData constructor
+  with dtype=float64 and issues.raise_if_invalid validates types/values.
+  At least one event is required; all-censored likelihood has no finite MLE.
+  Censor-at-zero is admitted as an uninformative row and is tested.
+- Optimize negative mean public Weibull.log_likelihood with from_log. Initial
+  shape=1; scale=sum(all observed times)/event_count, the exponential MLE.
+  Event count is summed explicitly as float64 before division (spec3.3).
+- Fixed Optimistix BFGS, forward autodiff for two parameters, rtol/atol=1e-10,
+  max_steps256, throw=False. Unsupported/unsuccessful results raise, rather
+  than returning an initial guess or relabeling a max-step result success.
+  Successful solutions must have finite parameters, objective and gradients.
+  No penalties, clipping, floors, post-fit Newton/root fallback or tolerance
+  relaxation in numerical tests. Optimizer settings are described below.
+- Returned float64 log parameters must be stored and explicitly cast to
+  float32 in the separate neural/evaluation process. No metric helper or
+  held-out test result is claimed in this step. Existing CNN/training code
+  and calibration artifact are unchanged.
 
 Tests → requirements:
-- test_validation_includes_tail_with_observation_weights: analytical k=1,
-  b=2, all-right cohort of 129 rows; 128 times=2 and one time=1002 gives
-  mean NLL=(128*1+501)/129=629/129. Catches dropped/unweighted validation tail.
-- test_ten_epoch_schedule_shuffling_history_and_earliest_best: controlled
-  optimizer/validation values isolate orchestration. Real CNN init captures
-  mean(1..257)=129 and prescribed key, separate validation times=999. Exactly
-  two 128-row batches per epoch match prescribed permutations, one row is
-  dropped; pixel markers prove aligned image/data indexing and validation
-  uses validation images; returned training history means (2e+1,2e+2). Validation sequence
-  3,2,2,4,... retains the exact immutable epoch2 checkpoint, not latest.
-- test_nonfinite_gradients_fail_at_explicit_checkpoints: finite loss with
-  deliberately nonfinite gradient, at init and after step1. Asserts failure
-  phase and zero/one optimizer updates. Catches checking only loss.
-- test_compiled_adam_first_step_matches_exponential_head_algebra: actual
-  compiled _train_step on constant b=2,k=1 with t=[1,2,3], event=[1,0,1].
-  Initial NLL=1+2log2/3; gradients are g_bias=-1/3 and g_logk=(log3/2-2)/3.
-  First bias-corrected Adam increment is -.001*g/(abs(g)+1e-8), using the
-  installed Optax default eps (verified signature, version .2.8). Conv1
-  weights remain unchanged because zero head weights imply zero front-layer
-  gradients. This is optimizer algebra, not a likelihood epsilon/floor.
-- test_training_rejects_wrong_precision_shapes_and_config: explicit misuse
-  failures; test_float64_training_or_validation_data_are_rejected: both
-  observation cohorts must remain float32 under x64, one explicit skip when
-  float64 storage is unavailable. Covers MNIST.3 N-3.
-- test_nonfinite_epoch_nll_never_returns_a_checkpoint: nonfinite training or
-  validation epoch aborts rather than returning an unselected initial model.
-- Existing model tests retain independent NumPy forward, analytical loss,
-  second-order fwd/rev head checks, eager/jit agreement and finite actual
-  full-tree gradients before/after Adam. Existing data tests remain offline.
+- test_intercept_fit_matches_independent_profile_score_root: times
+  [1,c,4,8], events [1,0,1,1], c=0/2/16. Independent 50-digit mpmath profile
+  equation: d=3, event log-time sum=log32; b^k=sum(t^k)/d and
+  d/k+sum_event(log t)-d*sum(t^k log t)/sum(t^k)=0. Expected log k/log b
+  never calls the fitter. For c=0, its power and derivative vanish. Existing
+  default float64 tolerances verify parameters; analytic stationarity gives
+  zero gradients, using existing derivative tolerance. The two positive
+  censoring times pin the effect of censored rows (not event-only fitting).
+- test_reference_objective_values_and_parameter_transformations: k=1,b=2,
+  t=[1,0,3], events=[1,0,1] gives mean NLL=(2+2log2)/3, and b=4 gives
+  (1+2log4)/3. Eager/jit/vmap agree and check_grads(order2,fwd/rev) checks
+  log-parameter derivatives on this smooth case with inactive right-censor0.
+  Existing derivative tolerances/finite-difference step are unchanged.
+- test_fit_refuses_float32_process_without_changing_precision: explicit
+  RuntimeError, mode unchanged; x64 process skips this inapplicable guard.
+  Other cases explicitly skip when float64 fitting is unavailable.
+- Shape/invalid-observation/bool-time/all-censored checks preserve public
+  construction rules and reject unusable inputs before optimization.
+- Failed-result injection verifies explicit failure; independent injections
+  of nonfinite parameters/loss/gradient verify every success guard. These
+  tests never suppress optimizer failure or invent a fallback fit.
 
-Actual evidence:
-- Earlier focused runs passed during development; strengthened schedule to
-  two batches per epoch and added float64/epoch-failure cases before final
-  validation. No numerical failure, implementation fix or tolerance change.
-- Final JAX_ENABLE_X64=0 uv run --group examples pytest -q
-  tests/unit/check_mnist_training.py tests/unit/check_mnist_model.py
-  tests/unit/test_mnist_outcomes.py tests/unit/test_mnist_data.py:
-  34 passed, 1 skipped in 19.66s (float64 observation storage unavailable).
-- Same command with JAX_ENABLE_X64=1: 35 passed in 20.39s.
-- Ruff: 125 files already formatted, All checks passed! Mypy: Success:
-  no issues found in 20 source files. Mypy covers core src, not examples.
-- Warm-cache actual MNIST smoke on CPU, JAX_ENABLE_X64=0, using stored c,
-  all-70k once-generated outcomes and fixed smoke splits. train receives
-  exactly 5k train/1k validation; no test input or metric was consulted.
-  One epoch processed 39 minibatches, dropped 8 rows, selected epoch1.
-  Both required gradient checks passed. Training NLL=1.2448235750198364;
-  validation NLL=1.2469474077224731; learned k=1.0319867134094238. All selected
-  parameter arrays are float32. Training including compile: 4.664289875s.
-  Not a full ten-epoch acceptance result or evidence of the full shape gate.
-  Probe output: /private/tmp/survjax-mnist-smoke-training.json (not committed).
-- scripts/check_wheel.sh --through A10: exit 0, all gates passed through A10.
-  Guard/Ruff/mypy passed. Own suites 1087 passed/7 skipped (104.74s) x64,
-  1093 passed/1 skipped (84.98s) x32. Source doctests: 4 passed per mode
-  (1.29s/1.18s). Acceptance: 2333 passed/27 skipped (91.74s) x64,
-  2324 passed/36 skipped (76.25s) x32. Approved examples packages enable
-  existing optional NumPyro/pandas acceptance cases.
-- After the gate, strengthened only the optional schedule fixture with pixel
-  row markers to pin image/data alignment. Focused training checks: 8 passed,
-  1 skip in 6.48s (x32), 9 passed in 8.06s (x64). No runtime changes or full
-  gate repeat. Ruff then found formatting in this new reproduction code
-  block; formatted the block and repeat static checks before committing.
-  Fresh wheel /var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/
-  survjax-wheel.eswnan/survjax-0.0.1.dev0-py3-none-any.whl.
+Actual numerical investigation (no tests/tolerances loosened):
+- Installed Optimistix signatures/source inspected locally. The first probe
+  incorrectly read Solution.y; installed Solution uses .value. Corrected
+  that API use before numerical testing. No external dependency edits.
+- Initial default reverse-mode BFGS, rtol/atol1e-12: 2 failed,11 passed,1
+  skipped (2.30s) in x64; x32 refusal passed with13 unavailable-mode skips.
+  Log-shape errors 5.869e-9/9.632e-9 exceeded the existing relative thresholds
+  near log_shape=.4785/-.0939. Validation assertions were retained exactly.
+- Tightening solver tolerances to1e-14/1e-15 left both results unchanged,
+  terminating after39 steps with gradient residuals around1e-8. Installed
+  source confirms stopping uses changes in parameters/objective, not the
+  gradient. Use_inverse True/False gave identical results in these probes.
+- Supported options.autodiff_mode='fwd' is suitable for two parameters and
+  avoids a large reverse tape; with1e-12 it reduced score residuals to
+  <=1.3e-10/6.7e-12 and passed all original parameter assertions. No new
+  solver abstraction or custom differentiation rule was introduced.
+- Actual 50k training-only forward fit at1e-12 hit256 steps; the guard raised
+  RuntimeError. Diagnostic solves at1e-8/1e-10 return success in9 steps at
+  exactly the same parameters as the max-step1e-12 result, with gradient
+  components <=2.1e-14. Fixed termination tolerances1e-10 resolve the spurious
+  nontermination. This setting is distinct from unchanged test tolerances,
+  and was verified on analytical controls and training data only.
+- Updated focused x64 checks: 15 passed,1 skip in4.91s; x32:1 passed,15
+  explicit precision skips in.36s. Final combined-suite outputs follow below.
 
-Smoke reproduction (repository root, approved examples environment):
+Actual full-training reference probe:
+- JAX_ENABLE_X64=1 uv run --group examples python; verified warm-cache data
+  loaded from /private/tmp/survjax-mnist-verification. Generate all70k once
+  with the fixed float32 generator and stored c; select only
+  split_indices('full')['train'] (50k); fit_intercept(time,event) casts those
+  same observed outcomes to float64, never regenerates them in another dtype.
+- Successful public fit: log parameters [0.1719941343787224,
+  1.4325235160420127]; k=1.1876708667659677, b=4.189257522824442.
+  Training NLL=1.234515803406909; post-fit gradients
+  [-2.0734663297322477e-14,-4.3021843960795546e-15]. CPU fit including compile:
+  1.519425750s. Actual output saved outside Git to
+  /private/tmp/survjax-mnist-intercept-fit.json; no image/label rows committed.
+- Independent JAX_ENABLE_X64=0 uv run --group examples python process reads
+  those logs as NumPy float64, then explicitly casts jnp.float32. Public
+  Weibull.from_log and SurvivalData([1,2],event=[1,0], float32) yield finite
+  float32 likelihood; parameter shape/scale, theta and output all float32;
+  asserted x64 remains disabled. No test-set evaluation or model selection.
+- No claim that intercept shape matches1.38: it deliberately ignores the
+  generating digit risk structure. Full neural acceptance/results are later.
+
+Final commands/results:
+- Explicit combined reference/training/model/preparation suites in separate
+  processes with --group examples, pytest -q check_mnist_reference.py,
+  check_mnist_training.py, check_mnist_model.py, test_mnist_outcomes.py,
+  test_mnist_data.py (all under tests/unit): x64 50 passed/1 skipped in18.21s;
+  x32 35 passed/16 skipped in13.99s. Skips explicitly identify unavailable
+  float64 checks or the inapplicable float32 refusal when x64 is enabled.
+- Ruff:126 files already formatted, All checks passed! Mypy: Success, no
+  issues in20 source files. Final git diff --check is clean.
+- scripts/check_wheel.sh --through A10: exit0, all gates passed. Own suites:
+  1087 passed/7 skipped (57.01s) x64, 1093 passed/1 skipped (58.30s) x32.
+  Doctests:4 passed per mode (.85s/.87s). Acceptance:2333 passed/27 skipped
+  (63.03s) x64, 2324 passed/36 skipped (59.47s) x32. Optional NumPyro/pandas
+  acceptance cases are enabled by the already approved examples environment.
+  Fresh wheel: /var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/
+  survjax-wheel.EXiQnX/survjax-0.0.1.dev0-py3-none-any.whl.
+- Source/test/README diff238 lines; model.py247, reference checks165 lines.
+- No docs build, full neural run, metric/C timing, reference-result artifact
+  committed, CLI or figure. Those remain later reviewed steps.
+
+Reproduce training-only reference (root, separate x64 examples environment):
 
 ```python
-import json, time
+import json
 from pathlib import Path
-import survjax
 from examples.survival_mnist.data import load_mnist, generate_outcomes, split_indices
-from examples.survival_mnist.model import train
+from examples.survival_mnist.model import fit_intercept
 
-images, labels = load_mnist(Path("/private/tmp/survjax-mnist-verification"))
+_, labels = load_mnist(Path("/private/tmp/survjax-mnist-verification"))
 c = json.loads(Path("examples/survival_mnist/calibration.json").read_text())[
     "censor_limit"
 ]
 outcomes = generate_outcomes(labels, c)
-data = survjax.SurvivalData(outcomes.time, outcomes.event)
-rows = split_indices("smoke")
-start = time.perf_counter()
-result = train(
-    images[rows["train"]],
-    data[rows["train"]],
-    images[rows["validation"]],
-    data[rows["validation"]],
-)
-print(
-    result.training_nll,
-    result.validation_nll,
-    result.selected_epoch,
-    time.perf_counter() - start,
-)
+idx = split_indices("full")["train"]
+logs = fit_intercept(outcomes.time[idx], outcomes.event[idx])
+print(logs)
 ```
 
-Run with JAX_ENABLE_X64=0 uv run --group examples python. The previously
-MD5/SHA-verified cache was warm; no network or data write in this step.
-Python 3.12.9, JAX 0.11.2, NumPy 2.5.3, Equinox .13.8, Optax .2.8, CPU.
-No docs build (no docs changed), test model evaluation, reference fit, full
-run, CLI or figure. Commit then independent MNIST.4 review, max 3 rounds;
-stop/report after this step's verdict. D-028 acceptance is recorded above.
-
-## Round 1 follow-up
-
-Round 1 returned fix-first for F-1: alternating event flags gave event-only
-mean129, identical to the observed-time mean129, so a bias-input mutant
-escaped. Fixture events now cover times1..100 only (event mean50.5), while
-all observed times remain1..257 (mean129). The captured initializer mean
-assertion remains129; no expected-value or tolerance relaxation.
-
-N-1 fixed with one module-level immutable Adam transformation used for
-init/update; optimizer state remains local to each train call. N-2 fixed
-with a code comment recording zero-based shuffle versus one-based selection.
-Public train/CNN behavior and stored calibration are unchanged. D-028's
-accepted decision is recognized by the reviewer; no renewed approval needed.
-No core/packaging changes, so no repeated full gate; repeat targeted checks
-and real smoke for the optimizer-sharing refactor, recording evidence below.
-The round-1 reviewer gate again hit the missing-SURVJAX_WHEEL setup errors;
-implementer fresh-wheel evidence is recorded above. Reviewer cleanup remains
-maintainer-owned per AGENTS.md.
-
-Fix-up evidence: Ruff format (2 unchanged; 125 files already formatted), lint
-(All checks passed!) and mypy (20 source files) pass. Same combined optional/
-preparation invocation: 34 passed/1 precision skip in 14.91s (x32), 35 passed
-in 15.07s (x64). Repeated warm-cache 5k/1k smoke with the same recipe after
-optimizer sharing: 2.377853625s; training/validation histories, selected epoch
-and learned shape match the original recorded run exactly. No test-set metrics
-or tuning; this checks reproducibility across the refactor, not an independent
-numerical reference. Analytical correctness checks remain the tests above.
+Python3.12.9, JAX0.11.2, NumPy2.5.3, Optimistix0.1.0, CPU. Optional checks
+need examples; ordinary discovery remains demo-free. Mypy covers src only.
+Commit, invoke exact independent-review for MNIST.5, max3 rounds/fix-ups,
+then stop after verdict before adding metrics.

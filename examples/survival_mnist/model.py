@@ -7,6 +7,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
+import optimistix as optx
 from jax.typing import ArrayLike
 
 import survjax
@@ -184,3 +185,63 @@ def train(
     return TrainingResult(
         best_params, tuple(training_history), tuple(validation_history), selected_epoch
     )
+
+
+def _intercept_nll(theta: jax.Array, data: survjax.SurvivalData) -> jax.Array:
+    dist = survjax.Weibull.from_log(log_shape=theta[0], log_scale=theta[1])
+    return -dist.log_likelihood(data).mean()
+
+
+def fit_intercept(time: ArrayLike, event: ArrayLike) -> np.ndarray:
+    """Fit the intercept-only Weibull on supplied training rows in float64.
+
+    Run in a separate JAX_ENABLE_X64=1 process; save returned log parameters
+    and explicitly cast them to float32 in the neural/evaluation process.
+
+    Args:
+        time: Nonempty vector of observed training times, exact or right censored.
+        event: Matching 0/1 or boolean vector; at least one event is required.
+    Returns:
+        Host float64 array (2,) containing log shape and log scale. Uses
+        Optimistix BFGS, rtol/atol=1e-10, at most 256 iterations.
+    Raises:
+        RuntimeError: x64 is disabled, solver fails or fit results are nonfinite.
+        ValueError: Shapes, observation values or event count are invalid.
+        TypeError: Observation types are invalid under SurvivalData's policy.
+    """
+    if not jax.config.x64_enabled:
+        raise RuntimeError(
+            "intercept fitting requires JAX_ENABLE_X64=1 in a separate process"
+        )
+    times, events = jnp.asarray(time), jnp.asarray(event)
+    if times.ndim != 1 or times.size == 0 or events.shape != times.shape:
+        raise ValueError("fit requires nonempty matching time/event vectors")
+    data = survjax.SurvivalData(times, events, dtype=jnp.float64)
+    data.issues.raise_if_invalid()
+    # spec 3.3: count in the calculation dtype before division.
+    event_count = data.exact.sum(dtype=jnp.float64)
+    if not bool(event_count > 0):
+        raise ValueError("intercept fitting requires at least one event")
+    initial_scale = data.lower.sum() / event_count
+    initial = jnp.stack((jnp.zeros((), dtype=jnp.float64), jnp.log(initial_scale)))
+    solution = optx.minimise(
+        _intercept_nll,
+        optx.BFGS(rtol=1e-10, atol=1e-10),
+        initial,
+        args=data,
+        options={"autodiff_mode": "fwd"},
+        max_steps=256,
+        throw=False,
+    )
+    if solution.result != optx.RESULTS.successful:
+        raise RuntimeError(f"intercept BFGS failed: {solution.result}")
+    value, gradient = jax.value_and_grad(_intercept_nll)(solution.value, data)
+    if not bool(
+        jnp.all(jnp.isfinite(solution.value))
+        & jnp.isfinite(value)
+        & jnp.all(jnp.isfinite(gradient))
+    ):
+        raise RuntimeError(
+            "intercept BFGS returned nonfinite parameters, loss or gradient"
+        )
+    return np.asarray(solution.value, dtype=np.float64)

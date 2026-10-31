@@ -1,3 +1,86 @@
+# MNIST.5 — Float64 intercept-only reference fit (2026-10-31)
+
+Start clean on release-minst at c035ed1; maintainer approved MNIST.4 and
+requests the next bit. MNIST.4 round2 returned merge; F-1/N-1/N-2 fixed.
+D-028 placement acceptance remains recorded, with formal status maintainer-owned.
+
+One concept: intercept-only MLE; keep metrics separate so model.py stays
+under about 300 lines and precision/process boundaries remain reviewable.
+Spec 11.2, 7.2–7.3, 10.3; 03 details References and metrics, Precision;
+release-agent MNIST handoff (float64 fit, float32 neural/evaluation process).
+No library API, module, dependency, protected or spec change.
+
+Files:
+- examples/survival_mnist/model.py: private mean Weibull NLL and
+  fit_intercept(time,event) host entry returning float64 log-parameter array
+  (log k, log b). Require x64 mode explicitly; never toggle global precision.
+  Supplied training rows only, matching nonempty vectors, public SurvivalData
+  validation and at least one event. Start k=1, b=sum(observed time)/events,
+  with event count cast to float64 before division. Fixed approved Optimistix
+  BFGS minimizes public survjax likelihood in log parameters, rtol/atol=1e-12,
+  max_steps256. Explicit failure on solver failure/nonfinite results or
+  gradients; no floors, clipping, penalty likelihoods or fallback fits.
+- tests/unit/check_mnist_reference.py: explicit examples-group offline checks.
+  Float64 MLE against an independently derived mpmath profile-score root,
+  all-observation/censoring influence, shape/invalid-row/no-event failures,
+  unsuccessful and nonfinite optimizer-result paths. Explicit float32-process
+  refusal, with unavailable-float64 cases skipped there for a stated reason.
+  Existing smooth likelihood derivatives already tested; fit is host-only,
+  no optimizer-gradient/JIT API promise. Recheck fitted log parameters cast
+  explicitly for float32 evaluation in a separate process.
+- README.md: exact fit invocation and process boundary; fitting checks.
+- REVIEW.md: overwrite with reading order, invariants, evidence and limits.
+
+Target <=300 changed source/test/README lines, model.py <300. No CNN training
+change, metric helper, test-set evaluation, CLI, full-run result, figure or docs
+page. Docs to-do: float64 training-only reference fit and explicit evaluation
+cast. Later steps still own oracle/C metrics, 10k C timing, calibration/metadata
+writer, full runs and executable page. No additional fit tuning on test data.
+
+Checks: fitting checks in separate x64/float32 processes, existing explicit
+neural/preparation checks, Ruff/mypy. Actual warm-cache full 50k training-only
+fit in x64 with recorded parameters, stationarity and timing; save temporary
+fit output, then a separate float32 process proves evaluation conversion.
+Fresh-wheel scripts/check_wheel.sh --through A10. Ordinary tests stay offline
+and demo-free. Commit, independent-review skill MNIST.5 (max3 rounds with
+fix-ups), then stop after verdict; do not begin metrics until told.
+
+Numerical implementation note: first probe used a mistaken Solution.y field;
+installed Optimistix documents Solution.value, now corrected. Default reverse-
+mode BFGS converged with log-shape errors 5.87e-9/9.63e-9, outside the existing
+relative tolerance (no tests/tolerances loosened). Tightening solver tolerances
+1e-12→1e-14/1e-15 did not change those results. Installed BFGS supports
+options.autodiff_mode: forward AD for two parameters avoids a large reverse
+tape and independently improves score residuals from ~1e-8 to <=1.3e-10 in
+these probes. Use that supported option, retaining rtol/atol1e-12, defaults
+otherwise and all original assertions. Add a right-censor-at-zero analytical
+case (zero cumulative hazard term), without changing existing expected values.
+
+Full training-only diagnostic: forward BFGS at rtol/atol1e-12 reaches the
+same log parameters [0.1719941343787224,1.4325235160420127] and stationarity
+~2.1e-14 as 1e-10, but refuses to terminate and hits256 steps. The 1e-10
+criterion reports success in9 steps. Use fixed solver rtol/atol1e-10 for
+termination; all analytical parameter-validation tolerances/assertions remain
+unchanged. Solver failures remain failures (never accept a max-step status).
+This is solver accuracy/roundoff diagnosis on training data, not test-metric
+or seed/checkpoint tuning. Record initial failed probes honestly in REVIEW.md.
+
+Implementation/evidence: source/test/README238 lines; model.py247 lines.
+Forward-AD BFGS with fixed1e-10 termination passes all unchanged 50-digit
+profile-MLE assertions and second-order objective checks. Actual full50k
+training-only fit returns log parameters [.1719941343787224,1.4325235160420127]
+(k1.1876708667659677,b4.189257522824442), NLL1.234515803406909, gradients
+<=2.1e-14; CPU1.51943s including compile. Separate float32 process converts
+stored logs and evaluates finite float32 likelihood with no precision toggle.
+Combined checks:50 passed/1 skip x64 (18.21s),35 passed/16 precision skips
+x32 (13.99s). Fresh-wheel gate exit0: own1087/1093 passed (7/1 skips),
+doctests4 per mode, acceptance2333/2324 passed (27/36 skips), Ruff/mypy pass.
+REVIEW.md records initial API/numerical failures, diagnosis, exact commands
+and limits; no test assertions/tolerances loosened, no test-set model tuning.
+Commit, invoke independent MNIST.5 round1, then stop before metric helpers.
+
+---
+
 # MNIST.4 — Deterministic epoch training and checkpoint selection (2026-10-31)
 
 Start clean on release-minst at 3d99b3d. Maintainer reviewed/agreed and asks
