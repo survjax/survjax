@@ -1,6 +1,6 @@
 """Float32 neural survival model (use-case 03 Network)."""
 
-from typing import Any, NamedTuple
+from typing import NamedTuple
 
 import equinox as eqx
 import jax
@@ -22,11 +22,11 @@ class CNN(eqx.Module):
     dense2: eqx.nn.Linear
     pool: eqx.nn.MaxPool2d
 
-    def __init__(self, mean_training_time: ArrayLike, *, key: jax.Array) -> None:
-        """Initialize from a positive finite training mean and explicit key.
+    def __init__(self, initial_log_scale: ArrayLike, *, key: jax.Array) -> None:
+        """Initialize from a fitted intercept log scale and explicit key.
 
         Args:
-            mean_training_time: Scalar mean observed time from training rows only.
+            initial_log_scale: Scalar fitted log scale from training rows only.
             key: Initialization key; use fold_in(fold_in(key(20261025),3),2).
         """
         keys = jax.random.split(key, 4)
@@ -34,7 +34,7 @@ class CNN(eqx.Module):
         self.conv2 = eqx.nn.Conv2d(16, 32, 3, dtype=jnp.float32, key=keys[1])
         self.dense1 = eqx.nn.Linear(800, 64, dtype=jnp.float32, key=keys[2])
         head = eqx.nn.Linear(64, 1, dtype=jnp.float32, key=keys[3])
-        bias = jnp.log(jnp.asarray(mean_training_time, dtype=jnp.float32)).reshape(1)
+        bias = jnp.asarray(initial_log_scale, dtype=jnp.float32).reshape(1)
         self.dense2 = eqx.tree_at(lambda layer: layer.bias, head, bias)
         # 03 Network dimensions require stride 2; Equinox defaults to stride 1.
         self.pool = eqx.nn.MaxPool2d(2, stride=2)
@@ -53,7 +53,7 @@ def loss(
     """Return mean NLL for aligned float32 images (N,1,28,28) and data (N,).
 
     Args:
-        params: CNN and learned scalar log shape (initialize to float32 zero).
+        params: CNN and learned scalar log shape, initialized from the intercept fit.
         images: Pixels only; labels never enter the network.
         data: Exact/right observations, typically sliced with data[idx].
     Returns:
@@ -108,6 +108,7 @@ def train(
     validation_images: jax.Array,
     validation_data: survjax.SurvivalData,
     *,
+    initial_intercept: ArrayLike,
     config: str = "smoke",
 ) -> TrainingResult:
     """Train on float32 cohorts and select by validation NLL only.
@@ -117,6 +118,9 @@ def train(
         data: Aligned training observations (N,), from float32 outcomes.
         validation_images: Validation pixels (M,1,28,28), M > 0.
         validation_data: Aligned float32 validation observations (M,).
+        initial_intercept: Float64 training-only BFGS estimate (log shape,
+            log scale), loaded from the separate fitting process. Cast to float32
+            here to initialize shared log shape and the CNN's final bias.
         config: 'smoke' for one epoch, 'full' for ten. Caller supplies the
             prescribed 5k/1k or 50k/10k cohorts; test rows are never accepted
             separately or consulted. Batch size is always 128.
@@ -146,10 +150,15 @@ def train(
         if pixels.dtype != jnp.float32 or observations.lower.dtype != jnp.float32:
             raise ValueError("training and validation cohorts must be float32")
         observations.issues.raise_if_invalid()
+    intercept = jnp.asarray(initial_intercept, dtype=jnp.float32)
+    if intercept.shape != (2,) or not bool(jnp.all(jnp.isfinite(intercept))):
+        raise ValueError(
+            "initial_intercept must contain finite log shape and log scale"
+        )
     uc = jax.random.fold_in(jax.random.key(20261025), 3)
     params = (
-        CNN(jnp.mean(data.lower), key=jax.random.fold_in(uc, 2)),
-        jnp.zeros((), dtype=jnp.float32),
+        CNN(intercept[1], key=jax.random.fold_in(uc, 2)),
+        intercept[0],
     )
     state = _optimizer.init(eqx.filter(params, eqx.is_inexact_array))
     best_params, best_nll, selected_epoch = params, float("inf"), 0
@@ -192,52 +201,6 @@ def _intercept_nll(theta: jax.Array, data: survjax.SurvivalData) -> jax.Array:
     return -dist.log_likelihood(data).mean()
 
 
-class _RoundoffArmijo(optx.BacktrackingArmijo):
-    """Allow unresolved objective changes only for near-stationary descent."""
-
-    def step(
-        self,
-        first_step: jax.Array,
-        y: jax.Array,
-        y_eval: jax.Array,
-        f_info: Any,
-        f_eval_info: Any,
-        state: Any,
-    ) -> tuple[jax.Array, jax.Array, optx.RESULTS, Any]:
-        _, accept, result, next_state = super().step(
-            first_step, y, y_eval, f_info, f_eval_info, state
-        )
-        before, after = f_info.as_min(), f_eval_info.as_min()
-        predicted = f_info.compute_grad_dot(y_eval - y)
-        eps = jnp.finfo(y.dtype).eps
-        allowance = 4 * eps * (1 + jnp.abs(before) + jnp.abs(after))
-        # Near the optimum, objective changes are quadratic in parameter error;
-        # |grad|~sqrt(eps) can hide descent below float64 objective resolution.
-        # Allow a few machine units only there; the likelihood stays unchanged.
-        roundoff = (
-            ~first_step
-            & (state.step_size == self.step_init)
-            & jnp.isfinite(before)
-            & jnp.isfinite(after)
-            & (jnp.max(jnp.abs(f_info.grad)) <= jnp.sqrt(eps))
-            & (predicted <= 0)
-            & (jnp.abs(predicted) <= allowance)
-            & (after - before <= allowance)
-        )
-        accept = accept | roundoff
-        step = jnp.where(accept, self.step_init, next_state.step_size)
-        next_state = eqx.tree_at(lambda s: s.step_size, next_state, step)
-        return step, accept, result, next_state
-
-
-class _ReferenceBFGS(optx.BFGS):
-    """Standard BFGS with an Armijo comparison aware of float64 roundoff."""
-
-    def __init__(self) -> None:
-        super().__init__(rtol=1e-10, atol=1e-10)
-        self.search = _RoundoffArmijo()
-
-
 def fit_intercept(time: ArrayLike, event: ArrayLike) -> np.ndarray:
     """Fit the intercept-only Weibull on supplied training rows in float64.
 
@@ -249,7 +212,7 @@ def fit_intercept(time: ArrayLike, event: ArrayLike) -> np.ndarray:
         event: Matching 0/1 or boolean vector; at least one event is required.
     Returns:
         Host float64 array (2,) containing log shape and log scale. Uses
-        Optimistix BFGS with roundoff-aware Armijo, rtol/atol=1e-10,
+        Stock Optimistix BFGS with rtol/atol=1e-5,
         at most 256 iterations.
     Raises:
         RuntimeError: x64 is disabled, solver fails or fit results are nonfinite.
@@ -273,10 +236,9 @@ def fit_intercept(time: ArrayLike, event: ArrayLike) -> np.ndarray:
     initial = jnp.stack((jnp.zeros((), dtype=jnp.float64), jnp.log(initial_scale)))
     solution = optx.minimise(
         _intercept_nll,
-        _ReferenceBFGS(),
+        optx.BFGS(rtol=1e-5, atol=1e-5),
         initial,
         args=data,
-        options={"autodiff_mode": "fwd"},
         max_steps=256,
         throw=False,
     )

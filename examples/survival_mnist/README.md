@@ -48,7 +48,7 @@ Run its offline checks explicitly in each mode:
 `JAX_ENABLE_X64=0 uv run --group examples pytest -q tests/unit/check_mnist_model.py`
 and repeat with `JAX_ENABLE_X64=1`. Ordinary tests need no demo dependencies.
 `model.train(train_images, train_data, validation_images, validation_data,
-config="smoke")` now returns the selected parameters, NLL histories and selected
+initial_intercept=fitted_log_parameters, config="smoke")` now returns the selected parameters, NLL histories and selected
 epoch. Use float32 outcome data and pixels; batch size is 128, with 1/10 epochs
 for smoke/full. Check training separately with the same command above using
 `tests/unit/check_mnist_training.py`. CLI, oracle/held-out metrics, full results and
@@ -59,7 +59,9 @@ Run it in a separate `JAX_ENABLE_X64=1 uv run --group examples python` process.
 It returns a NumPy float64 `[log_shape, log_scale]` array from Optimistix BFGS;
 only supplied training rows enter the fit. Save the returned values, then cast
 with `jnp.asarray(values, dtype=jnp.float32)` in the float32 evaluation process.
-No JAX global setting is changed. The fitter raises on invalid cohorts, failed
+Pass the saved fit as `initial_intercept=values` to `train`; it initializes
+both the CNN final bias and shared log shape, explicitly cast to float32.
+The CNN constructor takes the initial log scale. No JAX global setting is changed. The fitter raises on invalid cohorts, failed
 optimization or nonfinite results. Run its explicit checks with
 `JAX_ENABLE_X64=1 uv run --group examples pytest -q tests/unit/check_mnist_reference.py`;
 repeat with `JAX_ENABLE_X64=0` to check refusal of unavailable float64 fitting.

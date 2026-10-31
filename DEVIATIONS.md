@@ -1,5 +1,19 @@
 # Deviations and spec questions
 
+## D-030 Initialize the CNN from the intercept fit
+
+- Step: MNIST.5s.
+- Spec section: use-cases/03 details "Network".
+- What the spec says: shared log shape starts at zero; final bias is the log
+  of the observed training mean.
+- Maintainer decision (2026-10-31): "Initialize the CNN too", confirming use
+  of the stock BFGS intercept estimate for both values.
+- What was done: train requires the training-only fitted (log shape, log scale),
+  casts both to float32, and uses them for the shared shape and final bias.
+  CNN accepts initial log scale directly. No global precision setting changes.
+  The spec is unchanged pending maintainer reconciliation.
+- Status: open.
+
 ## D-029 MNIST reference BFGS roundoff comparison
 
 - Step: MNIST.5 independent review round2, S-1.
@@ -16,6 +30,9 @@
   reviewer stress cohorts. Propose accepting this bounded comparison as the
   reference's BFGS implementation. Maintainer must confirm before metrics;
   no further solver or spec change is made pending the decision.
+- Maintainer decision (2026-10-31): rejects the custom roundoff optimizer;
+  directs plain optx.BFGS for the intercept estimate. MNIST.5s removes both
+  subclasses and the parameter-precision requirement that motivated them.
 - Status: open.
 
 ## D-028 MNIST preparation placement

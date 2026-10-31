@@ -19,7 +19,7 @@ from examples.survival_mnist.model import CNN, loss  # noqa: E402
 
 def setup():
     key = jax.random.fold_in(jax.random.fold_in(jax.random.key(20261025), 3), 2)
-    cnn = CNN(np.float64(2), key=key)
+    cnn = CNN(np.log(np.float64(2)), key=key)
     images = jax.random.uniform(jax.random.key(19), (3, 1, 28, 28), dtype=jnp.float32)
     data = survjax.SurvivalData(jnp.array([1, 2, 3], dtype=jnp.float32), [1, 0, 1])
     return cnn, images, data

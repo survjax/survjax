@@ -29,7 +29,7 @@ def cohorts():
 
 def test_validation_includes_tail_with_observation_weights():
     """03: 129 censored exponential rows give (128*1+501)/129, not batch mean."""
-    cnn = model.CNN(2.0, key=jax.random.key(0))
+    cnn = model.CNN(np.log(2.0), key=jax.random.key(0))
     cnn = eqx.tree_at(lambda m: m.dense2.weight, cnn, jnp.zeros_like(cnn.dense2.weight))
     images, _, _, _ = cohorts()
     images = images[:129]
@@ -46,21 +46,24 @@ def test_validation_includes_tail_with_observation_weights():
 
 
 def test_ten_epoch_schedule_shuffling_history_and_earliest_best(monkeypatch):
-    """03: training mean/key, drop one row, 10 epochs, validation tie keeps epoch2."""
+    """Maintainer initialization: fitted intercept/key, drop one row, 10 epochs, validation tie keeps epoch2."""
     images, data, validation_images, validation = cohorts()
     original_cnn = model.CNN
     captured, rows = {}, []
 
-    def initialize(mean, *, key):
-        captured["mean"], captured["key"] = float(mean), key
-        return original_cnn(mean, key=key)
+    def initialize(log_scale, *, key):
+        captured["log_scale"], captured["key"] = float(log_scale), key
+        return original_cnn(log_scale, key=key)
 
     def step(params, state, pixels, observations):
         if not rows:
             assert (
                 params[1].shape == ()
-                and params[1] == 0
+                and params[1] == jnp.float32(0.2)
                 and params[1].dtype == jnp.float32
+            )
+            np.testing.assert_array_equal(
+                params[0].dense2.bias, jnp.array([1.5], dtype=jnp.float32)
             )
         np.testing.assert_array_equal(pixels[:, 0, 0, 0] * 256 + 1, observations.lower)
         rows.append(np.asarray(observations.lower))
@@ -78,10 +81,17 @@ def test_ten_epoch_schedule_shuffling_history_and_earliest_best(monkeypatch):
     monkeypatch.setattr(model, "CNN", initialize)
     monkeypatch.setattr(model, "_train_step", step)
     monkeypatch.setattr(model, "_validation_nll", evaluate)
-    result = model.train(images, data, validation_images, validation, config="full")
+    result = model.train(
+        images,
+        data,
+        validation_images,
+        validation,
+        initial_intercept=np.array([0.2, 1.5], dtype=np.float64),
+        config="full",
+    )
     uc = jax.random.fold_in(jax.random.key(20261025), 3)
-    # mean(1..257)=129, event-only mean(1..100)=50.5; validation mean999.
-    assert captured["mean"] == 129
+    # Supplied fitted log scale is distinct from either cohort's observed mean.
+    assert captured["log_scale"] == 1.5
     np.testing.assert_array_equal(
         jax.random.key_data(captured["key"]),
         jax.random.key_data(jax.random.fold_in(uc, 2)),
@@ -118,13 +128,19 @@ def test_nonfinite_gradients_fail_at_explicit_checkpoints(monkeypatch, stage):
     monkeypatch.setattr(model, "_value_grad", gradient)
     monkeypatch.setattr(model, "_train_step", step)
     with pytest.raises(FloatingPointError, match=stage):
-        model.train(images, data, validation_images, validation)
+        model.train(
+            images,
+            data,
+            validation_images,
+            validation,
+            initial_intercept=np.array([0.2, 1.5], dtype=np.float64),
+        )
     assert len(calls) == (0 if stage == "at initialization" else 1)
 
 
 def test_compiled_adam_first_step_matches_exponential_head_algebra():
     """03: first Adam bias/log-k increments are +.001 for negative gradients."""
-    cnn = model.CNN(2.0, key=jax.random.key(0))
+    cnn = model.CNN(np.log(2.0), key=jax.random.key(0))
     cnn = eqx.tree_at(lambda m: m.dense2.weight, cnn, jnp.zeros_like(cnn.dense2.weight))
     params = cnn, jnp.zeros((), dtype=jnp.float32)
     images = jnp.zeros((3, 1, 28, 28), dtype=jnp.float32)
@@ -151,11 +167,30 @@ def test_training_rejects_wrong_precision_shapes_and_config():
     """03 Precision: no integer pixels, missing full minibatch or bad config."""
     images, data, validation_images, validation = cohorts()
     with pytest.raises(ValueError, match="float32"):
-        model.train(images.astype(jnp.int32), data, validation_images, validation)
+        model.train(
+            images.astype(jnp.int32),
+            data,
+            validation_images,
+            validation,
+            initial_intercept=np.array([0.2, 1.5], dtype=np.float64),
+        )
     with pytest.raises(ValueError, match="aligned"):
-        model.train(images[:127], data[:127], validation_images, validation)
+        model.train(
+            images[:127],
+            data[:127],
+            validation_images,
+            validation,
+            initial_intercept=np.array([0.2, 1.5], dtype=np.float64),
+        )
     with pytest.raises(ValueError, match="config"):
-        model.train(images, data, validation_images, validation, config="unknown")
+        model.train(
+            images,
+            data,
+            validation_images,
+            validation,
+            initial_intercept=np.array([0.2, 1.5], dtype=np.float64),
+            config="unknown",
+        )
 
 
 def test_float64_training_or_validation_data_are_rejected(x64_enabled):
@@ -172,7 +207,13 @@ def test_float64_training_or_validation_data_are_rejected(x64_enabled):
             validation.lower.astype(validation_dtype), validation.exact
         )
         with pytest.raises(ValueError, match="float32"):
-            model.train(images, training, validation_images, held_out)
+            model.train(
+                images,
+                training,
+                validation_images,
+                held_out,
+                initial_intercept=np.array([0.2, 1.5], dtype=np.float64),
+            )
 
 
 @pytest.mark.parametrize("failure", ["training", "validation"])
@@ -184,4 +225,20 @@ def test_nonfinite_epoch_nll_never_returns_a_checkpoint(monkeypatch, failure):
     monkeypatch.setattr(model, "_train_step", lambda p, s, x, d: (p, s, training))
     monkeypatch.setattr(model, "_validation_nll", lambda p, x, d: held_out)
     with pytest.raises(FloatingPointError, match="epoch"):
-        model.train(images, data, validation_images, validation)
+        model.train(
+            images,
+            data,
+            validation_images,
+            validation,
+            initial_intercept=np.array([0.2, 1.5], dtype=np.float64),
+        )
+
+
+@pytest.mark.parametrize("intercept", [[0], [0, float("nan")], [float("inf"), 1]])
+def test_training_rejects_invalid_initial_intercept(intercept):
+    """Maintainer initialization: reject malformed/nonfinite fitted log parameters."""
+    images, data, validation_images, validation = cohorts()
+    with pytest.raises(ValueError, match="initial_intercept"):
+        model.train(
+            images, data, validation_images, validation, initial_intercept=intercept
+        )

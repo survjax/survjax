@@ -1,3 +1,25 @@
+# MNIST.5s — Use stock BFGS (2026-10-31)
+
+Maintainer directs removal of the custom optimizer: use optx.BFGS for the
+intercept estimate. This supersedes the previous precision-driven implementation.
+No dependency, module, public library API, protected path or spec change.
+
+Files: model.py removes both optimizer subclasses and uses stock BFGS with
+rtol/atol=1e-5; check_mnist_reference.py removes custom-search tests and checks
+objective quality against the independent profile optimum rather than demanding
+near-machine-precision parameter recovery. Existing tolerance constants stay.
+DEVIATIONS.md records the maintainer decision; REVIEW.md records evidence.
+Spec 11.2 and use-case 03 References/Precision. Maintainer additionally directs using the fit to initialize the CNN. Change
+CNN's scalar constructor argument to initial log scale and require train's
+initial_intercept=(log shape, log scale), supplied from the separate fit process.
+Cast explicitly to float32, validate finite shape (2,), initialize bias and shape.
+Update model/training checks and example README; record this authorized change
+to the use-case initialization in D-030 (spec remains read-only).
+
+Checks: optional model/reference/training/data checks in separate dtype processes,
+Ruff/mypy, cached smoke/full training-only fits, cumulative fresh-wheel gate.
+Commit, independent review MNIST.5s, then stop. Docs to-do unchanged below.
+
 # MNIST.5 — Float64 intercept-only reference fit (2026-10-31)
 
 Start clean on release-minst at c035ed1; maintainer approved MNIST.4 and
