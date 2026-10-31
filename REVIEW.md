@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # MNIST.7 — CLI, precision processes and CSV records
 
@@ -98,3 +98,23 @@ since the warning-free smoke and complete cumulative gate recorded above.
 Remaining sub-steps: reproducibility metadata, figures and prescribed full
 run/committed results, executable docs page. Do not begin them before this
 step's review and maintainer handoff.
+
+
+Round1 findings and fixes:
+- F-1: controlled evaluate now checks all three supplied log shapes explicitly:
+  selected CNN float32(.3), fitted intercept .25, oracle log(1.38). Values
+  originate from the fixed test collaborators/generating rule, not runner output.
+- F-2: the outcome stand-in now requires exactly all70k labels and c=7,
+  the independent calibration result/bridge fixture. Both preparation and
+  training paths use this checked stand-in; wrong c or truncated labels fail.
+- N-1: training timer uses training_started, distinct from prediction batch start.
+- N-2: document the cross-process outcome invariant beside regeneration.
+  The reviewer independently verified bit-identical outcomes between dtype
+  processes; existing generator precision tests cover the same property.
+- No model/loss/optimizer/cohort or numeric calculation changed. No repeated
+  smoke/full run or cumulative gate needed for these assertions/comments/name.
+  Reviewer gate encountered only missing SURVJAX_WHEEL setup (5 errors); our
+  passing fresh-wheel wrapper result above includes these tests in both modes.
+- Fix-up checks: runner tests4 passed in x64 (1.11s) and4 passed in float32
+  (1.37s); Ruff lint passed; formatter added one blank line before the local
+  generator stand-in. Final format/diff checks clean.

@@ -60,7 +60,13 @@ def fake_cohorts(monkeypatch):
     )
     monkeypatch.setattr(data, "load_mnist", lambda: (pixels, labels))
     monkeypatch.setattr(data, "split_indices", lambda config: indices)
-    monkeypatch.setattr(data, "generate_outcomes", lambda actual, c: outcomes)
+
+    def generate(actual, c):
+        np.testing.assert_array_equal(actual, labels)
+        assert c == 7.0
+        return outcomes
+
+    monkeypatch.setattr(data, "generate_outcomes", generate)
     return labels, indices
 
 
@@ -125,6 +131,8 @@ def test_runner_uses_selected_predictions_tail_and_records(
 
     def evaluate(shape, scales, observations):
         np.testing.assert_array_equal(observations.lower, indices["test"] + 1)
+        expected_shapes = (np.float32(0.3), 0.25, np.log(1.38))
+        assert float(shape) == float(expected_shapes[len(predictions)])
         predictions.append(np.asarray(scales))
         return {
             "n": 129,

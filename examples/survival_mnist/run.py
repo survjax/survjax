@@ -51,12 +51,14 @@ def _run(config: str, preparation: Path, out: Path) -> None:
     prepared = json.loads(preparation.read_text())
     pixels, labels = data.load_mnist()
     cohorts = data.split_indices(config)
+    # Reproduce preparation outcomes exactly: same labels/c/global keys and
+    # explicit float32 generator arithmetic, independent of process x64 mode.
     outcomes = data.generate_outcomes(labels, prepared["censor_limit"])
     observations = survjax.SurvivalData(outcomes.time, outcomes.event)
     training, validation, test = (
         cohorts[name] for name in ("train", "validation", "test")
     )
-    start = perf_counter()
+    training_started = perf_counter()
     result = model.train(
         pixels[training],
         observations[training],
@@ -65,7 +67,7 @@ def _run(config: str, preparation: Path, out: Path) -> None:
         initial_intercept=np.array(prepared["intercept"], dtype=np.float64),
         config=config,
     )
-    training_seconds = perf_counter() - start
+    training_seconds = perf_counter() - training_started
     cnn, log_k = result.params
     predict = eqx.filter_jit(eqx.filter_vmap(cnn))
     log_scales = jnp.concatenate(
