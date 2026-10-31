@@ -9,6 +9,7 @@ from jax.typing import ArrayLike
 
 from survjax import constraints
 from survjax._dtypes import normalize_parameters
+from survjax._numerics import _rmst_cutoff
 from survjax.distributions.base import (
     SurvivalDistribution,
     distribution,
@@ -47,6 +48,42 @@ class ProportionalHazards(SurvivalDistribution):
 
     baseline: SurvivalDistribution = distribution()
     log_hazard_ratio: jax.Array = param(constraint=constraints.real)
+
+    def rmst(self, tau: ArrayLike) -> jax.Array:
+        """Return restricted mean time through the baseline's private PH closure.
+
+        Args:
+            tau: Finite nonnegative cutoffs broadcast against batch_shape.
+                Use tau_grid[:, None, None] for a batch of shape (S, 2).
+        Returns:
+            Broadcast RMST in time units; NaN for invalid/failed entries.
+            At zero, value and parameter derivatives are 0, d/dtau is 1.
+            For Weibull, only first derivatives are guaranteed at zero;
+            higher interior derivatives involving shape are unsupported.
+        Raises:
+            TypeError: Nonreal cutoffs or incompatible shapes.
+            NotImplementedError: Baseline has no staged PH closure, or an
+                unsupported higher Weibull shape derivative is requested.
+        """
+        cutoff = _rmst_cutoff(tau, self.batch_shape)
+        invalid = (
+            ~jnp.isfinite(cutoff)
+            | (cutoff < 0)
+            | self.parameter_issues().invalid_entries
+        )
+        dtype = jnp.result_type(cutoff, *jax.tree.leaves(self))
+        baseline = jax.tree.map(lambda leaf: leaf.astype(dtype), self.baseline)
+        eta = self.log_hazard_ratio.astype(dtype)
+        equivalent = baseline._ph_equivalent(eta, invalid)
+        if equivalent is None:
+            raise NotImplementedError("rmst requires a supported baseline PH closure")
+        # spec 8.7: zero is exact even if the natural closure is unrepresentable.
+        failed_zero = (cutoff == 0) & equivalent.parameter_issues().invalid_entries
+        equivalent = jax.tree.map(
+            lambda leaf: jnp.where(failed_zero, 1.0, leaf), equivalent
+        )
+        value = equivalent.rmst(jnp.where(invalid, 0.0, cutoff))
+        return jnp.where(invalid, jnp.nan, value)
 
     def reference_time(self) -> jax.Array:
         """Return baseline reference times in the promoted parameter dtype.

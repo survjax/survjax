@@ -5,6 +5,38 @@ D-028. PH's constructor entry retains D-028; RMST's zero-boundary entry is
 now D-030. Historical RMST plans/reviews citing D-028 refer to D-030 here;
 those records remain verbatim. No entry body, decision or status is changed.
 
+## D-031 PH extreme-range parameter derivatives deferred after initial release
+
+- Step: PH.2c independent review, F-1/F-2/S-1; decision recorded during PH.3a.
+- Spec sections: 4.4, 7.3, 12.1–12.2, revision 39.
+- Spec says: PH closure identities hold in first parameter derivatives, and
+  PH over built-ins supports first/second derivatives on finite valid smooth
+  interior cases, without an explicit extreme-scaling exception.
+- Observed: values can be accurate while baseline reverse gradients are zero
+  or infinite despite finite true derivatives. For Weibull k=2,b=1,eta=-720,
+  t=1e150, expected (k,b,eta) gradient of log S is approximately
+  [-7.019e-11,4.064e-13,-2.032e-13]; reverse gives [0,0,-2.032e-13].
+  With eta=720,t=1e-150, reverse baseline gradients are infinite instead of
+  finite. Analogous float32 examples occur. Natural-parameter Hessians also
+  fail: Exponential r=1e-200,eta=500,t=1e-200 has finite true Hessian
+  [[0,-1.40e17],[-1.40e17,-1.40e-183]], but AD contains infinity/NaN.
+  This is not merely a rebuilt-vector artifact. PH.2c's eta-only redesign
+  did not repair these failures; the original review's F-2 remains valid.
+- Maintainer decision (2026-10-31): explicitly approved keeping the current
+  implementation and tests, documenting the limitation and adding a narrow
+  initial-release derivative exception, with numerical improvements on the
+  post-release roadmap. The designer is handling the specification change.
+  No sharp safe range is asserted; values, ordinary-range derivative evidence,
+  invalid-entry isolation and existing RMST requirements are not weakened.
+- Did/propose: preserve the PH.2c report/stress evidence, log this decision,
+  continue separate PH closure/RMST work, and await the design commit before
+  marking .spec-seen or claiming formal spec alignment. No spec edit here.
+- Spec alignment: designer commit 765c65bba9efb3af8ef4a13c1ecb8e302a47f346,
+  revision 40, adopts the narrow exception for PH direct-method/likelihood
+  derivatives and a post-initial-release roadmap item; staged RMST is unchanged.
+  The full diff was read and .spec-seen marked here during PH.3a.
+- Status: open (formal disposition remains maintainer-owned).
+
 ## D-030 Higher cutoff derivatives at the staged RMST zero boundary
 
 - Step: RMST.2-report (2026-10-30), mathematical report requested before approval.

@@ -1,3 +1,87 @@
+# PH.3a — Built-in PH closure and delegated RMST (2026-10-31)
+
+Authorized by “get on with the PH implementation”. Complete the maintainer's
+already-resolved RMST merge as prerequisite commit 2e6b55a9610e6733bf539d420d7a2f6d52ee355e;
+start this implementation from that clean release-ph snapshot. No new merge
+is initiated. RMST core ownership now passes to PH for closure-only edits,
+per the release packet and the maintainer's instruction to continue after
+bringing in that work. Preserve the unfinished PH/RMST planning histories.
+
+The maintainer has chosen to defer extreme-range PH derivative improvements
+until after the initial release; the designer is preparing the spec exception.
+Record F-1/F-2/S-1 and that decision in DEVIATIONS.md (D-031). Do not change
+spec, the existing PH direct formula, or the pending derivative tests. Current
+revision 39's closure/RMST contract is settled independently of that exception.
+During implementation the designer committed revision 40 at
+765c65bba9efb3af8ef4a13c1ecb8e302a47f346. Read the full specification diff;
+it narrows only extreme-scaling PH direct/likelihood derivatives and leaves
+staged RMST unchanged. Run spec-since.sh dev-release-ph --mark for .spec-seen.
+D-031 records alignment without changing its maintainer-owned status.
+
+One bounded code concept, <=300 changed code/test/implementation lines (plan,
+review and deviation records excluded):
+- base.py: a private PH-equivalent hook, default None (no generic summaries).
+- exponential.py/weibull.py: implement that hook using log-space transformed
+  rate/scale. The internal invalid-entry mask includes original parameters,
+  eta and cutoff violations; substitute neutral parameter operands BEFORE
+  logarithms, division or exp so invalid rows cannot poison shared derivatives.
+  Mask shape E broadcasts across the existing batch and explicit cutoff axes;
+  built-in scalar fields have no component axes. No change to RMST numerics
+  or tolerance constants. The hook is private, not an extension-interface API.
+- wrappers.py: rmst(tau) converts/broadcasts cutoffs through the existing helper,
+  computes original issue union, asks the baseline for its PH closure, raises
+  NotImplementedError for unsupported families, delegates to closure.rmst and
+  restores original invalid rows to NaN. Direct methods/likelihood never
+  dispatch through the closure. No exports, other summaries, rmst_grid or sampling.
+- New tests/unit/test_proportional_hazards_rmst.py: both closure laws, independent
+  mpmath integral and first derivatives, eager/jit/vmap, (S,1)x(S,2) batch
+  identities and explicit cutoff grids, zero values/first derivatives, invalid
+  rows and shared-parameter isolation, native Weibull shape-Hessian
+  restriction and custom-baseline NotImplementedError. Keep shape outside the
+  differentiated arguments for supported nonshape Hessians. Use existing
+  ordinary/RMST tolerances, with explicit scale justification. Split broader
+  RMST tail/full-range evidence into PH.3b if it does not fit; no oversized step.
+
+Spec 4.4–4.5, 5, 7.2–7.3, 8.7 and 12.1–12.2. No dependencies, protected paths,
+public export integration or docs-site edits. Docs to-do: executable PH topic,
+RMST closure examples, shape-Hessian/zero-boundary restriction and the coming
+extreme-derivative limitation. Later export step needs the narrow docs/api.md
+code-step exception; do not weaken API-reference or exact-export tests.
+Post-release numerical roadmap: map extreme PH derivative failure regimes and
+stabilize first/second baseline/eta derivatives; preserve the stress evidence.
+
+After formatting, the first draft reached 337 code/test lines. Split its
+(S,1)x(S,2) / explicit cutoff-grid test into PH.3b alongside the broader RMST
+range/identity evidence. Simplify the independent Hessian order construction
+and defer the full supported-Hessian integral test to PH.3b too: explicit
+zero-value/first-derivative handling for an unrepresentable natural closure
+is required now. The smaller broadcast/grid test fits again after deferring
+the larger Hessian test, so retain the broadcast/grid checks in PH.3a.
+Guard closure exp overflow before evaluating it; restore the
+nonfinite closure parameter, with a zero-cutoff fallback preserving the exact
+value and first derivatives. Ordinary representable closures keep their
+native boundary derivatives. Promote copied baseline/eta leaves with the
+cutoff dtype before closure arithmetic; original stored leaves are unchanged.
+The final step is exactly 300 changed code/test lines: 62 production additions
+and 238 test lines. Deferred supported-Hessian/full-range coverage is not
+claimed complete in this step.
+
+Run focused PH/RMST in separate dtype processes, Ruff/mypy, unchanged fresh-wheel
+through-A10 gate, whitespace and scope checks. Write REVIEW.md, commit, invoke
+independent-review exactly as PH.3a round 1/3, address findings within three
+rounds, then stop/report this step. Do not start export/docs or PH.3b afterward.
+
+PH.3a execution: implemented 62 source additions and 238 test lines, exactly
+300 code/test lines. Final focused tests pass 19 cases in each dtype (15.95s /
+16.01s); full fresh-wheel A10 exits 0: own 1261/8 and 1266/3, doctests 4 each,
+independent acceptance 2332/28 and 2322/38 (passed/skipped). Ruff format/lint,
+mypy and whitespace clean. REVIEW.md records prototype failures, fixes, split,
+commands, timings, numerical invariants, wheel identity and deferred evidence.
+Revision 40 is read and .spec-seen aligned; no spec/dependency/protected edit.
+Commit this step, then invoke independent PH.3a review round 1/3 and stop.
+
+---
+
 # PH / RMST merge conflict resolution (2026-10-31)
 
 The maintainer started merging reviewed RMST work into release-ph and asked

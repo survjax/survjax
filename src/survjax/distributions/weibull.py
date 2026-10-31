@@ -73,6 +73,16 @@ class Weibull(SurvivalDistribution):
     shape: jax.Array = param(constraint=constraints.positive)
     scale: jax.Array = param(constraint=constraints.positive)
 
+    def _ph_equivalent(self, eta: jax.Array, invalid: jax.Array) -> "Weibull":
+        # spec 4.4/7.2: mask BEFORE eta/k and log(b), including invalid cutoffs.
+        shape = jnp.where(invalid, 1.0, self.shape)
+        scale = jnp.where(invalid, 1.0, self.scale)
+        eta = jnp.where(invalid, 0.0, eta)
+        log_scale = jnp.log(scale) - eta / shape
+        overflow = log_scale >= jnp.log(jnp.finfo(log_scale.dtype).max)
+        scale = jnp.exp(jnp.where(overflow, 0.0, log_scale))
+        return Weibull(shape=shape, scale=jnp.where(overflow, jnp.inf, scale))
+
     def rmst(self, tau: ArrayLike) -> jax.Array:
         """Return the restricted mean event time, integral of S(t) to tau.
 

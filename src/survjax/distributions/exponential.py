@@ -51,6 +51,15 @@ class Exponential(SurvivalDistribution):
 
     rate: jax.Array = param(constraint=constraints.positive)
 
+    def _ph_equivalent(self, eta: jax.Array, invalid: jax.Array) -> "Exponential":
+        # spec 4.4/7.2: mask original issues before constructing the closure.
+        rate = jnp.where(invalid, 1.0, self.rate)
+        eta = jnp.where(invalid, 0.0, eta)
+        log_rate = jnp.log(rate) + eta
+        overflow = log_rate >= jnp.log(jnp.finfo(log_rate.dtype).max)
+        rate = jnp.exp(jnp.where(overflow, 0.0, log_rate))
+        return Exponential(rate=jnp.where(overflow, jnp.inf, rate))
+
     def rmst(self, tau: ArrayLike) -> jax.Array:
         """Return restricted mean event time, ``-expm1(-rate*tau)/rate``.
 

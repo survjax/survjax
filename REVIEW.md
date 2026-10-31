@@ -1,261 +1,167 @@
-# PH / RMST merge conflict resolution
-
-Parents: `c2b9c80c63435b3e36c9ef41e57ca1e6438fd2c9` (PH) and
-`aae68920769855aa08227f4b7c4818ce7a820923` (RMST). Read the current PLAN.md resolution
-section, then DEVIATIONS.md and appendices/README.md. The full parent reviews
-are preserved verbatim below; their historical verdict/check claims are not
-new verification of this merged tree.
-
-Only four records/indexes are resolved. Both complete parent plans/reviews
-remain verbatim; the shared deviation history is deduplicated, preserving
-all bodies/statuses. RMST D-028 is now D-030 (historical alias recorded) to
-avoid collision with PH's D-028. Both mathematical sources/PDFs/build commands
-remain available. Every other staged blob must match the original index.
-
-PH.2c independent review round 1 returned VERDICT: maintainer, with F-1/F-2
-and S-1 about baseline gradients/Hessians on finite extreme-tail cases. That
-open decision remains pending; this merge resolution does not adopt a range
-restriction or a numerical fix. The report is at
-`../review/slices/PH.2c.md`. RMST's own derivative exceptions and approvals are
-preserved without altering PH's guarantee or importing unfinished work.
-
-Completed verification (this resolved tree):
-- Both full parent plans and reviews are exact substrings of the resolved
-  records. Every deviation entry body/decision/status is preserved; IDs are
-  unique after the explicitly recorded RMST D-028 -> D-030 reconciliation.
-- Both appendix rows, original build commands and linked sources/PDFs exist.
-  Their mathematical source/PDF files were not edited or rebuilt.
-- Every unaffected index blob matches the saved pre-resolution index; no
-  unresolved conflict markers remain in the four files. Whitespace is clean.
-- uv run ruff format --check .: 132 files already formatted.
-- uv run ruff check .: all checks passed.
-- uv run mypy src: no issues found in 22 source files.
-- JAX_ENABLE_X64=1 uv run --group test pytest -q -n 6
-  tests/unit/test_proportional_hazards*.py tests/unit/test_rmst.py
-  tests/unit/test_weibull_rmst*.py: 177 passed, 1 skipped (59.47s).
-- Separate JAX_ENABLE_X64=0 process with the same selection:
-  176 passed, 2 skipped (64.38s).
-The full wheel/acceptance gate and PDF compilation were not repeated for this
-record/index-only resolution; the focused run checks combined PH/RMST
-compatibility. These passes do not settle PH.2c's open derivative question.
-
-This is record/index conflict handling, with no new implementation step or
-merge commit; no independent review is invoked for an uncommitted resolution.
-
----
-
-# Preserved release-ph review (verbatim)
-
-# PH.2c — High-precision tails and direct time-value policy
+# PH.3a — Built-in PH closure and delegated RMST
 
 Independent review: round 1/3
 
-Base: 796085ec9c000996d467609b94090235a2a4548f on release-ph; clean before
-planning. That maintainer merge has parents c25c0d7 and 1953623 (agreement
-updates), and is a prerequisite rather than a change made in this step. Authorized continuation: “ok on to next part”. Current spec revision
-39 (RMST log-parameter tolerance clarification); no RMST core or ownership
-handoff is in this checkout. This is test-only: 288 new lines, 34 cases.
-PLAN/REVIEW are excluded from the updated implementation diff budget.
+Base: 2e6b55a9610e6733bf539d420d7a2f6d52ee355e, clean release-ph after
+completing the maintainer-started RMST merge. That prerequisite merge preserves
+both parent plans/reviews and the original imported RMST code/tests. It was
+requested by the maintainer before “get on with the PH implementation”.
+This implementation step is separate: 62 production additions + 238 test
+lines = exactly 300 implementation lines. Plan/review/deviation/spec-seen
+records are excluded under the updated agreement.
 
 ## Read first
 
-1. PLAN.md PH.2c, plans/release-agents/ph.md item 2; spec 3.3, 4.4–4.5,
-   5, 7.1–7.3 and 12.1–12.2.
-2. tests/unit/test_proportional_hazards_tails.py: inputs, independent reference,
-   value tests, eta AD, baseline AD, then time-policy tests.
-3. Unchanged distributions/wrappers.py and appendices/ph-log-survival.md,
-   especially recovery guards and the final information-loss limitations.
-4. Existing built-in implementations and _survival_methods.py as background;
-   no source code changes here and RMST-owned files remain untouched.
+1. PLAN.md PH.3a; spec 4.4, 4.5, 7.2–7.3, 8.7 and 12.1–12.2.
+2. distributions/base.py _ph_equivalent default, then built-in overrides.
+3. distributions/wrappers.py rmst: original diagnostics, promotion, closure,
+   failed-zero substitution, delegation and final NaN selection.
+4. tests/unit/test_proportional_hazards_rmst.py: independent integral/gradient,
+   broadcast identity, zero boundary, native shape restriction, invalid-row
+   isolation, then custom-baseline unsupported behavior.
+5. DEVIATIONS.md D-031 and the unchanged PH.2c independent report for the
+   separate, explicitly deferred extreme direct-method/likelihood derivatives.
 
-## Oracle, scales and invariants
+## Spec decision and remaining scope
 
-Reference calculations use mpmath with 100 decimal digits and the actual
-float32/float64 input values (host conversion of each already-rounded input).
-No distribution/wrapper methods compute expected values. PH Exponential has
-log(h)=log(r)+eta and H=exp(log(h))*t. PH Weibull has
-log(h)=log(k/b)+(k-1)*log(t/b)+eta and H=exp(eta+k*log(t/b)).
-From these: log S=-H, S=exp(-H), log f=log(h)-H. Reference log F uses
-log(-expm1(-H)) below H=1 and log1p(-exp(-H)) otherwise; it never subtracts a
-tiny survival probability from one. High precision alone would not fix the
-latter cancellation at H=600. Host conversion to binary64 happens only after
-the high-precision formula, and retains tiny normal expected tails.
+The designer completed revision 40 while this implementation was running:
+765c65bba9efb3af8ef4a13c1ecb8e302a47f346. Read its full SPECIFICATION.md diff
+from 1389af4 and marked this worktree with
+`../scripts/spec-since.sh dev-release-ph --mark`. No design file was edited.
+D-031 accurately records PH.2c F-1/F-2/S-1, the maintainer's deferral decision
+and alignment; its status remains open/maintainer-owned. The original
+“rebuilt-vector limitation” wording was not a numerical fix: actual finite
+natural-parameter derivatives fail. The old review is preserved in Git.
 
-The four input rows per family cover:
+Revision 40's exception covers extreme PH direct/likelihood derivatives;
+staged RMST is unchanged. This step does NOT claim an RMST derivative
+exception, full range completion, closure values beyond representability,
+or a completed PH release gate. Broader PH RMST range/chain-rule evidence,
+supported-Hessian regression, remaining integration evidence, exports and
+executable docs stay separate (PH.3b/export/docs). No existing test or
+assertion was weakened. The new draft was split before committing to meet
+the code/test budget. API-reference/exact-export tests remain unchanged;
+public export integration still needs its narrow docs/api.md exception.
 
-- Baseline H0 underflow with representable scaled H, using the accurate log CDF
-  recovery path. The baseline's own log survival is asserted zero explicitly
-  in the first-baseline-derivative test.
-- exp(eta) overflow with finite H/log(h)/h/log(f), plus legitimately underflowed
-  survival and log CDF. No cap, clipping, epsilon or altered time is introduced.
-- exp(eta) underflow with large but finite H0 and representable scaled H.
-- Late tails H approximately 600 (x64) / 60 (float32), with nonzero normal S
-  and log F; zero absolute tolerance prevents accepting a rounded zero tail.
+## Invariants and numerical reasoning
 
-First and second eta derivatives of log S are exactly -H. The second-order
-compositions include all four forward/reverse combinations, as unmapped eager
-calls, vmap and jit(vmap). Eta is passed as a distinct constructor argument,
-with the baseline parameters independent of it. This tests the eta direction
-without traversing extreme natural baseline Hessian intermediates. Baseline
-first derivatives on recovery rows are [-H/r, -H] for Exponential and
-[-H*log(t/b), H*k/b, -H] for Weibull. These expected derivatives are evaluated
-at 100 digits before host conversion. Log H is roughly in [-421,30]; existing
-TAIL_ATOL=0 and TAIL_RTOL=1e-8/1e-4 cover log reconstruction/AD rounding, not
-finite-difference errors. No tolerance is changed or added. Every allclose
-sets equal_nan=False. Only the explicit NaN-time output is checked as NaN.
+The hook is private, not part of the extension contract. Base returns None;
+only the two supported built-ins supply closures. Unsupported baselines,
+including component-valued custom families, never enter numerical family code
+or a generic RMST path. No new module/config/result type is introduced.
 
-Time-policy expected values come from spec 4.5 and analytical boundaries:
-negative times precede the origin; -0 and +0 share the zero limit; proper
-survival at infinity is zero; Exponential hazard is constant; the selected
-Weibull k=1.4 has hazard 0 at zero and infinity at +inf; density at +inf is
-zero. A positive t=2 entry is checked against the independent reference.
-Finite policy values are constant in all baseline parameters and eta, so
-both forward/reverse parameter Jacobians must be exactly zero.
+RMST alone uses the closure. All direct methods, grids and likelihood keep
+the already reviewed PH formulas. Equivalent natural parameters follow
+r_PH=exp(log(r)+eta), k_PH=k, b_PH=exp(log(b)-eta/k). Adding logs before exp
+avoids premature overflow of exp(eta) when the final parameter is finite.
+Original baseline/eta leaves are copied/promoted with the cutoff dtype before
+closure arithmetic; original stored leaves and diagnostics are unchanged.
 
-## Requirement-to-test map
+The original wrapper issue union and invalid cutoffs are evaluated FIRST.
+The evaluated mask shape E includes explicit leading cutoff axes. Built-in
+scalar fields broadcast from batch shape B to E, with neutral 1 for invalid
+rate/shape/scale and 0 for invalid eta. Those substitutions precede log,
+eta/k and exp, including on rows discarded later; original NaN/zero/negative/
+infinite parameters never reach unsafe active arithmetic. No real valid
+parameter tangent is stopped. Cutoff violations receive safe zero, and final
+original invalid rows are NaN even if their neutral closure is finite. Shared
+parameter derivatives of valid entries stay isolated from invalid neighbors.
 
-- test_tail_values_match_high_precision_ph_formulas: 14 cases (7 methods x
-  2 families), all four tail rows, scalar eager/jit and vmap/jit(vmap).
-  Spec 4.4/7.1–7.2: log-space PH, accurate two-tail probabilities, finite
-  log density/hazard even when survival underflows, no premature eta overflow.
-- test_tail_eta_first_and_second_derivatives_equal_log_survival: 2 cases,
-  6 AD orders, four tail rows, eager/vmap/jit(vmap). Spec 7.3 finite smooth
-  eta direction to second order. The transform-order comment also follows
-  PH.2b review N-2's suggested convention (that older file is unchanged).
-- test_lower_tail_natural_parameter_gradients_match_analytic_chain_rule:
-  2 cases, baseline and eta first derivatives, forward/reverse eager/jit,
-  with a baseline rounded-zero precondition. Spec 4.4/7.2–7.3.
-- test_direct_and_grid_methods_follow_complete_time_value_policy: 14 cases,
-  all seven methods, scalar-batch paired vector/direct and time-first grid,
-  eager/jit and vmap; exact NaN mask separately from value comparisons.
-  Spec 4.5/5; earlier PH.2a covers the other Weibull shape boundary regimes.
-- test_finite_policy_values_have_zero_parameter_gradients: 2 cases, first
-  Jacobians eager/jit in both modes at finite constant policy outputs.
-  Spec 4.5/7.2 safe inactive operands, including proper +inf survival/log F.
+Overflowing log-rate/log-scale inputs are replaced by zero BEFORE exp, then
+infinity is restored. This is not clipping to a finite cap. A closure with
+unrepresentable natural parameters can fail for positive cutoffs (NaN from
+its staged family); no inaccurate finite value is invented. At zero, section
+8.7's exact value/first derivatives still apply: if a closure parameter is
+invalid due to representability, replace that closure's leaves by neutral
+ones BEFORE delegating. Native RMST at active tau=0 then returns 0 with
+parameter tangents 0 and cutoff tangent 1, without an intermediate NaN.
+Ordinary representable closures are not substituted at zero, preserving their
+native boundary behavior. No higher-order extreme boundary claim is made.
 
-## Validation and draft changes
+## Expected values and tolerances
 
-Python 3.12.9, JAX 0.11.2, NumPy 2.5.3, mpmath 1.4.1.
+Independent 60-digit mpmath quadrature integrates the physical PH survival:
+Exponential exp(-exp(eta)*r*t), Weibull exp(-exp(eta)*(t/b)**k).
+mp.diff differentiates that independent integral in every baseline field,
+eta and cutoff at actual dtype-rounded points; no library method provides
+those expected values or gradients. Two interior parameter vectors per family
+check dynamic values. The broadcast/grid reference uses the spec's analytical
+closure family, whose RMST primitive has its own independent quadrature suite.
 
-- Initial formatted draft was 315 lines. Split off the extra 28-line mixed
-  Weibull likelihood/debug_nans check before finalizing the step, leaving
-  288 final implementation lines. No assertion was removed to address a
-  failed result; the deferred check was not reached in the initial -x run.
-- Initial x64 focused run: 14 passed, 1 failed in 7.44s. Its eta test rebuilt
-  the full parameter vector using p.at[-1].set(eta); forward-over-forward
-  on the lower-tail Exponential row returned NaN. All other orders returned
-  the expected -1.403592e-183. A standalone reproduction compared that
-  construction with independent baseline/eta arguments: all six AD orders
-  pass with the independent arguments. The final test passes eta directly
-  to the wrapper, without rebuilding/routing tangents through the baseline.
-  No production expression or tolerance was changed to obtain the pass.
-- `JAX_ENABLE_X64=1 uv run pytest -q tests/unit/test_proportional_hazards_tails.py -x`:
-  final **34 passed in 16.32s**.
-- `JAX_ENABLE_X64=0 uv run pytest -q tests/unit/test_proportional_hazards_tails.py -x`:
-  final **34 passed in 17.13s**.
-- `uv run ruff format --check .`: 126 files already formatted.
-- `uv run ruff check .`: All checks passed.
-- `uv run mypy src`: Success, no issues found in 21 source files.
+Existing ordinary RTOL (zero atol on values), and existing RMST log-parameter
+and absolute-cutoff derivative factors are unchanged. Multiply natural
+parameter errors by r/k/b, divide by M; eta is already a log ratio (unit 1).
+For the selected Weibull k=1.4, the eta chain factor 1/k is below one, so the
+existing measured native derivative bound is conservative for these points.
+The scalar eager derivative cross-check uses ordinary ATOL/RTOL on O(1)
+entries. Every allclose uses equal_nan=False; invalid outputs are checked as
+NaN explicitly and their own tangents are not asserted.
+
+## Requirement-to-test map (19 cases)
+
+- test_rmst_values_and_first_derivatives_match_independent_integrals (2):
+  spec 4.4/8.7/12.1 values and every first parameter/cutoff derivative,
+  eager AD, vmap/jit(vmap), both modes; valid values under debug_nans.
+- test_rmst_broadcast_closure_identity_and_explicit_cutoff_grid (2):
+  spec 4.4/5/8.7 baseline (3,1) times eta (3,2), scalar and explicit (3,1,1)
+  cutoff grids (m=S), eager/jit/vmap, output (3,3,2). Baseline float32 with
+  eta/cutoff float64 in x64 mode additionally tests promotion before log.
+- test_rmst_zero_value_and_first_derivatives (6): spec 8.7 value 0 and
+  Jacobian [0,...,0,1], eager/jit values and both compiled first AD modes,
+  debug_nans; eta=0.2 and ±2000 (unrepresentable closure in both dtypes).
+- test_weibull_shape_hessian_remains_explicitly_unsupported (1): spec 8.7
+  four second-order forward/reverse compositions still raise the native
+  NotImplementedError in the gamma interior branch.
+- test_invalid_rows_preserve_shared_parameter_derivatives (7): original
+  Exponential rate, Weibull shape/scale, eta and cutoff violations, including
+  0/-1/NaN/±inf for positive parameters; NaN/±inf for eta; negative/NaN/±inf
+  cutoffs. Only valid output differentiated; shared healthy eta or baseline
+  survives invalid neighbors, eager/jit values and compiled fwd/rev first AD.
+- test_custom_baseline_rmst_has_no_generic_fallback (1): spec 8.7 unsupported
+  type gives NotImplementedError, eager/jit, for 0,1,inf,NaN cutoffs. Custom
+  component axes show that the default hook never numerically masks leaves.
+
+## Validation and development results
+
+Python 3.12.9, JAX 0.11.2, NumPy 2.5.3, mpmath 1.4.1 (same environment).
+
+The first formatted draft was 337 code/test lines; its 15 focused cases
+(including independent supported Hessians but without the broadcast test)
+passed both modes (17.87s/17.60s). That full supported-Hessian test is deferred
+to PH.3b; it was not removed to address a failure. Broadcast/grid checks fit
+again after splitting that larger Hessian test and remain in this commit.
+
+A direct probe then found Exponential PH rmst(0) was NaN at eta=±1000 due to
+an unrepresentable natural rate. Added guarded closure exp and a failed-zero
+fallback. The first fallback selected zero AFTER calling invalid closure RMST;
+debug_nans caught that intermediate NaN (4 passed, 1 failed per mode, 8.94s /
+8.41s). Corrected by neutralizing failed-zero closure leaves BEFORE delegation.
+The 19-case suite then passed both modes (14.80s/14.92s). Promoted copied
+leaves before log/exp and added mixed-dtype coverage; final numerical suite:
+
+- JAX_ENABLE_X64=1 uv run pytest -q tests/unit/test_proportional_hazards_rmst.py -x:
+  **19 passed in 15.95s**.
+- Separate JAX_ENABLE_X64=0, same command: **19 passed in 16.01s**.
+- Initial format check flagged the long new closure-call line; split through
+  an explicit eta local. Final `uv run ruff format --check .`: 133 formatted.
+- `uv run ruff check .`: all checks passed.
+- `uv run mypy src`: no issues found in 22 source files.
 - `git diff --check`: clean.
 - `scripts/check_wheel.sh --through A10`: **exit 0, all gates passed**.
-  Guard, Ruff and mypy passed. Own tests: **1210 passed, 8 skipped** x64
-  (114.86s), **1215 passed, 3 skipped** float32 (109.95s). Source doctests:
-  **4 passed** each mode (0.97s/0.91s). Independent acceptance: **2332 passed,
-  28 skipped** x64 (67.88s), **2322 passed, 38 skipped** float32 (108.57s).
-- Wheel: `/var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/survjax-wheel.yg9x7K/survjax-0.0.1.dev0-py3-none-any.whl`.
-  SHA256 `3af2391ef81dacf1dfadeb997fbdc9d22d53a39c3091657d0e910eeb0451ee3c`;
-  byte-identical to PH.2b, consistent with no source changes.
-  Full gate log: `/private/tmp/ph2c-wheel-gate.log`.
+  Own suites: **1261 passed, 8 skipped** x64 (104.01s), **1266 passed,
+  3 skipped** float32 (134.73s). Source doctests: **4 passed** each mode
+  (1.59s/1.23s). Independent acceptance: **2332 passed, 28 skipped** x64
+  (98.90s), **2322 passed, 38 skipped** float32 (82.75s).
+- Wheel: `/var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/survjax-wheel.9iPs7x/survjax-0.0.1.dev0-py3-none-any.whl`;
+  SHA256 `3f66704616570199d9ce430a02aa896afcaf3b3ecebb2cf22c795d8d8d1a838f`.
+  Full gate log: `/private/tmp/ph3a-wheel-gate.log`.
+- Final scope audit: four existing source files plus one 238-line test module;
+  source changes are closure hooks / rmst only. Existing direct/likelihood
+  expressions, RMST numerical helpers/tolerances, exports, API-reference and
+  protected acceptance files are unchanged. .spec-seen and D-031 are records.
 
-## Limits and uncertainties
-
-The independent-eta second-order tests do not claim arbitrary extreme
-natural-parameter or rebuilt-vector tail Hessians. The initial rebuilt-vector
-failure above remains an observed limitation; the final tests exercise the
-explicit eta argument. The existing appendix likewise makes no arbitrary
-tail-Hessian claim. Baseline underflow/infinite log survival with no accurate
-CDF cannot be repaired by the helper; no unavailable magnitude is invented.
-No new spec interpretation, deviation resolution or public API is proposed.
-
-PH.2b N-1 is clarified in the new plan section: its committed derivative loop
-uses vmap/jit(vmap), with unmapped eager evidence supplied by its reviewer.
-Its older plan/test history is preserved. No N-2 change to the old file.
-
-RMST closure, ownership handoff, public exports/API-reference agreement,
-executable PH documentation and final release evidence remain separate.
-The deferred extra Weibull mixed likelihood/debug_nans coverage is named in
-PLAN.md. Existing Exponential PH debug_nans and built-in mixed likelihood
-checks remain in the regression gate. No docs/PDF build or R fixture
-regeneration is needed by this test-only step. No protected-path, dependency,
-tolerance, source, RMST-owned or export changes; no merge/push/publish.
-
----
-
-# Preserved release-rmst review (verbatim)
-
-Independent review: round 1/3
-
-# RMST.integration — Main merge conflicts and remaining ownership
-
-Read PLAN.md RMST.integration first; compare the two merge parents
-(ddd7f1f and 4f17065), then tests/impl_tolerances.py and the preserved plans.
-Read the release-agents/rmst.md and ph.md handoffs for remaining ownership.
-
-The maintainer started this merge of main into release-rmst and explicitly
-requested conflict handling. This commit completes that existing merge only;
-no rebase, branch-to-main merge, push or publication is performed.
-
-Resolution invariants:
-- Only PLAN.md, REVIEW.md and tests/impl_tolerances.py conflicted.
-- Tolerance additions are disjoint: keep both blocks verbatim, with unchanged
-  constants/comments. RMST parameter/cutoff factors and simulation MCSE checks
-  both remain available. Numerical functions and tests are unchanged.
-- Both parents' PLAN.md contents are preserved verbatim as labelled records
-  below the new current integration plan. Nothing unfinished was discarded
-  or silently marked complete. Existing main archives remain unchanged.
-- REVIEW.md is the new step record, following the overwrite convention.
-  Prior full RMST review is in ddd7f1f:REVIEW.md; prior incoming README review
-  is in 4f17065:REVIEW.md. RMST.3's final independent verdict was merge after
-  3 rounds; all implementation/spec questions were answered by the maintainer.
-- Except README.md's Ruff-only blank-line correction, every other inherited
-  staged file equals main; source under src/ and the
-  three RMST unit files equal the RMST parent. Imported CLAUDE.md and
-  .workmux.yaml remain exactly main's versions, without local protected edits.
-- .spec-seen is already 1389af4 (spec revision 39) on both parents; design main
-  contains it. No spec edit or mark is necessary for a non-spec settings commit.
-
-Remaining scope: the RMST core and mathematical appendix are complete. PH has
-not landed in this main snapshot; it owns wrappers/exports and the built-in
-closure edits after RMST core integration. The RMST worktree retains the
-separate executable RMST docs topic and combined PH/RMST evidence once that
-prerequisite lands. No PH implementation is authorized by this merge step.
-
-Completed preservation checks: both plan records are exact complete parent
-contents; both tolerance additions retained verbatim; no unmerged entries or
-conflict markers; source and RMST tests byte-identical to ddd7f1f; inherited
-files byte-identical to 4f17065 except the recorded README spacing. README's
-Python fence AST equals main's, proving no example behavior change.
-
-Completed commands: uv run ruff format --check . (125 files already formatted),
-uv run ruff check . (all checks passed), uv run mypy src (no issues in 21
-source files), uv lock --check (171 packages resolved, no lock change),
-git diff --check / git diff --cached --check clean.
-Focused tests (the three RMST unit files plus test_simulation_generator.py):
-JAX_ENABLE_X64=1 uv run --group test pytest ... -q: 49 passed in 77.97s;
-separate JAX_ENABLE_X64=0 process: 49 passed in 77.87s. The scope checks
-both independently added tolerance blocks through their unchanged consumers.
-scripts/check_wheel.sh --through A10 exited 0: all gates passed. Own suites:
-1097 passed / 7 skipped x64; 1103 passed / 1 skipped x32. Source doctests:
-four passed per mode. Independent acceptance: 2332 passed / 28 skipped x64;
-2322 passed / 38 skipped x32. The wheel was built from the resolved tree and
-provided to the unchanged gate, including install checks. Existing imported docs are unchanged;
-this is not a docs authoring step. No new tests are needed for concatenating
-unchanged tolerance constants and resolving plan/review records.
-
-Initial check: Ruff format found two missing blank lines in the incoming
-README's Python fence. Apply the formatter's whitespace-only correction;
-no example semantics or normal docs page change. Rerun static checks.
-
-For review of resolution edits, use the merge's two parents or its remerge
-diff; the large incoming main delta was already authored on other branches.
-No unresolved mathematical or ownership choice is introduced here.
+No protected paths, dependencies, exports, tolerance constants, ordinary docs,
+PDF source/artifact or RMST numerical expressions changed. Base/built-ins are
+edited only for the PH-owned private closure hooks after the core handoff.
+The numerical scope is 300 additions, with a staged release marker and process
+records separately. Commit this step, run independent PH.3a review, and stop.
