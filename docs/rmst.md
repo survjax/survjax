@@ -106,8 +106,24 @@ print("arm 2 minus arm 1, at 12 months:", gain_months[-1])
 
 Each draw retains its own result. A positive contrast means more predicted
 months before that cutoff in arm 2. Averaging or summarizing draws is a caller
-choice. Passing `cutoffs` directly would follow broadcasting rules, which can
-pair cutoffs with a batch axis rather than creating a new grid axis.
+choice. Here `models.rmst(cutoffs)` raises `TypeError`: `(3,)` cutoffs cannot
+broadcast against the trailing arm dimension of the `(3, 2)` batch. A cutoff
+vector of shape `(2,)` instead pairs one cutoff with each arm, returning
+`(3, 2)` without a new cutoff axis:
+
+```{code-cell} ipython3
+per_arm = models.rmst(jnp.array([6.0, 12.0]))
+assert per_arm.shape == (3, 2)
+assert jnp.allclose(per_arm[:, 0], by_cutoff[1, :, 0])
+assert jnp.allclose(per_arm[:, 1], by_cutoff[2, :, 1])
+try:
+    models.rmst(cutoffs)
+except TypeError:
+    print("Three cutoffs cannot broadcast against two arms.")
+else:
+    raise AssertionError("Expected incompatible cutoff/batch shapes")
+print("One cutoff per arm:", per_arm.shape)
+```
 
 ## Zero, invalid values and argument errors
 
@@ -201,9 +217,9 @@ assert jax.grad(restricted, argnums=1)(2.0, 10.0, 0.0) == 0
 assert jax.grad(restricted, argnums=2)(2.0, 10.0, 0.0) == 1
 ```
 
-## Scope of this release step
+## Available summaries
 
-`rmst(tau)` currently works on the merged `Exponential` and `Weibull` families.
+`rmst(tau)` is available on `Exponential` and `Weibull`.
 On other registered families it raises `NotImplementedError`, even if they
 supply a differentiable survival function; there is no generic quadrature
 fallback yet. `mean()`, `median()` and `quantile(p)` raise `NotImplementedError`
@@ -211,6 +227,4 @@ on every family. `rmst(tau)` has no `options` argument.
 Sampling, inverse cumulative hazard, `rmst_with_info`,
 summary options and summary-info types are not provided.
 
-PH-wrapper RMST is a separate pending release integration. Its closure
-examples and joint verification will be added after that implementation
-merges; this guide does not require or import an unmerged wrapper.
+RMST support for proportional-hazards models is planned.

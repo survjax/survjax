@@ -1,3 +1,60 @@
+# RMST.d2 — Resolve guide nits and record API-reference ownership (2026-10-31)
+
+Current branch release-rmst is clean. Maintainer approves RMST.d1 and requests
+this next step, noting updated AGENTS.md. Rule 11 now requires final reports
+to identify this step's final tip, previous step tip and worktree base. Record:
+- Step start: 6d5e19a5a983fda6f236ceb9c15235af26953a2d (maintainer merged
+  main instructions into this worktree; do not merge/rebase again).
+- Previous step final: 4440f1b6dc09d9b7ae707b341ff39b32cbb7c730 (RMST.d1).
+- Original dedicated-worktree base: 8757c0fda78e34e6e818249adedd2a144a33c33d.
+Preserve unfinished RMST and all inherited plan history below.
+
+One small documentation follow-up, well under 300 changed content lines:
+- docs/rmst.md N-1: replace the vague broadcasting warning with the exact
+  (3,) cutoff against (3,2) batch TypeError, and show that a (2,) cutoff
+  pairs with arms and returns (3,2). Add one executable example checking the
+  error plus each paired arm against the previously computed explicit grid.
+- docs/rmst.md N-2: use a user-facing support heading and availability text;
+  remove branch/merge/release-step wording. RMST support for PH models remains
+  planned in this snapshot; do not import another workstream's code or claim
+  its pending integration is complete.
+- N-3 Docs to-do / named handoff: release-ph owns docs/api.md. In its API-reference
+  update, add rmst to BOTH Exponential and Weibull :members: lists so their
+  public rmst docstrings render, and document ProportionalHazards.rmst when it
+  becomes available. RMST must not edit that shared file concurrently. The
+  subsequent combined PH/RMST evidence audit must check those rendered entries.
+- .spec-seen: read the new spec revision 40 diff (4.4/7.3/12.1/12.2 PH-only
+  extreme-scaling derivative deferral; staged RMST contract unchanged), then
+  mark this dedicated worktree against the read design HEAD. No spec edit.
+- REVIEW.md: overwrite for RMST.d2 round 1/3, reading order, N-1/N-2 fixes,
+  N-3 ownership record, executed examples, checks and remaining integration.
+
+Spec 5/8.7 broadcasting and unsupported-family surface, 10.5 executable docs;
+review RMST.d1 N-1 to N-3. No source, test, tolerance, public API, dependency,
+protected-file, docs/conf.py, docs/api.md or README changes. No new standalone
+unit tests for a reversible docs-only change; notebook assertions are committed
+with the examples. Run scripts/build_docs.sh directly, separately executing
+both dtype modes via its unchanged runner (approved escalation as needed).
+Check generated HTML/outputs/links, Ruff/mypy, API-reference regression and
+whitespace; no full numerical rerun for unchanged code. Browser access was
+unavailable in RMST.d1; do not claim full-browser layout verification without
+an actual successful inspection. Commit and invoke independent-review exactly
+as RMST.d2; follow at most three rounds, then stop/report. No push/publication.
+
+Remaining after this step: release-ph's closure implementation/API reference,
+then PH RMST examples and combined dtype/docs/release checks. RMST numerical
+core and the original mathematical appendix are complete; no new core feature
+is planned. Deviation status changes remain maintainer-owned.
+
+Implementation/evidence: all three prior nits addressed within the planned
+scope. Direct strict docs build exits 0 in both dtype modes, executing nine
+RMST cells. The new error/paired-arm messages and identities pass; generated
+HTML/anchors/local links/download checks pass. Ruff/mypy/API-reference check
+pass; whitespace clean. No code/test/API-reference file changes or new core
+feature. Commit and independent review follow, then stop/report.
+
+---
+
 # RMST.d1 — Executable RMST guide and current-scope README (2026-10-31)
 
 Start clean release-rmst at aae68920769855aa08227f4b7c4818ce7a820923,
