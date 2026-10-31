@@ -71,7 +71,7 @@ def test_oracle_uses_digit_scales_and_generating_shape():
     assert row["concordance"] == 1
 
 
-def test_cnn_predictions_are_evaluated_without_labels():
+def test_constant_cnn_vector_output_reaches_evaluation():
     """03: actual CNN output feeds the same evaluation as the reference models."""
     cnn = model.CNN(np.log(2), key=jax.random.key(0))
     cnn = eqx.tree_at(lambda m: m.dense2.weight, cnn, jnp.zeros_like(cnn.dense2.weight))
@@ -149,3 +149,20 @@ def test_float64_observations_are_rejected(x64_enabled):
     data = survjax.SurvivalData(jnp.array([1, 2], dtype=jnp.float64), [1, 1])
     with pytest.raises(ValueError, match="float32"):
         model.evaluate(0, 0, data)
+
+
+def test_float64_shape_produces_float32_likelihood(monkeypatch, x64_enabled):
+    """03 Precision: a float64 fitted shape must not promote evaluation arithmetic."""
+    if not x64_enabled:
+        pytest.skip("float64 input promotion requires x64 mode")
+    likelihood = survjax.Weibull.log_likelihood
+    dtypes = []
+
+    def observe_dtype(dist, data):
+        result = likelihood(dist, data)
+        dtypes.append(result.dtype)
+        return result
+
+    monkeypatch.setattr(survjax.Weibull, "log_likelihood", observe_dtype)
+    model.evaluate(np.float64(0.25), np.float64(1.5), observations())
+    assert dtypes == [jnp.float32]

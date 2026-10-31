@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # MNIST.6 — Evaluate CNN and references
 
@@ -55,3 +55,19 @@ Completed checks:
   skipped (78.82s). Doctests: 4 passed each mode. Acceptance: x64 2333
   passed/27 skipped (67.40s), float32 2324 passed/36 skipped (60.88s).
 - git diff --check clean.
+
+
+Round 1 findings and fix-up:
+- F-1: add an x64-only test with a real float64 shape. Observe the dtype of
+  the actual public log_likelihood result during evaluate; require float32.
+  The wrapper forwards unchanged arguments/results and does not fake values.
+  This directly detects accidental likelihood promotion from a missing cast.
+- N-1: rename the constant CNN vector-output test to state what it demonstrates.
+- N-2: module remains about 300 lines; runner/figure steps will use the named
+  run.py rather than adding responsibilities to model.py.
+- Reviewer could not run the cumulative gate due sandbox git/cache restrictions;
+  their exact archive checks reproduced both optional suite counts and timing.
+  Our complete gate result above remains the cumulative evidence.
+- Fix-up checks: Ruff format 134 files already formatted; Ruff all checks
+  passed; metrics x64 15 passed (5.84s), float32 13 passed/2 skipped (5.49s).
+  No production code changed after the complete gate; no redundant gate rerun.
