@@ -1,66 +1,67 @@
 Independent review: round 1/3
 
-# RMST.integration — Main merge conflicts and remaining ownership
+# RMST.d1 — Executable RMST guide and README scope correction
 
-Read PLAN.md RMST.integration first; compare the two merge parents
-(ddd7f1f and 4f17065), then tests/impl_tolerances.py and the preserved plans.
-Read the release-agents/rmst.md and ph.md handoffs for remaining ownership.
+Read PLAN.md RMST.d1, spec 8.7/10.5/12.1–12.2 revision 39, then
+docs/rmst.md, README.md and the four added docs/index.md lines.
+Start/base: aae68920769855aa08227f4b7c4818ce7a820923, merged on main.
+No library code, docstrings, tests, tolerances, exports, dependencies, spec,
+protected files or existing mathematical appendix were changed. This is one
+RMST documentation topic, about 225 changed content lines; records separate.
 
-The maintainer started this merge of main into release-rmst and explicitly
-requested conflict handling. This commit completes that existing merge only;
-no rebase, branch-to-main merge, push or publication is performed.
+Scope and invariants:
+- Guide covers the merged Exponential and Weibull APIs. PH is now free to
+  implement closure after core integration, but neither wrapper nor export
+  is in this checkout. Its examples and combined evidence are explicitly
+  labelled pending, without importing unmerged code. docs/api.md stays with PH.
+- Define M(tau)=E[min(T,tau)]=integral S and time units. Exponential example
+  is independently hand-derived: (1-exp(-0.2*12))/0.2 ~= 4.54641023 months.
+  Weibull k=1 agrees. No fit or comparison with external data is claimed.
+- Explicit (cutoffs,draws,arms) axes preserve (3,3,2), with per-draw contrasts;
+  jit and vmap agree. No rmst_grid, quadrature fallback or new summary API.
+- Positive finite parameters; invalid numeric cutoffs/parameter issues return
+  NaN even at zero. Invalid argument types/shapes raise TypeError. A NaN's
+  own tangent is unspecified; valid shared-parameter isolation stays required.
+- First k/b/tau derivatives in both modes; dM/dtau=S(tau) identity and the
+  absolute cutoff-error convention; log-parameter error coordinates; finite
+  supported Hessian with shape held separately; native shape Hessian raises;
+  Weibull zero asserts only value/first derivatives. No higher boundary promise.
+- Precision statements quote the staged domain/targets of 8.7, not a new
+  empirical study or global promise. The existing math appendix stays outside
+  docs and is linked via a copied PDF download; no derivations duplicated.
+- README corrects RMST.integration N-1 and keeps other summaries planned.
+  The requested guide is discoverable through one narrow index/toctree entry;
+  A9 navigation changes are already merged. No global docs config change.
 
-Resolution invariants:
-- Only PLAN.md, REVIEW.md and tests/impl_tolerances.py conflicted.
-- Tolerance additions are disjoint: keep both blocks verbatim, with unchanged
-  constants/comments. RMST parameter/cutoff factors and simulation MCSE checks
-  both remain available. Numerical functions and tests are unchanged.
-- Both parents' PLAN.md contents are preserved verbatim as labelled records
-  below the new current integration plan. Nothing unfinished was discarded
-  or silently marked complete. Existing main archives remain unchanged.
-- REVIEW.md is the new step record, following the overwrite convention.
-  Prior full RMST review is in ddd7f1f:REVIEW.md; prior incoming README review
-  is in 4f17065:REVIEW.md. RMST.3's final independent verdict was merge after
-  3 rounds; all implementation/spec questions were answered by the maintainer.
-- Except README.md's Ruff-only blank-line correction, every other inherited
-  staged file equals main; source under src/ and the
-  three RMST unit files equal the RMST parent. Imported CLAUDE.md and
-  .workmux.yaml remain exactly main's versions, without local protected edits.
-- .spec-seen is already 1389af4 (spec revision 39) on both parents; design main
-  contains it. No spec edit or mark is necessary for a non-spec settings commit.
+Executable/documentation checks:
+- scripts/build_docs.sh was invoked directly with approved escalation, no
+  redirection, env prefix or shell wrapper. Both strict (-E -n -W) dtype
+  builds passed and execute the new page's eight code cells. Minor notation/
+  parameter-domain clarifications prompted rebuilds; the final direct call
+  exited 0 with both builds successful. Only the usual notebook-kernel TCP
+  startup warnings appeared; no Sphinx warnings or execution errors.
+- Observed RMST(12): 4.54641056060791 x32, 4.546410233552938 x64. Shapes
+  (3,3,2); finite first derivatives in both modes; zero derivatives exactly
+  (0,0,1); supported Hessian finite and shape Hessian restriction caught.
+  Code-cell allclose checks illustrate analytical identities with JAX defaults;
+  they do not alter the implementation test tolerances or claim new acceptance.
+- Parsed generated HTML from both modes: all five section anchors, navigation,
+  local links/images and printed outputs present; downloaded appendix PDF is
+  byte-identical to appendices/weibull-rmst.pdf. No notebook error outputs.
+- Viewed the rendered area figure for legible axes/legend and cutoff shading;
+  both images are 590x290 with the expected curve/area; a decoded comparison
+  found only one differing pixel out of 171100 between dtype modes. Full browser viewport
+  inspection was attempted, but the CUA browser access host is unavailable.
+  Thus full-page browser layout is not claimed. HTML structure/content/assets
+  and the plot were inspected instead; no new dependency was installed.
+  The temporary loopback server was stopped after the inspection attempt.
+- uv run ruff format --check .: 126 files already formatted.
+  uv run ruff check .: all checks passed. uv run mypy src: success, 21 files.
+  uv run --group test pytest tests/unit/test_api_reference.py -q: 1 passed.
+  git diff --check clean. No numerical suite rerun for prose-only changes;
+  the unchanged core passed the full wheel-backed A10 gate in RMST.integration.
 
-Remaining scope: the RMST core and mathematical appendix are complete. PH has
-not landed in this main snapshot; it owns wrappers/exports and the built-in
-closure edits after RMST core integration. The RMST worktree retains the
-separate executable RMST docs topic and combined PH/RMST evidence once that
-prerequisite lands. No PH implementation is authorized by this merge step.
-
-Completed preservation checks: both plan records are exact complete parent
-contents; both tolerance additions retained verbatim; no unmerged entries or
-conflict markers; source and RMST tests byte-identical to ddd7f1f; inherited
-files byte-identical to 4f17065 except the recorded README spacing. README's
-Python fence AST equals main's, proving no example behavior change.
-
-Completed commands: uv run ruff format --check . (125 files already formatted),
-uv run ruff check . (all checks passed), uv run mypy src (no issues in 21
-source files), uv lock --check (171 packages resolved, no lock change),
-git diff --check / git diff --cached --check clean.
-Focused tests (the three RMST unit files plus test_simulation_generator.py):
-JAX_ENABLE_X64=1 uv run --group test pytest ... -q: 49 passed in 77.97s;
-separate JAX_ENABLE_X64=0 process: 49 passed in 77.87s. The scope checks
-both independently added tolerance blocks through their unchanged consumers.
-scripts/check_wheel.sh --through A10 exited 0: all gates passed. Own suites:
-1097 passed / 7 skipped x64; 1103 passed / 1 skipped x32. Source doctests:
-four passed per mode. Independent acceptance: 2332 passed / 28 skipped x64;
-2322 passed / 38 skipped x32. The wheel was built from the resolved tree and
-provided to the unchanged gate, including install checks. Existing imported docs are unchanged;
-this is not a docs authoring step. No new tests are needed for concatenating
-unchanged tolerance constants and resolving plan/review records.
-
-Initial check: Ruff format found two missing blank lines in the incoming
-README's Python fence. Apply the formatter's whitespace-only correction;
-no example semantics or normal docs page change. Rerun static checks.
-
-For review of resolution edits, use the merge's two parents or its remerge
-diff; the large incoming main delta was already authored on other branches.
-No unresolved mathematical or ownership choice is introduced here.
+Remaining: the separate PH closure implementation/integration, its executable
+examples, and item 3's combined release checks. This guide does not certify
+PH or full release completion. Publication/hosting remains a separate action.
+Commit, run independent-review for RMST.d1, handle at most 3 rounds, then stop.

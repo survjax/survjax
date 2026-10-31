@@ -7,6 +7,7 @@ distributions, from which survjax derives survival, cumulative hazard,
 hazard, density and CDF. Every distribution can be evaluated pointwise or on
 a shared time grid. Exact/right-censored likelihoods without truncation are
 available, along with Harrell's concordance for caller-supplied risk scores.
+Restricted mean survival time is available for Exponential and Weibull models.
 Other likelihood modes, families, summaries and evaluation metrics are
 planned; the Slice A completion gate has not yet been met.
 
@@ -19,6 +20,8 @@ Weibull models with JAX.
 boundary gradients and checking that a fitting loss is finite.
 [Harrell's concordance](concordance.md) evaluates risk rankings with right
 censoring, including tied observations, score draws and cohort diagnostics.
+[Restricted mean survival time](rmst.md) summarizes expected time before a
+finite cutoff, with explicit cutoff axes and staged derivative limits.
 The [SurvivalData guide](survival-data.md) walks a synthetic cohort through
 both constructors, diagnostics and R input conventions.
 [Exponential and Weibull](builtin-families.md) introduces the built-in
@@ -39,6 +42,7 @@ is built.
 playground
 survival-data
 builtin-families
+rmst
 likelihood
 numerical-behaviour
 slice-a-verification

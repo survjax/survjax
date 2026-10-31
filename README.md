@@ -34,8 +34,9 @@ Currently available:
   `log_survival(t)`, and `reference_time()`; the base supplies derived methods,
   including an autodiff-based log density.
 
-Additional summaries such as means and restricted mean survival times (RMST)
-are planned.
+Restricted mean survival time, `model.rmst(tau)`, is available for Exponential
+and Weibull models; see the [RMST guide](docs/rmst.md) for cutoff broadcasting
+and derivative limits. Unrestricted means, medians and quantiles remain planned.
 
 ## Installation
 

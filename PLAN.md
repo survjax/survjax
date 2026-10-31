@@ -1,3 +1,57 @@
+# RMST.d1 — Executable RMST guide and current-scope README (2026-10-31)
+
+Start clean release-rmst at aae68920769855aa08227f4b7c4818ce7a820923,
+now also main. Maintainer confirms core integration into main/release-ph and
+explicitly requests item 2. RMST remains the unfinished sub-slice; preserve
+all plan history below rather than archive it. Integration review round 1
+returned merge, with N-1 (README says RMST planned) assigned to this step.
+
+One documentation topic, target about 250 changed content lines, no public
+API/code/test/tolerance/dependency/spec changes:
+- docs/rmst.md: new executable MyST-NB guide with current Exponential/Weibull
+  examples. Define restricted expectation/area and units; explain cutoff choice
+  and model dependence; stable closed forms, accuracy range, explicit cutoff
+  axes/draw-arm contrasts, invalid value/type policies, native first derivatives,
+  supported nonshape Hessians, higher-shape NotImplementedError, first-order-only
+  Weibull zero boundary, and unclaimed NaN-own tangents with valid isolation.
+  Keep shape separate for supported higher derivatives. State unsupported
+  summary methods/families and absence of grids/options/info/sampling APIs.
+  Link the existing mathematical appendix PDF as a download, without moving
+  or duplicating its mathematical source into docs/. No new numerical proof.
+- README.md: mark core RMST as available, retain means/median/quantile as future;
+  link the guide. Resolves RMST.integration N-1 without advertising PH as merged.
+- docs/index.md: one guide link and toctree entry plus a narrow current-RMST
+  scope sentence. Maintainer's requested guide includes discoverability; A9
+  navigation changes have merged. No docs/conf.py or build-tool edits, and no
+  API-reference/export entry edits owned by PH.
+- REVIEW.md: overwrite for RMST.d1 round 1/3 with spec/API scope, executable
+  evidence, rendered-page assessment, checks and remaining PH-integration gate.
+
+Read spec 4.5, 7.3, 8.7, 10.5, 12.1–12.2 and release handoffs. Examples use
+only current public API and synthetic parameters, execute in separate dtype
+processes via scripts/build_docs.sh directly (approved escalation if kernels
+need process access), and assert shape/boundary/analytic identities. No new
+standalone tests for a reversible docs-only change. Run Ruff/mypy, whitespace,
+API-reference check and inspect rendered HTML in both modes. Existing numerical
+regression already passed on this exact core; do not rerun a full numerical
+suite without new code/failure concerns. Commit and invoke independent-review
+exactly for RMST.d1, at most three rounds; then stop/report.
+
+PH is not in this checkout yet: no wrapper imports or unmerged examples.
+Label it as a separate pending release integration. Remaining after this step:
+PH closure integration by release-ph, then combined PH/RMST executable evidence
+and release checks (item 3); publication remains a separate maintainer action.
+
+Implementation/evidence: docs/rmst.md is 216 lines; README changes five and
+index adds four content lines. Eight new executable cells pass in both dtype
+processes under the direct strict docs runner. The final build exits 0 in
+both modes; HTML/anchors/outputs/local links and the exact appendix download
+check pass. Browser host unavailable: full viewport layout not claimed;
+rendered figure inspected instead. Ruff/mypy and API-reference test pass.
+Commit and independent-review are the remaining actions for this step.
+
+---
+
 # RMST.integration — Resolve the maintainer-started main merge (2026-10-31)
 
 Branch: release-rmst. Merge already in progress when requested; finish that
