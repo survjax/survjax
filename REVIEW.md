@@ -1,4 +1,4 @@
-Independent review: round 2/3
+Independent review: round 3/3
 
 # MNIST.5 — Float64 intercept-only reference fit
 
@@ -222,3 +222,43 @@ skips x32 in13.93s. Ruff126 formatted/All checks passed; mypy20 source files pas
 No repeat core/wheel gate after this example-only fix; the earlier fresh-wheel
 pass remains recorded. Round1 reviewer's direct gate had the known missing-
 SURVJAX_WHEEL setup errors; no core, packaging or protected path changed here.
+
+## Round2 follow-up: F-2, N-2/N-3 and S-1
+
+Reviewer confirms F-1 fixed: both real5k/50k fits succeed, all10 original
+probes and60 additional random cohorts complete without solver failure.
+F-2 test-only gap: dropping the predicted-change magnitude guard, direction
+guard or accepted-step reset escaped. Added a near-stationary trial with
+predicted descent~1e-12 but one-ulp observed worsening (must reject), an
+ascent direction with tiny positive predicted change (must reject), and an
+explicit accepted-step == step_init assertion. No solver logic or tolerance
+change; all original MP/guard assertions retained.
+
+N-3 adds the reason for gradient/allowance bounds: near an optimum, objective
+change is quadratic in parameter error, so float64 value comparisons cannot
+resolve descent at roughly sqrt(eps) scale. The comment states the purpose
+rather than only saying that the likelihood is unchanged.
+
+N-2 accuracy limitation: objective-based BFGS stopping does not guarantee
+uniform1e-8 relative accuracy of log parameters on every cohort. For well-
+conditioned problems, practical parameter accuracy is limited around the
+sqrt(eps64) scale, with conditioning also relevant. Reviewer found one random
+n5 cohort1.14x the default parameter tolerance (~1.6e-8 log-shape error);
+stock BFGS returns the identical point, and the roundoff branch never fires
+there. This is reviewer-reported evidence, not a new probe I ran. All committed
+independent controls still pass unchanged. No further tuning, weaker assertion
+or universal accuracy claim; reference evaluation is explicitly float32.
+
+S-1 is logged as open D-029 for the maintainer: whether the private bounded
+Armijo comparison is acceptable under "Optimistix BFGS". No implementation
+change is made to resolve that question. Finish the already authorized F-2
+fix and final (third) review, then stop for the maintainer decision before
+adding metrics. D-028 acceptance remains unaffected and requires no renewed
+approval. No core/wheel gate repeat for a test/comment/record-only fix; focused
+checks/static checks follow. Reviewer worktree pruning remains maintainer-owned.
+
+Round3 fix validation: Ruff126 files formatted, lint All checks passed!, mypy
+20 source files pass. Combined five-file examples-group command: x64 61 passed,
+1 skipped in20.76s; x32 35 passed,27 precision skips in14.01s. No numerical
+logic, solver tolerance, expected value or test-accuracy threshold changed
+since round2. Commit and final (third) review, then stop for D-029 decision.

@@ -193,6 +193,16 @@ def test_nonfinite_success_result_never_returns_reference(
             1e-8, -1e-8, np.nextafter(1.0, np.inf), True, id="roundoff-descent"
         ),
         pytest.param(1e-8, -1e-8, 1 + 1e-6, False, id="real-worsening"),
+        pytest.param(
+            1e-8,
+            -1e-4,
+            np.nextafter(1.0, np.inf),
+            False,
+            id="resolvable-predicted-descent",
+        ),
+        pytest.param(
+            1e-8, 1e-8, np.nextafter(1.0, np.inf), False, id="ascent-direction"
+        ),
         pytest.param(1e-8, -1e-8, np.inf, False, id="nonfinite-trial"),
         pytest.param(
             1.0, -1e-16, np.nextafter(1.0, np.inf), False, id="large-gradient"
@@ -214,6 +224,7 @@ def test_reference_line_search_bounds_roundoff_acceptance(
     assert bool(accepted) is expected
     assert state.step_size == step
     if expected:
+        assert step == search.step_init
         shortened = eqx.tree_at(
             lambda s: s.step_size, search.init(y, before), jnp.float64(0.5)
         )

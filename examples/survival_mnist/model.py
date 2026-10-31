@@ -211,7 +211,9 @@ class _RoundoffArmijo(optx.BacktrackingArmijo):
         predicted = f_info.compute_grad_dot(y_eval - y)
         eps = jnp.finfo(y.dtype).eps
         allowance = 4 * eps * (1 + jnp.abs(before) + jnp.abs(after))
-        # This is a solver comparison tolerance, not a change to the likelihood.
+        # Near the optimum, objective changes are quadratic in parameter error;
+        # |grad|~sqrt(eps) can hide descent below float64 objective resolution.
+        # Allow a few machine units only there; the likelihood stays unchanged.
         roundoff = (
             ~first_step
             & (state.step_size == self.step_init)

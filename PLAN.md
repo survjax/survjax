@@ -130,6 +130,22 @@ checks:59 passed/1 skip x64 (19.90s),35 passed/25 skips x32 (13.93s); Ruff/mypy
 pass. All source files remain <300 lines (model292, checks223). Record exact
 comparisons/limits in REVIEW.md, commit and request MNIST.5 round2, then stop.
 
+Round2 on7a8fd27: F-1 fixed, including both real cohorts and60 reviewer stress
+cohorts with no solver failures. F-2: add explicit rejection cases for large
+predicted descent with worsening trial and for positive predicted direction;
+assert accepted step resets to step_init. N-2: document sqrt(eps64)-scale
+accuracy limits (reviewer found one stock-BFGS stopping point1.14x default
+parameter tolerance); no further tuning/test relaxation. N-3: explain why
+gradient/allowance guards exist in code comments. S-1 is logged as open D-029:
+maintainer confirmation of the private modified Armijo under prescribed BFGS.
+Do not alter solver/spec in response; finish authorized F-2 test fix and round3,
+then stop for that decision before metrics. Targeted suites/static checks only;
+no numerical logic or core changes. This is the last allowed review round.
+
+F-2 validation: final suites61 passed/1 skip x64 (20.76s),35 passed/27 skips
+x32 (14.01s); Ruff/mypy clean. Only tests, explanatory comments and records
+changed. Commit and invoke final MNIST.5 round3, then stop for D-029 decision.
+
 ---
 
 # MNIST.4 — Deterministic epoch training and checkpoint selection (2026-10-31)

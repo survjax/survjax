@@ -1,5 +1,23 @@
 # Deviations and spec questions
 
+## D-029 MNIST reference BFGS roundoff comparison
+
+- Step: MNIST.5 independent review round2, S-1.
+- Spec section: 11.2; use-cases/03 details "References and metrics".
+- What the spec says: fit the intercept-only Weibull with Optimistix BFGS
+  in float64. It does not specify modifications to its line search.
+- What was done: a private BFGS subclass retains stock recurrence, descent,
+  termination and failure status, with a private Armijo subclass allowing
+  finite full-step trials within4*eps64*(1+abs(f)+abs(f_trial)) only near
+  stationarity and with tiny nonpositive predicted descent. Likelihood,
+  observations and parameters are unchanged. Failed/max-step results raise.
+- Why/proposal: stock search stalled on valid smoke/small training cohorts;
+  the modified comparison converges on required5k/50k cohorts and all60
+  reviewer stress cohorts. Propose accepting this bounded comparison as the
+  reference's BFGS implementation. Maintainer must confirm before metrics;
+  no further solver or spec change is made pending the decision.
+- Status: open.
+
 ## D-028 MNIST preparation placement
 
 - Step: MNIST.3 independent review, S-1.
