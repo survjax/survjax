@@ -66,12 +66,14 @@ def loss(
 
 
 class TrainingResult(NamedTuple):
-    """Selected parameters, epoch NLL columns and 1-based selected epoch."""
+    """Selected parameters, epoch summaries and within-epoch convergence trace."""
 
     params: tuple[CNN, jax.Array]
     training_nll: tuple[float, ...]
     validation_nll: tuple[float, ...]
     selected_epoch: int
+    batch_nll: tuple[float, ...] = ()
+    validation_progress: tuple[tuple[int, float], ...] = ()
 
 
 _optimizer = optax.adam(1e-3)
@@ -111,6 +113,7 @@ def train(
     *,
     initial_intercept: ArrayLike,
     config: str = "smoke",
+    log_every_batches: int | None = None,
 ) -> TrainingResult:
     """Train on float32 cohorts and select by validation NLL only.
 
@@ -125,15 +128,24 @@ def train(
         config: 'smoke' for one epoch, 'full' for ten. Caller supplies the
             prescribed 5k/1k or 50k/10k cohorts; test rows are never accepted
             separately or consulted. Batch size is always 128.
+        log_every_batches: Positive validation logging interval, or None for
+            epoch-only validation. With an interval, include initialization and
+            every epoch end. Intermediate values never select a checkpoint.
     Returns:
         Best parameters, epoch-mean training/full-validation NLL histories,
         and 1-based selected epoch; ties retain the earlier checkpoint.
+        batch_nll records each pre-update minibatch; validation_progress holds
+        (completed_updates, full_validation_nll) diagnostic samples.
     Raises:
-        ValueError: Config, cohort shapes, precision or observations are invalid.
+        ValueError: Config, logging interval, cohort shapes, precision or observations are invalid.
         FloatingPointError: Initial/post-step1 loss/gradients or epoch NLL fail.
     """
     if config not in ("smoke", "full"):
         raise ValueError("config must be 'smoke' or 'full'")
+    if log_every_batches is not None and (
+        type(log_every_batches) is not int or log_every_batches < 1
+    ):
+        raise ValueError("log_every_batches must be a positive integer or None")
     images, validation_images = jnp.asarray(images), jnp.asarray(validation_images)
     for pixels, observations, minimum in (
         (images, data, 128),
@@ -164,6 +176,13 @@ def train(
     state = _optimizer.init(eqx.filter(params, eqx.is_inexact_array))
     best_params, best_nll, selected_epoch = params, float("inf"), 0
     training_history, validation_history = [], []
+    batch_history, validation_progress = [], []
+    batches_per_epoch = len(data) // 128
+    if log_every_batches is not None:
+        initial_nll = _validation_nll(params, validation_images, validation_data)
+        if not np.isfinite(initial_nll):
+            raise FloatingPointError("nonfinite initial validation NLL")
+        validation_progress.append((0, initial_nll))
     first_step = True
     # 03 Splits and keys: shuffle epochs are zero-based; selection is one-based.
     for epoch in range(1 if config == "smoke" else 10):
@@ -184,8 +203,23 @@ def train(
                 )
                 first_step = False
             losses.append(value)
+            batch_history.append(float(value))
+            batch = start // 128 + 1
+            if log_every_batches is not None and (
+                batch % log_every_batches == 0 or batch == batches_per_epoch
+            ):
+                diagnostic = _validation_nll(params, validation_images, validation_data)
+                if not np.isfinite(diagnostic):
+                    raise FloatingPointError("nonfinite progress validation NLL")
+                validation_progress.append(
+                    (epoch * batches_per_epoch + batch, diagnostic)
+                )
         training_nll = float(jnp.mean(jnp.stack(losses)))
-        validation_nll = _validation_nll(params, validation_images, validation_data)
+        validation_nll = (
+            validation_progress[-1][1]
+            if log_every_batches is not None
+            else _validation_nll(params, validation_images, validation_data)
+        )
         if not np.isfinite(training_nll) or not np.isfinite(validation_nll):
             raise FloatingPointError("nonfinite epoch training or validation NLL")
         training_history.append(training_nll)
@@ -193,7 +227,12 @@ def train(
         if validation_nll < best_nll:
             best_params, best_nll, selected_epoch = params, validation_nll, epoch + 1
     return TrainingResult(
-        best_params, tuple(training_history), tuple(validation_history), selected_epoch
+        best_params,
+        tuple(training_history),
+        tuple(validation_history),
+        selected_epoch,
+        tuple(batch_history),
+        tuple(validation_progress),
     )
 
 

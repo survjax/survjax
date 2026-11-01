@@ -136,6 +136,7 @@ def test_runner_uses_selected_predictions_tail_and_records(
         *,
         initial_intercept,
         config,
+        log_every_batches,
     ):
         np.testing.assert_array_equal(pixels[:, 0, 0, 0], indices["train"])
         np.testing.assert_array_equal(observations.lower, indices["train"] + 1)
@@ -145,8 +146,14 @@ def test_runner_uses_selected_predictions_tail_and_records(
         )
         np.testing.assert_array_equal(initial_intercept, [0.25, 1.5])
         assert initial_intercept.dtype == np.float64 and config == "smoke"
+        assert log_every_batches == 1
         return model.TrainingResult(
-            (lambda x: x[0, 0, 0], jnp.float32(0.3)), (2.0,), (3.0,), 1
+            (lambda x: x[0, 0, 0], jnp.float32(0.3)),
+            (2.0,),
+            (3.0,),
+            1,
+            (2.0,),
+            ((0, 3.5), (1, 3.0)),
         )
 
     predictions = []
@@ -215,6 +222,7 @@ def test_runner_uses_selected_predictions_tail_and_records(
     assert metadata["selected_epoch_indexing"] == "one-based"
     assert metadata["training"] == {
         "epochs": 1,
+        "log_every_batches": 1,
         "batch_size": 128,
         "drop_partial_batch": True,
         "optimizer": "Adam",
@@ -266,3 +274,9 @@ def test_runner_uses_selected_predictions_tail_and_records(
     assert metadata["source_sha256"] == {
         name: hashes[1] for name, hashes in data.RESOURCES.items()
     }
+
+    assert (tmp_path / "progress.csv").read_text().splitlines() == [
+        "step,training_batch_nll,validation_nll",
+        "0,2.0,3.5",
+        "1,,3.0",
+    ]

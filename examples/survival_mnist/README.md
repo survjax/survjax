@@ -101,3 +101,12 @@ validation. Prediction and concordance times wait for completion and include
 any first-call compilation. Concordance timing uses the entire evaluation
 cohort (2k smoke, 10k full). The metadata contains no image, digit-label or
 prediction rows.
+
+Convergence logging records training NLL for every minibatch and full validation
+NLL about ten times per epoch, including initialization and epoch boundaries.
+`progress.csv` uses completed optimizer updates: training at step s is the
+minibatch loss before update s+1, while validation at s uses the model after s
+updates. Empty cells mean that loss was not evaluated there. Figure 3 plots
+these traces against updates. `history.csv` retains the epoch means, and only
+end-of-epoch validation selects checkpoints. Extra logging does not change
+training updates or make the one-epoch smoke run evidence of convergence.

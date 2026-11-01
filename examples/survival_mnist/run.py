@@ -91,16 +91,25 @@ def _figures(pixels, labels, log_k, log_scales, result, out: Path) -> None:
     plt.close(fig)
     fig, ax = plt.subplots(figsize=(8, 4), layout="constrained")
     epochs = np.arange(1, len(result.training_nll) + 1)
-    ax.plot(epochs, result.training_nll, "o-", label="Training")
-    ax.plot(epochs, result.validation_nll, "s-", label="Validation")
-    ax.axvline(
-        result.selected_epoch, linestyle="--", color="black", label="Selected epoch"
-    )
+    selected = result.selected_epoch
+    dense = bool(result.batch_nll and result.validation_progress)
+    if dense:
+        ax.plot(
+            np.arange(len(result.batch_nll)),
+            result.batch_nll,
+            label="Training minibatch",
+        )
+        steps, values = zip(*result.validation_progress, strict=True)
+        ax.plot(steps, values, "o-", label="Full validation")
+        selected *= len(result.batch_nll) // len(epochs)
+    else:
+        ax.plot(epochs, result.training_nll, "o-", label="Training")
+        ax.plot(epochs, result.validation_nll, "s-", label="Validation")
+    ax.axvline(selected, linestyle="--", color="black", label="Selected epoch")
     ax.set(
-        xlabel="Epoch",
+        xlabel="Optimizer updates" if dense else "Epoch",
         ylabel="Negative log likelihood",
-        title="Training history",
-        xticks=epochs,
+        title="Training convergence",
     )
     ax.legend()
     fig.savefig(out / "fig3.svg")
@@ -128,6 +137,7 @@ def _run(config: str, preparation: Path, out: Path) -> None:
     training, validation, test = (
         cohorts[name] for name in ("train", "validation", "test")
     )
+    log_every_batches = max(1, (len(training) // 128 + 9) // 10)
     training_started = perf_counter()
     result = model.train(
         pixels[training],
@@ -136,6 +146,7 @@ def _run(config: str, preparation: Path, out: Path) -> None:
         observations[validation],
         initial_intercept=np.array(prepared["intercept"], dtype=np.float64),
         config=config,
+        log_every_batches=log_every_batches,
     )
     training_seconds = perf_counter() - training_started
     prediction_started = perf_counter()
@@ -174,6 +185,18 @@ def _run(config: str, preparation: Path, out: Path) -> None:
                 zip(result.training_nll, result.validation_nll, strict=True), 1
             )
         )
+    with (out / "progress.csv").open("w", newline="") as stream:
+        writer = csv.writer(stream)
+        writer.writerow(("step", "training_batch_nll", "validation_nll"))
+        validation_progress = dict(result.validation_progress)
+        writer.writerows(
+            (
+                step,
+                result.batch_nll[step] if step < len(result.batch_nll) else "",
+                validation_progress.get(step, ""),
+            )
+            for step in range(len(result.batch_nll) + 1)
+        )
     metadata = {
         "config": config,
         "censor_limit": prepared["censor_limit"],
@@ -191,6 +214,7 @@ def _run(config: str, preparation: Path, out: Path) -> None:
         "selected_epoch_indexing": "one-based",
         "training": {
             "epochs": len(result.training_nll),
+            "log_every_batches": log_every_batches,
             "batch_size": 128,
             "drop_partial_batch": True,
             "optimizer": "Adam",

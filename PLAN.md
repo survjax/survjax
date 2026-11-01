@@ -1,3 +1,41 @@
+# MNIST.10 — Within-epoch convergence trace (2026-11-01)
+
+Start clean at aadbb14; original worktree base ee72c83. Maintainer requests
+more frequent loss logging because the one-epoch smoke history is uninformative
+and predictions still differ from truth. This step adds observation, not tuning.
+Spec11.2/use-case03 Training, Figures and Acceptance; maintainer explicitly
+requests denser logging. Keep the prescribed epochs, updates, keys and
+end-of-epoch checkpoint selection. D-031 timing choice remains unchanged.
+
+Files:
+- model.py: append per-minibatch pre-update NLL and optional initial/periodic
+  full-validation NLL indexed by completed optimizer updates to TrainingResult.
+  train accepts a positive log_every_batches or None (epoch-only validation).
+  Reuse the final validation at each epoch boundary for checkpoint selection;
+  intermediate validation can never select a model. Fail on nonfinite traces.
+- run.py: request about10 validation samples per epoch (ceil(batches/10)),
+  write progress.csv with integer update count, training_batch_nll and sparse
+  validation_nll (empty cells where not evaluated). Training loss at step s
+  uses the minibatch before update s+1; validation at s uses the model after s
+  updates. Figure3 uses update axis and marks selected_epoch*batches_per_epoch;
+  retain history.csv and its epoch definitions. Record logging interval/settings.
+- check_mnist_progress.py: controlled logging schedule, initial/end boundaries,
+  intermediate-best validation does not select; real Adam parameters/histories
+  agree with/without denser validation; malformed logging interval/nonfinite
+  diagnostic failure. Update runner/figure checks for trace data and SVG.
+- README.md: logging semantics, CSV meanings and why smoke is not convergence
+  evidence. REVIEW.md: tests, actual fixed smoke trace, visual QA and review.
+
+Keep source/test changes about300 lines; no new module, dependency, core API,
+protected path or spec edit. Run optional suites in both modes, static checks,
+fresh-wheel A10 gate; run unchanged fixed smoke and a temporary fixed ten-epoch
+full diagnostic, then inspect denser fig3 and prediction gap. No
+selection/seed/optimizer/epoch changes based on test results. No claim that
+more logging improves predictions. Remaining: full-run artifacts/timing choice
+and executable docs after this step's independent review and handoff. The full
+diagnostic is not a committed release artifact and retains the current labelled
+C timing; it does not decide D-031 or tune on held-out results.
+
 # MNIST.9 — Figure writer (2026-11-01)
 
 Start clean at 97203e7 (MNIST.8 final); original worktree base ee72c83.

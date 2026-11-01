@@ -28,7 +28,18 @@ def rendered(tmp_path_factory):
     )
     log_scales = np.log(2 + np.arange(20))
     history = SimpleNamespace(
-        training_nll=(3.0, 2.0, 1.0), validation_nll=(4.0, 1.5, 2.0), selected_epoch=2
+        training_nll=(3.0, 2.0, 1.0),
+        validation_nll=(4.0, 1.5, 2.0),
+        selected_epoch=2,
+        batch_nll=(3.0, 2.8, 2.6, 2.3, 2.0, 1.8),
+        validation_progress=(
+            (0, 4.0),
+            (1, 3.5),
+            (2, 3.0),
+            (3, 2.5),
+            (4, 1.5),
+            (6, 2.0),
+        ),
     )
     figures, groups = {}, []
     save, boxplot = Figure.savefig, Axes.boxplot
@@ -112,10 +123,12 @@ def test_history_uses_recorded_nll_and_one_based_selected_epoch(rendered):
     """03 Figures: epoch means and validation checkpoint, not last-epoch selection."""
     _, figures, _ = rendered
     training, validation, selected = figures["fig3.svg"].axes[0].lines
-    np.testing.assert_array_equal(training.get_xdata(), [1, 2, 3])
-    np.testing.assert_array_equal(training.get_ydata(), [3, 2, 1])
-    np.testing.assert_array_equal(validation.get_ydata(), [4, 1.5, 2])
-    np.testing.assert_array_equal(selected.get_xdata(), [2, 2])
+    np.testing.assert_array_equal(training.get_xdata(), np.arange(6))
+    np.testing.assert_array_equal(training.get_ydata(), [3, 2.8, 2.6, 2.3, 2, 1.8])
+    np.testing.assert_array_equal(validation.get_xdata(), [0, 1, 2, 3, 4, 6])
+    np.testing.assert_array_equal(validation.get_ydata(), [4, 3.5, 3, 2.5, 1.5, 2])
+    np.testing.assert_array_equal(selected.get_xdata(), [4, 4])
+    assert figures["fig3.svg"].axes[0].get_xlabel() == "Optimizer updates"
     assert selected.get_label() == "Selected epoch"
 
 
