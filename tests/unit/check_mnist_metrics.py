@@ -166,3 +166,32 @@ def test_float64_shape_produces_float32_likelihood(monkeypatch, x64_enabled):
     monkeypatch.setattr(survjax.Weibull, "log_likelihood", observe_dtype)
     model.evaluate(np.float64(0.25), np.float64(1.5), observations())
     assert dtypes == [jnp.float32]
+
+
+def test_concordance_times_wait_and_report_first_call_and_warm_median(monkeypatch):
+    """D-031 decision: distinguish first11s from median(7,2,1)=2s warm work."""
+    data = observations()
+    clock, completed = [0.0], []
+    costs = iter([11.0, 7.0, 2.0, 1.0])
+
+    class DeferredScalar:
+        def __init__(self, cost):
+            self.cost = cost
+
+        def __float__(self):
+            clock[0] += self.cost  # Simulated async work completes only on read.
+            completed.append(self.cost)
+            return 0.5  # Hand result for constant scores and comparable pairs.
+
+    def compiled(scores, actual):
+        assert actual is data and scores.dtype == jnp.float32
+        np.testing.assert_array_equal(scores, np.full(3, -1.5))
+        return DeferredScalar(next(costs))
+
+    monkeypatch.setattr(model, "_concordance", compiled)
+    monkeypatch.setattr(model, "perf_counter", lambda: clock[0])
+    row = model.evaluate(0, 1.5, data)
+    assert row["concordance"] == 0.5
+    assert row["concordance_seconds"] == 11.0
+    assert row["concordance_warm_seconds"] == 2.0
+    assert completed == [11.0, 7.0, 2.0, 1.0]

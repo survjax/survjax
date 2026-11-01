@@ -4,6 +4,23 @@ The parallel MNIST and RMST branches independently used D-028 and D-029.
 Those historical IDs are retained below; use the topic and step to
 distinguish them. No entry status or maintainer decision is changed.
 
+## D-032 Denser convergence figure and progress record
+
+- Step: MNIST.10 round1 review S-1.
+- Spec section: use-cases/03 "Figures" and "Files".
+- What the spec says: Figure3 shows training/validation NLL by epoch; the
+  listed result files do not name a within-epoch progress.csv.
+- Maintainer request (2026-11-01): "fig3 with the loss curve is uninformative
+  as only 1 epoch; make a version that logs the losses more often so we can
+  actually track the convergence".
+- Maintainer approval: "i'm happy with the figs and teh state of the experiment".
+  This is the authorization for the denser figure; no second figure approval
+  is being requested. The independent reviewer cannot see the conversation.
+- What was done: Figure3 plots completed updates and within-epoch losses;
+  progress.csv preserves those diagnostics alongside unchanged history.csv
+  epoch summaries. Training and checkpoint selection remain unchanged.
+- Status: open.
+
 ## D-031 MNIST concordance timing and compilation
 
 - Step: MNIST.8 independent review round1, S-1.
@@ -17,6 +34,10 @@ distinguish them. No entry status or maintainer decision is changed.
   additionally record a warm pass. Asked during review; no warm timing is
   implemented pending that decision. This question concerns the future full
   run, not the correctness of the currently labelled timing.
+- Maintainer decision (2026-11-01): "ok just record both", accepting first
+  invocation and warm timings after the explanation of compilation cost.
+  Record a synchronized first invocation and median of3 synchronized warm
+  repetitions using the same compiled public C callable and input cohort.
 - Status: open.
 
 ## D-030 Initialize the CNN from the intercept fit

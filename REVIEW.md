@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # MNIST.10 — Within-epoch convergence trace
 
@@ -84,3 +84,62 @@ no issues in 21 source files. Own suites: x64 1119 passed, 7 skipped (108.03 s);
 float32 1125 passed, 1 skipped (92.63 s). Doctests: 4 passed per mode.
 Acceptance: x64 2333 passed, 27 skipped (85.30 s); float32 2324 passed,
 36 skipped (72.91 s). Final format and git diff --check clean.
+
+
+## Follow-up: approved timing protocol and review fixes
+
+The maintainer explicitly approved the figures/experiment ("i'm happy with the
+figs and teh state of the experiment") and directed "ok just record both" after
+the timing explanation. D-031 records that decision; D-032 quotes the original
+request to replace the uninformative one-epoch Figure 3 with denser losses and
+its later approval. The reviewer cannot see this conversation. These are already
+made decisions, not new permission requests. Spec remains read-only and formal
+entry statuses remain maintainer-owned.
+
+- S-1: record the existing authorization in D-032. The dense figure, progress.csv
+  and unchanged epoch history are retained as the approved experiment version.
+- F-1: runner fixture now has 11 distinct losses (12 through 2) and 1408 training
+  rows, consistent with 11 batches and logging interval 2. Pin all 12 CSV rows,
+  including missing validation cells and the final validation-only row. The
+  previous step-1 indexing mutant now changes the first value from 12 to 2.
+- N-2: training timing notes name initial/periodic diagnostic validation and
+  per-batch loss logging; train's Raises includes diagnostic failures.
+- N-1: existing file-size nit acknowledged; no new module/config abstraction.
+
+Timing implementation: one module-level jitted public concordance callable;
+prepare/synchronize risk scores outside the clock. Record first invocation per
+model, then the median of 3 synchronized repetitions on identical scores/data.
+First invocation is not asserted cold: earlier models/calls may have compiled
+this shape. No cache clearing, new dependency or core C change. Existing C and
+likelihood results are retained; CSV and metadata gain concordance_warm_seconds
+and a per-model warm timing map, repeat count/statistic/callable/cache labels.
+
+The fake-clock test delays scalar completion until float conversion. It pins
+first 11 s, warm samples 7/2/1 s and median 2 s, with exactly 4 completed calls and
+identical float32 risk scores/data. It detects stopping clocks before completion,
+wrong repetition counts and using first/last/mean in place of median.
+
+Checks: nine-file optional suites x64 91 passed, 1 skipped (57.36s), float32
+69 passed, 23 skipped (46.00s). Focused initial metrics/runner float32:
+18 passed, 2 skipped (7.20s). Ruff lint/format and diff check clean.
+Actual fixed smoke: /private/tmp/survjax-mnist-both-timings10; identical approved
+scores/selection/plot data. CSV/metadata timing agreement verified for all 3
+models and repeat count 3. CNN first .123780s, warm .018424s; intercept first
+.018395s, warm .021210s; oracle first .019799s, warm .021023s. Timings fluctuate
+under concurrent checks; warm is not guaranteed faster and no threshold claimed.
+Synthetic 10k fixed-key strict ordering: C=1, first .298684s, warm .206253s.
+This is protocol evidence, not new full-run artifact evidence. No full training
+rerun or tuning needed for this reporting change. Cumulative gate below.
+
+This continues MNIST.10's round count rather than starting a new review to seek
+a different verdict. Starting HEAD for this follow-up: a6f8217. Original previous
+step aadbb14 and worktree base ee72c83 remain unchanged. Remaining: approved
+committed full artifacts and executable docs. No timing decision remains pending.
+
+Follow-up cumulative check: scripts/check_wheel.sh --through A10 exited 0;
+all gates passed. Ruff format: 138 files already formatted; lint passed; mypy:
+no issues in 21 source files. Own suites: x64 1119 passed, 7 skipped (102.72 s);
+float32 1125 passed, 1 skipped (94.95 s). Doctests: 4 passed per mode.
+Acceptance: x64 2333 passed, 27 skipped (93.18 s); float32 2324 passed,
+36 skipped (73.46 s). Final format/diff checks clean. No docs build, R generation
+or new full training run; the approved full experiment remains unchanged.

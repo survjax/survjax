@@ -1,3 +1,36 @@
+# MNIST.10 follow-up — Both concordance timings (2026-11-01)
+
+Continue MNIST.10 after round1 at a6f8217; do not reset the review counter.
+Maintainer explicitly decides "ok just record both" after approving the figures
+and experiment state. Record those decisions in D-031 and D-032; retain formal
+open statuses, which only the maintainer changes. No spec edits requested.
+
+Files:
+- model.py evaluate: same public C, through one module-level jitted callable.
+  Record synchronized first invocation and median of3 synchronized repeated
+  calls on identical scores/data. First invocation per model may reuse earlier
+  compilation; do not call it a fresh-process cold benchmark or clear caches.
+  Preserve concordance_seconds and add concordance_warm_seconds. No training,
+  parameters, C value/definition, figures or selection changes.
+- run.py: record both per-model timings, repeat count/statistic/callable/cache
+  policy in metadata and explain diagnostic validation in the training timer.
+- check_mnist_metrics.py: deferred scalar/fake clock pins synchronization,
+  exactly3 warm repetitions, median rather than last/mean/first-call duration;
+  real C correctness checks still run in both dtype modes.
+- check_mnist_run.py: fix F-1 with two distinct batch losses and a sparse
+  validation cell; assert every progress.csv row. Pin both metadata/CSV timings.
+- DEVIATIONS.md: quote the existing logging/figure approvals and timing decision,
+  without asking again or editing spec. README.md and REVIEW.md explain protocol.
+
+Spec11.2/use-case03 References and metrics, project12.3 timing conventions,
+maintainer's explicit denser-logging direction. No core API/module/dependency/
+protected edit. Keep implementation/test changes about300 lines. Run relevant
+optional checks in both dtype modes, static checks and fresh-wheel A10 gate;
+actual warm-cache smoke plus synthetic10k timing probe. No experiment retuning
+or repeated full training needed. Independent review MNIST.10 round2, then stop.
+Remaining sub-steps: committed approved full artifacts, executable docs.
+Original previous-step final aadbb14; worktree base ee72c83 remain unchanged.
+
 # MNIST.10 — Within-epoch convergence trace (2026-11-01)
 
 Start clean at aadbb14; original worktree base ee72c83. Maintainer requests

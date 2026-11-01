@@ -138,7 +138,8 @@ def train(
         (completed_updates, full_validation_nll) diagnostic samples.
     Raises:
         ValueError: Config, logging interval, cohort shapes, precision or observations are invalid.
-        FloatingPointError: Initial/post-step1 loss/gradients or epoch NLL fail.
+        FloatingPointError: Initial/post-step1 loss/gradients, epoch NLL or
+            initial/periodic diagnostic validation NLL is nonfinite.
     """
     if config not in ("smoke", "full"):
         raise ValueError("config must be 'smoke' or 'full'")
@@ -296,6 +297,10 @@ def fit_intercept(time: ArrayLike, event: ArrayLike) -> np.ndarray:
     return np.asarray(solution.value, dtype=np.float64)
 
 
+_CONCORDANCE_WARM_REPETITIONS = 3
+_concordance = jax.jit(survjax.concordance_index)
+
+
 def evaluate(
     log_shape: ArrayLike, log_scale: ArrayLike, data: survjax.SurvivalData
 ) -> dict[str, float | int]:
@@ -306,9 +311,11 @@ def evaluate(
         log_scale: Scalar intercept or aligned (N,) predictions; cast to float32.
         data: Nonempty float32 observations (N,); all rows are evaluated.
     Returns:
-        n, mean_log_likelihood, shape, concordance, concordance_seconds.
-        C uses higher risk = -log scale. Wall time includes any first-call
-        compilation and waits for completion; subsequent calls may reuse it.
+        n, mean_log_likelihood, shape, concordance, concordance_seconds and
+        concordance_warm_seconds. First invocation may include compilation;
+        warm time is the median of three repeats on identical inputs. All calls
+        use one jitted public C callable and wait for completion. Cached code
+        may be reused across models; timings exclude likelihood, prediction and score preparation.
     Raises:
         ValueError: Cohort dtype/shape or parameter shapes are invalid.
         FloatingPointError: Any metric is nonfinite, including undefined C.
@@ -326,15 +333,24 @@ def evaluate(
     dist = survjax.Weibull.from_log(log_shape=log_k, log_scale=log_b)
     mean_ll = float(dist.log_likelihood(data).mean())
     shape = float(jnp.exp(log_k))
+    scores = (-log_b).block_until_ready()
     start = perf_counter()
-    concordance = float(survjax.concordance_index(-log_b, data))
+    concordance = float(_concordance(scores, data))
     seconds = perf_counter() - start
     if not np.all(np.isfinite([mean_ll, shape, concordance])):
         raise FloatingPointError("evaluation produced nonfinite or undefined metrics")
+    warm_seconds = []
+    for _ in range(_CONCORDANCE_WARM_REPETITIONS):
+        start = perf_counter()
+        warm_value = float(_concordance(scores, data))
+        warm_seconds.append(perf_counter() - start)
+        if not np.isfinite(warm_value):
+            raise FloatingPointError("nonfinite warm concordance")
     return {
         "n": len(data),
         "mean_log_likelihood": mean_ll,
         "shape": shape,
         "concordance": concordance,
         "concordance_seconds": seconds,
+        "concordance_warm_seconds": float(np.median(warm_seconds)),
     }

@@ -69,11 +69,14 @@ repeat with `JAX_ENABLE_X64=0` to check refusal of unavailable float64 fitting.
 Evaluate a selected CNN with `model.evaluate(log_k, predicted_log_scales, data)`;
 use the fitted intercept pair or the oracle's true parameters for the other rows.
 The result contains `n`, `mean_log_likelihood`, `shape`, `concordance` and
-`concordance_seconds`. Predictions are explicitly cast to float32; observations
+`concordance_seconds` (first invocation) and `concordance_warm_seconds` (median
+of three repeats). Predictions are explicitly cast to float32; observations
 must already be float32. Every row is included. Higher risk is minus log scale;
 a constant intercept gives C=0.5 when comparable pairs exist. Undefined or
-nonfinite metrics raise. C wall time includes first-call compilation and waits
-for completion, so report whether a call was cold or warm. Run offline checks
+nonfinite metrics raise. Both C timings wait for completion. All calls use one
+jitted public concordance callable; the first invocation per model can include
+compilation or reuse code already compiled for an earlier model. No caches are
+cleared. Warm timings repeat the same inputs three times and report the median. Run offline checks
 with the examples group using `tests/unit/check_mnist_metrics.py` in both modes.
 
 Run the pipeline from the repository root:
@@ -96,9 +99,10 @@ The metadata records versions, verified source SHA-256 hashes, CPU environment,
 root seed and key derivations, actual cohort sizes/censoring fractions, settings,
 selected epoch (one-based), calibrated c, fitted intercept logs and float64
 oracle constants.
-Preparation time excludes loading MNIST; training includes compilation and
-validation. Prediction and concordance times wait for completion and include
-any first-call compilation. Concordance timing uses the entire evaluation
+Preparation time excludes loading MNIST; training includes compilation,
+per-batch loss logging and diagnostic validation at the recorded interval.
+Prediction waits for completion and includes compilation; concordance records
+both first-invocation and median warm timings with the protocol above. Concordance timing uses the entire evaluation
 cohort (2k smoke, 10k full). The metadata contains no image, digit-label or
 prediction rows.
 

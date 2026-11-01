@@ -53,7 +53,7 @@ def fake_cohorts(monkeypatch):
         np.arange(70000, dtype=np.float32)[:, None, None, None], (70000, 1, 28, 28)
     )
     indices = {
-        "train": np.arange(100, 228),
+        "train": np.arange(100, 1508),
         "validation": np.arange(5, 7),
         "test": np.arange(60000, 60129),
     }
@@ -146,14 +146,14 @@ def test_runner_uses_selected_predictions_tail_and_records(
         )
         np.testing.assert_array_equal(initial_intercept, [0.25, 1.5])
         assert initial_intercept.dtype == np.float64 and config == "smoke"
-        assert log_every_batches == 1
+        assert log_every_batches == 2
         return model.TrainingResult(
             (lambda x: x[0, 0, 0], jnp.float32(0.3)),
-            (2.0,),
+            (7.0,),  # Hand mean of the distinct minibatch losses12 through2.
             (3.0,),
             1,
-            (2.0,),
-            ((0, 3.5), (1, 3.0)),
+            tuple(float(value) for value in range(12, 1, -1)),
+            ((0, 3.5), (2, 3.4), (4, 3.3), (6, 3.2), (8, 3.1), (10, 3.05), (11, 3.0)),
         )
 
     predictions = []
@@ -169,6 +169,7 @@ def test_runner_uses_selected_predictions_tail_and_records(
             "shape": 1.38,
             "concordance": 0.6,
             "concordance_seconds": 0.1,
+            "concordance_warm_seconds": 0.025,
         }
 
     figure_calls = []
@@ -179,7 +180,7 @@ def test_runner_uses_selected_predictions_tail_and_records(
         np.testing.assert_array_equal(actual_labels, labels[indices["test"]])
         assert float(shape) == float(np.float32(0.3)) and result.selected_epoch == 1
         np.testing.assert_array_equal(scales, indices["test"])
-        assert result.training_nll == (2.0,) and result.validation_nll == (3.0,)
+        assert result.training_nll == (7.0,) and result.validation_nll == (3.0,)
 
     monkeypatch.setattr(run, "_figures", figures)
     monkeypatch.setattr(model, "train", train)
@@ -199,7 +200,7 @@ def test_runner_uses_selected_predictions_tail_and_records(
         ]
     assert (tmp_path / "history.csv").read_text().splitlines() == [
         "epoch,training_nll,validation_nll",
-        "1,2.0,3.0",
+        "1,7.0,3.0",
     ]
 
     metadata = json.loads((tmp_path / "metadata.json").read_text())
@@ -211,7 +212,7 @@ def test_runner_uses_selected_predictions_tail_and_records(
     np.testing.assert_array_equal(
         metadata["oracle"]["log_scales_by_digit"], np.log(10.0) - 0.2 * np.arange(10)
     )
-    assert metadata["sizes"] == {"train": 128, "validation": 2, "test": 129}
+    assert metadata["sizes"] == {"train": 1408, "validation": 2, "test": 129}
     # Alternating event flags, starting even; test has65 events and64 censored.
     assert metadata["realized_censored"] == {
         "train": 0.5,
@@ -222,7 +223,7 @@ def test_runner_uses_selected_predictions_tail_and_records(
     assert metadata["selected_epoch_indexing"] == "one-based"
     assert metadata["training"] == {
         "epochs": 1,
-        "log_every_batches": 1,
+        "log_every_batches": 2,
         "batch_size": 128,
         "drop_partial_batch": True,
         "optimizer": "Adam",
@@ -247,10 +248,26 @@ def test_runner_uses_selected_predictions_tail_and_records(
         "training": 4,
         "prediction": 3,
         "concordance": {"cnn": 0.1, "intercept": 0.1, "oracle": 0.1},
+        "concordance_warm": {"cnn": 0.025, "intercept": 0.025, "oracle": 0.025},
     }
     assert "excludes data loading" in metadata["timing_notes"]["preparation"]
     assert "synchronized" in metadata["timing_notes"]["prediction"]
     assert "compilation" in metadata["timing_notes"]["concordance"]
+    assert "median" in metadata["timing_notes"]["concordance_warm"]
+    assert "every 2 batches" in metadata["timing_notes"]["training"]
+    assert metadata["concordance_benchmark"] == {
+        "warm_repetitions": 3,
+        "warm_statistic": "median",
+        "callable": "jax.jit(survjax.concordance_index)",
+        "cache_policy": "reuse compiled callable across models; no cache clearing",
+    }
+    with (tmp_path / "metrics.csv").open() as stream:
+        rows = list(csv.DictReader(stream))
+    assert all(
+        float(row["concordance_seconds"]) == 0.1
+        and float(row["concordance_warm_seconds"]) == 0.025
+        for row in rows
+    )
     assert metadata["versions"] == {
         name: f"{name}-test"
         for name in (
@@ -277,6 +294,16 @@ def test_runner_uses_selected_predictions_tail_and_records(
 
     assert (tmp_path / "progress.csv").read_text().splitlines() == [
         "step,training_batch_nll,validation_nll",
-        "0,2.0,3.5",
-        "1,,3.0",
+        "0,12.0,3.5",
+        "1,11.0,",
+        "2,10.0,3.4",
+        "3,9.0,",
+        "4,8.0,3.3",
+        "5,7.0,",
+        "6,6.0,3.2",
+        "7,5.0,",
+        "8,4.0,3.1",
+        "9,3.0,",
+        "10,2.0,3.05",
+        "11,,3.0",
     ]

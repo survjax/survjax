@@ -239,12 +239,22 @@ def _run(config: str, preparation: Path, out: Path) -> None:
             "training": training_seconds,
             "prediction": prediction_seconds,
             "concordance": {row["model"]: row["concordance_seconds"] for row in rows},
+            "concordance_warm": {
+                row["model"]: row["concordance_warm_seconds"] for row in rows
+            },
         },
         "timing_notes": {
             "preparation": "calibration, outcomes, fit; excludes data loading",
-            "training": "includes initialization, compilation and validation",
+            "training": f"includes initialization, compilation, per-batch loss logging, initial validation and diagnostic validation every {log_every_batches} batches plus epoch ends",
             "prediction": "selected CNN, all test rows, includes compilation; synchronized",
-            "concordance": "per model, full test cohort; includes possible first-call compilation; synchronized",
+            "concordance": "first invocation per model, full test cohort; may include compilation or reuse earlier compilation; synchronized",
+            "concordance_warm": "median of repeated calls on identical scores/data after first invocation; synchronized",
+        },
+        "concordance_benchmark": {
+            "warm_repetitions": model._CONCORDANCE_WARM_REPETITIONS,
+            "warm_statistic": "median",
+            "callable": "jax.jit(survjax.concordance_index)",
+            "cache_policy": "reuse compiled callable across models; no cache clearing",
         },
         "versions": {
             name: version(name)
