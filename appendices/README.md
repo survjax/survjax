@@ -8,7 +8,7 @@ keep workstream history and empirical check results in PLAN.md / REVIEW.md.
 | Appendix | Code | Export |
 | --- | --- | --- |
 | [PH log-survival scaling](ph-log-survival.md) | [_scale_log_survival](../src/survjax/distributions/wrappers.py) | [PDF](ph-log-survival.pdf) |
-| [Weibull RMST](weibull-rmst.md) | [_weibull_rmst](../src/survjax/_numerics.py) | [PDF](weibull-rmst.pdf) |
+| [Weibull RMST](weibull-rmst.md) | [_weibull_rmst](../src/survjax/_rmst.py) | [PDF](weibull-rmst.pdf) |
 
 Rebuild each companion PDF after changing its mathematical source.
 

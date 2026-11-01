@@ -1,3 +1,59 @@
+# PH.3d — Give the RMST helper a focused module name (2026-11-01)
+
+Explicit maintainer request: rename _numerics.py because its responsibility
+is exclusively RMST, then proceed to the next PH step. Choose _rmst.py for
+shared cutoff handling and staged Weibull RMST. Start / previous PH.3c final:
+295834c612351c8ea4cff106f7b0208c446674e2, clean release-ph. Original worktree
+base: 8757c0fda78e34e6e818249adedd2a144a33c33d. AGENTS.md reread; unfinished
+PH PLAN history retained verbatim below. Spec 10.2's illustrative old private
+filename is superseded only by this explicit naming instruction; no spec edit,
+new abstraction, module responsibility or public API is introduced.
+
+Before code, one bounded rename/alignment concept:
+- Move src/survjax/_numerics.py unchanged to src/survjax/_rmst.py. Update
+  imports in distributions/exponential.py, weibull.py and wrappers.py. No
+  compatibility alias for an unexported private module; leave _log_math alone.
+- Update appendices/README.md and appendices/weibull-rmst.md source links.
+  Complete the tracked appendix alignment: explain nearby log1p evaluation,
+  exact shared power-of-two normalization, derivative safety and inactive
+  operands; retain existing tail bounds. Rebuild companion PDF with its
+  established Pandoc/XeLaTeX command and inspect rendered pages. Keep this
+  permanent appendix outside standard docs/ as the maintainer requested.
+- No new tests for a path-only refactor; existing native/PH RMST value,
+  transformation, boundary and invalid-entry suites exercise every importer.
+  Run Ruff/mypy and the unchanged fresh-wheel A10 gate in both dtype modes;
+  inspect wheel contents and confirm byte-identical moved implementation.
+- Write REVIEW.md, commit, invoke independent-review exactly for PH.3d and
+  report verdict/commits/remaining steps. The maintainer already requested
+  continuation after this naming correction; do not treat that as permission
+  for the still-unapproved docs/api.md code-step exception. Prepare the exact
+  export-reference edit for a maintainer decision before adding public exports.
+
+Spec 8.7,10.2,12.1–12.2. Well under 300 changed implementation lines after
+rename detection; no dependencies, tolerance, protected-path, tests/spec or
+standard-docsite changes. Historical PLAN/archive references to the old path
+are preserved as evidence, not rewritten. PDF source editing uses the
+pandoc-safe-markdown and PDF skills; no dependency installation is needed.
+
+PH.3d results: implementation bytes unchanged, SHA256
+6fd938fe83c43fab859601b59842900e50c94df1bdee55fd07326b4b0d9a6030.
+All live imports/appendix links use _rmst.py; the new wheel contains it and
+omits _numerics.py. Ruff/mypy/whitespace checks clean. Standalone PDF builds
+and final four pages visually inspected; obsolete forced page break removed
+to avoid a mostly empty extra page. No source text extends beyond page bounds.
+Fresh-wheel A10 gate exits 0: own 1281/8 x64,1286/3 float32; doctests 4 per
+mode; independent acceptance 2332/28 x64,2322/38 float32. Exact commands,
+versions, timings, source/PDF/wheel hashes and artifacts in REVIEW.md.
+Commit and invoke PH.3d independent-review round 1/3 exactly.
+
+Docs to-do / next PH step: public exports/install/API reference integration,
+requiring the explicitly authorized narrow docs/api.md edit or an approved
+passing split; retain exact-export/reference assertions. Then executable PH
+topic and final PH evidence/acceptance audit. PH.3c optional N-1/N-2 remain
+recorded numerical/test improvements; no additional numerical change here.
+
+---
+
 # PH.3c — Preserve RMST log-ratio precision near unit cutoff (2026-11-01)
 
 Authorized by “ok on to the next bit”; reread the current AGENTS.md (symlink

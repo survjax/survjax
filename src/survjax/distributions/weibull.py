@@ -9,7 +9,7 @@ from jax.typing import ArrayLike
 
 from survjax import constraints
 from survjax._dtypes import normalize_parameters
-from survjax._numerics import _rmst_cutoff, _weibull_rmst
+from survjax._rmst import _rmst_cutoff, _weibull_rmst
 from survjax.distributions._survival_methods import log_cdf_from_log_cumulative_hazard
 from survjax.distributions.base import SurvivalDistribution, param, register_family
 
