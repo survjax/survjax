@@ -4,6 +4,21 @@ The parallel MNIST and RMST branches independently used D-028 and D-029.
 Those historical IDs are retained below; use the topic and step to
 distinguish them. No entry status or maintainer decision is changed.
 
+## D-031 MNIST concordance timing and compilation
+
+- Step: MNIST.8 independent review round1, S-1.
+- Spec section: use-cases/03 details "References and metrics".
+- What the spec says: measure C run time at n=10k and record it. It does not
+  specify whether compilation is included or a warm timing is required.
+- What was done: retain the existing synchronized per-model C call timing,
+  explicitly labelled as including possible first-call compilation. No timing
+  behavior or full-run artifact has been changed in this metadata step.
+- Proposal: maintainer decides whether the later full-run benchmark should
+  additionally record a warm pass. Asked during review; no warm timing is
+  implemented pending that decision. This question concerns the future full
+  run, not the correctness of the currently labelled timing.
+- Status: open.
+
 ## D-030 Initialize the CNN from the intercept fit
 
 - Step: MNIST.5s.

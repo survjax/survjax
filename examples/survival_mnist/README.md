@@ -83,15 +83,16 @@ uv run --group examples python -m examples.survival_mnist.run --config smoke --o
 ```
 
 The parent launches CPU-only float64 preparation/fit, then float32 training and
-evaluation, independent of its own precision setting. It writes `metrics.csv`
-`history.csv` and `metadata.json`, and prints calibration/fit values, timings, the selected
-epoch and three metric rows. Use
-`--config full` for the fixed ten-epoch configuration. Figures, committed full results and executable page are still pending.
-
+evaluation, independent of its own precision setting. It writes `metrics.csv`,
+`history.csv` and `metadata.json`, and prints calibration/fit values, timings,
+the selected epoch and three metric rows. Use `--config full` for the fixed
+ten-epoch configuration. Figures, committed full results and the executable
+page are still pending.
 
 The metadata records versions, verified source SHA-256 hashes, CPU environment,
 root seed and key derivations, actual cohort sizes/censoring fractions, settings,
-selected epoch, calibrated c, fitted intercept logs and float64 oracle constants.
+selected epoch (one-based), calibrated c, fitted intercept logs and float64
+oracle constants.
 Preparation time excludes loading MNIST; training includes compilation and
 validation. Prediction and concordance times wait for completion and include
 any first-call compilation. Concordance timing uses the entire evaluation

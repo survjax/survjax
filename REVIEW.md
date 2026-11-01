@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # MNIST.8 — Reproducibility metadata
 
@@ -66,3 +66,26 @@ in21 source files. Own suites x64 1119 passed/7 skipped (73.35s), float32
 1125 passed/1 skipped (70.92s). Doctests4 passed each mode. Acceptance suites
 x64 2333 passed/27 skipped (64.86s), float32 2324 passed/36 skipped (59.33s).
 Final format and git diff --check clean.
+
+
+Round1 fixes:
+- F-1: virtual clock advances50s in MNIST loading,2s in calibration and3s
+  in fit. Preparation must record5s, excluding the50s load. Moving its start
+  above loading records55s and fails this assertion. No production timer moved.
+- N-1: metadata now explicitly labels selected_epoch_indexing one-based;
+  keys.epoch_indexing remains zero-based for shuffle key derivations.
+- N-2: fix README comma, wrap changed lines and remove extra blank line.
+- N-3: acknowledged. Metadata intentionally mirrors fixed spec settings rather
+  than adding a config layer to model.py. Existing geometry checks pin actual
+  network dimensions; training schedule and analytical Adam tests pin128 rows
+  and1e-3 updates independently. This step does not refactor those modules.
+- S-1: recorded D-031 and asked maintainer about warm timing for the later full
+  run. Existing first-call timing/label is unchanged; no action on the spec
+  question. No full-run acceptance/result claimed here.
+- Reviewer reran Ruff/mypy/core/doctests successfully; their direct check.sh
+  lacks SURVJAX_WHEEL, so5 wheel setup errors stopped its spec gate. Our
+  fresh-wheel wrapper above passed those tests and both dtype modes.
+- Fix-up checks: runner4 passed with x64 enabled (.87s),4 passed with x64
+  disabled (1.05s); Ruff format136 files already formatted; Ruff all checks
+  passed; git diff --check clean. No numerical or timing boundary changes;
+  no redundant full gate/smoke rerun after the passed cumulative evidence.

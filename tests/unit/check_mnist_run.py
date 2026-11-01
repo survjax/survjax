@@ -74,14 +74,25 @@ def fake_cohorts(monkeypatch):
 def test_preparation_calibrates_source_and_fits_training_only(monkeypatch, tmp_path):
     """03: all60k source digits calibrate; only selected training outcomes fit."""
     labels, indices = fake_cohorts(monkeypatch)
+    clock = [100.0]
+    load = data.load_mnist
+
+    def load_with_cost():
+        clock[0] += 50.0
+        return load()
+
+    monkeypatch.setattr(data, "load_mnist", load_with_cost)
+    monkeypatch.setattr(run, "perf_counter", lambda: clock[0])
 
     def calibrate(actual):
         np.testing.assert_array_equal(actual, labels[:60000])
+        clock[0] += 2.0
         return 7.0
 
     def fit(time, event):
         np.testing.assert_array_equal(time, indices["train"] + 1)
         np.testing.assert_array_equal(event, indices["train"] % 2 == 0)
+        clock[0] += 3.0
         return np.array([0.25, 1.5], dtype=np.float64)
 
     monkeypatch.setattr(data, "calibrate_mnist", calibrate)
@@ -89,6 +100,8 @@ def test_preparation_calibrates_source_and_fits_training_only(monkeypatch, tmp_p
     run._prepare("smoke", tmp_path / "prepared.json")
     prepared = json.loads((tmp_path / "prepared.json").read_text())
     assert prepared["censor_limit"] == 7 and prepared["intercept"] == [0.25, 1.5]
+    # Only calibration2s+fit3s count; the50s load must be excluded.
+    assert prepared["preparation_seconds"] == 5.0
 
 
 def test_runner_uses_selected_predictions_tail_and_records(
@@ -186,6 +199,7 @@ def test_runner_uses_selected_predictions_tail_and_records(
         "test": 64 / 129,
     }
     assert metadata["selected_epoch"] == 1
+    assert metadata["selected_epoch_indexing"] == "one-based"
     assert metadata["training"] == {
         "epochs": 1,
         "batch_size": 128,

@@ -120,6 +120,7 @@ def _run(config: str, preparation: Path, out: Path) -> None:
             for name, indices in cohorts.items()
         },
         "selected_epoch": result.selected_epoch,
+        "selected_epoch_indexing": "one-based",
         "training": {
             "epochs": len(result.training_nll),
             "batch_size": 128,
