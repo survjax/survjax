@@ -115,6 +115,14 @@ def _figures(pixels, labels, log_k, log_scales, result, out: Path) -> None:
     fig.savefig(out / "fig3.svg")
     plt.close(fig)
 
+    # Generated SVG path whitespace has no visual meaning but fails Git checks.
+    for name in ("fig1.svg", "fig2.svg", "fig3.svg"):
+        path = out / name
+        path.write_text(
+            "\n".join(line.rstrip(" \t") for line in path.read_text().splitlines())
+            + "\n"
+        )
+
 
 def _run(config: str, preparation: Path, out: Path) -> None:
     import equinox as eqx
@@ -173,11 +181,11 @@ def _run(config: str, preparation: Path, out: Path) -> None:
         )
     out.mkdir(parents=True, exist_ok=True)
     with (out / "metrics.csv").open("w", newline="") as stream:
-        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(stream, fieldnames=list(rows[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
     with (out / "history.csv").open("w", newline="") as stream:
-        writer = csv.writer(stream)
+        writer = csv.writer(stream, lineterminator="\n")
         writer.writerow(("epoch", "training_nll", "validation_nll"))
         writer.writerows(
             (epoch, train, valid)
@@ -186,7 +194,7 @@ def _run(config: str, preparation: Path, out: Path) -> None:
             )
         )
     with (out / "progress.csv").open("w", newline="") as stream:
-        writer = csv.writer(stream)
+        writer = csv.writer(stream, lineterminator="\n")
         writer.writerow(("step", "training_batch_nll", "validation_nll"))
         validation_progress = dict(result.validation_progress)
         writer.writerows(

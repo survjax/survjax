@@ -1,145 +1,170 @@
-Independent review: round 2/3
+Independent review: round 1/3
 
-# MNIST.10 — Within-epoch convergence trace
+# MNIST.11 — Committed full-run artifacts
 
-Read PLAN.md MNIST.10 and the maintainer request for more frequent losses;
-model.py train/TrainingResult, run.py progress.csv and Figure 3, then the new
-progress tests and existing runner/figure checks. User explicitly authorized
-denser logging; epoch summaries and checkpoint-selection semantics stay intact.
+Read PLAN.md MNIST.11, README.md's full-run section, results/metadata.json,
+metrics.csv, history.csv/progress.csv, then the three rendered SVGs. Review
+this as generated experimental evidence, not new numerical implementation.
 
-Invariants:
-- Same optimizer, step count, epoch count, keys, batches and selected checkpoint
-  rule. Additional validation is diagnostic only. Test data/labels never enter
-  training or checkpoint selection. No tuning based on test results.
-- Each batch_nll is the existing pre-update minibatch loss. Integer step s means
-  s completed updates; its training value is evaluated before update s+1.
-- Full-validation diagnostics are at initialization, every requested interval
-  within an epoch and the epoch boundary, even if the interval does not divide
-  the epoch. Reuse that final validation for the existing epoch checkpoint rule.
-- CLI interval is ceil(batches_per_epoch/10), at least one. Smoke has 39 training
-  points and 11 validation points (steps 0, 4, ..., 36, 39); full has 3900 training
-  and 101 validation points (0, then every 39 updates through 3900).
-- history.csv preserves epoch means and validation values. progress.csv records
-  integer step, raw training_batch_nll and sparse validation_nll; blank cells
-  mean not evaluated, not zero. The last row has validation but no training.
-- Figure 3 uses optimizer updates, labels noisy minibatch loss separately from
-  full validation, and marks selected_epoch*batches_per_epoch. Epoch-only results
-  without validation_progress still have the old figure fallback.
-- Fail on invalid intervals or nonfinite diagnostics; no clipping or smoothing.
-  New optional fields have empty defaults for existing result construction.
-- No new dependency/module/core API/protected path/spec edit. D-031's timing
-  behavior stays labelled first-call-inclusive; no warm timing decision made.
-  Files grew modestly for this user-requested instrumentation (model.py 340,
-  run.py 325 lines); the change itself is within about 300 implementation lines.
+Scope and invariants:
+- Implementation source is 222341684e877153122e3a6674250987cfdab7c9, unchanged
+  numerically in this step. Changes are workflow records, the example README,
+  generated results and export whitespace fixes (see below). No API,
+  dependency, protected path, spec or training change.
+- One fixed ten-epoch full run, with 50k training, 10k validation and 10k test.
+  Prescribed keys/settings and validation-only endpoint selection. No tuning,
+  failed-run selection or hand-edited numerical files. Earlier diagnostic was
+  approved by the maintainer; this run adds the approved two-view C timing.
+- Full CSV/SVG artifacts naturally exceed the 300-line implementation guideline.
+  Generated files are reviewed through consistency checks and visual inspection;
+  human-authored changes remain small. No code is hidden or minified.
+- Exactly metrics.csv, history.csv, progress.csv, metadata.json and fig1/2/3.svg.
+  No IDX/cache, label arrays, per-image predictions or model checkpoints committed.
+  Figure 1 contains the ten MNIST illustrations required by the design, attributed
+  under CC BY-SA 3.0 in the README. All survival outcomes are synthetic.
+- D-031/D-032 decisions are implemented and already approved in conversation.
+  Their formal statuses remain maintainer-owned; no entries change here.
 
-Tests:
-- Real Adam with and without extra validation produces identical parameter
-  leaves, epoch summaries and selected epoch on the same fixed synthetic cohort.
-- Controlled three-batch run pins initial/interval/final logging (0, 2, 3),
-  batch losses (1, 2, 3) and epoch mean 2. Intermediate validation .1 is better
-  than endpoint 3 but must not select the intermediate model.
-- Reject zero/negative/bool/fractional intervals and nonfinite initial/periodic
-  validation. Existing epoch failure and gradient checks remain.
-- Runner check pins logging interval, progress.csv steps/blank cells and metadata.
-  Figure test pins dense x/y series and selected update 4, rather than epoch 2.
-  Analytic prediction/truth, grouping and headless/closure checks remain.
+Generation command (repository root, warm hash-verified cache):
 
-Validation and visual QA:
-- Initial combined run had four figure-fixture setup errors because its old
-  SimpleNamespace lacked new trace fields. Added actual dense fixture values;
-  focused figure/runner rerun: 9 passed. No production fallback or skip added.
-- Nine-file optional suites: x64 90 passed, 1 skipped (60.42 s); float32
-  68 passed, 23 skipped (49.24 s). Ruff lint passed; cumulative gate below.
-- Actual fixed smoke at /private/tmp/survjax-mnist-convergence-smoke10:
-  verified 40 CSV rows, 39 batch losses, 11 full-validation samples, and exact
-  epoch-end CSV agreement. Validation starts at 1.2610878 and ends at 1.2119510.
-  Smoke metrics reproduce the prior version exactly. No optimization change.
-- Actual fixed full diagnostic at /private/tmp/survjax-mnist-convergence-full10:
-  3901 CSV rows, 3900 batch losses, 101 full-validation points; every epoch-end
-  value equals history.csv, and earliest best epoch is 7 in history and metadata.
-  Ten epochs on 50k train/10k validation, then selected model on 10k test.
-- Full validation starts at 1.2262992, falls to 1.1085411 after epoch 2, reaches
-  best endpoint 1.1009218 at epoch 7, then rises to 1.1097243 at epoch 10.
-  Epoch-mean training NLL continues falling from 1.1490074 to 1.0936650.
-- Selected test metrics: CNN mean LL -1.12626493, k 1.36612070, C .68943512;
-  intercept mean LL -1.23686779, k 1.18767083, C .5; oracle mean LL -1.11036825,
-  k 1.38, C .69751966. Shape is about 1.01% below truth; CNN beats intercept.
-  These are one fixed diagnostic run, not tuned/committed release artifacts.
-- Rendered smoke Figure 3 and all three full SVGs with rsvg-convert and inspected
-  with view_image. Full headline curves are much closer to truth. Dense Figure 3
-  shows batch noise and the validation plateau/deterioration with selected epoch
-  marked. Boxplots/markers are legible. No further training chosen from plots.
-- Full training took 84.79 s under concurrent checks; C first-call-inclusive
-  timings at 10k are .6724 s CNN, .3565 s intercept, .3711 s oracle. D-031 remains
-  open before any committed full results. Smoke/full outputs stay in /tmp.
+```bash
+SURVJAX_EXAMPLES_DATA=/private/tmp/survjax-mnist-verification MPLCONFIGDIR=/private/tmp/survjax-mpl-release-full uv run --group examples python -m examples.survival_mnist.run --config full --out examples/survival_mnist/results
+```
 
-No R generation or docs build. Remaining: settle full-run timing, committed
-release artifacts and executable docs after this step's review/handoff.
-Previous step final: aadbb14b2e75bb2a0589691c75614b236e3322d5.
+Exit 0. Preparation 4.97355 s, training 49.44318 s, on the CPU environment
+recorded in metadata. Verification suites ran concurrently; these timings are
+illustrative, not an isolated performance comparison. First C invocation may
+reuse earlier compilation; warm timing is a median of three synchronized calls.
+
+Acceptance evidence:
+- Finite gradients at initialization/after first update: full train completed its
+  explicit _require_finite checkpoints. Existing check_mnist_model finite-gradient
+  and check_mnist_training checkpoint failure tests remain the regression evidence.
+- CNN beats intercept on test mean LL: -1.12626493 > -1.23686779; on C:
+  .68943512 > .5. Oracle mean LL -1.11036825 and C .69751966, giving gaps
+  .01589668 and .00808454. No claim that the oracle gap must close.
+- Learned k 1.36612070 is 1.00575% below 1.38, within the 5% criterion.
+- Validation selects earliest best endpoint epoch 7. Test rows did not choose it.
+- Metadata/metrics contain actual 50k/10k/10k sizes and test n=10k for all models.
+  Realized censoring: train .50036, validation .5079, test .4995.
+- History has 10 rows; trace has 3901 data rows (3900 batch losses and 101
+  validation samples). Every step is present, last training cell blank, validation
+  at 0 and multiples of 39, and every endpoint agrees exactly with history.csv.
+  Independent NumPy means of the logged minibatches agree with epoch summaries
+  under the unchanged implementation float32 tolerances.
+- Both C timing fields agree exactly between CSV/JSON for each model. Seconds:
+  CNN first .342211 / warm .229402; intercept .188547 / .206041;
+  oracle .191947 / .220775. Warm is not assumed faster under timing noise.
+- Source hashes match the loader's verified SHA-256 table; root seed, settings,
+  config, selected epoch and repeat count agree across records.
+- The full diagnostic's numerical metric fields and history/progress fields are
+  reproduced exactly; CSV newlines are normalized to LF. Timing/provenance differs. No experiment change.
+
+Independent artifact check:
+`uv run --group examples python /private/tmp/verify_mnist11.py` exited 0:
+"PASS: full acceptance, cohort/censoring/hash checks, CSV/metadata/trace
+consistency, SVG structure" and "PASS: approved experiment numerical
+metrics/history/progress reproduced exactly". Initial harness import failed
+because /tmp was sys.path[0]; adding the repository root fixed the harness.
+No numerical field was modified. The key checks can be repeated without MNIST:
+
+```python
+import csv
+import json
+import math
+from pathlib import Path
+
+root = Path("examples/survival_mnist/results")
+
+
+def read(name):
+    with (root / name).open() as stream:
+        return list(csv.DictReader(stream))
+
+
+rows = read("metrics.csv")
+history = read("history.csv")
+progress = read("progress.csv")
+m = json.loads((root / "metadata.json").read_text())
+r = {x["model"]: x for x in rows}
+assert float(r["cnn"]["mean_log_likelihood"]) > float(
+    r["intercept"]["mean_log_likelihood"]
+)
+assert float(r["cnn"]["concordance"]) > float(r["intercept"]["concordance"]) == 0.5
+assert abs(float(r["cnn"]["shape"]) / 1.38 - 1) <= 0.05
+assert all(int(x["n"]) == 10000 for x in rows)
+assert m["sizes"] == {"train": 50000, "validation": 10000, "test": 10000}
+assert len(history) == 10 and len(progress) == 3901
+assert (
+    m["selected_epoch"]
+    == min(range(10), key=lambda i: float(history[i]["validation_nll"])) + 1
+)
+assert [int(x["step"]) for x in progress] == list(range(3901))
+v = {
+    int(x["step"]): float(x["validation_nll"]) for x in progress if x["validation_nll"]
+}
+assert list(v) == list(range(0, 3901, 39))
+for epoch, row in enumerate(history, 1):
+    assert float(row["validation_nll"]) == v[390 * epoch]
+for row in rows:
+    for col, key in (
+        ("concordance_seconds", "concordance"),
+        ("concordance_warm_seconds", "concordance_warm"),
+    ):
+        assert math.isfinite(float(row[col])) and float(row[col]) >= 0
+        assert float(row[col]) == m["timings_seconds"][key][row["model"]]
+```
+
+Visual QA: rendered each committed SVG with installed rsvg-convert into
+/private/tmp/survjax-mnist-artifact11/fig1/2/3.png and inspected with view_image.
+All ten image/curve pairs are legible, true curves dashed and closely aligned;
+boxplots show true markers by digit; convergence trace shows raw batch noise,
+full validation plateau/deterioration and epoch 7 selection. No clipping or
+layout changes needed. SVG XML parses and Figure 1 has exactly ten image nodes.
+PNG previews remain outside Git.
+
+Checks: optional nine-file suites, x64 91 passed/1 skipped (46.73 s), float32
+69 passed/23 skipped (37.30 s). Ruff format: 138 files already formatted;
+Ruff lint passed; mypy no issues in 21 source files (fresh-wheel gate).
+Gate completion appended below. No new tests for generated data; existing
+writer/math/selection tests remain, plus explicit artifact verification above.
+No docs build or R generation. The demo's executable-page acceptance remains
+for the docs step; do not claim the entire use case complete here.
+Previous step final: 222341684e877153122e3a6674250987cfdab7c9.
 Original worktree base: ee72c837549d14cb26e9983bf6d63ac54563f189.
-
-Cumulative check: scripts/check_wheel.sh --through A10 exited 0, all gates
-passed. Ruff format: 138 files already formatted; Ruff lint passed; mypy:
-no issues in 21 source files. Own suites: x64 1119 passed, 7 skipped (108.03 s);
-float32 1125 passed, 1 skipped (92.63 s). Doctests: 4 passed per mode.
-Acceptance: x64 2333 passed, 27 skipped (85.30 s); float32 2324 passed,
-36 skipped (72.91 s). Final format and git diff --check clean.
+Remaining sub-step: executable docs with live smoke and committed results.
 
 
-## Follow-up: approved timing protocol and review fixes
+CSV newline adjustment: git diff --no-index --check identified CRLF as trailing
+whitespace in the generated CSVs. Explicit lineterminator="\n" in all three
+writer constructors makes future output directly committable. Normalize this
+run's CSV newlines only; the artifact checker still compares every numerical
+field/history/trace to the approved diagnostic. Extend the existing writer
+check to require LF. The first fresh-wheel gate passed before this formatting
+fix; final targeted writer checks/static checks cover it. No core code changed.
 
-The maintainer explicitly approved the figures/experiment ("i'm happy with the
-figs and teh state of the experiment") and directed "ok just record both" after
-the timing explanation. D-031 records that decision; D-032 quotes the original
-request to replace the uninformative one-epoch Figure 3 with denser losses and
-its later approval. The reviewer cannot see this conversation. These are already
-made decisions, not new permission requests. Spec remains read-only and formal
-entry statuses remain maintainer-owned.
 
-- S-1: record the existing authorization in D-032. The dense figure, progress.csv
-  and unchanged epoch history are retained as the approved experiment version.
-- F-1: runner fixture now has 11 distinct losses (12 through 2) and 1408 training
-  rows, consistent with 11 batches and logging interval 2. Pin all 12 CSV rows,
-  including missing validation cells and the final validation-only row. The
-  previous step-1 indexing mutant now changes the first value from 12 to 2.
-- N-2: training timing notes name initial/periodic diagnostic validation and
-  per-batch loss logging; train's Raises includes diagnostic failures.
-- N-1: existing file-size nit acknowledged; no new module/config abstraction.
+Cumulative gate: scripts/check_wheel.sh --through A10 exited 0, "check: all
+gates passed through A10". Both dtype acceptance suites completed with the
+fresh wheel. Own suites: x64 1119 passed/7 skipped (81.73 s), float32 1125
+passed/1 skipped (75.56 s); doctests 4 passed per mode. Final acceptance output:
+float32 2324 passed/36 skipped (59.97 s). Ruff lint passed and mypy reported no
+issues in 21 source files. This gate preceded only CSV/SVG export whitespace normalization
+and final workflow/README wording. Final writer checks cover that fix:
+float32 4 passed (1.35 s), x64 4 passed (.48 s). Final Ruff format/lint and
+staged whitespace checks are clean. No broad repeat justified for newline-only
+example output and prose; no core code changed.
 
-Timing implementation: one module-level jitted public concordance callable;
-prepare/synchronize risk scores outside the clock. Record first invocation per
-model, then the median of 3 synchronized repetitions on identical scores/data.
-First invocation is not asserted cold: earlier models/calls may have compiled
-this shape. No cache clearing, new dependency or core C change. Existing C and
-likelihood results are retained; CSV and metadata gain concordance_warm_seconds
-and a per-model warm timing map, repeat count/statistic/callable/cache labels.
 
-The fake-clock test delays scalar completion until float conversion. It pins
-first 11 s, warm samples 7/2/1 s and median 2 s, with exactly 4 completed calls and
-identical float32 risk scores/data. It detects stopping clocks before completion,
-wrong repetition counts and using first/last/mean in place of median.
-
-Checks: nine-file optional suites x64 91 passed, 1 skipped (57.36s), float32
-69 passed, 23 skipped (46.00s). Focused initial metrics/runner float32:
-18 passed, 2 skipped (7.20s). Ruff lint/format and diff check clean.
-Actual fixed smoke: /private/tmp/survjax-mnist-both-timings10; identical approved
-scores/selection/plot data. CSV/metadata timing agreement verified for all 3
-models and repeat count 3. CNN first .123780s, warm .018424s; intercept first
-.018395s, warm .021210s; oracle first .019799s, warm .021023s. Timings fluctuate
-under concurrent checks; warm is not guaranteed faster and no threshold claimed.
-Synthetic 10k fixed-key strict ordering: C=1, first .298684s, warm .206253s.
-This is protocol evidence, not new full-run artifact evidence. No full training
-rerun or tuning needed for this reporting change. Cumulative gate below.
-
-This continues MNIST.10's round count rather than starting a new review to seek
-a different verdict. Starting HEAD for this follow-up: a6f8217. Original previous
-step aadbb14 and worktree base ee72c83 remain unchanged. Remaining: approved
-committed full artifacts and executable docs. No timing decision remains pending.
-
-Follow-up cumulative check: scripts/check_wheel.sh --through A10 exited 0;
-all gates passed. Ruff format: 138 files already formatted; lint passed; mypy:
-no issues in 21 source files. Own suites: x64 1119 passed, 7 skipped (102.72 s);
-float32 1125 passed, 1 skipped (94.95 s). Doctests: 4 passed per mode.
-Acceptance: x64 2333 passed, 27 skipped (93.18 s); float32 2324 passed,
-36 skipped (73.46 s). Final format/diff checks clean. No docs build, R generation
-or new full training run; the approved full experiment remains unchanged.
+Staged whitespace checking also found Matplotlib's trailing path-data spaces
+in SVGs. Strip terminal spaces/tabs only, retaining line boundaries and every
+path token. Apply the same formatting in the figure writer and pin the exported
+format in the existing SVG test. Compare freshly rasterized normalized SVGs
+against the pre-normalization PNGs pixel-for-pixel before committing. This is
+output formatting only; no figure redesign or numerical field edits.
+All three normalized SVGs were re-rendered and their PNG arrays compared with
+the pre-normalization PNGs: pixel-identical. Artifact verification still passes.
+Final focused export tests: float32 9 passed (10.36 s), x64 9 passed (9.65 s).
+Initial staged checking identified generated path whitespace; the final staged
+check is clean after normalization. No full training or numerical test repeat
+is needed for whitespace-only export changes.

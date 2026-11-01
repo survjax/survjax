@@ -1,3 +1,51 @@
+# MNIST.11 — Committed full-run artifacts (2026-11-01)
+
+Start clean at 2223416 (MNIST.10 final); original worktree base ee72c83.
+Maintainer accepted the figures/experiment and both C timing views, then asked
+for the next bits. One concept: produce the fixed full experiment's inspectable
+results from the approved code. D-031/D-032 decisions are already recorded;
+formal statuses remain maintainer-owned. No new permission or spec edit needed.
+Spec11.2/use-case03 Run/budget, Outputs, Acceptance, Files/commands; approved
+within-epoch progress CSV and first/warm timing protocol augment those outputs.
+
+Files:
+- examples/survival_mnist/results/: generate metrics.csv, history.csv,
+  progress.csv, metadata.json and fig1/2/3.svg directly with the existing CLI,
+  fixed50k/10k/10k cohorts,10 epochs and prescribed keys/settings. No hand-edited
+  numerical data or selected rerun. Both C timings measured at n=10k.
+- examples/survival_mnist/run.py and tests/unit/check_mnist_run.py: LF-only
+  CSV serialization and its output assertion, required by Git whitespace checks.
+- run.py _figures and check_mnist_figures.py: strip Matplotlib's trailing SVG
+  line whitespace; check output formatting and unchanged raster rendering.
+- examples/survival_mnist/README.md: reproduction command/source revision,
+  concise measured full results, sizes/selection, shape criterion, oracle gaps,
+  timing caveat, licensed MNIST figure attribution and remaining docs work.
+- REVIEW.md: reading order, full acceptance/consistency evidence, visual QA,
+  checks and independent-review MNIST.11, then stop.
+
+No numerical implementation, API, dependency, protected path, spec or training
+changes. Git whitespace checks exposed the existing CSV writer's default CRLF.
+Set only its three lineterminator arguments to LF and pin that output in the
+existing runner check. Normalize generated CSV newlines without changing fields.
+Matplotlib also emits trailing path-data spaces; remove only terminal spaces/tabs
+per SVG line and verify raster output is pixel-identical before/after.
+Generated data/SVGs naturally exceed300 textual lines; they are the required
+experiment artifacts, not new implementation. Human-authored changes stay
+small. Review the scalar evidence and rendered plots, not SVG path coordinates.
+No new tests for fixed data: extend the writer check for LF; existing math,
+writer, tracing and selection tests remain; run explicit independent artifact acceptance/consistency checks and
+record exact commands/results. Full experiment is synthetic outcomes on MNIST;
+no raw IDX/cache, label arrays or per-image predictions are committed.
+
+Run the approved full CLI once with verified warm cache. Check finite metrics,
+CNN beats intercept LL/C, k within5% of1.38, earliest best epoch by validation,
+all epoch/progress boundaries/means, cohort sizes/censoring, metadata/timing
+agreement and exact expected file set. Render/inspect all3 SVGs. No tuning or
+repeat based on test results. Run static checks, optional suites both dtypes
+and fresh-wheel A10 gate. No docs build/R generation in this data step.
+Docs to-do: display committed results/figures and live smoke on the page.
+Remaining sub-step: executable documentation after this handoff/review.
+
 # MNIST.10 follow-up — Both concordance timings (2026-11-01)
 
 Continue MNIST.10 after round1 at a6f8217; do not reset the review counter.

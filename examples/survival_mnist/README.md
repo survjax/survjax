@@ -93,7 +93,7 @@ ten-epoch configuration. The runner also writes `fig1.svg` (first test image
 per digit with predicted/true survival), `fig2.svg` (log-scale boxplots and
 truth by digit) and `fig3.svg` (NLL history and selected epoch). Plotting uses
 the headless Agg backend; Matplotlib's version is recorded in metadata.
-Committed full results and the executable page are still pending.
+Committed full results are in `results/`; the executable page is still pending.
 
 The metadata records versions, verified source SHA-256 hashes, CPU environment,
 root seed and key derivations, actual cohort sizes/censoring fractions, settings,
@@ -114,3 +114,44 @@ updates. Empty cells mean that loss was not evaluated there. Figure 3 plots
 these traces against updates. `history.csv` retains the epoch means, and only
 end-of-epoch validation selects checkpoints. Extra logging does not change
 training updates or make the one-epoch smoke run evidence of convergence.
+
+
+Full-run artifacts
+
+The committed [results](results/metadata.json) were generated from implementation
+commit `222341684e877153122e3a6674250987cfdab7c9`, with the locked examples
+environment. Reproduce from the repository root:
+
+```bash
+uv run --group examples python -m examples.survival_mnist.run --config full --out examples/survival_mnist/results
+```
+
+The cohorts are 50,000 training, 10,000 validation and 10,000 official test
+images. Validation
+selected epoch 7 of the fixed ten epochs; test results did not choose settings.
+
+| Model | Mean test log likelihood | Shape k | Harrell's C |
+| --- | ---: | ---: | ---: |
+| cnn | -1.12626493 | 1.36612070 | 0.68943512 |
+| intercept | -1.23686779 | 1.18767083 | 0.50000000 |
+| oracle | -1.11036825 | 1.38000000 | 0.69751966 |
+
+The CNN beats the intercept on both metrics. Its shape is 1.01% below
+1.38, within the 5% target. The oracle gaps are 0.01589668 in mean log likelihood
+and 0.00808454 in C; closing those gaps is not required.
+
+| C timing on 10,000 test rows (seconds) | First invocation | Warm median (3 repeats) |
+| --- | ---: | ---: |
+| cnn | 0.342211 | 0.229402 |
+| intercept | 0.188547 | 0.206041 |
+| oracle | 0.191947 | 0.220775 |
+
+These timings were collected while verification suites also ran; they are not
+an isolated performance comparison. Compiled code is reused across models,
+so first invocation does not mean a cold process. Full environment, settings,
+source hashes, censoring fractions and timing boundaries are in metadata.json.
+
+[Metrics](results/metrics.csv), [epoch history](results/history.csv) and
+[within-epoch trace](results/progress.csv) accompany the [survival panels](results/fig1.svg),
+[log-scale boxplots](results/fig2.svg) and [convergence plot](results/fig3.svg).
+Figure 1 includes the MNIST examples credited under CC BY-SA 3.0 above.

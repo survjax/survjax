@@ -307,3 +307,8 @@ def test_runner_uses_selected_predictions_tail_and_records(
         "10,2.0,3.05",
         "11,,3.0",
     ]
+
+    assert all(
+        b"\r\n" not in (tmp_path / name).read_bytes()
+        for name in ("metrics.csv", "history.csv", "progress.csv")
+    )

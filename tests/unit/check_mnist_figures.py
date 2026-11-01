@@ -137,6 +137,11 @@ def test_all_three_svgs_are_written_and_figures_closed(rendered):
     out, figures, _ = rendered
     assert set(figures) == {"fig1.svg", "fig2.svg", "fig3.svg"}
     assert all("<svg" in (out / name).read_text() for name in figures)
+    assert all(
+        not line.endswith((" ", "\t"))
+        for name in figures
+        for line in (out / name).read_text().splitlines()
+    )
     assert not plt.get_fignums()
 
 
