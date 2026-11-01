@@ -4,9 +4,11 @@ import argparse
 import csv
 import json
 import os
+import platform
 import subprocess
 import sys
 import tempfile
+from importlib.metadata import version
 from pathlib import Path
 from time import perf_counter
 
@@ -68,6 +70,7 @@ def _run(config: str, preparation: Path, out: Path) -> None:
         config=config,
     )
     training_seconds = perf_counter() - training_started
+    prediction_started = perf_counter()
     cnn, log_k = result.params
     predict = eqx.filter_jit(eqx.filter_vmap(cnn))
     log_scales = jnp.concatenate(
@@ -76,6 +79,8 @@ def _run(config: str, preparation: Path, out: Path) -> None:
             for start in range(0, len(test), 128)
         ]
     )
+    log_scales.block_until_ready()
+    prediction_seconds = perf_counter() - prediction_started
     # 03: only the oracle accesses test digit labels, after checkpoint selection.
     oracle_scales = data.TRUE_LOG_SCALES[labels[test]]
     rows = []
@@ -101,6 +106,77 @@ def _run(config: str, preparation: Path, out: Path) -> None:
                 zip(result.training_nll, result.validation_nll, strict=True), 1
             )
         )
+    metadata = {
+        "config": config,
+        "censor_limit": prepared["censor_limit"],
+        "intercept_log_parameters": prepared["intercept"],
+        "oracle": {
+            "shape": float(data.TRUE_SHAPE),
+            "log_scales_by_digit": data.TRUE_LOG_SCALES.tolist(),
+        },
+        "sizes": {name: len(indices) for name, indices in cohorts.items()},
+        "realized_censored": {
+            name: float(np.mean(~np.asarray(outcomes.event[indices])))
+            for name, indices in cohorts.items()
+        },
+        "selected_epoch": result.selected_epoch,
+        "training": {
+            "epochs": len(result.training_nll),
+            "batch_size": 128,
+            "drop_partial_batch": True,
+            "optimizer": "Adam",
+            "learning_rate": 1e-3,
+            "architecture": "Conv(1,16,3)-ReLU-Pool2/2-Conv(16,32,3)-ReLU-Pool2/2-Linear(800,64)-ReLU-Linear(64,1)",
+        },
+        "root_seed": 20261025,
+        "keys": {
+            "uc": "fold_in(key(root_seed),3)",
+            "validation": "fold_in(uc,1)",
+            "outcomes": "fold_in(fold_in(uc,0),global_index)",
+            "initialization": "fold_in(uc,2)",
+            "shuffle": "fold_in(fold_in(uc,3),epoch)",
+            "epoch_indexing": "zero-based",
+        },
+        "precision": {
+            "calibration_oracle_fit": "float64",
+            "outcomes_training_evaluation": "float32",
+        },
+        "timings_seconds": {
+            "preparation": prepared["preparation_seconds"],
+            "training": training_seconds,
+            "prediction": prediction_seconds,
+            "concordance": {row["model"]: row["concordance_seconds"] for row in rows},
+        },
+        "timing_notes": {
+            "preparation": "calibration, outcomes, fit; excludes data loading",
+            "training": "includes initialization, compilation and validation",
+            "prediction": "selected CNN, all test rows, includes compilation; synchronized",
+            "concordance": "per model, full test cohort; includes possible first-call compilation; synchronized",
+        },
+        "versions": {
+            name: version(name)
+            for name in (
+                "survjax",
+                "jax",
+                "jaxlib",
+                "numpy",
+                "equinox",
+                "optax",
+                "optimistix",
+            )
+        },
+        "environment": {
+            "python": platform.python_version(),
+            "platform": platform.platform(),
+            "cpu": platform.processor() or platform.machine(),
+            "cpu_count": os.cpu_count(),
+            "devices": [str(device) for device in jax.devices()],
+        },
+        "source_sha256": {name: hashes[1] for name, hashes in data.RESOURCES.items()},
+    }
+    (out / "metadata.json").write_text(
+        json.dumps(metadata, indent=2, allow_nan=False) + "\n"
+    )
     print(
         json.dumps(
             {

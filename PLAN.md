@@ -1,3 +1,35 @@
+# MNIST.8 — Reproducibility metadata (2026-11-01)
+
+Start clean at d8af61a (MNIST.7 final); original worktree base ee72c83.
+One concept: write metadata.json alongside the runner's two aggregate CSVs.
+Spec 11.2 and use-case03/common deliverable, Precision, Splits/keys, Outcome
+generator, Training, References/metrics and Files/commands. No public core API,
+module, dependency, protected path, spec or training behavior change.
+
+Files:
+- examples/survival_mnist/run.py: retain calibrated c and fitted log parameters
+  beyond the temporary bridge; write stored float64 oracle constants, config,
+  actual cohort sizes/realized censoring, selected epoch, epochs/batch/optimizer/
+  architecture, root key derivations, actual software/CPU environment and source
+  SHA256 hashes already verified by load_mnist. Record preparation/training,
+  synchronized prediction and per-model concordance times with timing semantics.
+  Write strict JSON (no NaN/Infinity); records contain no image/label rows.
+- tests/unit/check_mnist_run.py: extend controlled runner record assertions with
+  independent censoring fractions, all precision/parameter/settings/key fields,
+  controlled version/hardware values, deterministic timer sequence and sizes.
+  Verify record write, selection and CSV correspondence in the existing pipeline.
+- examples/survival_mnist/README.md: metadata content and timing boundaries.
+- REVIEW.md: overwrite, check evidence, independent review MNIST.8, then stop.
+
+Keep implementation/test diff about300 lines; run both dtype optional suites,
+Ruff/mypy and fresh-wheel A10 gate. Exercise same fixed smoke via warm cache,
+inspect JSON/CSV agreement; outputs remain temporary, no tuning or committed
+full-run evidence. Existing one-epoch shape miss remains an observation, not
+permission to tune. No new code tests in protected tests/spec.
+Docs to-do: display run metadata/settings and timing semantics. Remaining
+sub-steps: figure writer, prescribed full run/committed artifacts and executable
+page. Do not start those before maintainer review of this step.
+
 # MNIST.7 — CLI and CSV records (2026-10-31)
 
 Start clean at 45850eb; original branch base ee72c83. Implement the named

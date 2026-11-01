@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -56,7 +57,7 @@ def fake_cohorts(monkeypatch):
         "test": np.arange(60000, 60129),
     }
     outcomes = SimpleNamespace(
-        time=jnp.arange(1, 70001, dtype=jnp.float32), event=jnp.ones(70000, dtype=bool)
+        time=jnp.arange(1, 70001, dtype=jnp.float32), event=jnp.arange(70000) % 2 == 0
     )
     monkeypatch.setattr(data, "load_mnist", lambda: (pixels, labels))
     monkeypatch.setattr(data, "split_indices", lambda config: indices)
@@ -80,7 +81,7 @@ def test_preparation_calibrates_source_and_fits_training_only(monkeypatch, tmp_p
 
     def fit(time, event):
         np.testing.assert_array_equal(time, indices["train"] + 1)
-        assert event.all()
+        np.testing.assert_array_equal(event, indices["train"] % 2 == 0)
         return np.array([0.25, 1.5], dtype=np.float64)
 
     monkeypatch.setattr(data, "calibrate_mnist", calibrate)
@@ -99,6 +100,13 @@ def test_runner_uses_selected_predictions_tail_and_records(
             run._run("smoke", tmp_path / "missing", tmp_path)
         return
     labels, indices = fake_cohorts(monkeypatch)
+    ticks = iter([10.0, 14.0, 20.0, 23.0])  # Independent wall-clock boundary values.
+    monkeypatch.setattr(run, "perf_counter", lambda: next(ticks))
+    monkeypatch.setattr(run, "version", lambda name: f"{name}-test")
+    monkeypatch.setattr(run.platform, "python_version", lambda: "python-test")
+    monkeypatch.setattr(run.platform, "platform", lambda: "platform-test")
+    monkeypatch.setattr(run.platform, "processor", lambda: "cpu-test")
+    monkeypatch.setattr(run.os, "cpu_count", lambda: 8)
     prepared = tmp_path / "prepared.json"
     prepared.write_text(
         json.dumps(
@@ -160,3 +168,73 @@ def test_runner_uses_selected_predictions_tail_and_records(
         "epoch,training_nll,validation_nll",
         "1,2.0,3.0",
     ]
+
+    metadata = json.loads((tmp_path / "metadata.json").read_text())
+    assert metadata["config"] == "smoke"
+    assert metadata["censor_limit"] == 7
+    assert metadata["intercept_log_parameters"] == [0.25, 1.5]
+    assert metadata["oracle"]["shape"] == 1.38
+    # Host float64 generating rule, retained before any evaluation cast.
+    np.testing.assert_array_equal(
+        metadata["oracle"]["log_scales_by_digit"], np.log(10.0) - 0.2 * np.arange(10)
+    )
+    assert metadata["sizes"] == {"train": 128, "validation": 2, "test": 129}
+    # Alternating event flags, starting even; test has65 events and64 censored.
+    assert metadata["realized_censored"] == {
+        "train": 0.5,
+        "validation": 0.5,
+        "test": 64 / 129,
+    }
+    assert metadata["selected_epoch"] == 1
+    assert metadata["training"] == {
+        "epochs": 1,
+        "batch_size": 128,
+        "drop_partial_batch": True,
+        "optimizer": "Adam",
+        "learning_rate": 1e-3,
+        "architecture": "Conv(1,16,3)-ReLU-Pool2/2-Conv(16,32,3)-ReLU-Pool2/2-Linear(800,64)-ReLU-Linear(64,1)",
+    }
+    assert metadata["root_seed"] == 20261025
+    assert metadata["keys"] == {
+        "uc": "fold_in(key(root_seed),3)",
+        "validation": "fold_in(uc,1)",
+        "outcomes": "fold_in(fold_in(uc,0),global_index)",
+        "initialization": "fold_in(uc,2)",
+        "shuffle": "fold_in(fold_in(uc,3),epoch)",
+        "epoch_indexing": "zero-based",
+    }
+    assert metadata["precision"] == {
+        "calibration_oracle_fit": "float64",
+        "outcomes_training_evaluation": "float32",
+    }
+    assert metadata["timings_seconds"] == {
+        "preparation": 1,
+        "training": 4,
+        "prediction": 3,
+        "concordance": {"cnn": 0.1, "intercept": 0.1, "oracle": 0.1},
+    }
+    assert "excludes data loading" in metadata["timing_notes"]["preparation"]
+    assert "synchronized" in metadata["timing_notes"]["prediction"]
+    assert "compilation" in metadata["timing_notes"]["concordance"]
+    assert metadata["versions"] == {
+        name: f"{name}-test"
+        for name in (
+            "survjax",
+            "jax",
+            "jaxlib",
+            "numpy",
+            "equinox",
+            "optax",
+            "optimistix",
+        )
+    }
+    assert metadata["environment"] == {
+        "python": "python-test",
+        "platform": "platform-test",
+        "cpu": "cpu-test",
+        "cpu_count": 8,
+        "devices": [str(device) for device in jax.devices()],
+    }
+    assert metadata["source_sha256"] == {
+        name: hashes[1] for name, hashes in data.RESOURCES.items()
+    }

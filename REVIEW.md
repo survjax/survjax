@@ -1,120 +1,68 @@
-Independent review: round 2/3
+Independent review: round 1/3
 
-# MNIST.7 — CLI, precision processes and CSV records
+# MNIST.8 — Reproducibility metadata
 
-Read PLAN.md MNIST.7; spec/use-cases/03 main and details (Precision, Splits,
-References, Files and commands); run.py; check_mnist_run.py. No core changes.
-
-Scope split: CLI plus full reproducibility metadata would exceed the step
-budget, so this step owns executable orchestration and metrics/history CSV;
-metadata writer, figures and committed full results follow separately.
-No docs page edit, dependency, protected file or spec change. No model.py growth.
+Read PLAN.md MNIST.8, use-case03 details Files/commands, Precision, Splits/keys,
+Outcome generator, Training and References/metrics; run.py metadata dictionary
+and prediction timing; check_mnist_run.py controlled pipeline assertions.
 
 Invariants:
-- Standard-library-only parent launches CPU subprocesses sequentially; x64=1
-  before fitting/calibration imports, x64=0 before neural imports. No in-process
-  global precision toggle; subprocess failure aborts the pipeline.
-- Calibration uses exactly 60k source digits. Generate globally keyed outcomes
-  before slicing. Intercept fit sees selected train rows only. D-030's approved
-  fitted-bias/shape initialization passes float64 logs into train's explicit cast.
-- Train sees train/validation only. Selected CNN predicts on test in128-row
-  batches with the tail included, preserving index order. Only outcome/oracle
-  code sees digit labels; test likelihood/C cannot affect checkpoint selection.
-- eqx.filter_vmap keeps CNN parameters in the pytree before filter_jit wrapping.
-  The original inference-only jax.vmap wrapper emitted an Equinox warning;
-  this final wrapper removes it without changing the model or training.
-- Evaluate all three models through MNIST.6's public-likelihood/C path. Persist
-  scalar aggregate metrics and per-epoch histories only. Temporary precision
-  bridge JSON is fresh for each invocation and cleaned after children finish.
-- Smoke/full flags select the fixed existing splits/epoch counts, never tune.
-  This step does not claim full-run acceptance or a complete results directory.
+- Metadata only: no optimizer, model, outcome, split or selection changes.
+  No core API, module, dependency, protected file or spec edit. D-030 stands.
+- metadata.json retains c and fitted log parameters from the temporary float64
+  preparation bridge and oracle constants computed/stored in host float64.
+  Outcomes/training/evaluation remain float32 in the separate CPU child.
+- Cohort sizes and realized censoring use actual selected indices/events, not
+  advertised defaults or mean times. Test labels remain oracle-only after
+  checkpoint selection. Metadata contains no image/label/prediction rows.
+- Hashes come from the loader's SHA256-verified resource table. Runtime versions
+  come from installed package metadata, CPU environment from platform/os/JAX.
+  Settings and key descriptions document the fixed existing implementation.
+- Preparation excludes MNIST loading; training includes initialization/compile/
+  validation. Prediction blocks on the full concatenated result before its end
+  timestamp. C timings are copied from each evaluate result, which synchronizes.
+  All timing boundaries and possible first-call compilation are labelled.
+- Strict JSON refuses nonfinite values; selected epoch matches the returned
+  validation checkpoint. CSVs remain the existing aggregate metric/history form.
 
-Tests:
-- Parent child-call checks pin CPU/x64 order, shared preparation path/config,
-  requested output and failure propagation (failed prepare never trains).
-- Controlled preparation checks pin 60k calibration rows and training-only fit.
-- Controlled run checks pin training/validation observations and image alignment,
-  supplied initialization dtype, selected predictions, 129-row tail/order,
-  oracle label indexing, metrics model order and exact history content.
-- In x64 mode the training child explicitly refuses before loading anything;
-  the float32 process covers its pipeline. Existing optional suites cover the
-  actual fit, train, evaluation math, keys and input-failure rules.
+Test evidence:
+- Extend the existing controlled float32 runner path with alternating event
+  flags: train128/validation2 each half censored; test129 has64 censored/65 exact.
+  Fractions are hand-counted, including the tail, independently of writer code.
+- Controlled timer readings10/14/20/23 require training4s and prediction3s;
+  preparation1s comes from the independent bridge fixture, C .1s per model
+  from the existing metric collaborator. Checks pin timing provenance/labels.
+- Controlled version/CPU queries pin runtime record sources. Explicit expected
+  settings, root/derived keys, fit/oracle parameters, selected epoch, precision,
+  cohort sizes and verified hash fields pin all reproducibility requirements.
+- Existing pipeline checks still pin fit/training/oracle shape arguments,
+  generation inputs, aligned cohorts, ordered/tail predictions and CSV content.
+  x64 runner test checks the child refuses rather than silently promotes.
 
-Actual smoke evidence: verified warm cache, fixed config, no tuning.
-Initial run completed with CNN mean LL -1.1935250759, C .6301584244, k1.1871363;
-intercept mean LL -1.2371411324, C .5; oracle mean LL -1.1055958271, C .6948196888.
-CNN k is ~14% below1.38 and does not meet the 5% target on this one-epoch run.
-This is an observation to carry into the prescribed10-epoch full run, not a
-reason to choose a seed/checkpoint on test. No tuning undertaken. Ran the same
-fixed smoke again after changing the inference wrapper; final result below.
-Temporary output paths: /private/tmp/survjax-mnist-run7 and
-/private/tmp/survjax-mnist-run7-final; no MNIST rows/results committed.
+Actual smoke: fixed configuration, verified warm cache, temporary output only
+at /private/tmp/survjax-mnist-metadata8. JSON/CSV agreement check passed for
+all three model cohort sizes/C times, history length/selected epoch and realized
+censoring fractions {train:.5022, validation:.499, test:.5045}.
+Metrics reproduce MNIST.7: CNN meanLL -1.1935251951, C .6301579475,
+k1.1871362925; intercept meanLL -1.2371411324, C .5; oracle meanLL
+-1.1055958271, C .6948196888. The one-epoch shape remains ~14% low; no tuning.
+This is not full-run acceptance. C timing here is n=2000, not10k.
+Preparation4.9828s, training3.1311s, prediction .1123s under concurrent checks;
+C times CNN .2487s/intercept .0910s/oracle .0802s. No performance target claimed.
+Environment recorded: Python3.12.9, JAX/JAXlib .11.2, NumPy2.5.3,
+Equinox .13.8, Optax .2.8, Optimistix .1.0, CPU arm16 logical cores/cpu:0.
 
-Checks/results appended below. No R generation, docs build or full run claimed.
-Previous step final: 45850eb54d66d0a86d023c3aa658b8c5cfb72824.
+Checks: optional seven-file suites x64 77 passed/1 skipped (28.23s), float32
+55 passed/23 skipped (20.58s). Focused float32 runner4 passed (1.43s).
+Ruff lint passed. Cumulative fresh-wheel gate results appended below.
+No docs build, R fixtures or full run. Remaining sub-steps: figure writer,
+fixed full run/committed results, executable page. No new deviations/questions.
+Previous step final: d8af61a53bb2c7f4627d1de3df057fb5197234e2.
 Original worktree base: ee72c837549d14cb26e9983bf6d63ac54563f189.
 
-Final smoke (warning-free filter_vmap wrapper): c=6.9890429382458406;
-intercept logs [0.16221817172201644,1.4258202233235766]; selected epoch1.
-CNN mean LL -1.1935251951, C .6301579475, k1.1871362925;
-intercept mean LL -1.2371411324, C .5; oracle mean LL -1.1055958271,
-C .6948196888. Training5.6983s; preparation11.1488s under concurrent checks.
-History: trainingNLL1.2032518387, validationNLL1.2119510174. C call times:
-CNN .3944s, intercept .1741s, oracle .1103s, each on2000 test rows.
-The wrapper correction changes predictions only within float32 precision.
-
-Optional seven-file suites: x64 77 passed/1 skipped (49.28s), float32
-55 passed/23 skipped (37.55s). A focused float32 runner rerun after the
-wrapper correction is recorded below. Ruff format/check clean; initial lint
-found unused import/dict constructors, corrected before the cumulative gate.
-
-Completed checks:
-- Final-wrapper focused runner checks, float32: 4 passed (2.32s).
-- scripts/check_wheel.sh --through A10: all gates passed. Ruff format 136 files
-  already formatted; Ruff all checks passed; mypy no issues in21 source files.
-  Own suites: x64 1119 passed/7 skipped (113.61s); float32 1125 passed/1
-  skipped (83.23s). Doctests4 passed each. Acceptance: x64 2333 passed/27
-  skipped (65.86s), float32 2324 passed/36 skipped (60.14s).
-- Final Ruff and git diff --check clean.
-
-During implementation, maintainer-staged CLAUDE.md (new remaining-substep
-reporting rule) and .spec-seen updates appeared. They are outside this step
-and remain untouched. Requested maintainer direction on a separate commit;
-independent-review must wait for a clean working tree per its precondition.
-Commit attempt revealed an active maintainer-started merge of
-84d2943e788440db60504afb49a13360d43ad95e (new claude instruction), with no
-unresolved conflicts. Git refused the scoped commit: "cannot do a partial
-commit during a merge". No commit created. All runner files remain staged.
-AGENTS forbids merging without maintainer direction; independent review has
-not run. Await merge completion or explicit authorization to conclude it.
-
-Maintainer completed the merge and committed the staged runner at
-1b7dc5bb28bcb39c9d43d6c8605a476eac937cf9 (finish merge and updates).
-The tree is now clean. The incoming84d2943 instruction adds reporting of
-remaining sub-steps; .spec-seen is maintainer-updated. Neither was authored
-by this implementation step. The pending-merge text above is historical.
-Independent review MNIST.7 round1 can now proceed. No production changes
-since the warning-free smoke and complete cumulative gate recorded above.
-Remaining sub-steps: reproducibility metadata, figures and prescribed full
-run/committed results, executable docs page. Do not begin them before this
-step's review and maintainer handoff.
-
-
-Round1 findings and fixes:
-- F-1: controlled evaluate now checks all three supplied log shapes explicitly:
-  selected CNN float32(.3), fitted intercept .25, oracle log(1.38). Values
-  originate from the fixed test collaborators/generating rule, not runner output.
-- F-2: the outcome stand-in now requires exactly all70k labels and c=7,
-  the independent calibration result/bridge fixture. Both preparation and
-  training paths use this checked stand-in; wrong c or truncated labels fail.
-- N-1: training timer uses training_started, distinct from prediction batch start.
-- N-2: document the cross-process outcome invariant beside regeneration.
-  The reviewer independently verified bit-identical outcomes between dtype
-  processes; existing generator precision tests cover the same property.
-- No model/loss/optimizer/cohort or numeric calculation changed. No repeated
-  smoke/full run or cumulative gate needed for these assertions/comments/name.
-  Reviewer gate encountered only missing SURVJAX_WHEEL setup (5 errors); our
-  passing fresh-wheel wrapper result above includes these tests in both modes.
-- Fix-up checks: runner tests4 passed in x64 (1.11s) and4 passed in float32
-  (1.37s); Ruff lint passed; formatter added one blank line before the local
-  generator stand-in. Final format/diff checks clean.
+Cumulative check: scripts/check_wheel.sh --through A10 exit0, all gates passed.
+Ruff format136 files already formatted; Ruff all checks passed; mypy no issues
+in21 source files. Own suites x64 1119 passed/7 skipped (73.35s), float32
+1125 passed/1 skipped (70.92s). Doctests4 passed each mode. Acceptance suites
+x64 2333 passed/27 skipped (64.86s), float32 2324 passed/36 skipped (59.33s).
+Final format and git diff --check clean.
