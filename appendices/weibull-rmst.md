@@ -5,7 +5,7 @@ geometry: margin=0.8in
 colorlinks: true
 ---
 
-Mathematical reference for [`_weibull_rmst`](../src/survjax/_numerics.py).
+Mathematical reference for [`_weibull_rmst`](../src/survjax/_rmst.py).
 The symbols $k$, $b$ and $\tau$ denote shape, scale and cutoff; $k$ is
 dimensionless and $b,\tau$ share time units. Error bounds below concern
 real arithmetic; rounding and special-function error are additional effects.
@@ -81,8 +81,8 @@ No epsilon, probability floor, or altered cutoff is introduced.
 
 # Gamma middle region
 
-The code first computes $\ell=k(\log\tau-\log b)=\log x$, without forming
-$\tau/b$. For the middle branch it evaluates `gammainc(a, exp(ell))` and
+The code forms $\ell=k\log(\tau/b)=\log x$ using the stable ratio evaluation
+below. For the middle branch it evaluates `gammainc(a, exp(ell))` and
 $$
 \log M=\log b+\log\Gamma(1+a)+\log P(a,x).
 $$
@@ -134,6 +134,32 @@ right side. The large, possibly unrepresentable $x$ need never be constructed.
 
 # Stable evaluation
 
+For separated positive inputs, the code uses $\log\tau-\log b$, avoiding a
+potentially overflowing ratio. Near $\tau=b$, subtracting nearby rounded logs
+loses ratio precision, which large $k$ amplifies. When
+$|\log\tau-\log b|<1/2$, it instead uses `log1p` after a common power-of-two
+normalization:
+$$
+b=m\,2^e,\qquad n=\tau\,2^{-e},\qquad
+\log(\tau/b)=\log\{1+(n-m)/m\}.
+$$
+`frexp(b)` provides $m\in[1/2,1)$ and integer $e$; `ldexp(tau, -e)` provides
+$n$. Both operands use the **same** exponent, even if they straddle a power
+of two. In this branch $n/m\in(e^{-1/2},e^{1/2})\subset[1/2,2]$, so subtraction
+is exact for normal floating values (Sterbenz's lemma), and `log1p` retains
+the small relative displacement. The denominator is now of order one:
+differentiating the unscaled quotient can overflow through a reciprocal square
+when $b$ is tiny, even with a finite mathematical first derivative.
+
+The normalization is exact and changes neither the model nor the ratio.
+JAX differentiates the real mantissas; the integer exponent carries no tangent.
+For every fixed exponent, the ratio and its derivatives are the same smooth
+functions, including across exponent boundaries. No custom derivative or
+stopped active tangent is introduced. The inactive nearby route substitutes
+both operands with 1 **before** `frexp`, `ldexp`, division and `log1p`;
+otherwise an extreme ratio could overflow or its displacement could round to
+$-1$. The expression switch is not a probability floor or a parameter bound.
+
 The thresholds depend on $x$, not on $\tau/b$ alone. For illustration:
 
 | $k$ | Series when $\tau/b$ is below | Mean when $\tau/b$ is above |
@@ -158,10 +184,6 @@ expressions. A wider cutoff dtype can make the result representable when the
 parameter-storage dtype alone cannot. For example, $k=1/4$ gives
 $\mu=b\Gamma(5)=24b$, so for $b$ near the float32 maximum, a sufficiently
 large cutoff in float64 permits a result outside the float32 range.
-
-```{=latex}
-\clearpage
-```
 
 # Derivatives and zero cutoff
 

@@ -32,3 +32,5 @@ Before editing base.py/exponential.py/weibull.py, wait for the RMST ownership
 handoff. Use safe inputs and log-space reasoning; naive exp(eta)*0 at boundaries
 or saturated baseline hazards needs explicit numerical investigation.
 Record and escalate contract questions rather than inventing extra behavior.
+
+Final implementer evidence and remaining integration: [PH.8 audit](ph-evidence.md).
