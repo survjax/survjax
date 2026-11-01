@@ -1,3 +1,19 @@
+# MNIST.17 — Apply annotated walkthrough edits
+
+Starting/previous step commit 7840cd7; original worktree base ee72c83.
+Apply the maintainer's mnist2.md annotations to docs/use-cases/survival-mnist.md:
+remove realized-censoring prose and preprocessing/outcome-repeat prose; show an
+untyped loss snippet; use “Adam optimizer” and “Calculating Harrell’s C”;
+report actual learned and generating shapes, delete oracle-gap prose; explain
+shared shape/per-image scale is a choice and both can be predicted per image.
+Repair the orphaned closing expression left by the annotated deletion.
+No library/example/API/dependency changes or new tests. Spec 11.2/use-case03
+page order remains; explicit requested prose deletions govern this edit, while
+censor fractions and oracle metrics remain in metadata/table. Keep mnist2.md
+as the user's untouched, untracked input. Build docs in both modes, inspect
+rendered changed passages and validate the untyped snippet against loss's AST.
+Commit and run independent review for this single docs step.
+
 # MNIST showcase — completed
 
 All four INSTRUCTION.md steps are implemented and independently reviewed:

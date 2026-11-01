@@ -57,9 +57,6 @@ from examples.survival_mnist.data import TRUE_LOG_SCALES, TRUE_SHAPE
 FULL = ROOT / "examples/survival_mnist/results"
 full_meta = json.loads((FULL / "metadata.json").read_text())
 HEADER = "| Model | Mean log likelihood | Shape k | Harrell's C |\n| --- | ---: | ---: | ---: |\n"
-display(Markdown("Realized censoring is " + ", ".join(
-    f"{100 * fraction:.1f}% in {split}" for split, fraction in full_meta["realized_censored"].items()
-) + "."))
 ```
 
 ```{code-cell} ipython3
@@ -77,8 +74,6 @@ plt.close(fig)
 
 These are the curves we hope to recover from pixels. Digit labels generate
 the outcomes and supply an oracle for comparison; they never enter training.
-Images are scaled to [0, 1], and each image keeps the same synthetic outcome
-in both the smoke and full experiments.
 
 ## Your network, a survival likelihood
 
@@ -95,13 +90,15 @@ own network, this scalar output is the part to preserve.
 and a learned shared log shape go straight into `Weibull.from_log`, whose
 likelihood supplies the loss:
 
-```{literalinclude} ../../examples/survival_mnist/model.py
-:language: python
-:pyobject: loss
+```python
+def loss(params, images, data):
+    cnn, log_k = params
+    dist = survjax.Weibull.from_log(log_shape=log_k, log_scale=jax.vmap(cnn)(images))
+    return -dist.log_likelihood(data).mean()
 ```
 
 Minibatching is `data[idx]`: pass `images[idx]` and `data[idx]` to the loss to
-keep predictions and observations aligned. Adam updates the network and shape
+keep predictions and observations aligned. The Adam optimizer updates the network and shape
 together, using batches of 128 and a learning rate of 0.001. After each epoch,
 the validation likelihood selects the best checkpoint.
 
@@ -159,13 +156,11 @@ display(Markdown(HEADER + "".join(
     f"| {r['model']} | {float(r['mean_log_likelihood']):.3f} | {float(r['shape']):.3f} | {float(r['concordance']):.3f} |\n"
     for r in full_rows
 )))
-cnn, reference, truth = full_rows
+cnn = full_rows[0]
 display(Markdown(
     f"Validation selected **epoch {full_meta['selected_epoch']}**. "
-    f"The CNN's shape is {100 * abs(float(cnn['shape']) / 1.38 - 1):.1f}% from the generating value. "
-    f"Its remaining gaps to the oracle are "
-    f"{float(truth['mean_log_likelihood']) - float(cnn['mean_log_likelihood']):.3f} in mean log likelihood "
-    f"and {float(truth['concordance']) - float(cnn['concordance']):.3f} in C."
+    f"The CNN's learned shape is {float(cnn['shape']):.3f}, "
+    f"compared with the generating shape {float(TRUE_SHAPE):.3f}."
 ))
 ```
 
@@ -196,7 +191,7 @@ on new images.
 ```{code-cell} ipython3
 :tags: [remove-input]
 display(Markdown(
-    "Harrell's C on 10,000 test rows took "
+    "Calculating Harrell's C on 10,000 test rows took "
     + ", ".join(f"{r['model']} {float(r['concordance_seconds']):.3f} s" for r in full_rows)
     + " after compilation."
 ))
@@ -219,6 +214,12 @@ handles censored observations, and minibatches remain ordinary `data[idx]`
 slices. Held-out likelihood and [concordance](../concordance.md) come from the
 same library, so you can compare models without building a separate evaluation
 pipeline. Here, shared shape makes minus log scale a risk score for Harrell's C.
+
+We chose one learned shape shared by all images and a separate learned scale
+for each image. More flexible parameterizations are possible: the network
+could output both log shape and log scale per image, passing both vectors to
+`Weibull.from_log`. With varying shapes, survival curves can cross, so a
+concordance score would need to reflect the prediction you want to compare.
 
 MNIST is by Y. LeCun, C. Cortes and C. J. C. Burges, under CC BY-SA 3.0.
 [Dataset](http://yann.lecun.com/exdb/mnist/); survival outcomes in this example are synthetic.
