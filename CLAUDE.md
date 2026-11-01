@@ -96,6 +96,16 @@ The maintainer reviews all code, so optimise for reviewability over speed.
     review to get a different verdict (one retry only when no new round was
     written). If you disagree with a finding, give your reasons in `REVIEW.md`
     instead of working around it. Spec-questions are for the maintainer.
+11. **Report back commits that were starting points** If you start with a
+    new step and take 1-N commits to finish it, when reporting back,
+    always mention the last commit of the step, the last commit of the
+    previous step and the last commit the working-tree was based on.
+    This is to ensure that the maintainer can easily track the
+    progress of the work for every step and on the entire worktree.
+12. **Mention remaining sub-steps** when reporting back.
+    If a step has multiple sub-steps, mention which sub-step you are reporting
+    back on, and which sub-steps remain to be done. This helps the maintainer
+    understand the progress of the work and what is left to be done.
 
 ## Docs
 

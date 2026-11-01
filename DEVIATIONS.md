@@ -1,6 +1,10 @@
 # Deviations and spec questions
 
-## D-028 Bayesian demo prior choice
+Bayesian merge ID reconciliation (2026-11-01): Bayesian prior-choice D-028
+is now D-033; PH retains D-028. Historical Bayesian plans/reviews citing
+D-028 mean D-033 here. Entry bodies and statuses are preserved.
+
+## D-033 Bayesian demo prior choice
 - Step: BAYES.1 follow-up
 - Spec: 11.3, delegated 02-bayesian-survival-details Model sketch
 - Spec says: log_k ~ Normal(0,0.5), log_b0 ~ Normal(log(10),1.5),
@@ -12,6 +16,147 @@
   still need prior-predictive assessment in the later plots step.
 - Status: open.
 
+Merge ID reconciliation (2026-10-31): both workstreams independently assigned
+D-028. PH's constructor entry retains D-028; RMST's zero-boundary entry is
+now D-030. Historical RMST plans/reviews citing D-028 refer to D-030 here;
+those records remain verbatim. No entry body, decision or status is changed.
+
+## D-032 PH RMST when the equivalent natural parameter is unrepresentable
+
+- Step: PH.3a independent review round 1, S-1 (non-blocking for that round).
+- Spec sections: 4.4, 7.1, 8.7, 12.1, revision 40.
+- Spec says: PH RMST delegates through the built-in closure; RMST is NaN for
+  invalid cutoffs or parameter issues. Accuracy is required on the stated
+  k / tau-to-equivalent-scale domain; NaN is called the invalid-input signal.
+- Observed: valid original PH inputs can produce an unrepresentable natural
+  closure and NaN despite a finite representable mathematical RMST. In
+  float32, Weibull k=0.2,b=1,eta=-18,tau=1 gives NaN (true approximately
+  0.99999999) because exp(-eta/k) overflows. k=0.5,eta=-50 in float32 and
+  k=0.2,eta=-200 in float64 similarly give NaN instead of approximately 1.
+  The original parameter_issues() is clean. The examples are outside the
+  mandated tau/b_PH accuracy range; zero cutoff is handled exactly.
+- Did/propose: retain the reviewed implementation while fixing the unrelated
+  isolation test gap. Ask whether NaN is an acceptable detectable numerical
+  failure outside closure representability, or whether a log-scale RMST
+  route is required. No interpretation/exception adopted here; revision 40's
+  PH direct/likelihood derivative deferral does not cover this value question.
+  Record the current behavior for the future docs topic pending the decision.
+- Maintainer decision (2026-10-31): “ok agreed and on to the next bit” accepts
+  NaN as a detectable numerical-failure signal for unrepresentable PH closures
+  outside the promised accuracy range in this initial release. Document that
+  original parameter diagnostics may be clean; defer log-scale support to the
+  post-release numerical roadmap. This does not weaken the mandatory RMST
+  accuracy domain or its zero-boundary/valid-entry-isolation requirements.
+- Status: open (formal disposition remains maintainer-owned). The original
+  implementation is retained under that explicit decision; no spec edit here.
+
+## D-031 PH extreme-range parameter derivatives deferred after initial release
+
+- Step: PH.2c independent review, F-1/F-2/S-1; decision recorded during PH.3a.
+- Spec sections: 4.4, 7.3, 12.1–12.2, revision 39.
+- Spec says: PH closure identities hold in first parameter derivatives, and
+  PH over built-ins supports first/second derivatives on finite valid smooth
+  interior cases, without an explicit extreme-scaling exception.
+- Observed: values can be accurate while baseline reverse gradients are zero
+  or infinite despite finite true derivatives. For Weibull k=2,b=1,eta=-720,
+  t=1e150, expected (k,b,eta) gradient of log S is approximately
+  [-7.019e-11,4.064e-13,-2.032e-13]; reverse gives [0,0,-2.032e-13].
+  With eta=720,t=1e-150, reverse baseline gradients are infinite instead of
+  finite. Analogous float32 examples occur. Natural-parameter Hessians also
+  fail: Exponential r=1e-200,eta=500,t=1e-200 has finite true Hessian
+  [[0,-1.40e17],[-1.40e17,-1.40e-183]], but AD contains infinity/NaN.
+  This is not merely a rebuilt-vector artifact. PH.2c's eta-only redesign
+  did not repair these failures; the original review's F-2 remains valid.
+- Maintainer decision (2026-10-31): explicitly approved keeping the current
+  implementation and tests, documenting the limitation and adding a narrow
+  initial-release derivative exception, with numerical improvements on the
+  post-release roadmap. The designer is handling the specification change.
+  No sharp safe range is asserted; values, ordinary-range derivative evidence,
+  invalid-entry isolation and existing RMST requirements are not weakened.
+- Did/propose: preserve the PH.2c report/stress evidence, log this decision,
+  continue separate PH closure/RMST work, and await the design commit before
+  marking .spec-seen or claiming formal spec alignment. No spec edit here.
+- Spec alignment: designer commit 765c65bba9efb3af8ef4a13c1ecb8e302a47f346,
+  revision 40, adopts the narrow exception for PH direct-method/likelihood
+  derivatives and a post-initial-release roadmap item; staged RMST is unchanged.
+  The full diff was read and .spec-seen marked here during PH.3a.
+- Status: open (formal disposition remains maintainer-owned).
+
+## D-030 Higher cutoff derivatives at the staged RMST zero boundary
+
+- Step: RMST.2-report (2026-10-30), mathematical report requested before approval.
+- Spec section: 8.7 (derivatives and tau=0), with smooth-interior context in 7.3.
+- What the spec says: at tau=0, value and parameter derivatives are 0 and the
+  cutoff derivative is 1; derivatives not involving shape are supported to all
+  orders. It does not explicitly delimit that higher-order statement at zero.
+- What is observed: _weibull_rmst returns the active cutoff on its zero branch.
+  For k=1,b=2, the value and first derivative are 0 and 1, but autodiff's second
+  cutoff derivative is 0. The analytic right second derivative is -1/b=-0.5.
+  A float64 probe using jax.grad(jax.grad(f))(0.0) confirmed the discrepancy.
+  Independent review S-2 also found k=2,b=2 has third right derivative -0.5
+  versus autodiff 0; for 0<k<1 the second right derivative diverges to -inf.
+  Hence a finite all-orders zero-boundary guarantee cannot cover the range.
+- What was done/proposed: explain it in reports/weibull-rmst-math.md (since
+  replaced by appendices/weibull-rmst.md) and its compiled PDF; leave production code and spec unchanged. Maintainer must
+  decide whether zero guarantees end at the stated first derivatives or
+  whether existing higher right derivatives are also required. No boundary
+  guarantee is silently adopted. This is distinct from invalid-own-tangent S-1.
+- Maintainer decision (2026-10-30): after reading the code and report,
+  requested “take the conservative action” for guarantees. Adopt value and
+  first derivatives only at the Weibull/PH-Weibull zero boundary; retain
+  higher guarantees on valid smooth interior inputs. A NaN entry's own
+  tangents are unclaimed in the staged subset; valid-entry isolation remains
+  mandatory (also settles the interpretation requested by RMST.1 S-1).
+  Explicit follow-up confirmation: “yes, a NaN RMST result's own derivatives
+  may be unspecified”. Valid-entry isolation remains required.
+  Spec revision 38 records this decision separately in the design repo.
+  Permanent derivations are now in appendices/weibull-rmst.md; the historical
+  approval report is retained by its earlier commits, not in the appendix.
+- Status: open.
+
+## D-029 RMST parameter-derivative tolerance coordinates
+
+- Step: RMST.3 independent review, S-1 (2026-10-30).
+- Spec section: 12.1 staged RMST derivative tolerance exception.
+- Spec says: compare parameter-derivative errors with an absolute tolerance
+  scaled by |rmst|, without specifying the parameter coordinates.
+- Observed: raw dM/db is dimensionless while M has time units. On the 142-case
+  grid, the raw error/|M| needs a float32 factor about 1.3e-2 at b=1e-4;
+  such a factor is weak at b=1. The scale-invariant errors
+  |k*error_k|/|M| and |b*error_b|/|M| have measured maxima 1.28e-5 and
+  1.54e-6 in float32 (1.72e-14 and 2.45e-15 in float64).
+- Did/propose: tests use log-parameter units k*dM/dk and b*dM/db with the
+  fixed measured factors. Reviewer describes the reading as scale-invariant
+  and prefers it, while leaving the decision to the maintainer. Compared with
+  the literal reading, it is 5 times looser on dM/dk at k=0.2 and stricter
+  where k>1 or b>1; the natural scale is |M|/k or |M|/b.
+- Maintainer decision: explicitly answered “Confirm log-parameter scaling”
+  to the request to clarify 12.1. Spec revision 39 records that decision in
+  design commit 1389af4da8cd23f7c0d38da047ba14b5ac0801f2. Numerical code,
+  references and measured factors are unchanged; cutoff error retains
+  absolute scale 1. The status remains maintainer-owned.
+- Status: open.
+
+## D-028 PH baseline positional versus keyword-only construction
+
+- Step: PH.1 independent review round 1, 2026-10-29 (S-1).
+- Spec section: 4.2, 4.4 and 11.3, revision 37.
+- Spec says: 4.2 requires registered families to use keyword arguments only;
+  4.4 and 11.3 show `ProportionalHazards(base, log_hazard_ratio=...)` with a
+  positional baseline. The wrapper constructor exception, if any, is unstated.
+- Did / propose: commit 965cbeb0b61efafc0b6a981fa5fedeec5044d3dd reuses
+  registration's keyword-only rule, documents it and tests positional rejection.
+  I read 4.2 as governing the wrapper, but the independent reviewer considers
+  the conflicting examples an unresolved constructor contract. Record the gap
+  now and request the maintainer's choice: keep the keyword-only rule and
+  correct the examples, or allow a positional baseline for wrappers. Do not
+  change behavior or spec before that decision. Review verdict is maintainer;
+  numerical/test findings F-1 and F-2 remain open for the subsequent fix-up.
+- Maintainer decision, 2026-10-29: “allow for positional baseline in PH
+  wrapper”. Implement both positional and keyword baseline forms, retaining
+  keyword-only log_hazard_ratio. Spec remains read-only; formal disposition
+  of this entry stays with the maintainer.
+- Status: open
 
 ## D-027 Concordance result representation and undefined diagnostics
 

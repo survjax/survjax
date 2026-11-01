@@ -9,6 +9,7 @@ from jax.typing import ArrayLike
 
 from survjax import constraints
 from survjax._dtypes import normalize_parameters
+from survjax._rmst import _rmst_cutoff, _weibull_rmst
 from survjax.distributions._survival_methods import log_cdf_from_log_cumulative_hazard
 from survjax.distributions.base import SurvivalDistribution, param, register_family
 
@@ -71,6 +72,60 @@ class Weibull(SurvivalDistribution):
 
     shape: jax.Array = param(constraint=constraints.positive)
     scale: jax.Array = param(constraint=constraints.positive)
+
+    def _ph_equivalent(self, eta: jax.Array, invalid: jax.Array) -> "Weibull":
+        # spec 4.4/7.2: mask BEFORE eta/k and log(b), including invalid cutoffs.
+        shape = jnp.where(invalid, 1.0, self.shape)
+        scale = jnp.where(invalid, 1.0, self.scale)
+        eta = jnp.where(invalid, 0.0, eta)
+        shift = -eta / shape
+        limits = jnp.finfo(scale.dtype)
+        lower, upper = jnp.log(limits.tiny), jnp.log(limits.max)
+        log_scale = jnp.log(scale) + shift
+        # spec 8.7: avoid log/exp round-trip error amplified by large shape.
+        use_product = (
+            (shift > lower)
+            & (shift < upper)
+            & (log_scale > lower)
+            & (log_scale < upper)
+        )
+        product_scale = jnp.where(use_product, scale, 1.0) * jnp.exp(
+            jnp.where(use_product, shift, 0.0)
+        )
+        # spec 7.2: substitute before the discarded fallback's log and exp too.
+        log_scale = jnp.log(jnp.where(use_product, 1.0, scale))
+        log_scale = log_scale + jnp.where(use_product, 0.0, shift)
+        overflow = log_scale >= upper
+        scale = jnp.exp(jnp.where(overflow, 0.0, log_scale))
+        scale = jnp.where(
+            use_product, product_scale, jnp.where(overflow, jnp.inf, scale)
+        )
+        return Weibull(shape=shape, scale=scale)
+
+    def rmst(self, tau: ArrayLike) -> jax.Array:
+        """Return the restricted mean event time, integral of S(t) to tau.
+
+        Args:
+            tau: Broadcast cutoffs; use trailing ones for a time-first grid.
+        Returns:
+            Broadcast RMST; NaN for invalid cutoffs or parameter issues.
+            At zero, value/parameter derivatives are 0 and d/dtau is 1.
+            Only first derivatives are guaranteed at zero; higher shape
+            derivatives are unsupported in the interior too.
+        Raises:
+            TypeError: Nonreal cutoffs or incompatible shapes.
+            NotImplementedError: Higher derivatives involving shape.
+        """
+        cutoff = _rmst_cutoff(tau, self.batch_shape)
+        invalid = (
+            ~jnp.isfinite(cutoff)
+            | (cutoff < 0)
+            | self.parameter_issues().invalid_entries
+        )
+        shape = jnp.where(invalid, 1.0, self.shape)
+        scale = jnp.where(invalid, 1.0, self.scale)
+        cutoff = jnp.where(invalid, jnp.zeros_like(cutoff), cutoff)
+        return jnp.where(invalid, jnp.nan, _weibull_rmst(shape, scale, cutoff))
 
     @classmethod
     def from_log(cls, *, log_shape: ArrayLike, log_scale: ArrayLike) -> Self:
