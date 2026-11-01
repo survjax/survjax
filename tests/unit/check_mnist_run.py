@@ -29,6 +29,7 @@ def test_cli_isolates_precision_and_stops_on_preparation_failure(
     def child(command, *, env, check):
         calls.append((command, env))
         assert check and env["JAX_PLATFORMS"] == "cpu"
+        assert env["MPLBACKEND"] == "Agg"
         if fail:
             raise subprocess.CalledProcessError(1, command)
 
@@ -163,9 +164,21 @@ def test_runner_uses_selected_predictions_tail_and_records(
             "concordance_seconds": 0.1,
         }
 
+    figure_calls = []
+
+    def figures(pixels, actual_labels, shape, scales, result, out):
+        figure_calls.append(out)
+        np.testing.assert_array_equal(pixels[:, 0, 0, 0], indices["test"])
+        np.testing.assert_array_equal(actual_labels, labels[indices["test"]])
+        assert float(shape) == float(np.float32(0.3)) and result.selected_epoch == 1
+        np.testing.assert_array_equal(scales, indices["test"])
+        assert result.training_nll == (2.0,) and result.validation_nll == (3.0,)
+
+    monkeypatch.setattr(run, "_figures", figures)
     monkeypatch.setattr(model, "train", train)
     monkeypatch.setattr(model, "evaluate", evaluate)
     run._run("smoke", prepared, tmp_path)
+    assert figure_calls == [tmp_path]
     np.testing.assert_array_equal(predictions[0], indices["test"])
     assert predictions[1] == 1.5
     np.testing.assert_array_equal(
@@ -240,6 +253,7 @@ def test_runner_uses_selected_predictions_tail_and_records(
             "equinox",
             "optax",
             "optimistix",
+            "matplotlib",
         )
     }
     assert metadata["environment"] == {

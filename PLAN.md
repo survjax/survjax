@@ -1,3 +1,36 @@
+# MNIST.9 — Figure writer (2026-11-01)
+
+Start clean at 97203e7 (MNIST.8 final); original worktree base ee72c83.
+Implement the three use-case03 figures in the already-named run.py. Spec11.2;
+use-case03 main Outputs and details Figures/Precision/Splits. No core API,
+module, dependency, protected path or spec change. D-031 remains an open
+future full-run timing choice; no timing behavior changes in this step.
+
+Files:
+- examples/survival_mnist/run.py: private figure writer receives selected CNN
+  log shape/scales, official-order test pixels/labels and training histories.
+  Public survival_grid on float32 linspace(0,20,201), first test image per
+  digit, 2x5 groups each with image and predicted/true curves (truth dashed).
+  fig1.svg headline, fig2.svg boxplots over all test predictions grouped by
+  digit with generating log-scale markers, fig3.svg epoch NLL histories with
+  selected epoch marked. Close each figure; no extra model selection/training.
+  Matplotlib imports remain in float32 child, not stdlib-only parent.
+- tests/unit/check_mnist_figures.py: optional offline analytic exponential
+  curves, exact grid/first-image selection/true curves, full digit groups,
+  histories and one-based selected mark, SVG outputs and figure closure.
+- tests/unit/check_mnist_run.py: check figure writer gets the selected inputs,
+  all test rows in official order and the runner output directory.
+- examples/survival_mnist/README.md: emitted figures and remaining full/docs work.
+- REVIEW.md: requirement evidence, visual QA and independent review MNIST.9.
+
+Keep changed implementation/tests about300 lines; run.py remains about300 lines.
+Run both dtype optional suites, Ruff/mypy, fresh-wheel A10 gate, actual fixed
+warm-cache smoke into /tmp and render/inspect plots. No committed MNIST data,
+images or full results in this step. No tuning based on smoke metrics.
+Docs to-do: embed/caption figures and MNIST attribution on the eventual page.
+Remaining sub-steps: decide D-031 before fixed full run/committed artifacts;
+then executable docs. Commit/review then stop for maintainer handoff.
+
 # MNIST.8 — Reproducibility metadata (2026-11-01)
 
 Start clean at d8af61a (MNIST.7 final); original worktree base ee72c83.

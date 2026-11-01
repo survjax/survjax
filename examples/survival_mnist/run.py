@@ -39,6 +39,74 @@ def _prepare(config: str, destination: Path) -> None:
     )
 
 
+def _figures(pixels, labels, log_k, log_scales, result, out: Path) -> None:
+    """Write the three use-case03 SVGs from official-order selected test predictions."""
+    import jax.numpy as jnp
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    import survjax
+    from examples.survival_mnist.data import TRUE_LOG_SCALES, TRUE_SHAPE
+
+    labels, log_scales = np.asarray(labels), np.asarray(log_scales)
+    matches = [np.flatnonzero(labels == digit) for digit in range(10)]
+    if any(len(indices) == 0 for indices in matches):
+        raise ValueError("figures require a test image for every digit")
+    first = np.array([indices[0] for indices in matches])
+    times = jnp.linspace(0, 20, 201, dtype=jnp.float32)
+    predicted = survjax.Weibull.from_log(
+        log_shape=jnp.asarray(log_k, dtype=jnp.float32),
+        log_scale=jnp.asarray(log_scales[first], dtype=jnp.float32),
+    ).survival_grid(times)
+    truth = survjax.Weibull.from_log(
+        log_shape=jnp.log(jnp.asarray(TRUE_SHAPE, dtype=jnp.float32)),
+        log_scale=jnp.asarray(TRUE_LOG_SCALES, dtype=jnp.float32),
+    ).survival_grid(times)
+    fig = plt.figure(figsize=(16, 6), layout="constrained")
+    panels = fig.add_gridspec(2, 5)
+    for digit in range(10):
+        pair = panels[digit // 5, digit % 5].subgridspec(1, 2, width_ratios=(1, 2))
+        image, curve = fig.add_subplot(pair[0]), fig.add_subplot(pair[1])
+        image.imshow(pixels[first[digit], 0], cmap="gray", vmin=0, vmax=1)
+        image.set_title(f"Digit {digit}")
+        image.set_axis_off()
+        curve.plot(times, predicted[:, digit], label="CNN")
+        curve.plot(times, truth[:, digit], "--", label="True")
+        curve.set(xlabel="Time", ylabel="Survival", xlim=(0, 20), ylim=(0, 1))
+        if digit == 0:
+            curve.legend(fontsize=8)
+    fig.suptitle("First test image per digit: predicted and true survival")
+    fig.savefig(out / "fig1.svg")
+    plt.close(fig)
+    fig, ax = plt.subplots(figsize=(9, 4), layout="constrained")
+    ax.boxplot(
+        [log_scales[labels == digit] for digit in range(10)], tick_labels=range(10)
+    )
+    ax.scatter(range(1, 11), TRUE_LOG_SCALES, marker="D", color="tab:red", label="True")
+    ax.set(
+        xlabel="True digit", ylabel="Log scale", title="Predicted log scale by digit"
+    )
+    ax.legend()
+    fig.savefig(out / "fig2.svg")
+    plt.close(fig)
+    fig, ax = plt.subplots(figsize=(8, 4), layout="constrained")
+    epochs = np.arange(1, len(result.training_nll) + 1)
+    ax.plot(epochs, result.training_nll, "o-", label="Training")
+    ax.plot(epochs, result.validation_nll, "s-", label="Validation")
+    ax.axvline(
+        result.selected_epoch, linestyle="--", color="black", label="Selected epoch"
+    )
+    ax.set(
+        xlabel="Epoch",
+        ylabel="Negative log likelihood",
+        title="Training history",
+        xticks=epochs,
+    )
+    ax.legend()
+    fig.savefig(out / "fig3.svg")
+    plt.close(fig)
+
+
 def _run(config: str, preparation: Path, out: Path) -> None:
     import equinox as eqx
     import jax
@@ -164,6 +232,7 @@ def _run(config: str, preparation: Path, out: Path) -> None:
                 "equinox",
                 "optax",
                 "optimistix",
+                "matplotlib",
             )
         },
         "environment": {
@@ -178,6 +247,7 @@ def _run(config: str, preparation: Path, out: Path) -> None:
     (out / "metadata.json").write_text(
         json.dumps(metadata, indent=2, allow_nan=False) + "\n"
     )
+    _figures(pixels[test], labels[test], log_k, log_scales, result, out)
     print(
         json.dumps(
             {
@@ -198,7 +268,7 @@ def main() -> None:
     parser.add_argument("--config", choices=("smoke", "full"), default="smoke")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
-    env = dict(os.environ, JAX_PLATFORMS="cpu", JAX_ENABLE_X64="1")
+    env = dict(os.environ, JAX_PLATFORMS="cpu", JAX_ENABLE_X64="1", MPLBACKEND="Agg")
     with tempfile.TemporaryDirectory(prefix="survjax-mnist-") as temporary:
         preparation = str(Path(temporary) / "preparation.json")
         subprocess.run(

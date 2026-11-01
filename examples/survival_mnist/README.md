@@ -86,8 +86,11 @@ The parent launches CPU-only float64 preparation/fit, then float32 training and
 evaluation, independent of its own precision setting. It writes `metrics.csv`,
 `history.csv` and `metadata.json`, and prints calibration/fit values, timings,
 the selected epoch and three metric rows. Use `--config full` for the fixed
-ten-epoch configuration. Figures, committed full results and the executable
-page are still pending.
+ten-epoch configuration. The runner also writes `fig1.svg` (first test image
+per digit with predicted/true survival), `fig2.svg` (log-scale boxplots and
+truth by digit) and `fig3.svg` (NLL history and selected epoch). Plotting uses
+the headless Agg backend; Matplotlib's version is recorded in metadata.
+Committed full results and the executable page are still pending.
 
 The metadata records versions, verified source SHA-256 hashes, CPU environment,
 root seed and key derivations, actual cohort sizes/censoring fractions, settings,
@@ -96,4 +99,5 @@ oracle constants.
 Preparation time excludes loading MNIST; training includes compilation and
 validation. Prediction and concordance times wait for completion and include
 any first-call compilation. Concordance timing uses the entire evaluation
-cohort (2k smoke, 10k full). No image, digit-label or prediction rows are stored.
+cohort (2k smoke, 10k full). The metadata contains no image, digit-label or
+prediction rows.
