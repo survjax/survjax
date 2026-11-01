@@ -82,6 +82,8 @@ constants use float64. No global precision setting is changed in the library.
 The likelihood needs per-image parameters and the aligned observations;
 it does not need an adapter for the network. Exact events and right censoring
 are handled by the public [likelihood API](../likelihood.md).
+Minibatches are just `data[idx]`: the training loop passes `images[idx]` and
+`data[idx]` directly to `loss`, keeping pixels and observations aligned.
 
 ```{literalinclude} ../../examples/survival_mnist/model.py
 :language: python
@@ -106,11 +108,13 @@ avoids network access. Set `SURVJAX_EXAMPLES_DATA` to choose the cache directory
 ```{code-cell} ipython3
 with tempfile.TemporaryDirectory(prefix="survjax-mnist-docs-") as temporary:
     smoke = Path(temporary)
-    subprocess.run(
+    completed = subprocess.run(
         [sys.executable, "-m", "examples.survival_mnist.run", "--config", "smoke", "--out", str(smoke)],
         cwd=ROOT, env=dict(os.environ, MPLCONFIGDIR=str(smoke / "matplotlib")),
-        check=True, capture_output=True, text=True,
+        check=False, capture_output=True, text=True,
     )
+    if completed.returncode:
+        raise RuntimeError(f"MNIST smoke failed ({completed.returncode}):\n{completed.stdout}\n{completed.stderr}")
     with (smoke / "metrics.csv").open() as stream:
         smoke_rows = list(csv.DictReader(stream))
 display(Markdown("**Live smoke result — one epoch, 2,000 test images.**"))
@@ -133,6 +137,8 @@ the oracle uses the true parameters associated with the hidden digit label.
 Higher mean log likelihood and C are better. With shared shape, minus log scale
 ranks risk in the same direction at every time, so it supplies the score for C.
 The constant intercept receives C = 0.5 when comparable pairs exist.
+All three C values use the public
+[`survjax.concordance_index`](../concordance.md), alongside public test likelihoods.
 
 ```{code-cell} ipython3
 :tags: [remove-input]

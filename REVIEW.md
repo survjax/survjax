@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # MNIST.12 — Executable documentation page
 
@@ -59,3 +59,20 @@ README resolves prior review N-5 (heading) and N-6 (format provenance).
 
 Remaining: browser layout inspection when that surface is available. No code,
 experiment or docs implementation substep remains; no publishing or merging.
+
+
+## Round 1 response
+
+- F-1: added explicit `images[idx]` / `data[idx]` minibatching prose beside
+  the literalincluded loss, and named/linked public survjax.concordance_index
+  for all three reported C values. Existing score-direction explanation remains.
+- N-7: a failed captured smoke child now raises RuntimeError containing its
+  exit status, stdout and stderr. An inline failure-injection check extracted
+  the actual notebook cell and substituted a real Python child exiting 23
+  with a stderr sentinel: the resulting error exposed both status and sentinel.
+  Output: "Smoke-cell failure exposes child stderr and exit status: passed."
+- No spec question or new behavior is introduced. These are coverage and error
+  visibility fixes. Complete two-mode docs rebuild after the fix: exit 0; both builds report
+  "build succeeded." MNIST execution 24.76s / 23.53s. Inline HTMLParser checks
+  verified the new minibatch prose, public-C link and three real tables in both
+  pages. git diff --check passes. No new numerical/library code changed.
