@@ -44,7 +44,7 @@ def rendered(tmp_path_factory):
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(Figure, "savefig", capture)
         patch.setattr(Axes, "boxplot", boxes)
-        _figures(pixels, labels, np.float64(0), log_scales, history, out)
+        _figures(pixels, labels, np.log(np.float64(2)), log_scales, history, out)
     return out, figures, groups
 
 
@@ -56,7 +56,7 @@ def test_headline_selects_first_image_and_matches_analytic_survival(rendered):
     times = np.arange(201) / 10
     for digit in range(10):
         image, curve = axes[2 * digit : 2 * digit + 2]
-        # First digit d is at row9-d, so b=2+(9-d)=11-d, exponential k=1.
+        # First digit d is at row9-d, so b=2+(9-d)=11-d, with non-unit shape k=2.
         np.testing.assert_array_equal(
             image.images[0].get_array(),
             np.full((28, 28), np.float32(9 - digit) / np.float32(19)),
@@ -67,7 +67,7 @@ def test_headline_selects_first_image_and_matches_analytic_survival(rendered):
         )
         np.testing.assert_allclose(
             prediction.get_ydata(),
-            np.exp(-times / (11 - digit)),
+            np.exp(-((times / (11 - digit)) ** 2)),
             atol=tol.ATOL[False],
             rtol=tol.RTOL[False],
         )
