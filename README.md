@@ -28,15 +28,19 @@ Currently available:
 - **Survival and hazard calculations:** survival probabilities, log survival,
   log density, log CDF, hazard, log hazard, and cumulative hazard, with grid
   methods for evaluation across times.
+- **Proportional hazards:** `ProportionalHazards` wraps a baseline with a
+  caller-computed log hazard ratio; see the [PH guide](docs/proportional-hazards.md)
+  for broadcasting, likelihoods and derivative limits.
 - **Evaluation:** Harrell's concordance for exact and right-censored data
   without truncation.
 - **Custom distributions:** register a family with parameter declarations,
   `log_survival(t)`, and `reference_time()`; the base supplies derived methods,
   including an autodiff-based log density.
 
-Restricted mean survival time, `model.rmst(tau)`, is available for Exponential
-and Weibull models; see the [RMST guide](docs/rmst.md) for cutoff broadcasting
-and derivative limits. Unrestricted means, medians and quantiles remain planned.
+Restricted mean survival time, `model.rmst(tau)`, is available for Exponential,
+Weibull and their PH wrappers; see the [RMST guide](docs/rmst.md) for cutoff
+broadcasting, derivatives and numerical-failure limits. Unrestricted means,
+medians and quantiles remain planned.
 
 ## Installation
 
@@ -96,7 +100,7 @@ higher scores indicate higher risk.
 - **Numerical accuracy:** stable log-space calculations, without probability
   floors, clipping, or added epsilons.
 - **Differentiable likelihoods:** first and second parameter derivatives on
-  valid, smooth interior cases.
+  valid, smooth interior cases within the documented derivative guarantees.
 - **Performance:** support for `jax.jit` and `jax.vmap`, with correctness checked
   in eager and transformed execution.
 

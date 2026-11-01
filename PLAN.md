@@ -1,3 +1,72 @@
+# RMST.d3 — Complete PH RMST teaching and availability (2026-11-01)
+
+Integration sub-step 2, after RMST.integration3 round 1 verdict merge.
+Step start /previous step final: 393c4e93aba42501c3eb622f525095b1eed4291d.
+Original dedicated-worktree base: 8757c0fda78e34e6e818249adedd2a144a33c33d.
+Work only on clean release-rmst. Preserve all unfinished parent plans below
+verbatim; this remains the same unfinished RMST sub-slice, with no archival
+commit. PH integration is complete; no source/exports/helper changes needed.
+
+One documentation topic, target under 300 changed implementation/doc lines:
+- docs/rmst.md: retain native Exponential/Weibull explanation, add executable
+  PH closure identities for both baselines and the (3,1) baseline x (3,2) eta
+  batch with explicit cutoff axes. Explain native methods are independent;
+  PH delegates to equivalent built-ins. Show first derivatives in baseline
+  parameters/eta/tau in both AD modes, supported fixed-shape Hessians, zero
+  values/first derivatives, and valid-entry isolation with shared parameters.
+  Extend the higher-shape restriction and first-only zero boundary to PH.
+  Add a small registered custom baseline showing native and PH RMST raise
+  under jit, with no generic fallback. Cover invalid eta/parameter/cutoff
+  policies and the accepted D-032 unrepresentable-closure NaN with clean
+  original diagnostics outside the equivalent-scale accuracy domain, using
+  one all-dtype executable example. D-031 direct/likelihood derivative
+  deferral does not relax RMST. Do not expose new APIs or promise full Hessians.
+- README.md: advertise PH availability with its guide link and RMST for
+  native built-ins and their PH wrappers. Preserve the minimal example.
+- docs/api.md: complete now-unblocked RMST.d2 N-3 /integration3 N-2 by adding
+  rmst to both native member lists; add guide links. Fix integration3 N-1's
+  obsolete PH-planned sentence in the RMST guide.
+- .spec-seen: full revision 40->41 diff read (MNIST-only, no RMST change).
+  Mark this worktree using ../scripts/spec-since.sh dev-release-rmst --mark;
+  no spec edit, no changes in another implementer's checkout.
+- REVIEW.md: overwrite for RMST.d3 round 1/3 with reading order, example and
+  requirement map, actual checks/results, limitations and remaining handoff.
+
+Read current AGENTS/CLAUDE, release handoffs, PH evidence, spec 4.4–4.5,5,
+7.2–7.3,8.7,10.5,12.1–12.2 and D-028–D-032 decisions. Public surface unchanged.
+No source/test/tolerance/dependency/build-config/index/appendix/protected edits.
+Assertions accompany the committed executable examples; no redundant unit test
+for this docs-only step. Use analytical PH closure/derivative identities as
+comparison origins and unchanged repository tolerances for regression runs.
+
+Validation: run scripts/build_docs.sh directly (no redirect/env prefix/wrapper),
+executing separate dtype processes with warnings/errors fatal. Inspect generated
+RMST page/output/links/appendix download, home/sidebar navigation and all three
+RMST autodoc entries in both modes. Visually inspect the retained figure; only
+claim full-browser inspection if it succeeds. Run focused API-reference,
+native RMST and PH RMST regressions in both dtype processes, Ruff/mypy and
+whitespace checks. No full numerical/wheel rerun for unchanged code: prior
+393c4e9 REVIEW.md retains full combined A10 and wheel/source-archive evidence.
+Commit, invoke independent-review exactly (max three rounds), then stop/report.
+
+Remaining sub-step 3: final combined evidence map and maintainer decision
+handoff for D-028/D-029/D-030/D-031/D-032, with formal statuses unchanged.
+Retain installation artifact paths/hashes and the independent PH/staged RMST
+acceptance-delivery gap. No tests/spec edits; no release-wide demo claims.
+Maintainer merges release-rmst into main after reviewed completion. No push
+or publication; generic summaries/quadrature and new core work are out of scope.
+
+Implementation/evidence: guide adds PH closure/batch/derivative/isolation/
+zero/custom-failure examples and all agreed limitations; README/API gaps
+N-1/N-2 fixed. Direct strict docs build passes both modes, 16 RMST cells;
+HTML/figure/download inspection passes within the recorded browser limitation.
+Focused native/PH/API regressions: 72 passed per dtype. README analytical
+checks, Ruff/mypy, whitespace and complete plan/source preservation checks
+pass. Content diff remains under 300 lines; historical installation artifacts
+retained and rehashed, with exact evidence in REVIEW.md. Commit/review then stop.
+
+---
+
 # RMST.integration3 — Integrate reviewed PH through PH.8 (2026-11-01)
 
 Sub-step 1: resolve the maintainer-started PH merge, validate the combined

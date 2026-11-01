@@ -4,6 +4,7 @@ This reference covers public distributions, their methods, data and diagnostic
 types. Each entry is generated from the docstring you also see with `help()`.
 For worked examples, see the guides:
 [SurvivalData](survival-data.md), [Exponential and Weibull](builtin-families.md),
+[proportional hazards](proportional-hazards.md), [RMST](rmst.md),
 [likelihoods](likelihood.md), [time grids](grids.md) and [writing a distribution](distributions.md).
 
 ## Likelihood contributions
@@ -63,12 +64,12 @@ Both families also have every method of `SurvivalDistribution` listed under
 
 ```{eval-rst}
 .. autoclass:: survjax.Exponential
-   :members: from_log, log_survival, cumulative_hazard, log_cdf, log_prob, log_hazard, hazard, reference_time
+   :members: from_log, log_survival, cumulative_hazard, log_cdf, log_prob, log_hazard, hazard, reference_time, rmst
 ```
 
 ```{eval-rst}
 .. autoclass:: survjax.Weibull
-   :members: from_log, log_survival, cumulative_hazard, log_cdf, log_prob, log_hazard, hazard, reference_time
+   :members: from_log, log_survival, cumulative_hazard, log_cdf, log_prob, log_hazard, hazard, reference_time, rmst
 ```
 
 ## Proportional hazards
