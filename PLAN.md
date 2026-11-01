@@ -1,3 +1,65 @@
+# CI.1 — Three-platform CPU GitHub Actions (2026-11-01)
+
+Start on maintainer-created branch ci at
+84d2943e788440db60504afb49a13360d43ad95e (worktree starting base).
+Previous implementation endpoint: aae68920769855aa08227f4b7c4818ce7a820923
+(RMST.integration); subsequent commits are inherited maintainer metadata.
+Earlier unfinished RMST/A9 records below remain
+owned by their original workstreams; preserve them rather than archiving
+unfinished work. This CI step adds no numerical feature or public API.
+
+Files and behavior, planned before code:
+- .github/workflows/ci.yml: push, pull_request and manual CPU checks on
+  ubuntu-24.04, macos-15 (Apple silicon), windows-2022 (x64), Python 3.12,
+  uv 0.11.19 and the unchanged lock. Read-only token, independent job failures,
+  bounded runtime and cancellation of superseded runs. Force JAX_PLATFORMS=cpu.
+- Provision locked dev/test dependencies and build a wheel while online;
+  export its native absolute path with Python so Windows Git Bash does not
+  leak an MSYS path. Run the unchanged scripts/check.sh --through A10 offline
+  with two workers. Its own suite, source doctests and independent tests each
+  run in separate float64/float32 processes. Keep tests/spec read-only.
+- tests/install/test_wheel.py: select Scripts/python.exe on Windows and
+  bin/python elsewhere. Existing out-of-tree wheel tests verify this path
+  through actual installation on each matrix platform; no mock-only tests.
+- REVIEW.md: overwrite for CI.1 with invariant/check map and honest platform
+  limits. No docs/, protected paths, spec, dependencies or lock changes.
+
+Spec covered: 10.1 (existing static checks), 10.3 (locked CPU baseline,
+separate dtype processes, installed package, optional accelerator evidence),
+12.1/12.2 (existing through-A10 acceptance gate, no new slice).
+Validate YAML, Ruff/mypy, lock consistency, full local wheel gate, whitespace
+and scope. Commit then use independent-review, at most three rounds; stop.
+Hosted Linux/Windows execution requires pushing, which is outside this step.
+
+GPU assessment / subsequent optional step (not enabled in this commit):
+- Prefer manually dispatched Linux/NVIDIA verification. GitHub larger runners
+  offer a T4, or use an ephemeral self-hosted/cloud GPU. Runner availability,
+  account eligibility and billing must be chosen before adding a working job.
+- Pin a separate accelerator environment to the CPU JAX version plus compatible
+  CUDA plugins/libraries and record the NVIDIA driver. Do not mutate uv.lock
+  or add GPU dependencies to core. Current JAX guidance offers CUDA 12/13;
+  choose against actual GPU and driver (Linux minima 525/580 respectively).
+- Set JAX_PLATFORMS=cuda, assert GPU devices, log versions/driver/devices and
+  run applicable numerical/transformation/spec suites per dtype, initially
+  serially to avoid GPU memory contention. Installation smoke tests retain
+  their separate CPU-only environment. Record backend failures explicitly.
+- Require float32 and float64 evidence before NVIDIA support claims; measure
+  performance separately. Metal remains experimental/float32 only, outside
+  required CPU CI. Do not execute untrusted PRs on a persistent GPU runner.
+Sources checked 2026-11-01:
+https://docs.github.com/en/actions/reference/runners/larger-runners
+https://docs.jax.dev/en/latest/installation.html
+
+Local validation completed: unchanged fresh-wheel A10 gate exits 0; own
+suites 1097/7 x64 and 1103/1 x32 passed/skipped; source doctests 4 each;
+independent suites 2332/28 x64 and 2322/38 x32. YAML/Ruff/mypy/lock and
+whitespace checks pass. REVIEW.md records commands and platform limits.
+
+Remaining sub-steps: CI.1 review and hosted CPU runs after maintainer push;
+GPU provisioning, separate lock and optional workflow require a later step.
+
+---
+
 # RMST.integration — Resolve the maintainer-started main merge (2026-10-31)
 
 Branch: release-rmst. Merge already in progress when requested; finish that

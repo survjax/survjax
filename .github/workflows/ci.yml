@@ -1,0 +1,68 @@
+name: CPU CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cpu-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: CPU / ${{ matrix.os }} / Python 3.12
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2022]
+    defaults:
+      run:
+        shell: bash
+    env:
+      JAX_PLATFORMS: cpu
+      PYTEST_WORKERS: "2"
+      UV_LOCKED: "true"
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.11.19"
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install locked dependencies and build wheel
+        run: |
+          uv sync --locked --group dev
+          uv build --wheel
+      - name: Record wheel and CPU environment
+        run: |
+          uv run python - <<'PY'
+          import os
+          import platform
+          import sys
+          from pathlib import Path
+
+          import jax
+          import numpy
+
+          wheel, = Path("dist").glob("*.whl")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+              env.write(f"SURVJAX_WHEEL={wheel.resolve()}\n")
+          print(platform.platform(), platform.machine(), sys.version)
+          print(f"JAX {jax.__version__}, NumPy {numpy.__version__}")
+          print(jax.devices())
+          assert all(device.platform == "cpu" for device in jax.devices())
+          PY
+      - name: Run all gates through A10 in both dtype modes
+        env:
+          UV_OFFLINE: "1"
+          UV_PYTHON_DOWNLOADS: never
+        run: bash scripts/check.sh --through A10
