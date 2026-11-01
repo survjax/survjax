@@ -1,3 +1,75 @@
+# PH.5 — Executable proportional-hazards guide (2026-11-01)
+
+Authorized by “ok on to next part”. Clean release-ph start /previous PH.4 final:
+2a341c87b870f5f0baba8269e432db01aedc9f6a. Original worktree launch:
+8757c0fda78e34e6e818249adedd2a144a33c33d. Current AGENTS.md/CLAUDE.md,
+PH handoff, existing MyST-NB guides and spec 4.4,5,6,7.3,8.7,10.5,12.1–12.2
+read. Keep unfinished PH and merged PLAN histories here; do not archive them.
+
+Before docs edits: one PH topic, about 250 changed documentation lines:
+- Create docs/proportional-hazards.md as an executable MyST-NB guide. Public
+  API only, synthetic examples, existing locked docs dependencies. Cover
+  positive eta /hazard direction, positional baseline and keyword-only eta,
+  caller-computed predictors, a baseline (S,1) x eta (S,2) with K=S time-first
+  grids and indexing, exact/right likelihood and an ordinary eta Hessian.
+- Show RMST on Exponential/Weibull via same-family PH closures, scalar and
+  explicit cutoff grids, units, unsupported custom closures and remaining
+  summaries. State the distinct shape-Hessian and first-order-only Weibull
+  zero-boundary restrictions, without weakening nonshape interior AD.
+- Document revision-40 extreme-scaling DIRECT/LIKELIHOOD parameter derivative
+  deferral accurately: baseline/eta/mixed derivatives may fail despite finite
+  true derivatives and accurate values; no mapped safe boundary or blanket
+  tail exemption. RMST retains its separate contract.
+- Document accepted D-032 behavior: original diagnostics can be clean while
+  unrepresentable natural PH closure produces NaN outside mandatory RMST
+  accuracy range. Include the explicit float32 example in both dtype builds,
+  without changing global x64 mode, issue flags, implementation or tolerances.
+- Include a small survival plot contrasting baseline and hazard ratio 2, with
+  labeled month/probability axes. Use Matplotlib already in the docs group.
+- docs/api.md: add a two-line link from the owned PH section to the guide.
+  This is a docs-only PH-topic step, not a broader code-step exception.
+- Keep docs/index.md, docs/conf.py, playground and other implementers' pages
+  unchanged. Mark this page orphan in its front matter for the pending shared
+  index/TOC integration; the API link makes it reachable now. Hand off the
+  root navigation entry to maintainer/A9 as the release packet requires.
+
+Tests with the docs: executable cells assert shapes, zero boundaries,
+finite ordinary derivatives, declared-issue masks and documented NaN failure.
+Analytical expected values in prose come from exp(-t) and the hand-derived
+NLL=3*exp(eta)-eta, not the implementation. Do not introduce ad hoc numeric
+assertion tolerances or import tests helpers into user examples. Existing
+numerical suites already check accuracy; no unrelated library/test changes.
+
+Run scripts/build_docs.sh DIRECTLY, without redirects/environment assignments
+or shell wrappers, on both dtype modes. Inspect generated HTML, executed
+notebook outputs, API link and rendered figure in both builds. Run applicable
+Ruff/mypy/whitespace and API-reference checks. No code change, dependency,
+protected path, spec/deviation edit, source/PDF appendix rebuild or publishing.
+Record actual results/invariants in REVIEW.md, commit, invoke independent-review
+PH.5 exactly (up to three rounds), stop/report with final/previous/original
+SHAs and remaining integration/audit work.
+
+PH.5 results: new guide 237 lines plus 3 API-link lines = 240 changed docs
+lines. Initial and final direct docs builds exit 0 in both dtype modes, with
+12 source pages and fresh notebook execution. Final source wording scopes
+ordinary derivative guarantees to built-ins, explicitly states unsupported
+likelihood rows yield NaN, and keeps shape out of nonshape Hessian arguments.
+HTML outputs checked: eight cells each mode, loss (3,2,3), RMST near0.864665,
+leading (3,3,2) grids and explicit f32 NaN failure with clean original issues
+in BOTH modes. Plot inspected, same pixels across modes; links work both ways.
+Ruff/mypy/whitespace clean; strict API-reference test 1 passed (0.41s). No code,
+dependency, test, shared-nav/config/playground or protected-path edit. No full
+core/wheel rerun for this docs-only change; same library passed PH.4's gate.
+Exact commands, scope, mathematical references and outputs in REVIEW.md.
+Commit and invoke independent-review PH.5 round 1/3 exactly; stop/report.
+
+Docs to-do /remaining: maintainer/A9 root navigation integration after this
+page exists; final PH evidence/acceptance audit, including the independent PH
+spec tests when supplied. Existing D-031/D-032 formal status stays open and
+maintainer-owned; this guide records the already accepted/spec-aligned limits.
+
+---
+
 # PH.4 — Public exports and installed API integration (2026-11-01)
 
 Start / previous PH.3d final: 5e3868094391e0c5464c92d3775c42902c8ab2cb,
