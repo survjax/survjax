@@ -1,6 +1,6 @@
 # MNIST.17 — Apply walkthrough annotations
 
-Independent review: round 1/3.
+Independent review: round 1/3 requested; blocked by reviewer usage limit.
 
 ## Read first
 
@@ -34,3 +34,13 @@ per-image shape head and preserves the shared-shape risk-score explanation.
 
 Starting/previous step 7840cd7; original worktree base ee72c83. One docs step,
 no remaining sub-steps beyond independent review. No known implementation issue.
+
+## Review execution status
+
+Both the initial invocation and the one permitted retry exited 1 with:
+“You've hit your 5-hour limit · resets 12:20am (Europe/Amsterdam)”.
+No MNIST.17.md review file was produced. No verdict is claimed. Following
+independent-review step 2, stop after the failed retry and report. Only the
+independent review remains; docs edits and verification are complete.
+Native Brave reload also confirms the changed loss, shape sentence, removals
+and parameterization note in the rendered x64 page.
