@@ -1,3 +1,12 @@
+# MNIST.14 — Showcase data
+
+Authorized to continue all four steps without intermediate maintainer stops.
+Change data.py and data/outcome tests; delete calibration.json. No public
+library API. Spec 11.2/use-case03 data, precision, outcomes and split rules.
+Keep hash/parsing, fixed cohorts and deterministic outcome checks; remove
+calibration and misuse guards. Run focused float32 tests. Docs deferred to
+MNIST.16. Starting/previous commit f77b901; original base ee72c83.
+
 # MNIST.13 — Showcase specification (2026-11-01)
 
 Starting/previous-step commit: c1a0915; original worktree base: ee72c83.
