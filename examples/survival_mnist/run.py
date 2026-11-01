@@ -1,66 +1,34 @@
-"""CPU survival MNIST runner; launch with python -m examples.survival_mnist.run."""
+"""Train a CNN with a survjax likelihood on synthetic MNIST survival times."""
 
 import argparse
 import csv
 import json
-import os
 import platform
-import subprocess
-import sys
-import tempfile
 from importlib.metadata import version
 from pathlib import Path
 from time import perf_counter
 
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
+import numpy as np
 
-def _prepare(config: str, destination: Path) -> None:
-    from examples.survival_mnist.data import (
-        calibrate_mnist,
-        generate_outcomes,
-        load_mnist,
-        split_indices,
-    )
-    from examples.survival_mnist.model import fit_intercept
-
-    _, labels = load_mnist()
-    start = perf_counter()
-    c = calibrate_mnist(labels[:60000])
-    outcomes = generate_outcomes(labels, c)
-    indices = split_indices(config)["train"]
-    fitted = fit_intercept(outcomes.time[indices], outcomes.event[indices])
-    destination.write_text(
-        json.dumps(
-            {
-                "censor_limit": c,
-                "intercept": fitted.tolist(),
-                "preparation_seconds": perf_counter() - start,
-            }
-        )
-    )
+import survjax
+from examples.survival_mnist import data, model
 
 
 def _figures(pixels, labels, log_k, log_scales, result, out: Path) -> None:
-    """Write the three use-case03 SVGs from official-order selected test predictions."""
-    import jax.numpy as jnp
-    import matplotlib.pyplot as plt
-    import numpy as np
-
-    import survjax
-    from examples.survival_mnist.data import TRUE_LOG_SCALES, TRUE_SHAPE
-
+    """Plot predicted survival, digit scales and training progress."""
     labels, log_scales = np.asarray(labels), np.asarray(log_scales)
     matches = [np.flatnonzero(labels == digit) for digit in range(10)]
-    if any(len(indices) == 0 for indices in matches):
-        raise ValueError("figures require a test image for every digit")
     first = np.array([indices[0] for indices in matches])
     times = jnp.linspace(0, 20, 201, dtype=jnp.float32)
     predicted = survjax.Weibull.from_log(
-        log_shape=jnp.asarray(log_k, dtype=jnp.float32),
-        log_scale=jnp.asarray(log_scales[first], dtype=jnp.float32),
+        log_shape=log_k,
+        log_scale=log_scales[first],
     ).survival_grid(times)
     truth = survjax.Weibull.from_log(
-        log_shape=jnp.log(jnp.asarray(TRUE_SHAPE, dtype=jnp.float32)),
-        log_scale=jnp.asarray(TRUE_LOG_SCALES, dtype=jnp.float32),
+        log_shape=jnp.log(data.TRUE_SHAPE),
+        log_scale=data.TRUE_LOG_SCALES,
     ).survival_grid(times)
     fig = plt.figure(figsize=(16, 6), layout="constrained")
     panels = fig.add_gridspec(2, 5)
@@ -82,7 +50,9 @@ def _figures(pixels, labels, log_k, log_scales, result, out: Path) -> None:
     ax.boxplot(
         [log_scales[labels == digit] for digit in range(10)], tick_labels=range(10)
     )
-    ax.scatter(range(1, 11), TRUE_LOG_SCALES, marker="D", color="tab:red", label="True")
+    ax.scatter(
+        range(1, 11), data.TRUE_LOG_SCALES, marker="D", color="tab:red", label="True"
+    )
     ax.set(
         xlabel="True digit", ylabel="Log scale", title="Predicted log scale by digit"
     )
@@ -92,22 +62,11 @@ def _figures(pixels, labels, log_k, log_scales, result, out: Path) -> None:
     fig, ax = plt.subplots(figsize=(8, 4), layout="constrained")
     epochs = np.arange(1, len(result.training_nll) + 1)
     selected = result.selected_epoch
-    dense = bool(result.batch_nll and result.validation_progress)
-    if dense:
-        ax.plot(
-            np.arange(len(result.batch_nll)),
-            result.batch_nll,
-            label="Training minibatch",
-        )
-        steps, values = zip(*result.validation_progress, strict=True)
-        ax.plot(steps, values, "o-", label="Full validation")
-        selected *= len(result.batch_nll) // len(epochs)
-    else:
-        ax.plot(epochs, result.training_nll, "o-", label="Training")
-        ax.plot(epochs, result.validation_nll, "s-", label="Validation")
+    ax.plot(epochs, result.training_nll, "o-", label="Training")
+    ax.plot(epochs, result.validation_nll, "s-", label="Validation")
     ax.axvline(selected, linestyle="--", color="black", label="Selected epoch")
     ax.set(
-        xlabel="Optimizer updates" if dense else "Epoch",
+        xlabel="Epoch",
         ylabel="Negative log likelihood",
         title="Training convergence",
     )
@@ -115,154 +74,66 @@ def _figures(pixels, labels, log_k, log_scales, result, out: Path) -> None:
     fig.savefig(out / "fig3.svg")
     plt.close(fig)
 
-    # Generated SVG path whitespace has no visual meaning but fails Git checks.
-    for name in ("fig1.svg", "fig2.svg", "fig3.svg"):
-        path = out / name
-        path.write_text(
-            "\n".join(line.rstrip(" \t") for line in path.read_text().splitlines())
-            + "\n"
-        )
 
-
-def _run(config: str, preparation: Path, out: Path) -> None:
-    import equinox as eqx
-    import jax
-    import jax.numpy as jnp
-    import numpy as np
-
-    import survjax
-    from examples.survival_mnist import data, model
-
-    if jax.config.x64_enabled:
-        raise RuntimeError("training/evaluation require a separate float32 process")
-    prepared = json.loads(preparation.read_text())
+def main() -> None:
+    """Load images, train, evaluate and plot the fixed smoke or full experiment."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--config", choices=("smoke", "full"), default="smoke")
+    parser.add_argument("--out", type=Path, required=True)
+    args = parser.parse_args()
     pixels, labels = data.load_mnist()
-    cohorts = data.split_indices(config)
-    # Reproduce preparation outcomes exactly: same labels/c/global keys and
-    # explicit float32 generator arithmetic, independent of process x64 mode.
-    outcomes = data.generate_outcomes(labels, prepared["censor_limit"])
+    outcomes = data.generate_outcomes(labels)
     observations = survjax.SurvivalData(outcomes.time, outcomes.event)
+    cohorts = data.split_indices(args.config)
     training, validation, test = (
         cohorts[name] for name in ("train", "validation", "test")
     )
-    log_every_batches = max(1, (len(training) // 128 + 9) // 10)
-    training_started = perf_counter()
+    intercept = model.fit_intercept(outcomes.time[training], outcomes.event[training])
+    started = perf_counter()
     result = model.train(
         pixels[training],
         observations[training],
         pixels[validation],
         observations[validation],
-        initial_intercept=np.array(prepared["intercept"], dtype=np.float64),
-        config=config,
-        log_every_batches=log_every_batches,
+        initial_intercept=intercept,
+        epochs=1 if args.config == "smoke" else 10,
     )
-    training_seconds = perf_counter() - training_started
-    prediction_started = perf_counter()
+    training_seconds = perf_counter() - started
     cnn, log_k = result.params
-    predict = eqx.filter_jit(eqx.filter_vmap(cnn))
-    log_scales = jnp.concatenate(
-        [
-            predict(pixels[test[start : start + 128]])
-            for start in range(0, len(test), 128)
-        ]
-    )
-    log_scales.block_until_ready()
-    prediction_seconds = perf_counter() - prediction_started
-    # 03: only the oracle accesses test digit labels, after checkpoint selection.
-    oracle_scales = data.TRUE_LOG_SCALES[labels[test]]
-    rows = []
-    for name, shape, scales in (
-        ("cnn", log_k, log_scales),
-        ("intercept", prepared["intercept"][0], prepared["intercept"][1]),
-        ("oracle", np.log(data.TRUE_SHAPE), oracle_scales),
-    ):
-        rows.append(
-            {"model": name, **model.evaluate(shape, scales, observations[test])}
+    log_scales = model.predict(cnn, pixels[test])
+    rows = [
+        dict(model=name, **model.evaluate(shape, scales, observations[test]))
+        for name, shape, scales in (
+            ("cnn", log_k, log_scales),
+            ("intercept", *intercept),
+            ("oracle", jnp.log(data.TRUE_SHAPE), data.TRUE_LOG_SCALES[labels[test]]),
         )
-    out.mkdir(parents=True, exist_ok=True)
-    with (out / "metrics.csv").open("w", newline="") as stream:
+    ]
+    args.out.mkdir(parents=True, exist_ok=True)
+    with (args.out / "metrics.csv").open("w", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=list(rows[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
-    with (out / "history.csv").open("w", newline="") as stream:
+    with (args.out / "history.csv").open("w", newline="") as stream:
         writer = csv.writer(stream, lineterminator="\n")
         writer.writerow(("epoch", "training_nll", "validation_nll"))
         writer.writerows(
-            (epoch, train, valid)
-            for epoch, (train, valid) in enumerate(
+            (i, train, valid)
+            for i, (train, valid) in enumerate(
                 zip(result.training_nll, result.validation_nll, strict=True), 1
             )
         )
-    with (out / "progress.csv").open("w", newline="") as stream:
-        writer = csv.writer(stream, lineterminator="\n")
-        writer.writerow(("step", "training_batch_nll", "validation_nll"))
-        validation_progress = dict(result.validation_progress)
-        writer.writerows(
-            (
-                step,
-                result.batch_nll[step] if step < len(result.batch_nll) else "",
-                validation_progress.get(step, ""),
-            )
-            for step in range(len(result.batch_nll) + 1)
-        )
     metadata = {
-        "config": config,
-        "censor_limit": prepared["censor_limit"],
-        "intercept_log_parameters": prepared["intercept"],
-        "oracle": {
-            "shape": float(data.TRUE_SHAPE),
-            "log_scales_by_digit": data.TRUE_LOG_SCALES.tolist(),
-        },
-        "sizes": {name: len(indices) for name, indices in cohorts.items()},
+        "config": args.config,
+        "sizes": {name: len(idx) for name, idx in cohorts.items()},
         "realized_censored": {
-            name: float(np.mean(~np.asarray(outcomes.event[indices])))
-            for name, indices in cohorts.items()
+            name: float(np.mean(~np.asarray(outcomes.event[idx])))
+            for name, idx in cohorts.items()
         },
         "selected_epoch": result.selected_epoch,
-        "selected_epoch_indexing": "one-based",
-        "training": {
-            "epochs": len(result.training_nll),
-            "log_every_batches": log_every_batches,
-            "batch_size": 128,
-            "drop_partial_batch": True,
-            "optimizer": "Adam",
-            "learning_rate": 1e-3,
-            "architecture": "Conv(1,16,3)-ReLU-Pool2/2-Conv(16,32,3)-ReLU-Pool2/2-Linear(800,64)-ReLU-Linear(64,1)",
-        },
-        "root_seed": 20261025,
-        "keys": {
-            "uc": "fold_in(key(root_seed),3)",
-            "validation": "fold_in(uc,1)",
-            "outcomes": "fold_in(fold_in(uc,0),global_index)",
-            "initialization": "fold_in(uc,2)",
-            "shuffle": "fold_in(fold_in(uc,3),epoch)",
-            "epoch_indexing": "zero-based",
-        },
-        "precision": {
-            "calibration_oracle_fit": "float64",
-            "outcomes_training_evaluation": "float32",
-        },
-        "timings_seconds": {
-            "preparation": prepared["preparation_seconds"],
-            "training": training_seconds,
-            "prediction": prediction_seconds,
-            "concordance": {row["model"]: row["concordance_seconds"] for row in rows},
-            "concordance_warm": {
-                row["model"]: row["concordance_warm_seconds"] for row in rows
-            },
-        },
-        "timing_notes": {
-            "preparation": "calibration, outcomes, fit; excludes data loading",
-            "training": f"includes initialization, compilation, per-batch loss logging, initial validation and diagnostic validation every {log_every_batches} batches plus epoch ends",
-            "prediction": "selected CNN, all test rows, includes compilation; synchronized",
-            "concordance": "first invocation per model, full test cohort; may include compilation or reuse earlier compilation; synchronized",
-            "concordance_warm": "median of repeated calls on identical scores/data after first invocation; synchronized",
-        },
-        "concordance_benchmark": {
-            "warm_repetitions": model._CONCORDANCE_WARM_REPETITIONS,
-            "warm_statistic": "median",
-            "callable": "jax.jit(survjax.concordance_index)",
-            "cache_policy": "reuse compiled callable across models; no cache clearing",
+        "training_seconds": training_seconds,
+        "concordance_seconds": {
+            row["model"]: row["concordance_seconds"] for row in rows
         },
         "versions": {
             name: version(name)
@@ -277,66 +148,13 @@ def _run(config: str, preparation: Path, out: Path) -> None:
                 "matplotlib",
             )
         },
-        "environment": {
-            "python": platform.python_version(),
-            "platform": platform.platform(),
-            "cpu": platform.processor() or platform.machine(),
-            "cpu_count": os.cpu_count(),
-            "devices": [str(device) for device in jax.devices()],
-        },
-        "source_sha256": {name: hashes[1] for name, hashes in data.RESOURCES.items()},
+        "python": platform.python_version(),
+        "platform": platform.platform(),
+        "cpu": platform.processor() or platform.machine(),
     }
-    (out / "metadata.json").write_text(
-        json.dumps(metadata, indent=2, allow_nan=False) + "\n"
-    )
-    _figures(pixels[test], labels[test], log_k, log_scales, result, out)
-    print(
-        json.dumps(
-            {
-                **prepared,
-                "out": str(out),
-                "selected_epoch": result.selected_epoch,
-                "metrics": rows,
-                "training_seconds": training_seconds,
-            }
-        ),
-        flush=True,
-    )
-
-
-def main() -> None:
-    """Run the fixed smoke/full configuration through isolated precision processes."""
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", choices=("smoke", "full"), default="smoke")
-    parser.add_argument("--out", type=Path, required=True)
-    args = parser.parse_args()
-    env = dict(os.environ, JAX_PLATFORMS="cpu", JAX_ENABLE_X64="1", MPLBACKEND="Agg")
-    with tempfile.TemporaryDirectory(prefix="survjax-mnist-") as temporary:
-        preparation = str(Path(temporary) / "preparation.json")
-        subprocess.run(
-            [
-                sys.executable,
-                "-c",
-                "from pathlib import Path; import sys; from examples.survival_mnist.run import _prepare; _prepare(sys.argv[1], Path(sys.argv[2]))",
-                args.config,
-                preparation,
-            ],
-            env=env,
-            check=True,
-        )
-        env = dict(env, JAX_ENABLE_X64="0")
-        subprocess.run(
-            [
-                sys.executable,
-                "-c",
-                "from pathlib import Path; import sys; from examples.survival_mnist.run import _run; _run(sys.argv[1], Path(sys.argv[2]), Path(sys.argv[3]))",
-                args.config,
-                preparation,
-                str(args.out),
-            ],
-            env=env,
-            check=True,
-        )
+    (args.out / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
+    _figures(pixels[test], labels[test], log_k, log_scales, result, args.out)
+    print(json.dumps(dict(metrics=rows, **metadata)), flush=True)
 
 
 if __name__ == "__main__":

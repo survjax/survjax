@@ -8,7 +8,6 @@ import impl_tolerances as tol
 import jax
 import jax.numpy as jnp
 import numpy as np
-import pytest
 
 import survjax
 
@@ -102,96 +101,31 @@ def test_metrics_include_the_final_partial_batch():
     assert row["n"] == 129 and row["concordance"] == 0.5
 
 
-def test_float64_predictions_are_cast_before_ranking():
-    """03 Precision: distinct float64 scales round to exact float32 score ties."""
-    row = model.evaluate(
-        np.float64(0),
-        np.array([1, 1 + 1e-9, 1 + 2e-9], dtype=np.float64),
-        observations(),
+def test_predict_keeps_the_final_partial_chunk():
+    """03: chunked prediction includes all images and matches a constant head."""
+    cnn = model.CNN(np.log(2), key=jax.random.key(0))
+    cnn = eqx.tree_at(lambda m: m.dense2.weight, cnn, jnp.zeros_like(cnn.dense2.weight))
+    predictions = model.predict(cnn, jnp.zeros((1001, 1, 28, 28), dtype=jnp.float32))
+    assert predictions.shape == (1001,)
+    np.testing.assert_allclose(
+        predictions, np.log(2), atol=tol.ATOL[False], rtol=tol.RTOL[False]
     )
-    assert row["concordance"] == 0.5
 
 
-@pytest.mark.parametrize("log_k,log_b", [([0], 0), (0, [0, 1]), (0, [[0, 1, 2]])])
-def test_parameter_shapes_are_rejected(log_k, log_b):
-    """03: shared shape is scalar; scales are scalar or aligned per image."""
-    with pytest.raises(ValueError, match="scalar"):
-        model.evaluate(log_k, log_b, observations())
-
-
-@pytest.mark.parametrize("log_k,log_b", [(np.nan, 0), (0, [0, np.inf, 0])])
-def test_nonfinite_predictions_fail_loudly(log_k, log_b):
-    """03 acceptance: investigate failed metrics instead of writing plausible results."""
-    with pytest.raises(FloatingPointError, match="nonfinite"):
-        model.evaluate(log_k, log_b, observations())
-
-
-def test_undefined_concordance_fails_instead_of_reporting_half():
-    """Spec 9.1: an all-censored cohort has no comparable pairs, even for intercept."""
-    data = survjax.SurvivalData(jnp.array([1, 2], dtype=jnp.float32), [0, 0])
-    with pytest.raises(FloatingPointError, match="undefined"):
-        model.evaluate(0, 0, data)
-
-
-def test_invalid_and_empty_observations_are_rejected():
-    """03: no dropping invalid rows or fabricating empty-cohort metrics."""
-    data = survjax.SurvivalData(jnp.array([-1, 2], dtype=jnp.float32), [1, 0])
-    with pytest.raises(ValueError):
-        model.evaluate(0, 0, data)
-    with pytest.raises(ValueError, match="nonempty"):
-        model.evaluate(0, 0, observations()[:0])
-
-
-def test_float64_observations_are_rejected(x64_enabled):
-    """03 Precision: evaluation must not promote likelihood/C to float64."""
-    if not x64_enabled:
-        pytest.skip("float64 observations require x64 mode")
-    data = survjax.SurvivalData(jnp.array([1, 2], dtype=jnp.float64), [1, 1])
-    with pytest.raises(ValueError, match="float32"):
-        model.evaluate(0, 0, data)
-
-
-def test_float64_shape_produces_float32_likelihood(monkeypatch, x64_enabled):
-    """03 Precision: a float64 fitted shape must not promote evaluation arithmetic."""
-    if not x64_enabled:
-        pytest.skip("float64 input promotion requires x64 mode")
-    likelihood = survjax.Weibull.log_likelihood
-    dtypes = []
-
-    def observe_dtype(dist, data):
-        result = likelihood(dist, data)
-        dtypes.append(result.dtype)
-        return result
-
-    monkeypatch.setattr(survjax.Weibull, "log_likelihood", observe_dtype)
-    model.evaluate(np.float64(0.25), np.float64(1.5), observations())
-    assert dtypes == [jnp.float32]
-
-
-def test_concordance_times_wait_and_report_first_call_and_warm_median(monkeypatch):
-    """D-031 decision: distinguish first11s from median(7,2,1)=2s warm work."""
-    data = observations()
+def test_concordance_timing_excludes_the_compile_call(monkeypatch):
+    """03: time one synchronized call after warming the public C callable."""
     clock, completed = [0.0], []
-    costs = iter([11.0, 7.0, 2.0, 1.0])
+    costs = iter([11.0, 2.0])
 
     class DeferredScalar:
-        def __init__(self, cost):
-            self.cost = cost
-
         def __float__(self):
-            clock[0] += self.cost  # Simulated async work completes only on read.
-            completed.append(self.cost)
-            return 0.5  # Hand result for constant scores and comparable pairs.
+            cost = next(costs)
+            clock[0] += cost
+            completed.append(cost)
+            return 0.5  # Constant scores give half credit to every comparable pair.
 
-    def compiled(scores, actual):
-        assert actual is data and scores.dtype == jnp.float32
-        np.testing.assert_array_equal(scores, np.full(3, -1.5))
-        return DeferredScalar(next(costs))
-
-    monkeypatch.setattr(model, "_concordance", compiled)
+    monkeypatch.setattr(model, "_concordance", lambda *args: DeferredScalar())
     monkeypatch.setattr(model, "perf_counter", lambda: clock[0])
-    row = model.evaluate(0, 1.5, data)
-    assert row["concordance"] == 0.5
-    assert row["concordance_seconds"] == 11.0
-    assert row["concordance_warm_seconds"] == 2.0
-    assert completed == [11.0, 7.0, 2.0, 1.0]
+    row = model.evaluate(0, 1.5, observations())
+    assert row["concordance_seconds"] == 2.0
+    assert completed == [11.0, 2.0]

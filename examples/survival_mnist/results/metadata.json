@@ -1,86 +1,21 @@
 {
   "config": "full",
-  "censor_limit": 6.9890429382458406,
-  "intercept_log_parameters": [
-    0.1719941400906999,
-    1.432523487303153
-  ],
-  "oracle": {
-    "shape": 1.38,
-    "log_scales_by_digit": [
-      2.302585092994046,
-      2.1025850929940457,
-      1.902585092994046,
-      1.7025850929940458,
-      1.5025850929940459,
-      1.302585092994046,
-      1.1025850929940457,
-      0.9025850929940458,
-      0.7025850929940458,
-      0.5025850929940459
-    ]
-  },
   "sizes": {
     "train": 50000,
     "validation": 10000,
     "test": 10000
   },
   "realized_censored": {
-    "train": 0.50036,
-    "validation": 0.5079,
-    "test": 0.4995
+    "train": 0.4998,
+    "validation": 0.5074,
+    "test": 0.4994
   },
   "selected_epoch": 7,
-  "selected_epoch_indexing": "one-based",
-  "training": {
-    "epochs": 10,
-    "log_every_batches": 39,
-    "batch_size": 128,
-    "drop_partial_batch": true,
-    "optimizer": "Adam",
-    "learning_rate": 0.001,
-    "architecture": "Conv(1,16,3)-ReLU-Pool2/2-Conv(16,32,3)-ReLU-Pool2/2-Linear(800,64)-ReLU-Linear(64,1)"
-  },
-  "root_seed": 20261025,
-  "keys": {
-    "uc": "fold_in(key(root_seed),3)",
-    "validation": "fold_in(uc,1)",
-    "outcomes": "fold_in(fold_in(uc,0),global_index)",
-    "initialization": "fold_in(uc,2)",
-    "shuffle": "fold_in(fold_in(uc,3),epoch)",
-    "epoch_indexing": "zero-based"
-  },
-  "precision": {
-    "calibration_oracle_fit": "float64",
-    "outcomes_training_evaluation": "float32"
-  },
-  "timings_seconds": {
-    "preparation": 4.973547084257007,
-    "training": 49.44318454200402,
-    "prediction": 0.20018937485292554,
-    "concordance": {
-      "cnn": 0.3422105829231441,
-      "intercept": 0.18854724988341331,
-      "oracle": 0.19194679101929069
-    },
-    "concordance_warm": {
-      "cnn": 0.22940154233947396,
-      "intercept": 0.20604099985212088,
-      "oracle": 0.22077504126355052
-    }
-  },
-  "timing_notes": {
-    "preparation": "calibration, outcomes, fit; excludes data loading",
-    "training": "includes initialization, compilation, per-batch loss logging, initial validation and diagnostic validation every 39 batches plus epoch ends",
-    "prediction": "selected CNN, all test rows, includes compilation; synchronized",
-    "concordance": "first invocation per model, full test cohort; may include compilation or reuse earlier compilation; synchronized",
-    "concordance_warm": "median of repeated calls on identical scores/data after first invocation; synchronized"
-  },
-  "concordance_benchmark": {
-    "warm_repetitions": 3,
-    "warm_statistic": "median",
-    "callable": "jax.jit(survjax.concordance_index)",
-    "cache_policy": "reuse compiled callable across models; no cache clearing"
+  "training_seconds": 19.26745608309284,
+  "concordance_seconds": {
+    "cnn": 0.34791250014677644,
+    "intercept": 0.31429812498390675,
+    "oracle": 0.34157008305191994
   },
   "versions": {
     "survjax": "0.0.1.dev0",
@@ -92,19 +27,7 @@
     "optimistix": "0.1.0",
     "matplotlib": "3.11.2"
   },
-  "environment": {
-    "python": "3.12.9",
-    "platform": "macOS-26.6.2-arm64-arm-64bit",
-    "cpu": "arm",
-    "cpu_count": 16,
-    "devices": [
-      "cpu:0"
-    ]
-  },
-  "source_sha256": {
-    "train-images-idx3-ubyte.gz": "440fcabf73cc546fa21475e81ea370265605f56be210a4024d2ca8f203523609",
-    "train-labels-idx1-ubyte.gz": "3552534a0a558bbed6aed32b30c495cca23d567ec52cac8be1a0730e8010255c",
-    "t10k-images-idx3-ubyte.gz": "8d422c7b0a1c1c79245a5bcf07fe86e33eeafee792b84584aec276f5a2dbc4e6",
-    "t10k-labels-idx1-ubyte.gz": "f7ae60f92e00ec6debd23a6088c31dbd2371eca3ffa0defaefb259924204aec6"
-  }
+  "python": "3.12.9",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "cpu": "arm"
 }

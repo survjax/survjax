@@ -11,10 +11,7 @@ import jax.numpy as jnp
 import numpy as np
 from jax.typing import ArrayLike
 
-from examples.weibull_simulation.study import (
-    GeneratedData,
-    generate_weibull,
-)
+from examples.weibull_simulation.study import GeneratedData, generate_weibull
 
 MIRROR = "https://ossci-datasets.s3.amazonaws.com/mnist/"
 RESOURCES = {
@@ -55,20 +52,10 @@ def load_mnist(cache: Path | None = None) -> tuple[np.ndarray, np.ndarray]:
     cache = cache.expanduser()
     images, labels = [], []
     for prefix, count in (("train", 60000), ("t10k", 10000)):
-        images.append(
-            _parse_idx(
-                _fetch(f"{prefix}-images-idx3-ubyte.gz", cache),
-                images=True,
-                count=count,
-            )
-        )
-        labels.append(
-            _parse_idx(
-                _fetch(f"{prefix}-labels-idx1-ubyte.gz", cache),
-                images=False,
-                count=count,
-            )
-        )
+        image_bytes = _fetch(f"{prefix}-images-idx3-ubyte.gz", cache)
+        label_bytes = _fetch(f"{prefix}-labels-idx1-ubyte.gz", cache)
+        images.append(_parse_idx(image_bytes, images=True, count=count))
+        labels.append(_parse_idx(label_bytes, images=False, count=count))
     pixels = np.concatenate(images).astype(np.float32)[:, None, :, :] / np.float32(255)
     return pixels, np.concatenate(labels)
 

@@ -1,3 +1,26 @@
+# MNIST.15 continuation — approved convergence change
+
+Maintainer approved rtol=atol=3e-4 and completing the remaining work. Apply
+only that solver change, retaining throw=True/max_steps=256; no test tolerance
+changes or model tuning. Address MNIST.14 review F-1/F-2/N-1 in this step:
+the data-only commit temporarily broke old runner callers and docs smoke;
+this step replaces them. Add the missing bad-download checksum test and
+remove unused enumerate. The brief explicitly supersedes old metadata fields
+(review S-1); follow its reduced metadata list without expanding spec edits.
+Run full and smoke acceptance and preserve all failure evidence below.
+
+# MNIST.15 — Readable neural demo and full experiment
+
+Starting/previous commit 7821028; original base ee72c83. Change model.py,
+run.py, optional check_mnist tests, results and whitespace hook exclusions.
+The brief explicitly groups this larger step. No library API/dependencies.
+Spec 11.2/use-case03 model, training, references, figures and acceptance.
+Remove demo guards/progress/precision subprocesses; keep plain prediction,
+float32 BFGS and epoch checkpoint selection. Tests retain tiny analytical
+loss/metrics, real smoke gradients before/after step one, smoke CLI and full
+acceptance. Run optional suite, full experiment and check acceptance without
+tuning; report solver or shape failure. Docs follow MNIST.16.
+
 # MNIST.14 — Showcase data
 
 Authorized to continue all four steps without intermediate maintainer stops.
@@ -2835,3 +2858,41 @@ harness corrections and limits are in REVIEW.md. Final whitespace/scope
 checks, commit and independent review follow. No library,
 docs, dependency, fixture or protected-path change. Remaining A9 steps above
 are still pending; this evidence does not close Slice A.
+
+## MNIST.15 execution status
+
+Full experiment command `uv run --group examples python -m
+examples.survival_mnist.run --config full --out examples/survival_mnist/results`
+failed in fit_intercept: Optimistix BFGS reached max_steps=256 with the retained
+rtol=atol=1e-5 in float32. Per INSTRUCTION.md, no solver workaround or tolerance
+change was made. Maintainer decision requested before dependent experiment work.
+Existing full metrics/figures are still from the old implementation.
+Focused optional model/reference/metrics/figures/real-smoke-gradient tests:
+15 passed in 26.94s. Ruff check passed; mypy passed (21 source files).
+Step 3 remains uncommitted and incomplete; docs step 4 has not started.
+Smoke CLI end-to-end test also passed: 1 passed in 32.74s (float32).
+Full-run acceptance and docs builds were not run after the solver failure.
+
+## MNIST.15 BFGS investigation (maintainer authorized)
+
+Diagnostic script /tmp/mnist_bfgs.py, default float32 library objective, fixed
+50k training cohort; no example solver settings changed. BFGS rtol=atol=1e-5
+returns theta=[0.1719790995, 1.4325047731] at limits 16, 256 and 2048;
+gradient=[-7.07896e-7, 1.56059e-6]. At 256 its state has 6 accepted steps,
+backtracking step size 0 and evaluation parameters equal to returned parameters.
+Tolerances 3e-5 and 1e-4 also stall. Tolerances 3e-4 and 1e-3 both succeed
+in 6 steps with the exact same returned float32 parameters.
+Independent host NumPy float64 diagnostic profile-score bisection (not demo
+code): k=1.187654848546, b=4.189167960546; log-parameter differences
+[-1.54769e-6, 2.63636e-6], mean-NLL gap=2.62368e-12. Profile uses
+b^k=sum(t^k)/number_of_events and solves the scalar shape score. No test
+observations used. Installed Optimistix 0.1.0 checks Cauchy convergence only
+on accepted steps; backtracking stagnation prevents the tight run terminating.
+Proposed change: BFGS(rtol=3e-4, atol=3e-4), retaining max_steps=256 and
+throw=True. This changes termination, not the fitted baseline on this cohort.
+Await maintainer decision on this concrete change before the full experiment.
+
+MNIST.15 completed: approved BFGS tolerance applied, full results regenerated
+with selected epoch 7, k=1.368050814, CNN LL/C above intercept. Final optional
+suite 28 passed in 19.71s; Ruff/mypy/whitespace checks passed (generated SVGs
+excluded as requested). See REVIEW.md for exact evidence and earlier failures.

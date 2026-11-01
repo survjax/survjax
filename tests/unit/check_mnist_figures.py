@@ -26,20 +26,11 @@ def rendered(tmp_path_factory):
     pixels = np.broadcast_to(
         np.arange(20, dtype=np.float32)[:, None, None, None] / 19, (20, 1, 28, 28)
     )
-    log_scales = np.log(2 + np.arange(20))
+    log_scales = np.log(2 + np.arange(20, dtype=np.float32))
     history = SimpleNamespace(
         training_nll=(3.0, 2.0, 1.0),
         validation_nll=(4.0, 1.5, 2.0),
         selected_epoch=2,
-        batch_nll=(3.0, 2.8, 2.6, 2.3, 2.0, 1.8),
-        validation_progress=(
-            (0, 4.0),
-            (1, 3.5),
-            (2, 3.0),
-            (3, 2.5),
-            (4, 1.5),
-            (6, 2.0),
-        ),
     )
     figures, groups = {}, []
     save, boxplot = Figure.savefig, Axes.boxplot
@@ -55,7 +46,7 @@ def rendered(tmp_path_factory):
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(Figure, "savefig", capture)
         patch.setattr(Axes, "boxplot", boxes)
-        _figures(pixels, labels, np.log(np.float64(2)), log_scales, history, out)
+        _figures(pixels, labels, np.log(np.float32(2)), log_scales, history, out)
     return out, figures, groups
 
 
@@ -123,12 +114,12 @@ def test_history_uses_recorded_nll_and_one_based_selected_epoch(rendered):
     """03 Figures: epoch means and validation checkpoint, not last-epoch selection."""
     _, figures, _ = rendered
     training, validation, selected = figures["fig3.svg"].axes[0].lines
-    np.testing.assert_array_equal(training.get_xdata(), np.arange(6))
-    np.testing.assert_array_equal(training.get_ydata(), [3, 2.8, 2.6, 2.3, 2, 1.8])
-    np.testing.assert_array_equal(validation.get_xdata(), [0, 1, 2, 3, 4, 6])
-    np.testing.assert_array_equal(validation.get_ydata(), [4, 3.5, 3, 2.5, 1.5, 2])
-    np.testing.assert_array_equal(selected.get_xdata(), [4, 4])
-    assert figures["fig3.svg"].axes[0].get_xlabel() == "Optimizer updates"
+    np.testing.assert_array_equal(training.get_xdata(), [1, 2, 3])
+    np.testing.assert_array_equal(training.get_ydata(), [3, 2, 1])
+    np.testing.assert_array_equal(validation.get_xdata(), [1, 2, 3])
+    np.testing.assert_array_equal(validation.get_ydata(), [4, 1.5, 2])
+    np.testing.assert_array_equal(selected.get_xdata(), [2, 2])
+    assert figures["fig3.svg"].axes[0].get_xlabel() == "Epoch"
     assert selected.get_label() == "Selected epoch"
 
 
@@ -137,17 +128,4 @@ def test_all_three_svgs_are_written_and_figures_closed(rendered):
     out, figures, _ = rendered
     assert set(figures) == {"fig1.svg", "fig2.svg", "fig3.svg"}
     assert all("<svg" in (out / name).read_text() for name in figures)
-    assert all(
-        not line.endswith((" ", "\t"))
-        for name in figures
-        for line in (out / name).read_text().splitlines()
-    )
     assert not plt.get_fignums()
-
-
-def test_missing_digit_fails_explicitly(tmp_path):
-    """03 Figures: cannot silently substitute an image for a missing digit."""
-    with pytest.raises(ValueError, match="every digit"):
-        _figures(
-            np.zeros((1, 1, 28, 28)), np.array([0]), 0, np.array([0]), None, tmp_path
-        )

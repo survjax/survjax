@@ -98,3 +98,13 @@ def test_fixed_splits_and_smoke_prefixes():
     assert len(np.unique(np.concatenate(list(full.values())))) == 70000
     for name, size in zip(full, (5000, 1000, 2000), strict=True):
         np.testing.assert_array_equal(smoke[name], full[name][:size])
+
+
+def test_download_checksum_mismatch(tmp_path, monkeypatch):
+    """03: fresh downloads must pass the same SHA check as cached files."""
+    monkeypatch.setitem(data.RESOURCES, "bad.gz", hashlib.sha256(b"good").hexdigest())
+    monkeypatch.setattr(
+        data.urllib.request, "urlopen", lambda *a, **kw: io.BytesIO(b"bad")
+    )
+    with pytest.raises(ValueError, match="checksum mismatch"):
+        data._fetch("bad.gz", tmp_path)

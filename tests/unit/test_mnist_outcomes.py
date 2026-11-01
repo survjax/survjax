@@ -32,9 +32,7 @@ def test_outcome_keys_match_explicit_uniform_algebra():
     )
     actual = mnist.generate_outcomes(labels)
     base = jax.random.fold_in(jax.random.fold_in(jax.random.key(20261025), 3), 0)
-    for _row, (digit, index) in enumerate(
-        zip((0, 4, 9), (0, 59999, 69999), strict=True)
-    ):
+    for digit, index in zip((0, 4, 9), (0, 59999, 69999), strict=True):
         u_key, c_key = jax.random.split(jax.random.fold_in(base, index))
         u = jax.random.uniform(u_key, (), dtype=jnp.float32)
         censor = 7 * jax.random.uniform(c_key, (), dtype=jnp.float32)

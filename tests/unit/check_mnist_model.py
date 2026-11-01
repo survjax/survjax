@@ -19,14 +19,14 @@ from examples.survival_mnist.model import CNN, loss  # noqa: E402
 
 def setup():
     key = jax.random.fold_in(jax.random.fold_in(jax.random.key(20261025), 3), 2)
-    cnn = CNN(np.log(np.float64(2)), key=key)
+    cnn = CNN(np.log(np.float32(2)), key=key)
     images = jax.random.uniform(jax.random.key(19), (3, 1, 28, 28), dtype=jnp.float32)
     data = survjax.SurvivalData(jnp.array([1, 2, 3], dtype=jnp.float32), [1, 0, 1])
     return cnn, images, data
 
 
 def test_cnn_geometry_bias_precision_and_batching():
-    """03: 26→13→11→5, 800→64→1, float32 even when x64 is enabled."""
+    """03: 26→13→11→5, 800→64→1, float32 network parameters."""
     cnn, images, _ = setup()
     assert cnn.conv1.weight.shape == (16, 1, 3, 3)
     assert cnn.conv2.weight.shape == (32, 16, 3, 3)
