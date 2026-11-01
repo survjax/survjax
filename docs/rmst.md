@@ -85,7 +85,8 @@ The mathematical approximation bounds and safe arithmetic are explained in the
 For a log hazard ratio $\eta$, the equivalent exponential rate is
 $r_{\mathrm{PH}}=r e^\eta$; the equivalent Weibull scale is
 $b_{\mathrm{PH}}=b_0 e^{-\eta/k}$, with shape $k$ unchanged.
-The native `Exponential` and `Weibull` methods compute RMST independently.
+The native `Exponential` and `Weibull` methods evaluate their own RMST
+formulas directly.
 `ProportionalHazards.rmst` constructs the equivalent built-in distribution
 and delegates to its `rmst` method. Positive eta increases hazard and reduces
 RMST at a fixed positive cutoff. See the [PH guide](proportional-hazards.md)

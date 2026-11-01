@@ -1,3 +1,74 @@
+# RMST.final — Combined evidence and maintainer handoff (2026-11-01)
+
+Integration sub-step 3, after RMST.d3 round 1 verdict merge. Step start /
+previous step final: 4f8f2dbfa3a39f95e11b1efc34a8675d7509994a.
+Original dedicated-worktree base: 8757c0fda78e34e6e818249adedd2a144a33c33d.
+Clean release-rmst; PH.8 through 8acfb9f is already integrated. Retain all
+unfinished plan history verbatim below. Do not archive it while this sub-slice
+is still under review or begin another sub-slice during this step.
+
+One final documentation/evidence topic, target under 250 changed content lines:
+- docs/rmst.md: resolve RMST.d3 N-1 by saying native methods evaluate their
+  family's RMST formulas directly; PH constructs the equivalent distribution
+  and delegates. Replace only the ambiguous 'independently' sentence.
+- plans/release-agents/rmst-evidence.md (new, beside ph-evidence.md): concrete
+  requirement-to-test map for spec 8.7 /12.1 /12.2 item 3, combined PH closure
+  evidence and links to the PH handoff, public guide/API and appendices.
+  Separate independent quadrature references in implementer tests from
+  maintainer-owned independent acceptance, which is still pending delivery.
+  Record fresh gate/docs checks, retained/new wheel and source-archive paths,
+  byte identity/install evidence and measured tolerance coordinates/factors.
+  Hand off D-028/D-029/D-030/D-031/D-032 with the existing decisions, never
+  change formal statuses. Include named remaining owners and release limits.
+- plans/release-agents/rmst.md: link the final evidence record, preserving
+  original launch instructions and ownership/history.
+- REVIEW.md: overwrite for RMST.final round 1/3, reading order, map validation,
+  actual checks, N-1 correction and explicit remaining acceptance/release work.
+
+Current AGENTS/CLAUDE and release handoffs read; spec 8.7,10.5,12.1–12.2
+re-read in full, plus D-028–D-032 and acceptance TESTMAP/Q-049. Spec remains
+revision 41, design 00e7225b6b10b0d4e3137f7cf85c0b76e377d821, matching
+.spec-seen. No source/API/test/tolerance/dependency/appendix/protected change.
+No new unit tests for this records/prose step; executable guide assertions
+and unchanged regression gate provide verification.
+
+Validation: scripts/check_wheel.sh --through A10 on the final combined tree;
+scripts/build_docs.sh directly, no redirect/env prefix/wrapper, using its
+approved escalation. Keep two dtype processes, test selection and assertions
+unchanged. Inspect both rendered guides, all 3 RMST API entries, outputs,
+links/anchors and exact appendix download. Retained figure/browser limitations
+from RMST.d3 remain unless newly inspected. Build a fresh offline sdist,
+safely unpack it, build the archive wheel via the documented built-in backend
+from its directory (no new dependency). Compare all 23 source files and all
+31 wheel members/complete bytes; install archive wheel in fresh external
+runtime-only environments in both dtype processes via existing install tests.
+Retain artifacts/hashes and the prior installation evidence. Do not claim
+isolated PEP-517 archive builds pass offline. Verify every mapped test name,
+source/test/decision-file identity to step start and full plan preservation;
+Ruff/mypy, whitespace, source playground output-free. No new benchmark/R run.
+
+Commit and invoke independent-review exactly, at most three rounds; stop/report.
+After a merge verdict, no RMST implementer sub-step is planned. Maintainer owns
+merging release-rmst into main, formal deviation disposition and independent
+PH/RMST acceptance delivery/sync plus subsequent cumulative run. Release-wide
+demo/audit owners retain their work; publication is separate. No merge, rebase,
+push, publication, protected test/spec edit or acceptance weakening here.
+
+Implementation/evidence: N-1 clarified; permanent rmst-evidence.md links from
+the original handoff and maps all staged requirements, all five decisions,
+installation evidence and pending owners. All 33 explicit test references,
+Markdown links, prior plan preservation and source/test/decision/protected
+identity checks pass. Fresh wheel-backed A10 gate exits 0: implementer
+1282 /8 and 1287 /3; doctests 4 each; existing acceptance 2332 /28 and
+2322 /38 (float64/float32). Direct strict docs build passes both modes,
+16 RMST cells; HTML/API/output/download checks pass. Fresh archive installation
+3 passed per dtype; source, 31 wheel members and full bytes match, prior
+artifacts retained and hashes unchanged. Ruff/mypy/whitespace pass. Exact
+commands, counts, paths/hashes and limitations in handoff and REVIEW.md.
+No additional RMST implementer sub-step planned after this final review.
+
+---
+
 # RMST.d3 — Complete PH RMST teaching and availability (2026-11-01)
 
 Integration sub-step 2, after RMST.integration3 round 1 verdict merge.
