@@ -29,6 +29,10 @@ jobs:
       PYTEST_WORKERS: "2"
       UV_LOCKED: "true"
     steps:
+      - name: Keep shell scripts in LF format on checkout
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0

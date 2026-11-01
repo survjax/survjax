@@ -1,5 +1,21 @@
 # Deviations and spec questions
 
+## D-030 Protected-path guard on GitHub pull-request merge refs
+
+- Step: CI.1 independent review, S-1 / F-2 (2026-11-01).
+- Spec section: 10.3 CI verification; working agreement protected-path rules.
+- Spec says: Linux CPU CI is required. The local gate permits selected paths
+  based on meta-* and spectests-* branch prefixes; PR CI checks a detached
+  merge ref, whose branch name is HEAD. The PR branch policy is not stated.
+- Observed: checkout fetches origin/main without creating local main on most
+  CI events, so the unchanged gate skips its guard but prints guard: ok.
+  Creating local main enables the guard, but detached PRs lose exemptions.
+- Proposed: use the PR source branch name for the existing exemptions while
+  testing the merge commit, and create a local main reference for comparison.
+  Asked the maintainer; no branch-policy implementation pending the answer.
+  Alternative policies are push-only enforcement or explicit CI omission.
+- Status: open.
+
 ## D-029 RMST parameter-derivative tolerance coordinates
 
 - Step: RMST.3 independent review, S-1 (2026-10-30).

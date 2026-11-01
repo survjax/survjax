@@ -1,5 +1,17 @@
 # CI.1 — Three-platform CPU GitHub Actions (2026-11-01)
 
+## CI.1 round 1 follow-up plan
+
+Review 2166045 returned fix-first: F-1 Windows CRLF checkout; F-2 silently
+skipped guard. S-1 asks which PR branch policy to apply; record D-030 and
+ask the maintainer before dependent changes. S-2 is already settled by the
+explicit request for CPU macOS/Linux/Windows. Fix F-1 by setting autocrlf
+false and eol lf before checkout on the ephemeral runners. No protected
+script change. Revalidate YAML and whitespace; full numerical rerun is
+unnecessary for checkout configuration after the passing initial gate.
+N-1/N-2/N-3 are nonblocking nits; retain the existing gate/triggers/action
+choices for now. Record review limits and remaining work in REVIEW.md.
+
 Start on maintainer-created branch ci at
 84d2943e788440db60504afb49a13360d43ad95e (worktree starting base).
 Previous implementation endpoint: aae68920769855aa08227f4b7c4818ce7a820923

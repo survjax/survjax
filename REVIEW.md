@@ -75,3 +75,26 @@ Previous implementation endpoint: aae68920769855aa08227f4b7c4818ce7a820923
 commit containing this review; report its hash after independent review.
 Remaining: hosted CPU evidence after push; optional GPU provisioning/lock/job
 in a later step. Earlier RMST/A9 work is not advanced by this CI change.
+
+## Round 1 outcome and follow-up
+
+Independent report: ../review/slices/CI.1.md, round 1 at 2166045,
+VERDICT: fix-first. F-1: set git core.autocrlf=false and core.eol=lf before
+checkout, preventing CRLF shell scripts on Windows. F-2/S-1: D-030 records
+the skipped guard and pending PR branch policy; asked the maintainer before
+dependent implementation. S-2 is settled by the user's explicit three-OS
+request. No tests, spec or protected files are altered.
+
+Reviewer reproduced the CRLF shell failure and caught an inverted interpreter
+path mutant in both dtypes. Its unmutated install suite passed three tests.
+Its plain check.sh run passed static checks, both own suites and doctests,
+then had five x64 spec setup errors because SURVJAX_WHEEL was unset. It
+classified those as invocation/environment errors; its check_wheel.sh attempt
+was blocked by its permissions. Its x32 spec suite and hosted OSes were not
+verified. My complete fresh-wheel gate above passed in both modes.
+
+Nonblocking nits N-1/N-2/N-3 remain: extra pre-commit hooks are not added to
+the existing gate, push+PR runs can duplicate jobs, checkout uses a version
+tag while setup-uv uses a SHA. GPU remains a proposal only. Reviewer reported
+an unremoved temporary mutation worktree registration at /tmp/survjax-mut-CI.1;
+cleanup was not attempted here, preserving the review ownership boundary.
