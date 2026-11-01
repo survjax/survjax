@@ -29,3 +29,5 @@ Values: invalid/negative/infinite tau gives NaN; tau=0 gives 0 with parameter
 derivatives 0 and tau derivative 1. Parameter issues give NaN. No floors,
 epsilons, generic quadrature tangent or custom higher-order promise.
 Final evidence includes PH RMST once that separately reviewed integration lands.
+
+Final implementer evidence and maintainer handoff: [RMST audit](rmst-evidence.md).

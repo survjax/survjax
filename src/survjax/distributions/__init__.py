@@ -9,10 +9,12 @@ from survjax.distributions.base import (
 )
 from survjax.distributions.exponential import Exponential
 from survjax.distributions.weibull import Weibull
+from survjax.distributions.wrappers import ProportionalHazards
 
 __all__ = [
     "Exponential",
     "Weibull",
+    "ProportionalHazards",
     "SurvivalDistribution",
     "register_family",
     "param",
