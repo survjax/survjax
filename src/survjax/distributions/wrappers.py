@@ -39,7 +39,7 @@ class ProportionalHazards(SurvivalDistribution):
     Returns:
         A frozen distribution with broadcast parameter leaves. Pointwise
         methods pair times with batch entries; inherited grids return
-        (K, *batch_shape). Diagnostics prefix nested keys with ``baseline.``.
+        ``(K, *batch_shape)``. Diagnostics prefix nested keys with ``baseline.``.
 
     Raises:
         TypeError: For malformed types, extra positional arguments or incompatible

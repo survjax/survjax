@@ -1,3 +1,82 @@
+# PH.4 — Public exports and installed API integration (2026-11-01)
+
+Start / previous PH.3d final: 5e3868094391e0c5464c92d3775c42902c8ab2cb,
+clean release-ph. Original worktree launch base:
+8757c0fda78e34e6e818249adedd2a144a33c33d. Reread current AGENTS.md and PH
+handoff, spec 4.4,8.7,10.2,12.1–12.2. The PH sub-slice remains unfinished;
+preserve all prior PLAN sections without archiving them.
+
+Authorization: after preparing and presenting the exact seven-line
+/private/tmp/ph4-api-reference.patch, asked whether it could accompany the
+public exports and tests. After the intervening wrappers.py naming question,
+the maintainer replied “ok good; now on to the next bit”. Proceed with that
+specific next-step approval and its described narrow docs/api.md exception.
+No broader docs/ editing permission, spec change or publishing is inferred.
+Keep wrappers.py: AFT is assigned there for later Slice D, not this release.
+
+Before code, one small public-surface integration concept, below 300 changed
+code/test/implementation lines:
+- src/survjax/distributions/__init__.py: import the implemented registered
+  ProportionalHazards class and add it to the exact public export list.
+- src/survjax/__init__.py: re-export the SAME class at top level, as spec 4.4
+  examples and 10.2 require. No aliases/new wrappers or numerical changes.
+- tests/unit/test_import.py: retain exact equality of the root export set,
+  adding only ProportionalHazards; verify root/distribution/defining-module
+  imports are identical, with an exact distribution export set too.
+- tests/install/test_wheel.py: retain exact installed root exports, add PH,
+  verify both import paths agree and use a positional baseline. Eager and
+  jit construction/RMST smoke through the installed core, with only runtime
+  deps. Expected rate=0.5*exp(log(2))=1, M(2)=-expm1(-2), independently from
+  the exponential integral. Compare outside the isolated environment using
+  unchanged tests/impl_tolerances.py constants, not ad hoc tolerances.
+- docs/api.md: ONLY the seven-line Proportional hazards autodoc block shown
+  for approval, beside built-ins. Leave test_api_reference.py unchanged and
+  strict; no missing-export exceptions, skips, dynamic expected sets or
+  conditional autodoc. No other docs/ page or build config is touched.
+
+Use the already-prepared syntax/lint-checked proposal only after this plan.
+Run focused import/API checks in both dtype processes; unchanged fresh-wheel
+A10 gate (all unit/numerical/installed/acceptance evidence); Ruff/mypy and diff
+scope checks. Run scripts/build_docs.sh DIRECTLY as the updated agreement
+requires, with no redirect, wrapper or environment assignment. Inspect both
+rendered API pages for the new class/signature and methods. No new tests of
+unchanged numerical internals, dependencies, fixture regeneration, protected
+path or generic summaries/AFT/sampling. Record actual results in REVIEW.md,
+commit and invoke independent-review PH.4 exactly; up to three rounds, then
+stop/report final/previous/original commit IDs and remaining sub-steps.
+
+PH.4 first checks: import/API-reference tests pass, four per dtype (1.80s
+both). The first direct docs build fails in float32 on ONE warning from the
+newly exposed PH class docstring: inline emphasis is opened by the unquoted
+(K, *batch_shape) shape. Before correction, extend this plan narrowly to
+wrappers.py: render that existing shape as an RST code literal. No numerical
+behavior or API change, no warning suppression or other docs/ edit. Rebuild
+docs directly and use a final fresh wheel after the documentation fix.
+
+PH.4 results: root and distribution export the SAME PH class, fixed exact
+sets updated by only that name, installed-core eager/jit PH RMST checked
+against the rate-1 integral. Focused import/API checks: 4 passed per dtype,
+1.80s each. Docs initially exposed the unquoted shape warning; after fixing
+that docstring literal, direct scripts/build_docs.sh exits 0 for both modes.
+Both generated API pages inspected: positional baseline /keyword-only eta
+signature, all six selected method IDs and intact shape literal. No other
+docs/ source or config edit. Ruff/mypy/whitespace clean. Final-source fresh-
+wheel A10 gate exits 0: own 1282/8 x64,1287/3 float32; doctests 4 per mode;
+independent acceptance 2332/28 x64,2322/38 float32 (passed/skipped).
+Final wheel export/docstring bytes match source; full commands, timings and
+hash/artifact recorded in REVIEW.md. Final implementation diff is 51 lines.
+Commit and invoke independent-review PH.4 round 1/3 exactly, then stop/report.
+
+Docs to-do: the separate executable PH topic covering broadcasting, eta>0
+hazard direction, exact/right likelihood, RMST, the shape/zero boundary
+restrictions, revision-40 extreme direct/likelihood derivative limitation and
+accepted D-032 failure behavior. Final PH acceptance/evidence audit follows.
+Appendix/PDF alignment is already complete in PH.3d. Optional numerical/
+coverage nits stay recorded, not mixed into this export-only step. PH.3d S-1
+(spec layout old helper name) remains maintainer/designer-owned; no spec edit.
+
+---
+
 # PH.3d — Give the RMST helper a focused module name (2026-11-01)
 
 Explicit maintainer request: rename _numerics.py because its responsibility

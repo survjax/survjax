@@ -145,7 +145,7 @@ def test_installed_core_uses_wheel_without_demo_dependencies(installed, x64_enab
 
         assert Path(sys.prefix) in Path(survjax.__file__).resolve().parents
         assert set(survjax.__all__) == {
-            "constraints", "Exponential", "Weibull", "SurvivalData",
+            "constraints", "Exponential", "Weibull", "ProportionalHazards", "SurvivalData",
             "InvalidDataError", "InvalidParameterError", "SurvivalDistribution",
             "register_family", "param", "distribution", "static",
             "concordance_index", "concordance_index_with_info",
@@ -167,7 +167,15 @@ def test_installed_core_uses_wheel_without_demo_dependencies(installed, x64_enab
         data = survjax.SurvivalData(jnp.array([1.0, 2.0]), jnp.array([True, False]))
         assert data.issues.ok
         rows = survjax.Exponential(rate=jnp.asarray(0.5)).log_likelihood(data)
+        assert survjax.ProportionalHazards is survjax.distributions.ProportionalHazards
+        ph = survjax.ProportionalHazards(
+            survjax.Exponential(rate=0.5), log_hazard_ratio=jnp.log(2.0)
+        )
+        ph_jit = jax.jit(lambda eta: survjax.ProportionalHazards(
+            survjax.Exponential(rate=0.5), log_hazard_ratio=eta
+        ).rmst(2.0))(jnp.log(2.0))
         print(json.dumps({"rows": rows.tolist(), "dtype": str(rows.dtype),
+                          "ph_rmst": [float(ph.rmst(2.0)), float(ph_jit)],
                           "python": sys.version.split()[0], "jax": jax.__version__,
                           "numpy": np.__version__, "package": survjax.__file__}))
     """)
@@ -181,6 +189,13 @@ def test_installed_core_uses_wheel_without_demo_dependencies(installed, x64_enab
         rtol=RTOL[x64_enabled],
     )
     assert report["dtype"] == ("float64" if x64_enabled else "float32")
+    # PH rate is 0.5*exp(log(2))=1, so M(2)=integral_0^2 exp(-t) dt.
+    np.testing.assert_allclose(
+        report["ph_rmst"],
+        [-np.expm1(-2.0)] * 2,
+        atol=ATOL[x64_enabled],
+        rtol=RTOL[x64_enabled],
+    )
 
 
 def test_installed_custom_family_is_typed_and_differentiable(installed, x64_enabled):

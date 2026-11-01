@@ -71,6 +71,13 @@ Both families also have every method of `SurvivalDistribution` listed under
    :members: from_log, log_survival, cumulative_hazard, log_cdf, log_prob, log_hazard, hazard, reference_time
 ```
 
+## Proportional hazards
+
+```{eval-rst}
+.. autoclass:: survjax.ProportionalHazards
+   :members: log_survival, log_cdf, log_prob, log_hazard, reference_time, rmst
+```
+
 ## Writing your own family
 
 ```{eval-rst}
