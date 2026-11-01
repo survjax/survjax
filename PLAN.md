@@ -1,3 +1,36 @@
+# MNIST.12 — Executable documentation page (2026-11-01)
+
+Start clean at 365c173 (MNIST.11 final); original worktree base ee72c83.
+Maintainer directs the executable page. Spec11.2/use-case03 page order,
+Precision, Outputs/Acceptance, Run/budget and attribution; spec10.5 docs build.
+Approved D-030/031/032 behavior is explained accurately, without reopening it.
+
+Files:
+- docs/use-cases/survival-mnist.md: MyST notebook. Explain generating rule and
+  plot true digit curves; include actual CNN/loss source; execute the existing
+  smoke CLI live in isolated precision children and display its table; read and
+  label committed full metrics/settings/timings, three figures and epoch summary
+  view; explain selection, oracle gaps, cohort sizes, limitations and attribution.
+  Temporary smoke output never overwrites committed results. No model tuning.
+- docs/index.md: navigation/link and accurate examples/cache build requirements.
+- scripts/build_docs.sh: activate existing approved examples group with docs;
+  no dependency/lockfile change. Still execute both parent JAX dtype builds.
+- examples/survival_mnist/README.md: resolve N-5 heading and N-6 normalization
+  provenance wording; link the new page, retire pending-page wording.
+- REVIEW.md: reading order, build/visual evidence, completion mapping and
+  independent review MNIST.12, then stop.
+
+One docs topic, target <=300 changed implementation/docs lines. No core/example
+numerics, API, protected paths, spec or result artifacts change. No new tests
+for prose; executable cells and warnings-as-errors build are the checks. Run
+scripts/build_docs.sh directly, using its approved escalation if needed. Seed
+normal data cache only from the existing SHA-verified copies if needed so the
+build can execute without repeating acquisition. Inspect rendered page and
+assets through a local preview. Run Ruff/mypy; full core gate need not repeat
+for docs plus dependency-group activation after MNIST.11's passing gate.
+Remaining: none within this use-case implementation if docs checks/review pass;
+formal deviation statuses remain maintainer-owned. No publishing/merging.
+
 # MNIST.11 — Committed full-run artifacts (2026-11-01)
 
 Start clean at 2223416 (MNIST.10 final); original worktree base ee72c83.

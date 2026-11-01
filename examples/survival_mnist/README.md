@@ -93,7 +93,8 @@ ten-epoch configuration. The runner also writes `fig1.svg` (first test image
 per digit with predicted/true survival), `fig2.svg` (log-scale boxplots and
 truth by digit) and `fig3.svg` (NLL history and selected epoch). Plotting uses
 the headless Agg backend; Matplotlib's version is recorded in metadata.
-Committed full results are in `results/`; the executable page is still pending.
+Committed full results are in `results/`; the executable
+[documentation page](../../docs/use-cases/survival-mnist.md) runs smoke live.
 
 The metadata records versions, verified source SHA-256 hashes, CPU environment,
 root seed and key derivations, actual cohort sizes/censoring fractions, settings,
@@ -115,12 +116,13 @@ these traces against updates. `history.csv` retains the epoch means, and only
 end-of-epoch validation selects checkpoints. Extra logging does not change
 training updates or make the one-epoch smoke run evidence of convergence.
 
-
-Full-run artifacts
+## Full-run artifacts
 
 The committed [results](results/metadata.json) were generated from implementation
 commit `222341684e877153122e3a6674250987cfdab7c9`, with the locked examples
-environment. Reproduce from the repository root:
+environment. CSV line endings and SVG whitespace were normalized afterwards,
+as the current runner now does; numerical fields and rendered plots are unchanged.
+Reproduce from the repository root:
 
 ```bash
 uv run --group examples python -m examples.survival_mnist.run --config full --out examples/survival_mnist/results
