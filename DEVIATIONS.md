@@ -12,8 +12,11 @@
   Creating local main enables the guard, but detached PRs lose exemptions.
 - Proposed: use the PR source branch name for the existing exemptions while
   testing the merge commit, and create a local main reference for comparison.
-  Asked the maintainer; no branch-policy implementation pending the answer.
-  Alternative policies are push-only enforcement or explicit CI omission.
+  Maintainer agreed in conversation to source-branch exemptions, merge-commit
+  tests, and an active guard. Implement in the workflow without editing the
+  protected gate: create local main and attach the source name at the merge
+  commit. A source named main maps to ci-pr-main to preserve the baseline;
+  both use ordinary no-exemption rules. Status remains maintainer-owned.
 - Status: open.
 
 ## D-029 RMST parameter-derivative tolerance coordinates

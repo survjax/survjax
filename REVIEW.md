@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # CI.1 — CPU checks on GitHub-hosted Linux, macOS and Windows
 
@@ -27,8 +27,11 @@ Invariants:
   Two pytest workers limit concurrent JAX compilation on hosted machines.
 - Protected paths/spec/lock/docs/fixtures and numerical code stay untouched.
   Prior unfinished PLAN history is preserved verbatim under this new step.
-  scripts/check.sh retains its existing branch/main-dependent guard behavior;
-  this workflow does not change that guard's semantics or grant exemptions.
+  scripts/check.sh is unchanged. The workflow creates the local main baseline
+  so its guard executes. PRs attach the source branch name at the existing
+  merge commit, preserving its SHA/tree/parents and source-prefix exemptions.
+  Source name main maps to ci-pr-main, retaining ordinary guard rules without
+  overwriting the main baseline. Source names enter shell through an env var.
 
 Checks completed:
 - uv run pre-commit run check-yaml --files .github/workflows/ci.yml: Passed.
@@ -98,3 +101,39 @@ the existing gate, push+PR runs can duplicate jobs, checkout uses a version
 tag while setup-uv uses a SHA. GPU remains a proposal only. Reviewer reported
 an unremoved temporary mutation worktree registration at /tmp/survjax-mut-CI.1;
 cleanup was not attempted here, preserving the review ownership boundary.
+
+## Round 2 fixes and evidence
+
+Maintainer explicitly agreed to the recommended S-1 policy in conversation:
+use the PR source branch name for guard exemptions, keep testing the merge
+commit, and ensure the guard actually runs. D-030 records that decision;
+its status remains open for maintainer resolution. S-2 was already authorized.
+
+F-2: the new workflow step creates local main from refs/remotes/origin/main
+when absent and, for pull_request only, attaches the source branch name at
+HEAD. git switch -c has no startpoint argument, so it retains the checked-out
+merge commit. A source named main maps to ordinary ci-pr-main; neither gets
+an exemption. This avoids replacing the baseline. There is no protected
+script edit and no inline source-name interpolation into shell commands.
+F-1 remains fixed by pre-checkout LF configuration in 0c5acdb.
+
+Validation on the current fix:
+- YAML check hook: Passed. bash -n accepts the new embedded shell.
+- Ten throwaway Git repository scenarios execute the exact workflow step and
+  the unchanged guard block extracted from scripts/check.sh. Each starts
+  without local main; each preserves the two-parent merge SHA and restores
+  main at the baseline. Ordinary PRs (including source main) pass clean paths
+  and fail scripts/check.sh changes. meta-* allows scripts/check.sh but rejects
+  tests/spec; spectests-* allows tests/spec but rejects scripts/check.sh.
+  Ordinary branch pushes also pass clean paths / reject protected paths.
+  All ten scenarios passed.
+- Ruff format: 125 files already formatted. Ruff check: All checks passed!
+  mypy: Success: no issues found in 21 source files. git diff --check: clean.
+- No numerical/test implementation changed after the complete initial
+  fresh-wheel A10 gate; no new numerical rerun is warranted. Hosted runs,
+  Windows path execution and GPU evidence remain pending as stated above.
+
+Round 2 reviews this policy implementation plus F-1 from 0c5acdb. Initial
+implementation: 2166045; last pre-fix commit: 0c5acdb; original base: 84d2943;
+previous implementation step endpoint: aae6892. Nonblocking N-1/N-2/N-3
+remain deliberately unchanged; the scope is the two should-fix findings.

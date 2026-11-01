@@ -1,5 +1,28 @@
 # CI.1 — Three-platform CPU GitHub Actions (2026-11-01)
 
+## CI.1 round 2 plan — approved PR guard policy
+
+Maintainer agreed to use the PR source branch name for guard exemptions,
+retain merge-commit tests, and ensure the guard runs. In workflow only:
+create local main from origin/main when absent; on PRs attach a temporary
+local branch at the existing merge commit with the source branch name.
+The source name main must map to ci-pr-main so it cannot overwrite the
+baseline; both names have the same ordinary no-exemption policy. Pass the
+source name as an environment value, never interpolate it into shell code.
+No protected script edit, new privilege, commit/content/checkout change.
+
+Record the decision in D-030 without changing its open status, update
+REVIEW.md for round 2/3, validate YAML/embedded shell and actual guard in
+throwaway repositories: ordinary/main source blocked on protected changes,
+meta-* and spectests-* get exactly their existing path exemptions, clean
+ordinary PR passes. Check merge SHA preservation and baseline creation.
+Rerun static/whitespace checks; initial full numerical gate remains valid
+because this fix changes only checkout/ref metadata. Commit and request
+independent-review round 2, then follow its verdict and stop.
+Validation complete: all ten guard scenarios pass, preserving the merge SHA,
+two parents and main baseline. YAML/shell syntax, Ruff/mypy and whitespace
+checks pass. The full initial wheel-gate evidence remains in REVIEW.md.
+
 ## CI.1 round 1 follow-up plan
 
 Review 2166045 returned fix-first: F-1 Windows CRLF checkout; F-2 silently

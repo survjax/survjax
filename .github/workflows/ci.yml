@@ -37,6 +37,22 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Prepare branch references for the protected-path guard
+        env:
+          CI_SOURCE_BRANCH: ${{ github.head_ref }}
+        run: |
+          if ! git show-ref --verify --quiet refs/heads/main; then
+            git branch main refs/remotes/origin/main
+          fi
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            guard_branch="$CI_SOURCE_BRANCH"
+            # Preserve the baseline for PRs from a branch also named main.
+            if [ "$guard_branch" = main ]; then
+              guard_branch=ci-pr-main
+            fi
+            # Attach a name at the merge commit; keep its tree and parents.
+            git switch -c "$guard_branch"
+          fi
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "0.11.19"
