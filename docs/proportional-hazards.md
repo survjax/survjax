@@ -123,8 +123,9 @@ value, gradient, curvature
 ```
 
 With the built-in baselines, ordinary finite, valid, smooth interior parameter
-derivatives support `jit`, `vmap`, forward and reverse AD to second order. Covariate design, objective
-reduction and optimization remain with the caller.
+derivatives of direct methods and likelihoods support `jit`, `vmap`, forward
+and reverse AD to second order. Covariate design, objective reduction and
+optimization remain with the caller.
 
 **Initial-release extreme-scaling limit:** first and second parameter
 derivatives of PH direct methods and likelihoods can be inaccurate, zero or

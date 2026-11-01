@@ -1,6 +1,6 @@
 # PH.5 — Executable proportional-hazards guide
 
-Independent review: round 1/3
+Independent review: round 2/3
 
 Step start and previous PH.4 final: 2a341c87b870f5f0baba8269e432db01aedc9f6a.
 Original worktree launch: 8757c0fda78e34e6e818249adedd2a144a33c33d.
@@ -21,8 +21,10 @@ reviewed code snapshot; no merge or PH-wide completion is claimed here.
 
 ## Scope and navigation
 
-Docs-only, one PH topic: 237 new guide lines plus 3 API-link lines = 240
-changed implementation/documentation lines. PLAN/REVIEW excluded as agreed.
+Docs-only, one PH topic: final whole-step diff is 247 docs lines: 238 new
+guide lines +3 API-link lines +4 additions/2 removals in the existing PH
+availability paragraph. Round 1 had 240 lines; round 2 corrects that paragraph
+and scopes the general derivative sentence. PLAN/REVIEW excluded as agreed.
 No src/, docstring, test, fixture, dependency, config, protected-path, spec,
 appendix/PDF, playground or shared-index change. No new API, AFT, sampling,
 generic summary, inference/fitting system or dependency. Matplotlib is already
@@ -122,6 +124,47 @@ existing high-precision numerical regression tests.
   this DOCS-ONLY step; PH.4's final source/wheel gate covers the identical code.
   No R, fixture generation or appendix/PDF rebuild. No generated HTML, PNG,
   notebook output or execution cache is committed.
+
+## Round 1 response
+
+- F-1 (should-fix): docs/distributions.md's two-line "PH and AFT planned"
+  claim is stale after the public export. Correct only that PH availability
+  paragraph: distinguish the local nesting example /hazard_ratio from the
+  supported survjax.ProportionalHazards /log_hazard_ratio, link the new guide,
+  leave AFT planned. The recipe's Python, its R/reference text and all other
+  sections are untouched. Ownership handoffs reserve A10 concordance and A9
+  verification/playground/nav work, not this narrow PH-specific correction
+  in already-committed material (last file change 726896d).
+- N-1 (nit): explicitly restrict the general second-AD sentence to direct
+  methods and likelihoods. It no longer could imply Weibull RMST shape-Hessian
+  support; the RMST section still states its separate derivative contract.
+- N-2 (nit/handoff): root TOC integration remains assigned to maintainer/A9;
+  retain local orphan metadata and the working API link. No change here.
+- Reviewer independently reproduced the concrete numerical/policy examples
+  in both dtypes and reran the docs build successfully in round 1. No code
+  or deviation-policy question was raised; D-031/D-032 remain unchanged.
+
+Round-2 final validation:
+
+- `scripts/build_docs.sh` invoked DIRECTLY: **exit 0, both x32 and x64 builds
+  succeeded**, strict flags and forced notebook execution unchanged. All
+  12 source pages rebuilt; final PH x64 execution reported 4.20s.
+- HTMLParser verified F-1's corrected paragraph and new extension-guide link
+  in BOTH rendered distributions.html pages. The PH page's derivative wording
+  now explicitly names direct methods/likelihoods in both outputs. API and
+  extension links reach the guide; all eight executed outputs remain, with
+  correct dtype, leading grid shape and explicit float32 NaN failure.
+- Figure rechecked: both modes have identical 490x290 PNG, SHA256
+  90a1e0a54cebfb8edac31f4086b1df2980160d95789160e8d40efbbeb4c6a12e,
+  unchanged from the previously visually inspected figure.
+- `uv run ruff format --check .`: 136 formatted; `uv run ruff check .`: all
+  checks passed; `uv run mypy src`: no issues in 22 files;
+  `uv run pytest -q tests/unit/test_api_reference.py`: 1 passed in 0.26s;
+  `git diff --check`: clean. No code or test changes, so no numerical /wheel
+  gate rerun. No generated output committed.
+- Whole-step diff against PH.4 base: 238+3+4+2 = **247 documentation lines**,
+  within budget. New source constraints unchanged; only corrective prose/link
+  edits in round 2. Commit fix-up and invoke independent-review round 2/3.
 
 ## Remaining work
 

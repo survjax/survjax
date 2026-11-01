@@ -63,6 +63,31 @@ core/wheel rerun for this docs-only change; same library passed PH.4's gate.
 Exact commands, scope, mathematical references and outputs in REVIEW.md.
 Commit and invoke independent-review PH.5 round 1/3 exactly; stop/report.
 
+PH.5 round-1 response, planned before edits: verdict fix-first. F-1 identifies
+an obsolete two-line PH/AFT future-availability note in docs/distributions.md.
+Inspected the ownership handoffs: A10 owns concordance teaching; A9 owns its
+verification/playground/navigation work. This already-committed extension
+recipe's PH-availability paragraph is not an exclusive remaining assignment.
+Narrowly extend this PH topic to that paragraph ONLY: clarify its local class
+is a nesting example, link the real built-in PH guide and leave AFT planned.
+Do not alter any executable recipe, R-reference material or other sections.
+N-1: say direct methods/likelihoods in the general second-AD sentence, so it
+cannot be read as overriding the later RMST shape restriction. N-2: retain
+orphan/root-navigation handoff; no index/conf/playground change. Rebuild docs
+DIRECTLY in both modes, reinspect outputs/links/figure, update REVIEW round
+2/3 and commit a fix-up before invoking the skill again. Stay under 300 lines.
+
+Round-2 results: F-1 fixed with a four-line replacement of the two stale
+PH/AFT lines; the existing recipe and its other sections remain untouched.
+N-1 now explicitly scopes general second AD to direct methods/likelihoods.
+Direct strict docs build exits 0 in both modes; new links/prose inspected in
+both HTML outputs, all eight guide outputs retained with correct dtypes and
+failure case. Figure unchanged, same 490x290 PNG/hash as first inspection.
+Ruff/mypy/whitespace clean; API-reference test 1 passed (0.26s). Total docs
+diff 247 lines (238 guide +3 API +4 additions/2 removals recipe note).
+N-2 stays with the root-nav owner. Commit fix-up, invoke PH.5 round 2/3
+exactly and stop/report; no code/dependency/protected change or publication.
+
 Docs to-do /remaining: maintainer/A9 root navigation integration after this
 page exists; final PH evidence/acceptance audit, including the independent PH
 spec tests when supplied. Existing D-031/D-032 formal status stays open and
