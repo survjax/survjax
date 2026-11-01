@@ -1,3 +1,19 @@
+# MNIST.16 — Invite readers to build their own survival model
+
+Starting/previous-step commit 4fadb51 (MNIST.15 implementation); original
+worktree base ee72c83. Maintainer authorized completing all steps together.
+Change only examples/survival_mnist/README.md and
+ docs/use-cases/survival-mnist.md, plus plan/review records. One docs topic,
+full prose rewrite expressly requested by INSTRUCTION.md section 7.
+Lead with the payoff and three-line loss, preserve the generating-rule/model/
+live-smoke/full-results/takeaways order, use epoch-only figure and three-decimal
+tables. Short README: run command, outputs, committed results and attribution.
+Spec 11.2/use-case03 page requirements; no API, dependency or numerical changes.
+Run scripts/build_docs.sh directly in both configured parent dtype modes;
+keep neural smoke float32. Inspect rendered HTML/figures, links and output
+metrics. Run Ruff/mypy. Independent review and final report cover all four
+requested steps; no later feature work. Prior reviews continue separately.
+
 # MNIST.15 continuation — approved convergence change
 
 Maintainer approved rtol=atol=3e-4 and completing the remaining work. Apply
@@ -2896,3 +2912,8 @@ MNIST.15 completed: approved BFGS tolerance applied, full results regenerated
 with selected epoch 7, k=1.368050814, CNN LL/C above intercept. Final optional
 suite 28 passed in 19.71s; Ruff/mypy/whitespace checks passed (generated SVGs
 excluded as requested). See REVIEW.md for exact evidence and earlier failures.
+
+MNIST.15 regression follow-up: the ordinary smoke fit did not reproduce the
+full-cohort convergence failure. Add the real 50k fit to the optional reference
+suite, comparing with the independently derived profile optimum at existing
+float32 tolerances. Focused reference suite: 2 passed in 4.58s. No code change.

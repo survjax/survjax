@@ -82,3 +82,9 @@ Final combined command: JAX_ENABLE_X64=0 MPLCONFIGDIR=/tmp/survjax-mnist-mpl
 uv run --group examples pytest -q tests/unit/test_mnist_data.py
 tests/unit/test_mnist_outcomes.py tests/unit/check_mnist_*.py.
 Result: 28 passed in 19.71s, no warnings. All tests use the revised code.
+
+MNIST.15 regression follow-up: add test_full_cohort_float32_fit_matches_profile_optimum
+so reverting the approved BFGS tolerance is exercised on the actual failing
+50k training cohort. Its expected log parameters come from the independent
+profile-score bisection recorded in PLAN.md, with unchanged float32 test
+tolerances. Reference suite: 2 passed in 4.58s. No implementation change.

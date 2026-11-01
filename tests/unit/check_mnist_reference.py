@@ -16,3 +16,23 @@ def test_intercept_fit_is_finite_float32():
     )
     assert fitted.dtype == jnp.float32
     assert jnp.all(jnp.isfinite(fitted))
+
+
+def test_full_cohort_float32_fit_matches_profile_optimum():
+    """03: the full-cohort fit must terminate, not stall near the optimum."""
+    import impl_tolerances as tol
+    import numpy as np
+
+    from examples.survival_mnist import data
+
+    _, labels = data.load_mnist()
+    outcomes = data.generate_outcomes(labels)
+    idx = data.split_indices()["train"]
+    fitted = model.fit_intercept(outcomes.time[idx], outcomes.event[idx])
+    # Independent profile-score bisection on these fixed synthetic outcomes:
+    # b**k = sum(t**k)/d; d/k + sum_event(log t)
+    # - d*sum(t**k*log t)/sum(t**k) = 0. Host NumPy calculation, not survjax.
+    expected = [0.17198064720109116, 1.4325021367797313]
+    np.testing.assert_allclose(
+        fitted, expected, atol=tol.ATOL[False], rtol=tol.RTOL[False]
+    )
