@@ -1,3 +1,14 @@
+# MNIST.15 review follow-up — training behaviour and historical records
+
+Round 1 F-1: restore the removed behavioural training test, using three epochs
+and validation values 3/2/2 to pin earliest-best selection, returned checkpoint,
+epoch means, exact shuffle keys and dropping one row from 257. No demo guards.
+F-2: add dated supersession notes to D-029/D-031/D-032, retaining open statuses.
+N-2: point from the top MNIST.15 plan to its execution evidence. N-1 sizes are
+nonblocking; retain clear formatting. S-1/S-2 follow explicit maintainer brief;
+no new spec interpretation or edits. Run focused training checks and lint,
+commit separately, then request MNIST.15 round 2. Docs/code outputs unchanged.
+
 # MNIST.16 — Invite readers to build their own survival model
 
 Starting/previous-step commit 7db112e (MNIST.15 implementation); original
@@ -26,6 +37,9 @@ remove unused enumerate. The brief explicitly supersedes old metadata fields
 Run full and smoke acceptance and preserve all failure evidence below.
 
 # MNIST.15 — Readable neural demo and full experiment
+
+Execution evidence is recorded under "MNIST.15 execution status" and
+"MNIST.15 BFGS investigation" near the end of this file.
 
 Starting/previous commit 7821028; original base ee72c83. Change model.py,
 run.py, optional check_mnist tests, results and whitespace hook exclusions.

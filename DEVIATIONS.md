@@ -19,6 +19,8 @@ distinguish them. No entry status or maintainer decision is changed.
 - What was done: Figure3 plots completed updates and within-epoch losses;
   progress.csv preserves those diagnostics alongside unchanged history.csv
   epoch summaries. Training and checkpoint selection remain unchanged.
+- Update (2026-11-01, MNIST.15): INSTRUCTION.md (2026-11-01) supersedes the dense trace: Figure3 now
+  shows epoch training/validation NLL and progress.csv is removed.
 - Status: open.
 
 ## D-031 MNIST concordance timing and compilation
@@ -38,6 +40,8 @@ distinguish them. No entry status or maintainer decision is changed.
   invocation and warm timings after the explanation of compilation cost.
   Record a synchronized first invocation and median of3 synchronized warm
   repetitions using the same compiled public C callable and input cohort.
+- Update (2026-11-01, MNIST.15): INSTRUCTION.md (2026-11-01) supersedes both timing fields: evaluation
+  warms C once, then reports one synchronized warm call as concordance_seconds.
 - Status: open.
 
 ## D-030 Initialize the CNN from the intercept fit
@@ -73,6 +77,9 @@ distinguish them. No entry status or maintainer decision is changed.
 - Maintainer decision (2026-10-31): rejects the custom roundoff optimizer;
   directs plain optx.BFGS for the intercept estimate. MNIST.5s removes both
   subclasses and the parameter-precision requirement that motivated them.
+- Update (2026-11-01, MNIST.15): INSTRUCTION.md (2026-11-01) and revision 41 supersede the old precision
+  requirement: stock Optimistix BFGS now runs in float32, with the subsequently
+  maintainer-approved rtol=atol=3e-4 and no custom line search.
 - Status: open.
 
 ## D-028 MNIST preparation placement

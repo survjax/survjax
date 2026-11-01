@@ -1,7 +1,7 @@
 # MNIST.16 — Showcase walkthrough and README
 
 Independent review: round 1/3 (MNIST.16)
-Pending separate code review: MNIST.15 round 1/3.
+Independent code review: MNIST.15 round 2/3.
 MNIST.14 round 2: merge; F-1/F-2/N-1/N-2 addressed.
 
 ## Read first
@@ -105,3 +105,22 @@ HTML audit again passes 66 local links/assets/fragments per mode, with clean
 rendered output and committed figures. Native Brave confirms the x64 smoke
 command fits, three-decimal live/full tables render, and no setup output is
 visible. The x32 page was also visually checked. Ruff/mypy pass unchanged.
+
+## MNIST.15 round-1 findings and fixes
+
+F-1: restored a small train() behavioural test with actual Weibull validation
+likelihood on hand-chosen censored exponentials and stubbed updates/predict.
+It checks all 257-row shuffle/batch boundaries, means, [3,2,2] validation,
+earlier tied epoch2 and identity of the returned checkpoint. No runtime change.
+F-2: dated supersession notes added to D-029/D-031/D-032. All statuses remain
+open for the maintainer; no new deviation or spec edits. N-2: execution-evidence
+pointer added under the MNIST.15 heading. N-1 remains an accepted size nit.
+S-1/S-2: explicit current brief governs metadata and test-only gradient checks.
+Reviewer reproduced history.csv and all numerical metrics exactly, passed
+29 tests, and confirmed the full-cohort regression catches old BFGS tolerance.
+Round-1 full gate again stopped on missing SURVJAX_WHEEL, as already documented.
+
+Round-2 validation: JAX_ENABLE_X64=0 uv run --group examples pytest -q
+ tests/unit/check_mnist_training.py: 2 passed in 7.57s. Ruff check passes;
+139 files already formatted; diff whitespace clean. Full experiment and docs
+builds were not repeated because neither runtime nor docs changed.
