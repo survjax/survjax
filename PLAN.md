@@ -1,3 +1,68 @@
+# PH.8 — Final PH evidence and acceptance audit (2026-11-01)
+
+Authorized by "ok do the final step". Start /previous PH.7 final:
+eeeb47a74e734acbfd40e240496b02c04c974c53, release-ph; only user-owned
+ph2.md is untracked. Original launch:
+8757c0fda78e34e6e818249adedd2a144a33c33d. Current AGENTS.md/CLAUDE.md,
+release packet and PH handoff read. Preserve all unfinished/merged history.
+
+One final PH verification topic; no runtime/API changes expected. Before edits:
+- Audit construction, nested diagnostics, all seven direct/grid methods,
+  exact/right likelihoods, equivalent-family identities, required ordinary
+  baseline/eta/mixed derivatives, invalid-entry isolation, PH RMST closure,
+  public exports/install and executable documentation against spec
+  4.1–4.7,5–7,8.7,10.2–10.5,12.1–12.2 and the handoff.
+- Create plans/release-agents/ph-evidence.md (under 300 changed implementation
+  lines) as a durable PH requirement-to-test map with exact current run results,
+  artifact identity, limits and remaining integration obligations. Add a link
+  to this evidence record in plans/release-agents/ph.md. Do not claim
+  this PH audit certifies the whole release or other agents' demos/docs.
+- Run unchanged scripts/check_wheel.sh --through A10 once, preserving its fresh
+  wheel and output. It includes own tests in both dtype processes, source
+  doctests, Ruff/mypy, installed core/custom-family checks and available
+  independent acceptance through A10. Confirm dedicated PH tests are included;
+  no independent PH acceptance files currently exist, so do not imply otherwise.
+- Build/inspect a fresh source archive and wheel from that archive offline,
+  outside the source tree, checking PH source/export/type-marker parity. Reuse
+  installed-core tests against this artifact in both modes if needed to verify
+  the archive route; do not add a generic packaging framework or dependency.
+- Run scripts/build_docs.sh DIRECTLY in both modes; inspect final PH outputs,
+  navigation/API and math appendix/PDF presence. Do not rebuild unchanged PDF.
+- If the audit finds a small PH coverage gap, record the concrete test addition
+  here before implementing; no speculative code changes. Split before the
+  300-line budget; do not change tests/spec, spec, protected paths or tolerances.
+
+Overwrite REVIEW.md with reading order, invariants, every relevant completion
+item/test, exact checks and honest gaps; commit the evidence step and invoke
+independent-review PH.8 exactly (up to three rounds), then stop/report full
+final/previous/original SHAs. No merge/rebase/push/publish. Leave ph2.md intact.
+No new feature, AFT, generic summary, sampling, demo work or RMST-core edit.
+
+PH.8 results: no further PH implementation/coverage gap identified. Fresh
+wheel through-A10 gate exits 0: own tests 1282/8 x64 and 1287/3 x32, source
+doctests 4/4, independent acceptance 2332/28 x64 and 2322/38 x32 (passed/skipped).
+Direct strict docs build exits 0 both modes; five PH outputs, navigation/API,
+plot and clean source playground checked. README example independently checked
+in both modes. Source archive package bytes match checkout; wheel built from
+its unpacked root equals direct wheel in all 31 members/full SHA256. Archive
+wheel isolated install/custom-family checks: 3 passed per mode. Initial direct
+offline archive build lacked uncached uv_build; unpacked-root fast path worked
+without dependency changes. Artifacts/versions/limits recorded in evidence.
+Independent TESTMAP/Q-049 confirms PH/RMST acceptance not supplied. README's
+stale RMST-planned sentence is included in RMST documentation handoff. User
+ph2.md was later absent; this audit never edited/staged/removed it. No library,
+test, user-doc, dependency, tolerance, protected path or appendix changes.
+Commit final evidence and invoke independent-review PH.8 round 1/3 exactly;
+stop/report. Preserve all prior PH/merged history below.
+
+Remaining ownership: independent PH acceptance tests/sync stay with maintainer;
+RMST narrative (including PH closure and restrictions) stays with RMST owner;
+release-wide integrated demos/evidence/publication are separate. Formal
+DEVIATIONS statuses remain maintainer-owned; honor recorded decisions D-028,
+D-030, D-031 (spec rev40) and D-032 without reopening or resolving them.
+
+---
+
 # PH.7 — Apply maintainer prose edits and hand off RMST docs (2026-11-01)
 
 Before edits, authorized by the maintainer's request to remove RMST from this
