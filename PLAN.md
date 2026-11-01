@@ -1,3 +1,25 @@
+# MNIST.13 — Showcase specification (2026-11-01)
+
+Starting/previous-step commit: c1a0915; original worktree base: ee72c83.
+Maintainer instruction: INSTRUCTION.md, process step 1 of 4. Continue the
+current MNIST sub-slice; no archive transition is needed.
+
+Files: spec/use-cases/03-survival-mnist-details.md (float32 throughout,
+fixed Uniform(0, 7) censoring, intercept precision and implementation steps),
+spec/use-cases/03-survival-mnist.md (outcomes table), and the revision line
+in spec/SPECIFICATION.md. Commit these alone in design, then run the required
+spec-marking script and commit .spec-seen here with this plan and REVIEW.md.
+Preserve INSTRUCTION.md as the committed maintainer brief for later steps.
+Public API/tests: unchanged; validate exact requested replacements, revision
+increment and diff whitespace. No runtime tests for this specification step.
+Spec coverage: 11.2 and its delegated use-case 03 precision/outcome requirements.
+Independent review after commits; stop before implementation.
+
+Remaining steps: 2 data.py/tests; 3 model.py/run.py/tests and regenerated full
+results; 4 README and prose docs rewrite with rendered HTML checks. These are
+explicitly authorized by the brief, including its larger grouped step 3.
+Docs to-do: step 4 as above.
+
 # MNIST.12 — Executable documentation page (2026-11-01)
 
 Start clean at 365c173 (MNIST.11 final); original worktree base ee72c83.
