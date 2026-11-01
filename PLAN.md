@@ -1,6 +1,6 @@
 # MNIST.16 — Invite readers to build their own survival model
 
-Starting/previous-step commit 4fadb51 (MNIST.15 implementation); original
+Starting/previous-step commit 7db112e (MNIST.15 implementation); original
 worktree base ee72c83. Maintainer authorized completing all steps together.
 Change only examples/survival_mnist/README.md and
  docs/use-cases/survival-mnist.md, plus plan/review records. One docs topic,

@@ -9,20 +9,30 @@ mystnb:
   render_markdown_format: myst
 ---
 
-# Neural survival analysis with MNIST
+# Teach an image model to predict survival
 
-A CNN reads a handwritten digit image and predicts its Weibull log scale.
-One shared shape parameter is learned with it. The training loss is a survjax
-log likelihood, so right-censored outcomes enter the same minibatch loss as
-observed events. This is an illustrative synthetic survival task.
+Any model that outputs a parameter per row can be trained with a survjax
+likelihood. Here a small CNN looks at handwritten digits and learns how long
+each one “survives”, with half the outcomes censored and without ever being
+told which digit it is looking at. Because we invented the survival times,
+we know the true curve for every image and can see how close the network gets.
 
-## Known generating curves
+The connection between the network and the survival model is just three lines:
 
-Digit $d$ determines $\log b_d=\log 10-0.2d$, with shared shape $k=1.38$.
-Event times are Weibull; independent censoring is Uniform$(0,c)$. Calibrating
-$c$ against the digit frequencies in the 60,000 source training images gives
-about 50% censoring. Labels generate outcomes and define the oracle reference;
-the CNN receives pixels alone.
+```python
+cnn, log_k = params
+dist = survjax.Weibull.from_log(log_shape=log_k, log_scale=jax.vmap(cnn)(images))
+return -dist.log_likelihood(data).mean()
+```
+
+## A world where we know the answer
+
+Digit $d$ determines the Weibull scale through $\log b_d=\log 10-0.2d$,
+while every digit shares shape $k=1.38$. A zero tends to survive longer than
+a nine, so recognizing the image gives the network useful information about
+its outcome. Censoring is Uniform$(0,7)$, so about half the outcomes are
+censored: we know that they survived until observation ended, but not their
+event time. The likelihood uses that information alongside the observed events.
 
 ```{code-cell} ipython3
 :tags: [remove-input]
@@ -45,14 +55,17 @@ sys.path.insert(0, str(ROOT))
 from examples.survival_mnist.data import TRUE_LOG_SCALES, TRUE_SHAPE
 
 FULL = ROOT / "examples/survival_mnist/results"
+full_meta = json.loads((FULL / "metadata.json").read_text())
 HEADER = "| Model | Mean log likelihood | Shape k | Harrell's C |\n| --- | ---: | ---: | ---: |\n"
+display(Markdown("Realized censoring is " + ", ".join(
+    f"{100 * fraction:.1f}% in {split}" for split, fraction in full_meta["realized_censored"].items()
+) + "."))
 ```
 
 ```{code-cell} ipython3
 times = jnp.linspace(0, 20, 201, dtype=jnp.float32)
 oracle = survjax.Weibull.from_log(
-    log_shape=jnp.log(jnp.float32(TRUE_SHAPE)),
-    log_scale=jnp.asarray(TRUE_LOG_SCALES, dtype=jnp.float32),
+    log_shape=jnp.log(TRUE_SHAPE), log_scale=TRUE_LOG_SCALES,
 )
 fig, ax = plt.subplots(figsize=(7, 3.5), layout="constrained")
 ax.plot(times, oracle.survival_grid(times), label=[str(d) for d in range(10)])
@@ -62,185 +75,150 @@ plt.show()
 plt.close(fig)
 ```
 
-Each image has a fixed outcome key derived from its official global index.
-Outcomes therefore stay the same across the smoke and full splits. Pixels are
-float32 in [0, 1], shaped `(N, 1, 28, 28)`, with no fitted normalization.
+These are the curves we hope to recover from pixels. Digit labels generate
+the outcomes and supply an oracle for comparison; they never enter training.
+Images are scaled to [0, 1], and each image keeps the same synthetic outcome
+in both the smoke and full experiments.
 
-## Model and likelihood
+## Your network, a survival likelihood
 
-The Equinox CNN below maps one image to one scalar log scale. `jax.vmap`
-applies it to a minibatch. A float64 BFGS intercept-only Weibull fit on training
-rows initializes the output bias and shared log shape; both are cast to
-float32 for neural training and evaluation. Calibration and stored oracle
-constants use float64. No global precision setting is changed in the library.
+The CNN maps one image to one log scale. Two convolutional layers extract
+features, and two dense layers turn those features into a scalar. To use your
+own network, this scalar output is the part to preserve.
 
 ```{literalinclude} ../../examples/survival_mnist/model.py
 :language: python
 :pyobject: CNN
 ```
 
-The likelihood needs per-image parameters and the aligned observations;
-it does not need an adapter for the network. Exact events and right censoring
-are handled by the public [likelihood API](../likelihood.md).
-Minibatches are just `data[idx]`: the training loop passes `images[idx]` and
-`data[idx]` directly to `loss`, keeping pixels and observations aligned.
+`jax.vmap` applies the network to a batch. The resulting vector of log scales
+and a learned shared log shape go straight into `Weibull.from_log`, whose
+likelihood supplies the loss:
 
 ```{literalinclude} ../../examples/survival_mnist/model.py
 :language: python
 :pyobject: loss
 ```
 
-Adam uses learning rate 0.001 and batches of 128, dropping a partial training
-batch. Validation covers every row. After each epoch, the lowest validation
-NLL selects the checkpoint; ties keep the earlier epoch. Extra within-epoch
-validation is diagnostic and never selects a checkpoint. Gradients must be
-finite initially and after the first update or the run fails.
+Minibatching is `data[idx]`: pass `images[idx]` and `data[idx]` to the loss to
+keep predictions and observations aligned. Adam updates the network and shape
+together, using batches of 128 and a learning rate of 0.001. After each epoch,
+the validation likelihood selects the best checkpoint.
 
-## Live smoke run
+We also fit an intercept-only Weibull with BFGS. Its two shared parameters
+provide both a starting point for training and a reference that cannot use
+image information. All fitting, training and evaluation use float32.
 
-This cell executes one epoch on **5,000 training, 1,000 validation and 2,000
-test images** during each docs build. It uses the same keys and prefix subsets
-as the full experiment. The runner launches float64 preparation/fitting and
-float32 training/evaluation in separate CPU processes, independent of this
-notebook's parent dtype. First use needs a download; a hash-verified warm cache
-avoids network access. Set `SURVJAX_EXAMPLES_DATA` to choose the cache directory.
+## Try one epoch
+
+The smoke run trains on **5,000 images**, selects using **1,000 validation
+images**, and evaluates **2,000 test images**. The first run downloads MNIST; subsequent runs use the checked
+cache. Set `SURVJAX_EXAMPLES_DATA` to choose its location.
+
+```bash
+uv run --group examples python -m examples.survival_mnist.run \
+  --config smoke --out /tmp/survjax-mnist-smoke
+```
+
+The table below comes from a live execution of the smoke run.
 
 ```{code-cell} ipython3
+:tags: [remove-input]
 with tempfile.TemporaryDirectory(prefix="survjax-mnist-docs-") as temporary:
     smoke = Path(temporary)
-    completed = subprocess.run(
+    subprocess.run(
         [sys.executable, "-m", "examples.survival_mnist.run", "--config", "smoke", "--out", str(smoke)],
-        cwd=ROOT, env=dict(os.environ, MPLCONFIGDIR=str(smoke / "matplotlib")),
-        check=False, capture_output=True, text=True,
+        cwd=ROOT,
+        env=dict(os.environ, JAX_ENABLE_X64="0", JAX_PLATFORMS="cpu", MPLBACKEND="Agg"),
+        check=True, capture_output=True, text=True,
     )
-    if completed.returncode:
-        raise RuntimeError(f"MNIST smoke failed ({completed.returncode}):\n{completed.stdout}\n{completed.stderr}")
     with (smoke / "metrics.csv").open() as stream:
         smoke_rows = list(csv.DictReader(stream))
-display(Markdown("**Live smoke result — one epoch, 2,000 test images.**"))
 display(Markdown(HEADER + "".join(
-    f"| {r['model']} | {float(r['mean_log_likelihood']):.6f} | {float(r['shape']):.6f} | {float(r['concordance']):.6f} |\n"
+    f"| {r['model']} | {float(r['mean_log_likelihood']):.3f} | {float(r['shape']):.3f} | {float(r['concordance']):.3f} |\n"
     for r in smoke_rows
 )))
 ```
 
-Smoke checks that the pipeline runs; one epoch is not evidence of convergence
-or the full-run shape target. It writes only temporary output and leaves the
-committed full experiment untouched.
+One epoch makes it easy to try the whole pipeline. The longer experiment
+below shows what the network learns with more data and training.
 
-## Committed full experiment
+## What the full experiment learned
 
-These results were measured separately on **50,000 training, 10,000 validation
-and 10,000 official test images**, with ten fixed epochs and no tuning or seed
-selection on test results. The intercept-only reference uses no image information;
-the oracle uses the true parameters associated with the hidden digit label.
-Higher mean log likelihood and C are better. With shared shape, minus log scale
-ranks risk in the same direction at every time, so it supplies the score for C.
-The constant intercept receives C = 0.5 when comparable pairs exist.
-All three C values use the public
-[`survjax.concordance_index`](../concordance.md), alongside public test likelihoods.
+The committed run uses **50,000 training, 10,000 validation and 10,000 official
+test images**, with ten epochs. The test set measures the selected model;
+it does not choose the checkpoint. Higher held-out log likelihood and higher
+Harrell's C are better. The intercept-only reference measures performance
+without image information, while the oracle knows each image's true parameters.
 
 ```{code-cell} ipython3
 :tags: [remove-input]
-full_meta = json.loads((FULL / "metadata.json").read_text())
-display(Markdown(
-    f"Calibrated censoring limit **c = {full_meta['censor_limit']:.6f}**. Realized censoring: "
-    + ", ".join(f"{split} {100 * fraction:.2f}%" for split, fraction in full_meta["realized_censored"].items()) + "."
-))
 with (FULL / "metrics.csv").open() as stream:
     full_rows = list(csv.DictReader(stream))
 display(Markdown(HEADER + "".join(
-    f"| {r['model']} | {float(r['mean_log_likelihood']):.8f} | {float(r['shape']):.8f} | {float(r['concordance']):.8f} |\n"
+    f"| {r['model']} | {float(r['mean_log_likelihood']):.3f} | {float(r['shape']):.3f} | {float(r['concordance']):.3f} |\n"
     for r in full_rows
 )))
 cnn, reference, truth = full_rows
-shape_error = abs(float(cnn["shape"]) / full_meta["oracle"]["shape"] - 1)
 display(Markdown(
-    f"Validation selected **epoch {full_meta['selected_epoch']}**. Learned shape is "
-    f"{100 * shape_error:.2f}% from 1.38 (target: within 5%). The oracle gaps are "
-    f"{float(truth['mean_log_likelihood']) - float(cnn['mean_log_likelihood']):.6f} "
-    f"in mean log likelihood and {float(truth['concordance']) - float(cnn['concordance']):.6f} in C."
+    f"Validation selected **epoch {full_meta['selected_epoch']}**. "
+    f"The CNN's shape is {100 * abs(float(cnn['shape']) / 1.38 - 1):.1f}% from the generating value. "
+    f"Its remaining gaps to the oracle are "
+    f"{float(truth['mean_log_likelihood']) - float(cnn['mean_log_likelihood']):.3f} in mean log likelihood "
+    f"and {float(truth['concordance']) - float(cnn['concordance']):.3f} in C."
 ))
 ```
 
 ```{figure} ../../examples/survival_mnist/results/fig1.svg
-:alt: First official test image per digit beside predicted and dashed true survival curves.
+:alt: First test image of each digit next to predicted and dashed true survival curves.
 
-Committed full run: first official test image for each digit, with the selected
-CNN's survival curve and the dashed generating curve. These are examples, not
-images chosen for agreement.
+The first test image of each digit, with the CNN's predicted survival curve
+and the dashed generating curve. The network has learned distinct survival
+patterns from the images, even though many event times were hidden by censoring.
 ```
 
 ```{figure} ../../examples/survival_mnist/results/fig2.svg
-:alt: CNN log-scale boxplots for every true digit, with true generating log-scale diamonds.
+:alt: Predicted log scales grouped by digit, with diamonds marking the true log scales.
 
-Committed full run: all test predictions grouped by true digit. Diamonds mark
-the generating log scales. The network learned this ordering from pixels.
+All test predictions grouped by digit. The diamonds mark the generating log
+scales; the spread shows how predictions vary among different images of the
+same digit.
 ```
 
 ```{figure} ../../examples/survival_mnist/results/fig3.svg
-:alt: Per-minibatch training loss and periodic full-validation loss across 3900 updates.
+:alt: Training and validation negative log likelihood by epoch, with the selected epoch marked.
 
-Committed full run: each training minibatch and about ten full validations per
-epoch. The dashed line marks the selected epoch boundary. Minibatch noise is
-substantial; the validation trace is the orange line.
+Epoch training and validation losses. The dashed line marks the selected
+checkpoint: further improvement on training data need not improve predictions
+on new images.
 ```
-
-The same run's epoch summaries give a quieter view of the training trend:
 
 ```{code-cell} ipython3
 :tags: [remove-input]
-with (FULL / "history.csv").open() as stream:
-    history = list(csv.DictReader(stream))
-fig, ax = plt.subplots(figsize=(7, 3.5), layout="constrained")
-epochs = [int(r["epoch"]) for r in history]
-ax.plot(epochs, [float(r["training_nll"]) for r in history], "o-", label="Training epoch mean")
-ax.plot(epochs, [float(r["validation_nll"]) for r in history], "s-", label="Full validation")
-ax.axvline(full_meta["selected_epoch"], color="black", linestyle="--", label="Selected epoch")
-ax.set(xlabel="Epoch", ylabel="Negative log likelihood", xticks=epochs)
-ax.legend()
-plt.show()
-plt.close(fig)
+display(Markdown(
+    "Harrell's C on 10,000 test rows took "
+    + ", ".join(f"{r['model']} {float(r['concordance_seconds']):.3f} s" for r in full_rows)
+    + " after compilation."
+))
 ```
 
-Training loss can keep falling after validation stops improving. Keeping the
-best validation checkpoint avoids using the final epoch automatically. The CNN
-beats the intercept on both test metrics and meets the full-run shape target;
-the remaining oracle gap is reported rather than required to disappear.
-
-### Evaluation timing and reproducibility
-
-The full run measures C on 10,000 test rows. First invocation can include
-compilation, or reuse compiled code from an earlier model. Warm time is the
-median of three synchronized repetitions on the same inputs. Timings were
-collected while verification suites also ran, so they are not an isolated
-speed comparison between models.
-
-```{code-cell} ipython3
-:tags: [remove-input]
-timing_header = "| Model | First C call (s) | Warm median (s) |\n| --- | ---: | ---: |\n"
-display(Markdown(timing_header + "".join(
-    f"| {r['model']} | {float(r['concordance_seconds']):.6f} | {float(r['concordance_warm_seconds']):.6f} |\n"
-    for r in full_rows
-)))
-```
-
-The {download}`run metadata <../../examples/survival_mnist/results/metadata.json>` records
-versions, CPU environment, verified source hashes, root seed 20261025, key
-derivations, settings, cohort sizes and realized censoring. The
-{download}`epoch history <../../examples/survival_mnist/results/history.csv>` and
-{download}`within-epoch trace <../../examples/survival_mnist/results/progress.csv>` retain
-the scalar losses. At step s, training loss is before update s+1; validation
-is after s completed updates. Blank CSV cells mean not evaluated there.
-
-Reproduce from the repository root:
+Reproduce with the command below; the {download}`run metadata <../../examples/survival_mnist/results/metadata.json>`
+records versions, CPU, cohort sizes, censoring fractions and timings.
 
 ```bash
-uv run --group examples python -m examples.survival_mnist.run --config full --out /tmp/survjax-mnist-full
+uv run --group examples python -m examples.survival_mnist.run \
+  --config full --out /tmp/survjax-mnist-full
 ```
 
+## Bring your own features
+
+Swap the CNN for your own network, or start with tabular features instead of
+images. A family's `from_log` constructor connects its parameters to the
+network outputs; Weibull is one choice. The [likelihood API](../likelihood.md)
+handles censored observations, and minibatches remain ordinary `data[idx]`
+slices. Held-out likelihood and [concordance](../concordance.md) come from the
+same library, so you can compare models without building a separate evaluation
+pipeline. Here, shared shape makes minus log scale a risk score for Harrell's C.
+
 MNIST is by Y. LeCun, C. Cortes and C. J. C. Burges, under CC BY-SA 3.0.
-[Dataset](http://yann.lecun.com/exdb/mnist/); the loader verifies the four raw
-IDX downloads from its stable mirror against recorded SHA-256 hashes.
-No raw MNIST data is committed. This page uses synthetic outcomes and provides
-no evidence about clinical prediction performance.
+[Dataset](http://yann.lecun.com/exdb/mnist/); survival outcomes in this example are synthetic.
