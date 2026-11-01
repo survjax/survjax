@@ -1,6 +1,6 @@
 # PH.3c — RMST near-unit log-ratio precision
 
-Independent review: round 1/3
+Independent review: round 2/3
 
 Step start and previous PH.3b final: e630d1c721600b6554b406cd8b78309b446a4847.
 Original worktree launch: 8757c0fda78e34e6e818249adedd2a144a33c33d.
@@ -32,13 +32,21 @@ cutoff case failed: four of 30 points above tolerance, max error 1.06080507e-5.
 Then replace log(tau)-log(b) with log1p((tau-b)/b) when the logs differ by
 less than 1/2. Logs of nearby values lose low-order ratio bits; large shape
 amplifies that loss. Within this branch tau/b lies between exp(-1/2) and
-exp(1/2), inside [1/2,2], so subtraction is well-conditioned (Sterbenz for
-normal floats), relative difference is bounded away from -1, and division is
-bounded. This is equivalent algebra, not an approximation or probability clip.
+exp(1/2), inside [1/2,2]. Normalize both near operands by the SAME power of two:
+frexp(b)=(m,e), b=m*2**e; n=ldexp(tau,-e). Then compute (n-m)/m, with m in
+[1/2,1) and n between about 0.303 and 1.649. Subtraction is exact (Sterbenz),
+relative difference stays away from -1 and its denominator is O(1). Power-of-two
+scaling is exact in this normal range; no model scale is clipped. The ratio
+is unchanged for any common exponent, including across exponent boundaries.
+The integer exponent has no tangent; the real mantissa and cutoff retain JAX
+first/higher derivatives. No custom rule or stop_gradient is added. Original
+units' tiny denominator caused an AD reciprocal-square overflow in round 1,
+even though the VALUE of the division was bounded. Normalizing fixes that
+introduced regression without falling back to inaccurate nearby logs.
 The threshold selects a stable expression, not a parameter restriction.
 
 Retain the log-difference for separated scales: dividing them could overflow,
-and (tau-b)/b could round to -1. Before subtraction/division/log1p, replace BOTH
+and (tau-b)/b could round to -1. Before frexp/ldexp/subtraction/division/log1p, replace BOTH
 operands of that inactive route with 1. Thus its log1p argument is zero and
 all local derivatives are safe under eager, jit and vmap. The fallback logs
 already see positive finite operands after existing zero/invalid substitutions.
@@ -54,10 +62,12 @@ The RMST core is already integrated; no parallel unfinished work is copied.
 
 ## Independent references and requirement/test map
 
-The fixture has 30 native /48 PH points: k={0.2,2,50}, b={1e-4,1e4}, eta=0
+The final fixture has 46 native /64 PH points: k={0.2,2,50}, b={1e-4,1e4}, eta=0
 (and 0.3 for PH), six ULPs below /at /above the equivalent scale. Twelve
 points per family straddle BOTH expression boundaries log(tau/b)=+/-1/2
-with relative offsets 0.9999 /1.0001, at eta=0. References consume the actual
+with relative offsets 0.9999 /1.0001, at eta=0. Sixteen more per family probe
+k=20,50 at b=1e4 with log(tau/b)=c/k, c={-2,-1,-0.4,-0.2,0.2,0.4,1,2}; these
+fill F-1's sensitive band. References consume the actual
 dtype-rounded input arrays; host conversions occur only outside transforms.
 
 At 60 mpmath digits, let a=exp(eta), r=tau/b, H(u)=a*u**k and S(u)=exp(-H(u)).
@@ -123,9 +133,70 @@ Environment: Python 3.12.9, JAX 0.11.2, NumPy 2.5.3, mpmath 1.4.1.
   SHA256 b5a1a5437ca4a3631788206572c19fa763179859c174bbbdc851ac00e2791b52.
   No R fixture regeneration or docs build: neither artifact is changed.
 
-The implementation diff is 206 lines: 196 new test lines plus 9 additions /
-1 removal in _numerics.py. Plan/review records are excluded under the current
+The round-1 implementation diff was 206 lines. Round 2 totals 256 lines:
+243 new test lines plus 12 additions /1 removal in _numerics.py. Plan/review records are excluded under the current
 agreement. No test deletion or tolerance/acceptance/export-test change.
+
+## Round 1 response and additional regression
+
+- F-1 (should-fix): extend the SAME oracle with the sensitive-band points
+  above. The initially suggested c={-2,-1,1,2} at k=20,50 still let the
+  threshold mutant pass (**1 passed in 4.78s**). A physical-survival probe at
+  b=1e4 found c=-0.4 at k=50 gives old-route cutoff error 6.4534e-6; add
+  +/-0.2,+/-0.4 too. With all final points, mutate threshold 0.5 ->1e-3:
+  **1 failed in 2.64s**, the cutoff[native] assertion, exit 1. Source restored
+  in a Python finally block; no mutation remains. No tolerance changed.
+- Implementer-found first-derivative regression: while round 1 ran, probe
+  k=2,b=tau=1e-200 float64. Round-1 code gives forward NaN in b/tau and reverse
+  NaN in b, though true M_b=0.37894469 and M_tau=exp(-1) are finite. The old
+  log-difference middle expression gives both finite. The denominator's
+  reciprocal square overflows under AD. Normalize by exact common powers of
+  two before division as described above. New native/PH cases cover b=tau
+  at 1e+/-200 x64 /1e+/-30 float32. Values use independent b*integral_0^1 exp(-u²);
+  M_b=integral_0^1 2u² exp(-u²), M_tau=exp(-1), 60 digits. Eager vmap and
+  jit(vmap), forward/reverse; existing value-scaled parameter and cutoff
+  bounds, no extreme-scale Hessian assertion. Mutating back to the unscaled
+  quotient fails the new native case (**1 failed in 1.09s**, NaN parameter
+  gradient). Restored production source before all final checks.
+- N-1 (optional, existing): reviewer measured float32 cutoff error up to
+  6.33e-6 at b=1e+/-30, beyond the existing 5e-6 empirical implementer bound
+  but within the spec's ordinary float32 1e-5 absolute target. This is recorded
+  for later gamma-middle precision investigation; neither reproduced as a
+  general bound nor fixed here. No tolerance is loosened, no failing existing
+  case is skipped/changed. The new exact tau=b extreme-scale cases pass the
+  original bounds; they do not claim the entire extreme-scale sensitive band.
+- The reviewer's fresh-wheel invocation was refused; its cumulative check
+  stopped at five missing-SURVJAX_WHEEL fixture errors in x64 acceptance.
+  Our fresh-wheel gate passed both modes in round 1; rerun on final round-2
+  source below. Do not clean the reviewer's mutation worktree/metadata: that
+  is outside the independent-review skill's allowed operations for us.
+
+Round-2 final validation:
+
+- Initial ten cases per dtype (before c=+/-0.2,+/-0.4): x64 27.03s /
+  float32 27.60s. Final `JAX_ENABLE_X64=0 uv run pytest -q tests/unit/test_weibull_rmst_near_scale.py -x`:
+  **10 passed in 33.17s**. Separate JAX_ENABLE_X64=1: **10 passed in 32.15s**.
+  Logs /private/tmp/ph3c-r2-near32.log and ph3c-r2-near64.log.
+- Both mutation failures are numerical assertions, exit 1, not collection or
+  environment errors. Logs /private/tmp/ph3c-r2-mutant-threshold.log and
+  ph3c-r2-mutant-unscaled.log. The initial surviving threshold attempt is
+  documented above; both mutations are absent from the final source.
+- `uv run ruff format --check .`: 135 files formatted;
+  `uv run ruff check .`: all checks passed; `uv run mypy src`: no issues in
+  22 source files; `git diff --check`: clean.
+- `scripts/check_wheel.sh --through A10`: **exit 0, all gates passed**, final
+  production AND test source (no source/test changes during the gate):
+  - own x64 **1281 passed, 8 skipped in 121.06s**;
+  - own float32 **1286 passed, 3 skipped in 122.51s**;
+  - doctests **4 passed** each (0.89s /0.80s);
+  - independent x64 **2332 passed, 28 skipped in 63.93s**;
+  - independent float32 **2322 passed, 38 skipped in 59.25s**.
+  Log /private/tmp/ph3c-r2-wheel-gate.log; artifact
+  /var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/survjax-wheel.lSWCIx/survjax-0.0.1.dev0-py3-none-any.whl;
+  SHA256 4cc23d92d167c80d08bfa72d8214b225011040d62796199512b9561e6f4c6894.
+  No R fixture regeneration or docs/PDF build: no such source was edited.
+
+Commit the fix-up and invoke independent-review PH.3c round 2/3 exactly.
 
 ## Scope and remaining work
 

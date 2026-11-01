@@ -47,6 +47,11 @@ def reference(request):
         (k, 1e4, 0.0, 1e4 * np.exp(sign * 0.5 * factor))
         for k, sign, factor in product((0.2, 2.0, 50.0), (-1, 1), (0.9999, 1.0001))
     ]
+    # F-1: x=O(1) at large shape is sensitive beyond a few ULPs from scale.
+    rows += [
+        (k, 1e4, 0.0, 1e4 * np.exp(c / k))
+        for k, c in product((20.0, 50.0), (-2, -1, -0.4, -0.2, 0.2, 0.4, 1, 2))
+    ]
     points = jnp.array(rows)
     values, gradients, hessians = [], [], []
     with mp.workdps(60):
@@ -194,3 +199,45 @@ def test_separated_scales_keep_inactive_log1p_safe(wrapped, x64_enabled):
             actual = jax.jit(jax.vmap(derivative))(tau, b)
         # S(0)=1; both positive-cutoff survival limits round exactly to 1/0.
         np.testing.assert_array_equal(actual, [1, 1, 0])
+
+
+@pytest.mark.parametrize("wrapped", [False, True], ids=["native", "ph"])
+def test_nearby_extreme_scales_preserve_finite_first_derivatives(wrapped, x64_enabled):
+    """Spec 8.7: rescaling prevents a new reciprocal-square overflow under AD."""
+    scales = jnp.array([1e-200, 1e200] if x64_enabled else [1e-30, 1e30])
+
+    def fn(b, tau):
+        return _value((2.0, b, 0.0, tau), wrapped)
+
+    with mp.workdps(60):
+        # At tau=b, M=b*m, M_b=m-exp(-1), M_tau=exp(-1), m=int_0^1 exp(-u²).
+        m = float(mp.quad(lambda u: mp.exp(-(u**2)), [0, 1]))
+        survival = float(mp.exp(-1))
+        db = float(mp.quad(lambda u: 2 * u**2 * mp.exp(-(u**2)), [0, 1]))
+    np.testing.assert_allclose(
+        jax.jit(jax.vmap(fn))(scales, scales),
+        np.asarray(scales) * m,
+        atol=0,
+        rtol=RTOL[x64_enabled],
+        equal_nan=False,
+    )
+    for mode in (jax.jacfwd, jax.jacrev):
+        derivative = mode(fn, argnums=(0, 1))
+        for actual in (
+            jax.vmap(derivative)(scales, scales),
+            jax.jit(jax.vmap(derivative))(scales, scales),
+        ):
+            np.testing.assert_allclose(
+                (np.asarray(actual[0]) - db) / m,
+                0,
+                atol=RMST_PARAMETER_ATOL[x64_enabled],
+                rtol=0,
+                equal_nan=False,
+            )
+            np.testing.assert_allclose(
+                actual[1],
+                survival,
+                atol=RMST_CUTOFF_ATOL[x64_enabled],
+                rtol=0,
+                equal_nan=False,
+            )

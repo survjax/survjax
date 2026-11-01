@@ -42,7 +42,10 @@ def _weibull_rmst(shape: jax.Array, scale: jax.Array, cutoff: jax.Array) -> jax.
     # spec 7.2: the discarded relative difference must not overflow or reach -1.
     nearby_cutoff = jnp.where(nearby, safe_cutoff, 1.0)
     nearby_scale = jnp.where(nearby, safe_scale, 1.0)
-    relative_difference = (nearby_cutoff - nearby_scale) / nearby_scale
+    # spec 7.2/8.7: normalize exactly so AD never squares a tiny denominator.
+    scale_mantissa, exponent = jnp.frexp(nearby_scale)
+    cutoff_mantissa = jnp.ldexp(nearby_cutoff, -exponent)
+    relative_difference = (cutoff_mantissa - scale_mantissa) / scale_mantissa
     log_ratio = jnp.where(nearby, jnp.log1p(relative_difference), log_ratio)
     log_x = safe_shape * log_ratio
     small = log_x < jnp.log(0.1)

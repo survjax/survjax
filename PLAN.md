@@ -45,6 +45,38 @@ The implementation diff is 206 lines (196 test +9 source additions /1 removal).
 Exact commands, oracle derivations, timings and retained wheel in REVIEW.md.
 Commit and invoke PH.3c independent-review round 1/3; then stop/report.
 
+PH.3c round-1 response, planned BEFORE fixes: review verdict fix-first. F-1
+requires points at log(tau/b)=+/-1/k,+/-2/k, for k=20,50 at b=1e4, in the same
+independent physical-law oracle. Verify that narrowing the switch to 1e-3 now
+fails. N-1 (existing extreme-scale float32 round-trip error) stays recorded;
+do not loosen tolerances or change gamma assembly in this step.
+
+A separate implementer probe while review ran found a NEW first-derivative
+regression at k=2,b=tau=1e-200 float64: the direct relative-difference division
+creates reciprocal-square overflow under AD. The old log-difference gives
+finite gradients. Fix this within the SAME log-ratio concept: normalize the
+already-safe near operands by an exact shared power of two using frexp/ldexp,
+then subtract/divide their O(1) mantissas. Its integer exponent carries no
+tangent; the real mantissa/cutoff retain their derivatives. Add native/PH
+value/first-derivative regressions at scales 1e+/-200 x64 /1e+/-30 float32.
+No custom derivative, stop_gradient, clipping, tolerance or new module.
+Keep total implementation diff below 300 lines. Update REVIEW.md round 2,
+run focused suites in both modes plus the fresh-wheel A10 gate on final code,
+commit a fix-up and invoke the skill exactly. Defer appendix/PDF wording
+alignment to its docs step as already tracked; no appendix source edit here.
+
+Round-2 results: retain c=+/-1,+/-2 and add +/-0.2,+/-0.4 after the initially
+suggested four points still let M4 pass. Final oracle has 46 native /64 PH
+points. Threshold mutant now fails (2.64s); unscaled-division mutant fails
+(1.09s, NaN gradient). Production restored before checks. Final ten new cases
+pass per dtype (33.17s float32 /32.15s x64). Static checks clean. Final-source
+fresh-wheel A10 gate exits 0: own 1281/8 x64,1286/3 float32; doctests 4 per
+mode; independent acceptance 2332/28 x64,2322/38 float32. Final implementation
+diff: 256 lines (243 tests +12 source additions /1 removal), under budget.
+Exact commands/artifact/timings in REVIEW.md. Commit fix-up and invoke round
+2/3 exactly; stop/report after verdict. N-1 remains an optional recorded
+extreme-scale precision investigation, not a relaxed tolerance.
+
 Docs to-do: the existing PH topic, API reference/export integration and final
 PH evidence audit remain pending. No new public behavior or approximation is
 introduced here; the permanent RMST appendix's log-ratio identity remains
