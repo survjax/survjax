@@ -36,7 +36,15 @@ def _weibull_rmst(shape: jax.Array, scale: jax.Array, cutoff: jax.Array) -> jax.
     safe_cutoff = jnp.where(zero, 1.0, cutoff)
     safe_shape = jnp.where(zero, 1.0, shape)
     safe_scale = jnp.where(zero, 1.0, scale)
-    log_x = safe_shape * (jnp.log(safe_cutoff) - jnp.log(safe_scale))
+    log_ratio = jnp.log(safe_cutoff) - jnp.log(safe_scale)
+    # spec 8.7: nearby logs lose cutoff precision, amplified by large shape.
+    nearby = jnp.abs(log_ratio) < 0.5
+    # spec 7.2: the discarded relative difference must not overflow or reach -1.
+    nearby_cutoff = jnp.where(nearby, safe_cutoff, 1.0)
+    nearby_scale = jnp.where(nearby, safe_scale, 1.0)
+    relative_difference = (nearby_cutoff - nearby_scale) / nearby_scale
+    log_ratio = jnp.where(nearby, jnp.log1p(relative_difference), log_ratio)
+    log_x = safe_shape * log_ratio
     small = log_x < jnp.log(0.1)
     # For a=1/k, x>64+4a is well beyond the gamma tail on k in [0.2,50].
     log_tail = jnp.logaddexp(jnp.log(64.0), jnp.log(4.0) - jnp.log(safe_shape))

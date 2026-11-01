@@ -1,3 +1,57 @@
+# PH.3c — Preserve RMST log-ratio precision near unit cutoff (2026-11-01)
+
+Authorized by “ok on to the next bit”; reread the current AGENTS.md (symlink
+of CLAUDE.md), handoff and numerical spec before writing. Clean release-ph
+start / previous PH.3b final: e630d1c721600b6554b406cd8b78309b446a4847.
+Original worktree base: 8757c0fda78e34e6e818249adedd2a144a33c33d.
+The PH sub-slice is unfinished; retain its PLAN history here, without archiving.
+
+One numerical correction, well below 300 code/test lines:
+- src/survjax/_numerics.py: for comparable positive cutoff and scale, evaluate
+  log(tau/b) as log1p((tau-b)/b), retaining the log-difference route for separated
+  scales. Choose equivalent expressions, with safe operands in the discarded
+  route before subtraction/division/log1p. No clipping or tolerance change.
+  This is needed by both native and PH-Weibull, whose RMST delegates here;
+  the reviewed RMST core is already integrated and no parallel core work is
+  imported. No public API, dependency, module or protected-path changes.
+- tests/unit/test_weibull_rmst_near_scale.py: first reproduce the reported
+  float32 cutoff failure, then independent mpmath survival-integral values and
+  first derivatives at neighboring cutoffs, several shapes/scales and both
+  native/PH laws. Cover either side of the expression switch, eager/jit/vmap,
+  all four supported nonshape Hessian compositions and zero/invalid/tail safety
+  through the unchanged existing RMST suites. Keep shape outside Hessian args.
+- Spec 7.2–7.3, 8.7, 12.1–12.2: ordinary-domain cutoff error 1.06e-5 exceeds
+  the unchanged 5e-6 float32 tolerance at k=50,b=10000,eta=0,
+  tau=10000.005859375. This is a settled-contract bug, outside neither accuracy
+  range nor representability; D-031/D-032 do not excuse it. No new deviation.
+
+Overwrite REVIEW.md, map requirements to tests, record the failing before /
+passing after evidence and actual validation. Run focused native/PH suites in
+separate dtype processes, Ruff/mypy, unchanged fresh-wheel A10 gate and diff
+scope checks. Commit, invoke independent-review exactly for PH.3c (up to three
+rounds), then stop/report with final/previous/original commits and remaining
+sub-steps. PH.3b nits N-4/N-5 and its D-032 wording question stay outside this
+single-concept correction; no spec/deviation interpretation is changed.
+
+PH.3c results: the pre-fix float32 regression failed (four of 30 cutoff
+mismatches, maximum 1.06080507e-5). With the correction, the reported forward /
+reverse errors are 6.11807e-8 /9.09831e-8. Final focused native/PH suites:
+69 passed per mode (184.45s float32 /182.42s x64), including all eight new
+cases, 30 native /48 PH oracle points and inactive-route extreme-scale checks.
+Ruff format/check and mypy clean; whitespace clean. Final-source fresh-wheel
+A10 gate exits 0: own 1279/8 x64 and 1284/3 float32, doctests 4 per mode,
+independent acceptance 2332/28 x64 and 2322/38 float32 (passed/skipped).
+The implementation diff is 206 lines (196 test +9 source additions /1 removal).
+Exact commands, oracle derivations, timings and retained wheel in REVIEW.md.
+Commit and invoke PH.3c independent-review round 1/3; then stop/report.
+
+Docs to-do: the existing PH topic, API reference/export integration and final
+PH evidence audit remain pending. No new public behavior or approximation is
+introduced here; the permanent RMST appendix's log-ratio identity remains
+valid. A later appendix refinement may explain the cancellation-safe evaluation.
+
+---
+
 # PH.3b — RMST range, broadcast derivatives and supported Hessians (2026-10-31)
 
 Authorized by “ok agreed and on to the next bit”, resumed after the explicit
