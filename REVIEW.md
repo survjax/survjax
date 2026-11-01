@@ -1,125 +1,129 @@
 Independent review: round 1/3
 
-# RMST.final — Combined evidence and maintainer handoff
+# SIM.4 — Single-replicate PH fitting
 
-Read first, in order:
-1. Active PLAN.md RMST.final section; spec 8.7,10.3,10.5,12.1–12.2.
-2. plans/release-agents/rmst-evidence.md: complete requirement/test map,
-   combined checks, installation artifacts, decisions and remaining owners.
-3. docs/rmst.md's two-line clarification of native calculation vs PH delegation;
-   plans/release-agents/rmst.md's evidence link.
-4. Check evidence/limits below and the unchanged D-028–D-032 decisions.
+Step start: 95f453279ab9bffad1c67dc234a56d46b534a677 (clean release-simulation,
+maintainer-integrated PH/RMST). Previous simulation step final:
+afc266a684be990406ec6152b7eb035b6bb1aa26. Original worktree base:
+8757c0fda78e34e6e818249adedd2a144a33c33d. No integration performed here.
+Preserve all merged PLAN history; prepend this use-case continuation only.
 
-Step start /previous final: 4f8f2dbfa3a39f95e11b1efc34a8675d7509994a.
-Original base: 8757c0fda78e34e6e818249adedd2a144a33c33d. Branch release-rmst.
-PH.8 was integrated at 393c4e9; this is sub-step 3, the last planned RMST
-implementer step. No numerical implementation, test, tolerance, API/export,
-dependency, appendix, spec or protected-file edit. Both workstreams' complete
-plan history remains verbatim. No branch merge, rebase, push or publication.
+## Reading order
 
-## Changes and invariants
+1. PLAN.md SIM.4 and use-case 01 details Models and fitting.
+2. examples/weibull_simulation/study.py, from FitResult onward: real PH
+   objective, exact prescribed BFGS setup, raw diagnostics and Wald inference.
+3. examples/weibull_simulation/check_fit.py: explicit optional-environment
+   verification, analytical identities and acceptance cases.
+4. tests/impl_tolerances.py: new solver-only bound, derived before testing.
+5. DEPENDENCIES.md: trivial SIM.3 N-2 fix, cite afc266a so the probe source
+   remains findable when this review file is overwritten. SIM.3 N-1 is still
+   a maintainer-owned protected-gate decision; no protected edit here.
 
-RMST.d3 N-1 is addressed: native Exponential/Weibull evaluate their own RMST
-formulas directly, whereas PH constructs the equivalent built-in and delegates.
-Only that prose sentence changes; all 16 executable RMST cells are unchanged.
+About 300 changed implementation/test lines (308 including the standalone
+check file and central solver bound); study.py is 292 lines. Core, protected
+paths, dependencies and other agents' files unchanged. No docs step here.
 
-The permanent handoff is beside ph-evidence.md, linked from the original RMST
-launch plan. It covers every staged 8.7/12.1 row and links PH's remaining
-wrapper requirements. Full test names were checked against Python AST
-function definitions: 33 explicit references resolve. Whole-module/API/install
-references also exist. No expected numeric value is regenerated or edited.
+## Invariants and specification mapping
 
-Key mapped evidence: test_rmst.py::test_rmst_derivatives_against_independent_integral
-covers native Exponential first/Hessian/third/fourth derivatives;
-test_weibull_rmst_derivatives.py::test_weibull_rmst_first_derivatives_full_range
-covers native first directions at 142 full-range/switch points;
-test_proportional_hazards_rmst_derivatives.py::test_full_range_values_and_first_parameter_derivatives
-uses physical PH survival integrals; supported Hessian and shape-rejection
-cases are listed separately. The map identifies boundaries, failure/isolation,
-broadcasting, staged surface, 16-cell guide and installed-package evidence.
-These are implementer tests using independent math, not independent acceptance.
+- Use-case 01 / spec 4.4: both objectives use the integrated public
+  ProportionalHazards(baseline, log_hazard_ratio=lp), with lp=gamma*arm on its
+  own line. Weibull theta=(log k,log b0,gamma), Exponential=(log rate0,gamma).
+  Return negative sum of log_likelihood(data). No substitute PH implementation.
+- Validated nonempty (N,) exact/right untruncated data and matching binary arm
+  are caller preconditions. Host data.issues.raise_if_invalid() precedes JIT
+  in checks. No events in either arm is explicitly unestimable, not invalid
+  data. lax.cond returns NaN diagnostics/intervals and false flags for that
+  case; jit(vmap(fit)) preserves supported fits next to it. Under vmap both
+  branch computations can execute, so skipping is semantic, not a claim of
+  avoiding all optimizer work in a mixed compiled batch. No derivative-through-
+  fit guarantee. Ordinary likelihood parameter derivatives remain supported.
+- Exact BFGS rtol=atol=1e-8, max_steps=1000, throw=False. Start log k=0,
+  log scale=log(mean observed time), gamma=0; Exponential starts negative log
+  mean time. Only float64 fitting is supported, per this use case; other
+  precision fails explicitly. No global JAX configuration changes.
+- Acceptance is exactly solver success, finite theta/objective, max absolute
+  gradient <1e-5, and successful Cholesky of the exact objective Hessian.
+  Nonfinite Hessians are substituted before Cholesky; failed factors are
+  substituted before the SE solve. Inactive interval operands are finite.
+  No probability clipping, floors, epsilon or added acceptance criterion.
+- H=L L^T implies [H^-1]_gamma,gamma=||L^-1 e_gamma||^2. SE is its square root;
+  HR interval=exp(gamma+/-1.96 SE). Undefined inference is NaN; rejected fits
+  keep raw diagnostics for later failure accounting. Result has solver,
+  Hessian, estimability and acceptance flags; no arbitrary failure-priority
+  rule is introduced. Scenario categories/counts remain the next step.
+- Optimistix imports only when fitting is called. Shared generator imports
+  still require only JAX/NumPy/core survjax. Existing generator signature,
+  keys and calibration are unchanged.
 
-D-028 positional baseline, D-029 log-parameter errors, D-030 first-only Weibull
-zero boundary, D-031 direct/likelihood derivative deferral and D-032 accepted
-unrepresentable PH closure failure are all included. Formal statuses stay open
-and maintainer-owned; DEVIATIONS.md is byte-identical to step start. No new
-exception: D-031 does not relax RMST. NaN entries' own tangents are unclaimed;
-valid-entry isolation and the mandatory accuracy domain remain unchanged.
+## Test mapping and independent expectations
 
-## Fresh checks
+`check_fit.py` is deliberately outside default pytest filename discovery.
+Run it explicitly with --group examples and JAX_ENABLE_X64=1; it raises a
+clear error if run in the wrong dtype mode, without dependency skips. Ordinary
+offline core tests do not acquire optional fitting dependencies.
 
-scripts/check_wheel.sh --through A10: exit 0, all available gates passed.
-Implementer suites: float64 1282 passed /8 skipped, 144.19s; float32
-1287 passed /3 skipped, 226.02s. Source doctests: 4 passed per mode,
-1.36s /1.23s. Existing independent acceptance through A10: float64
-2332 passed /28 skipped, 110.78s; float32 2322 passed /38 skipped, 69.32s.
-Guard passed. Skip counts match the prior combined gate; no skip introduced.
-Full log: /private/tmp/rmst-final-gate.log. This gate does not select the
-still-undelivered independent PH/staged RMST acceptance tests.
+- Both model objectives: independent exact/right PH formulas sum H-event*log h,
+  checked eagerly under debug_nans, jit, vmap, forward/reverse gradients and
+  Hessians. check_grads(order=2,modes=fwd/rev) on a mean objective uses unchanged
+  central derivative tolerances/steps. Ordinary-range cases only, respecting
+  spec 7.3's integrated extreme-range PH derivative limitation.
+- Exponential fit: hand cohort has d0=d1=2, Y0=6,Y1=12. Unique MLE rates are
+  1/3 and 1/6, gamma=log(.5). At any theta, mu_g=lambda_g*Y_g and
+  H=[[mu0+mu1,mu1],[mu1,mu1]], giving SE_gamma=sqrt(1/mu0+1/mu1).
+  Check fitted theta against the exact MLE with a solver-accuracy bound; check
+  returned H, SE and Wald limits against algebra at the returned theta with
+  ordinary float64 tolerances. Check the specified score threshold explicitly.
+- Solver tolerance is separate from numerical formula accuracy: at the MLE
+  H^-1=[[.5,-.5],[-.5,1]], so score infinity norm <1e-5 implies local theta error
+  <=1.5e-5 to first order. Fixed 2e-5 allows the O(score**2) remainder. Added
+  before running checks, not loosened after a failure. Existing value/derivative
+  tolerances are unchanged.
+- Both model fits on one replicate: n=100 fixed equal arms,
+  k=1.38,b0=11.42,gamma=log(.7), calibrated
+  .55 censoring; root key 20261025 -> scenario 1 -> split R=1 -> U/C split.
+  Both jitted fits meet every acceptance condition and have positive SE. This is a
+  one-replicate check, not full-run coverage or parameter-recovery evidence.
+- A compiled mixed two-replicate Exponential batch retains the analytical MLE
+  in its estimable member and reports NaN diagnostics/unestimable in the other.
+  The entire batch passes structural data validation.
 
+## Commands actually run
 
-scripts/build_docs.sh invoked directly using its approved escalation: exit 0,
-13 source pages rebuilt in each separate dtype process, warnings fatal.
-All 16 RMST cells execute: float32 11.59s /float64 14.03s. PH's five cells
-execute: 4.66s /5.62s. No Sphinx warning or notebook error; the usual kernel
-TCP notices remain. HTML host audit passes in both modes: 16 RMST output
-containers, numerical/shape/error messages, all three RMST API entries,
-both guide links/navigation, local anchors, figure assets and exact appendix
-PDF download. N-1 correction appears in both renders. Source playground
-remains output/count-free. RMST.d3 records the unchanged figure's visual
-inspection and unavailable browser host; this step makes no new browser
-layout or MathJax-execution claim. Temporary host checks are outside the repo;
-committed executable cells reproduce the examples via the direct docs build.
+`JAX_ENABLE_X64=1 uv run --locked --group examples pytest -q examples/weibull_simulation/check_fit.py`:
+6 passed in 35.40s. Earlier five-test executions: 5 passed in 36.03s and
+5 passed in 25.56s; the sixth case fits Exponential to the same seeded
+Weibull cohort rather than only to the analytical Exponential cohort.
+`JAX_ENABLE_X64=1 uv run pytest -q tests/unit/test_simulation_generator.py`:
+17 passed in 5.42s.
+`JAX_ENABLE_X64=0 uv run pytest -q tests/unit/test_simulation_generator.py`:
+17 passed in 3.79s. No skips.
+`uv run ruff format --check .`: 140 files already formatted.
+`uv run ruff check .`: All checks passed!
+`uv run mypy src`: Success: no issues found in 22 source files.
+`uv lock --check`: Resolved 171 packages, exit 0.
 
-Ruff format: 139 files already formatted (gate's earlier run: 138);
-Ruff check: all checks passed; mypy: no issues in 22 source files.
-Whitespace clean. Host assertions: full prior PLAN.md preserved; no source,
-test, decision, appendix, config, spec-marker or protected-path change.
-Spec remains revision 41, design 00e7225b6b10b0d4e3137f7cf85c0b76e377d821.
-No new test is appropriate for a prose/evidence-only step; the unchanged full
-gate and executable docs assertions are the verification.
+Initial source lookup used an obsolete guessed Optimistix bfgs.py filename
+and exited 2; inspected the installed minimise implementation instead. Initial
+Ruff caught one assigned lambda in the check file; replaced it with a plain
+function. No numerical check failed and no tolerance was loosened.
 
-## Installation evidence
+`scripts/check_wheel.sh --through A10`: exit 0,
+final `check: all gates passed through A10`.
+Log: /private/tmp/survjax-sim4-gate.log.
+Own suites: 1282 passed / 8 skipped in 160.22s (x64); 1287 passed / 3 skipped
+in 215.27s (x32). These include the integrated PH/RMST own suites; the six
+optional demo checks are separate as above. Doctests: 4 passed per mode
+(1.93s/1.67s). Independent through-A10: 2333 passed / 27 skipped in 157.31s
+(x64), 2324 passed / 36 skipped in 125.86s (x32).
+Wheel SHA-256: `e9aa003d19c07d4290041a300a45288b7b8a942982dae204ceab57b4f19ec46d`.
+`git diff --check`: exit 0, no output.
 
-Fresh source archive and archive-built wheel are under
-/private/tmp/survjax-rmst-final.c0dut0pb (exact names/hashes in the handoff).
-The gate wheel is under /var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/survjax-wheel.8foYDm.
-All 23 source files match the checkout; py.typed, PH and _rmst.py present,
-_numerics.py absent. Both wheels have 31 equal members and identical complete
-bytes. Both SHA256s are e9aa003d19c07d4290041a300a45288b7b8a942982dae204ceab57b4f19ec46d;
-archive SHA256 ecce72f145b11658820b863cef1f9473403b432c48f0796d0666fdfb5f121e21.
-Prior integration artifacts remain present, rehashed and equal. New manifest
-is retained alongside the archive, and no artifact was removed.
+## Limits and next sub-steps
 
-uv build --offline --no-python-downloads --sdist succeeded; safely unpacked
-with tarfile's data filter and built its wheel from the unpacked directory
-using uv's built-in backend. No dependency or committed helper added. The
-known uncached-backend limitation of direct isolated PEP-517 archive builds
-is retained; that route was not retried or claimed to pass offline.
-
-Existing tests/install/test_wheel.py with SURVJAX_WHEEL naming the archive-built
-wheel, separate JAX_ENABLE_X64=1/0 processes: 3 passed in 17.80s /26.58s.
-Fresh external runtime-only environments verify public exports, type marker,
-core independence, PH RMST eager/jit and strict installed custom-family typing.
-Logs: /private/tmp/rmst-final-archive-install-x64.log and -x32.log.
-
-Environment checked: Darwin 25.6.0 arm64, CpuDevice(id=0), Python 3.12.9,
-JAX/jaxlib 0.11.2, NumPy 2.5.3, pytest 9.1.1, mpmath 1.4.1,
-Ruff 0.16.9, mypy 2.3.1, uv 0.11.19. No new platform/version claim.
-
-## Remaining ownership and limits
-
-No further RMST implementation/docs sub-step is planned after independent
-review. Maintainer owns release-rmst -> main integration, formal D-028–D-032
-disposition and independent PH/staged RMST acceptance delivery/sync plus the
-subsequent cumulative run. Pending acceptance is confirmed in TESTMAP.md's
-Revision 37 not-yet-tested section and API_ASSUMPTIONS.md Q-049. An existing
-A10 pass is not evidence of those missing acceptance tests. No tests/spec
-edit, skip/xfail or tolerance change was introduced.
-
-The handoff identifies separate A9/A10/PH and release-demo owners; it does not
-certify all of Slice A or the full public release. No R regeneration, new CPU
-benchmark, accelerator/demo run or Linux CI claim. Generic summaries/full
-shape Hessians/quadrature tangents remain later scope. No open numerical
-question was introduced by this record. Commit, independently review (max
-three rounds), stop/report. No merge/push/publication by this agent.
+Single-replicate fitting only. No scenario runner, mutually exclusive failure
+classification, accepted-fit denominator summaries, smoke/full CLI, full study,
+performance timing or executable simulation docs yet. No full study acceptance
+claim. No fit differentiation or extreme-PH derivative claim. No docs/shared
+navigation/config/protected edits. Prior reviewer-owned temporary worktrees
+are untouched. Report final/previous/base commits and stop after review.

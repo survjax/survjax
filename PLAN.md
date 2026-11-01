@@ -1,3 +1,73 @@
+# SIM.4 — Fit one replicate with the integrated PH models (2026-11-01)
+
+Clean start/base: 95f453279ab9bffad1c67dc234a56d46b534a677 on release-simulation.
+Previous simulation step final: afc266a684be990406ec6152b7eb035b6bb1aa26.
+Original worktree base: 8757c0fda78e34e6e818249adedd2a144a33c33d.
+Maintainer integrated main/PH/RMST and requests resuming implementation.
+Preserve all merged/unfinished plan history verbatim below. This continues
+use case 01; no archive of other workstreams' preserved integration records.
+
+One concept: a usable single-replicate fit for each specified model, with
+likelihood verification and exact-Hessian Wald inference. Spec revision 41,
+sections 4.4, 6.3, 7.1–7.3, 10.3, 12.2; use-case 01 main and details Models
+and fitting. Ordinary-range derivatives only, per current PH limitation.
+
+Files and demo interfaces:
+- examples/weibull_simulation/study.py: add typed FitResult,
+  negative_log_likelihood(theta, data, arm, *, model), and
+  fit_replicate(data, arm, *, model). Model is static 'weibull'/'exponential'.
+  Both build the real public ProportionalHazards wrapper, with lp=gamma*arm
+  on its own line. Optional Optimistix import stays inside the fit function,
+  preserving generator-only imports without optional dependencies.
+- BFGS rtol=atol=1e-8, max_steps=1000, throw=False; starts exactly as details.
+  float64 fitting only, explicit error for other precision. Preconditions:
+  validated nonempty 1D exact/right untruncated data and matching binary arm.
+  Detect no-event arms before fitting. Return raw objective/gradient/Hessian,
+  solver and estimability/acceptance flags; do not impose a priority among
+  overlapping failure reasons. Scenario bookkeeping remains the next step.
+  Acceptance uses solver success, finite theta/objective, max|grad|<1e-5,
+  successful Cholesky. Inverse-Hessian gamma SE and exp(gamma +/-1.96 SE),
+  with undefined inference explicitly NaN for rejected/unestimable fits.
+- examples/weibull_simulation/check_fit.py: dedicated optional-environment
+  pytest checks, deliberately outside ordinary test filename discovery.
+  Verify analytical Weibull/Exponential PH objectives/derivatives, eager/jit/
+  vmap agreement and check_grads order 2; exact exponential MLE/Hessian/Wald
+  algebra; an accepted seeded Weibull fit, unestimable data, and mixed batching.
+  Reuse value/AD bounds in tests/impl_tolerances.py. Add a solver-only
+  log-parameter accuracy bound 2e-5 before running checks, derived from the
+  specified score threshold and analytic H^-1 at the Exponential MLE; no
+  existing tolerance is loosened.
+  Explicit invocation JAX_ENABLE_X64=1 uv run --locked --group examples pytest
+  -q examples/weibull_simulation/check_fit.py. No conditional dependency skips.
+- examples/weibull_simulation/DEPENDENCIES.md: fix the trivial SIM.3 N-2
+  pointer to its durable probe source in REVIEW.md at commit afc266a.
+- Overwrite REVIEW.md with reading order, invariants, evidence and limits.
+
+No core API/source, dependency, shared docs/navigation/config or protected
+script changes. Keep study.py and this step's diff about 300 lines or less;
+split before growing further. Docs to-do: show these model/fit functions on
+the future simulation page. Remaining: compiled scenarios/failure accounting,
+performance/MCSE summaries, CLI smoke, full study/results and executable docs.
+
+Checks: optional fit suite in float64, existing generator suites in separate
+x64/float32 processes, Ruff/mypy/lock checks, unchanged fresh-wheel through-A10
+gate (includes integrated PH/RMST own tests). Commit, exact independent-review
+skill SIM.4 up to three rounds, then stop/report; no next sub-step, merge or push.
+
+
+Implementation: 308 changed source/check/tolerance/bookkeeping lines, record files excluded;
+study.py is 292 lines. Optional fit checks pass all six cases in float64
+(35.40s), including both models on the same seeded replicate. Existing
+generator suites pass 17 per dtype (5.42s/3.79s). Ruff/mypy/lock checks pass.
+The solver-only 2e-5 log-parameter bound was derived before testing from the
+analytic Exponential H^-1 and the specified 1e-5 score acceptance threshold;
+no existing numerical tolerance was changed. Fresh-wheel through-A10 gate
+exited 0: own suites 1282/1287 passed (8/3 skipped), doctests 4 per mode,
+independent 2333/2324 passed (27/36 skipped). REVIEW.md has exact timings,
+commands and limits. Commit and independent review follow, then stop.
+
+---
+
 # RMST.final — Combined evidence and maintainer handoff (2026-11-01)
 
 Integration sub-step 3, after RMST.d3 round 1 verdict merge. Step start /

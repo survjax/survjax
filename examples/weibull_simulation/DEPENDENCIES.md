@@ -18,7 +18,8 @@ The complete six-package group is now locked and installed. SIM.3 verified
 chain/draw axes, NumPyro split R-hat/ESS and ArviZ bulk/tail ESS on seeded iid
 Normal draws; shifted chains were detected. These are environment checks,
 not convergence evidence for the Bayesian demo. Probe source and exact
-invocation are preserved in REVIEW.md. ArviZ 0.23.0 writes a daily import
+invocation are preserved in REVIEW.md at commit `afc266a` (SIM.3 N-2).
+ArviZ 0.23.0 writes a daily import
 warning stamp under ~/arviz_data; the probe required sandbox escalation.
 No loader dependency is required for the standard-library IDX reader.
 
