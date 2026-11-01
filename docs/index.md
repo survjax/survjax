@@ -27,8 +27,8 @@ both constructors, diagnostics and R input conventions.
 families, their behaviour at time zero and infinity, and how their parameters
 map to R's `survival` and `flexsurv` and to NumPyro.
 [Proportional hazards](proportional-hazards.md) introduces the built-in wrapper,
-log hazard ratios, batch and time-grid shapes, likelihoods and restricted
-means, including the initial-release derivative limits.
+log hazard ratios, batch and time-grid shapes, likelihoods and the
+initial-release derivative limits.
 [Survival curves and time grids](grids.md) evaluates batches of
 distributions, including posterior draws, at many times at once. The
 [custom-distribution guide](distributions.md) builds constant-hazard, Gompertz,

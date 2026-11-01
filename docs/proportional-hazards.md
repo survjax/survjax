@@ -21,10 +21,10 @@ h(t)=e^\eta h_0(t),\qquad H(t)=e^\eta H_0(t),\qquad
 S(t)=S_0(t)^{e^\eta}.
 $$
 
-**Positive eta means higher hazard.** It does not mean longer survival.
+**Positive eta means higher hazard** thus shorter survival.
 The hazard ratio $e^\eta$ is dimensionless and constant over time; time
-units come from the baseline. The survival-probability ratio need not be
-constant. See the [API reference](api.md#proportional-hazards) for signatures.
+units come from the baseline.
+See the [API reference](api.md#proportional-hazards) for signatures.
 
 ## A hazard ratio of two
 
@@ -136,58 +136,9 @@ underflow inside differentiation is the issue; an accurate log value alone
 does not ensure an accurate gradient. There is no fully mapped safe boundary
 or blanket exemption for all tails. Stabilization is post-initial-release
 work; ordinary derivatives, value/boundary policies and supported valid-entry
-isolation remain required. This limit does **not** relax the RMST contract below.
+isolation remain required.
 
-## Restricted mean survival time
-
-`rmst(tau)` returns $\int_0^\tau S(t)\,dt$, in the baseline's time units.
-For the rate-1 PH model above, $M(2)=1-e^{-2}\approx0.864665$ months:
-
-```{code-cell} ipython3
-restricted_mean = ph.rmst(2.0)
-assert jnp.isfinite(restricted_mean)
-restricted_mean, -jnp.expm1(-2.0)
-```
-
-RMST delegates through the built-in same-family PH closure:
-
-| Baseline | Equivalent distribution used for RMST |
-| --- | --- |
-| `Exponential(rate=r)` | `Exponential(rate=r*exp(eta))` |
-| `Weibull(shape=k, scale=b)` | `Weibull(shape=k, scale=b*exp(-eta/k))` |
-
-Direct methods and likelihoods use the PH expressions; they do not delegate
-through this summary closure. The closure hook is private, not an extension
-API. RMST on a custom baseline without a supported closure raises
-`NotImplementedError`. Only `rmst` is available among summaries in this release;
-`mean`, `median` and `quantile` raise `NotImplementedError`.
-
-Cutoffs broadcast against the batch. There is no `rmst_grid`: add the leading
-cutoff axis explicitly for the `(draws, arms)` batch:
-
-```{code-cell} ipython3
-cutoffs = months[:, None, None]
-restricted_means = draws.rmst(cutoffs)
-assert restricted_means.shape == (3, 3, 2)
-assert jnp.all(restricted_means[0] == 0.0)
-assert jnp.all(jnp.isfinite(restricted_means))
-restricted_means.shape, restricted_means[-1]
-```
-
-Negative, NaN or infinite cutoffs yield NaN, as do declared parameter issues.
-At `tau=0`, RMST is exactly 0, parameter derivatives are 0 and the cutoff
-derivative is $S(0)=1$. First derivatives at positive cutoffs include all
-baseline parameters and eta, with $\partial M/\partial\tau=S(\tau)$.
-Exponential and PH-Exponential support higher derivatives on smooth interiors.
-For Weibull and PH-Weibull, **second or higher derivatives involving shape
-are unsupported** and generally raise `NotImplementedError`; some orders or
-tail branches can instead return the correct result. Higher derivatives in
-scale, eta and positive cutoff remain supported; keep shape outside the
-arguments being differentiated for these nonshape Hessians. At zero, the Weibull
-guarantee covers only values and first derivatives; do not infer higher
-boundary calculus.
-
-## Diagnostics and numerical failures
+## Diagnostics
 
 Construction stores parameter values without automatically raising on numerical
 violations. Inspect `parameter_issues()`; nested fields use the `baseline.`
@@ -207,31 +158,4 @@ issues.fields, values
 ```
 
 Use `issues.raise_if_invalid()` at a concrete host checkpoint when you want an
-exception. Also check the evaluated values: clean diagnostics do not guarantee
-that a numerical summary can be represented.
-
-In particular, an equivalent PH scale can overflow although the true RMST is
-finite. This example explicitly uses float32 in **both** documentation builds:
-
-```{code-cell} ipython3
-fragile = survjax.ProportionalHazards(
-    survjax.Weibull(shape=jnp.float32(0.2), scale=jnp.float32(1.0)),
-    log_hazard_ratio=jnp.float32(-18.0),
-)
-failed = fragile.rmst(jnp.float32(1.0))
-assert fragile.parameter_issues().ok
-assert jnp.isnan(failed)
-fragile.parameter_issues().ok, failed
-```
-
-Here the equivalent scale is $e^{90}$, beyond float32, while the true
-restricted mean through month 1 is close to 1. The cutoff/equivalent-scale
-ratio is about $e^{-90}$, outside the promised RMST accuracy range
-$[10^{-2},10^5]$ (with Weibull shape in $[0.2,50]$). NaN is the initial
-release's detectable numerical-failure result in this regime, even with valid
-original parameters. Zero cutoff still has its exact boundary value. This
-limitation does not weaken accuracy inside the specified range or isolation
-of other valid entries. Wider dtype can delay overflow; no universal safe
-eta boundary is claimed. Never replace a failed summary with zero or a
-probability floor. For interpreting infinities and NaNs, see
-[Likelihoods in the tails](numerical-behaviour.md).
+exception.

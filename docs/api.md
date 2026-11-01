@@ -74,7 +74,7 @@ Both families also have every method of `SurvivalDistribution` listed under
 ## Proportional hazards
 
 See [Proportional hazards](proportional-hazards.md) for executable examples,
-broadcasting, RMST and the first-release derivative limits.
+broadcasting and the first-release derivative limits.
 
 ```{eval-rst}
 .. autoclass:: survjax.ProportionalHazards

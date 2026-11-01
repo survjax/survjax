@@ -1,3 +1,52 @@
+# PH.7 — Apply maintainer prose edits and hand off RMST docs (2026-11-01)
+
+Before edits, authorized by the maintainer's request to remove RMST from this
+PH guide and incorporate their ph2.md edits. Start /previous PH.6 final:
+5c2354e3539668a927c5b355c173bffaf0d63c1c, release-ph. Original launch:
+8757c0fda78e34e6e818249adedd2a144a33c33d. Current AGENTS.md/CLAUDE.md,
+spec 4.4,7.3,8.7,10.5 read. Preserve unfinished PLAN history below.
+
+One docs topic, below 300 changed documentation lines:
+- docs/proportional-hazards.md: apply the two body edits from the maintainer's
+  untracked ph2.md: positive eta means higher hazard thus shorter survival;
+  remove the survival-probability-ratio sentence. Preserve current navigation
+  rather than restoring the draft's stale orphan marker.
+- Remove the RMST section, closure table, cutoff examples, summary derivative
+  restrictions and RMST overflow example/caveats. Remove the now-dangling RMST
+  cross-reference from the direct/likelihood derivative limitation. Keep that
+  limitation, PH diagnostics and all five remaining executable examples.
+- docs/index.md and docs/api.md: adjust only guide descriptions so they no
+  longer advertise RMST content in the PH page. Keep the home capability
+  statement, PH toctree/prose links and rmst API autodoc member unchanged.
+- Leave ph2.md byte-for-byte untouched and uncommitted (user-owned input;
+  initial SHA256 985dc60936bf7504afdfc1e2761c78e97f7d2ec08f3a342a05725ef57e374b82).
+
+Public API unchanged. No source/tests/dependency/protected/spec/deviation or
+appendix changes. This transfers narrative documentation ownership; it does
+not alter the RMST contract or tests. No new unit tests for prose removal.
+Run scripts/build_docs.sh directly in both dtype modes with fresh execution
+and strict warnings. Inspect generated guide content, outputs and navigation;
+run Ruff/mypy, strict API-reference test and whitespace/scope checks. No
+numerical/wheel rerun for this docs-only step. Write REVIEW.md, commit exact
+owned paths, invoke independent-review PH.7 exactly, address findings within
+three rounds, then stop/report. User ph2.md remains untracked deliberately.
+
+PH.7 results: 94 changed docs lines; both draft body edits applied verbatim,
+user draft hash unchanged, five retained code cells byte-identical. Direct
+strict docs build exits 0 in both modes, five executed outputs each; PH runs
+4.53s x32 /4.25s x64. Rendered content, dtypes, AD/diagnostic outputs and home /
+API navigation checked; plot hash unchanged. Ruff/mypy/whitespace clean;
+strict API-reference test 1 passed in 0.53s. No code/test/API/protected change.
+Exact commands and evidence in REVIEW.md. Commit PH.7 and invoke independent
+review round 1/3 exactly; stop/report after review.
+
+Docs to-do /remaining: RMST implementer now owns the separate RMST guide,
+including PH closure, derivative restrictions and numerical-failure material.
+Final PH evidence/acceptance audit and maintainer guide review remain separate.
+No merge, push or publish.
+
+---
+
 # PH.6 — Integrate the PH guide into docs-home navigation (2026-11-01)
 
 The maintainer confirms A9 was merged and its worktree removed, and explicitly

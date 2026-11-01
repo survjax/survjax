@@ -1,87 +1,82 @@
-# PH.6 — PH guide discovery from documentation home
+# PH.7 — Maintainer edits and RMST documentation handoff
 
 Independent review: round 1/3
 
-Step start /previous PH.5 final: 414fa845e121eed9ff1cc09f991b920193bdef08.
+Step start /previous PH.6 final: 5c2354e3539668a927c5b355c173bffaf0d63c1c.
 Original worktree launch: 8757c0fda78e34e6e818249adedd2a144a33c33d.
-Clean release-ph start; current AGENTS.md/CLAUDE.md read before edits.
+Current AGENTS.md/CLAUDE.md read before edits. Work stays on release-ph.
 
 ## Read first
 
-1. PLAN.md PH.6. The maintainer confirms A9 was already merged and removed,
-   explicitly assigns this navigation follow-up HERE, and flags the absence
-   of any docs-home PH link. Old A9 ownership deferral is superseded.
-2. docs/index.md diff: feature intro, direct PH-guide description/link,
-   toctree entry immediately after builtin-families, custom-recipe link label.
-3. docs/proportional-hazards.md: ONLY removal of orphan: true.
-4. Spec 4.4/8.7/10.5/12.2 and generated-link checks below.
+1. PLAN.md PH.7 and docs/proportional-hazards.md diff.
+2. docs/index.md and docs/api.md: guide-description changes only.
+3. Spec 4.4,7.3,8.7,10.5. The maintainer explicitly requests removal of RMST
+   material from the PH guide because the RMST implementer will document it.
 
 ## Exact scope and invariants
 
-One small docs-navigation topic, 15 changed docs lines (index +10/-4,
-new guide metadata -1); PLAN/REVIEW excluded under the current agreement.
-No library, API, test, dependency, config, playground, spec, deviation,
-protected-path or guide-body change. No new numerical test that merely
-mirrors a Markdown link. No A9 worktree reopened, no merge/push/publish.
+94 changed docs lines: guide +6/-82, index +2/-2, API +1/-1.
+PLAN/REVIEW excluded from the implementation budget. No library/API/test,
+dependency/config/protected/spec/deviation/appendix changes. No public export
+or API-reference test weakened. No merge, push or publication.
 
-The home intro now mentions the implemented built-in PH wrapper and staged
-RMST only on Exponential/Weibull and their PH wrappers, as spec 4.4/8.7 require.
-Other summaries remain planned. The obsolete/unverified "Slice A completion
-gate has not yet been met" sentence is removed, NOT replaced by a claim that
-A9/Slice A/the whole release is complete. This change is current capability
-and navigation documentation; final PH evidence audit remains separate.
+Compared the complete current-guide/ph2.md diff before editing. The user draft
+has exactly the opening prose edits plus a stale orphan marker. Applied both
+body edits verbatim: positive eta means higher hazard thus shorter survival;
+remove the survival-probability-ratio sentence. Retained current toctree/home
+navigation rather than reinstating orphan: true. User-owned untracked ph2.md
+is untouched and intentionally outside this commit; SHA256 before/after is
+985dc60936bf7504afdfc1e2761c78e97f7d2ec08f3a342a05725ef57e374b82.
+It is not needed by the standalone committed docs or reviewer checkout.
 
-The home guide-list paragraph links directly to proportional-hazards.md and
-summarizes the built-in wrapper's predictor, shapes, likelihoods, restricted
-means and derivative limits. The existing extension recipe remains linked,
-with its label clarified as the custom-distribution guide. Root toctree now
-includes PH beside the built-in family guide, giving the sidebar and ordinary
-previous/next page relations. PH.5's N-2 navigation handoff is addressed HERE.
+Removed the RMST section, closure table, scalar/grid cutoff examples, summary
+AD caveats and overflow example/explanation. Removed the dangling RMST-contract
+cross-reference; renamed the remaining diagnostics section to Diagnostics.
+Kept the scoped direct/likelihood ordinary AD guarantee and revision-40 extreme
+parameter-derivative limitation, including its affected parameters and lack of
+mapped safe boundary. No remaining guide prose discusses RMST. This is an
+ownership handoff, not a change to section 8.7's contract or release obligations.
 
-The maintainer is still reviewing the guide, so preserve the WHOLE source
-except the orphan marker, not merely the code blocks. Verified bytes against
-`git show HEAD:docs/proportional-hazards.md` before commit (HEAD was the step
-base): deleting exactly `orphan: true` gives the working-tree bytes. No
-sentence, example, assertion, numerical limit or other front matter changed.
-The previously reviewed eight executable cells and figure remain intact.
+Both guide descriptions now match its contents. Home capability paragraph still
+correctly mentions native Exponential/Weibull RMST and their PH wrappers; API
+rmst autodoc remains intact. Both home links and sidebar entry remain. The five
+surviving code cells are byte-identical to the prior guide, selected from old
+cells 0,1,2,3,6. The same survival figure remains.
 
-## Actual checks and outputs
+## Actual checks and evidence
 
-- `scripts/build_docs.sh` invoked DIRECTLY, without redirects, environment
-  assignments or shell wrappers: **exit 0; x32 and x64 builds succeeded**.
-  Strict -E/-n/-W and notebook-error settings unchanged, 12 source pages read
-  with fresh notebook execution. PH x64 execution reported 4.60 seconds.
-- Parsed BOTH generated index.html main articles with HTMLParser, distinguishing
-  article prose, article toctree and out-of-article sidebar anchors. Each has
-  the PH target THREE times, one in each required context:
-  [(outside article,not toc), (inside article,not toc), (inside article,toc)].
-  This verifies actual HOME BODY links, not merely the API or sidebar link.
-- Each guide's generated head has prev=builtin-families.html and
-  next=likelihood.html, proving normal toctree relations/order. Eight executed
-  cell-output containers remain in each guide. The existing PH/API links are
-  preserved; no new orphan warning/suppression introduced.
-- Guide figure SHA256 remains
-  90a1e0a54cebfb8edac31f4086b1df2980160d95789160e8d40efbbeb4c6a12e
-  in BOTH builds, identical to the visually inspected PH.5 figure. No plot or
-  guide body edited. Generated HTML/notebooks/images/cache remain uncommitted.
-- Exact source-byte comparison: guide equals old bytes minus the orphan line.
-- `uv run ruff format --check .`: 137 files formatted;
-  `uv run ruff check .`: all checks passed;
-  `uv run mypy src`: no issues in 22 files;
-  `uv run pytest -q tests/unit/test_api_reference.py`: 1 passed in 0.30s;
-  `git diff --check`: clean.
-- Scope audit `git diff --exit-code -- src tests pyproject.toml uv.lock AGENTS.md CLAUDE.md scripts .agents .workmux.yaml docs/conf.py docs/playground.ipynb`:
-  exit 0. No new dependency or runtime change. No core numerical/wheel gate
-  rerun for this docs-only navigation change; PH.4 covers the same library.
-  No R, fixture regeneration or appendix/PDF rebuild.
+- scripts/build_docs.sh run DIRECTLY, no redirect/environment assignment/shell
+  wrapper: exit 0, fresh executable examples in x32 and x64; 12 source pages,
+  warnings fatal. PH notebook execution 4.53s float32 /4.25s float64.
+- Parsed BOTH generated PH main articles: exactly five output containers,
+  requested shorter-survival prose, no RMST narrative, correct printed dtype,
+  batch/grid ((3,2),(3,2),(3,3,2)), NLL/gradient/curvature (3,2,3), and
+  baseline.scale diagnostic with one finite/one NaN survival value. These
+  demonstrate spec 4.4 broadcasting/eta direction and 7.3 ordinary compiled
+  derivatives; the existing unchanged executable assertions check boundaries
+  and masks. The loss expectations follow the hand-derived 3*exp(eta)-eta.
+- Both home main articles retain two PH targets (prose and toctree), and the
+  out-of-article sidebar target. Guide prev/next remain built-in families /
+  likelihoods. API link and survjax.ProportionalHazards.rmst anchor retained.
+- Single plot image SHA256 in BOTH builds is unchanged from the previously
+  visually inspected PH.5 plot:
+  90a1e0a54cebfb8edac31f4086b1df2980160d95789160e8d40efbbeb4c6a12e.
+  No new plot/layout content. Generated output/cache remain uncommitted.
+- uv run ruff format --check .: 137 files already formatted.
+- uv run ruff check .: All checks passed!
+- uv run mypy src: Success: no issues found in 22 source files.
+- uv run pytest -q tests/unit/test_api_reference.py: 1 passed in 0.53s.
+- git diff --check: exit 0.
+- git diff --exit-code -- src tests pyproject.toml uv.lock AGENTS.md CLAUDE.md
+  scripts .agents .workmux.yaml docs/conf.py docs/playground.ipynb appendices:
+  exit 0. No numerical/wheel gate rerun for this docs-only step; PH.4 tested
+  the same library. No R/fixtures or PDF appendix changes.
 
-## Remaining work
+## Remaining work and uncertainty
 
-No unresolved navigation ownership or remaining A9 implementation is implied.
-The maintainer's human review of the guide continues without body churn.
-Next separate task: final PH evidence/acceptance audit, including independent
-PH spec tests when supplied. No full-release completion claim is made here.
-
-Commit, invoke independent-review PH.6 exactly, address blocker/should-fix
-findings within three rounds if needed, then stop/report verdict, findings,
-final/previous/original SHAs and remaining work. No merge or publication.
+No unresolved implementation question in this docs revision. Separate RMST
+narrative, including PH closure, derivative restrictions and numerical failure,
+is assigned to its implementer by the maintainer. Final PH evidence/acceptance
+audit remains separate; independent PH acceptance tests have not yet been
+supplied. Existing deviation statuses remain maintainer-owned. Stop after
+independent review; do not begin another step.
