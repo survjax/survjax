@@ -1,3 +1,63 @@
+# PH.6 — Integrate the PH guide into docs-home navigation (2026-11-01)
+
+The maintainer confirms A9 was merged and its worktree removed, and explicitly
+assigns this follow-up HERE: describe the exact changes, make a plan and fix
+the missing docs-home link while the guide is still under human review.
+This supersedes the old packet's deferred A9 navigation ownership. No A9
+work remains assigned to another active implementer for this change.
+
+Start /previous PH.5 final: 414fa845e121eed9ff1cc09f991b920193bdef08,
+clean release-ph. Original worktree launch:
+8757c0fda78e34e6e818249adedd2a144a33c33d. Current AGENTS.md/CLAUDE.md and
+spec 10.5 /12.2 read. Keep all unfinished PH/merged PLAN history below.
+
+Before edits, one small docs-discoverability topic, well below 300 lines:
+1. docs/index.md intro: include the existing built-in PH wrapper and staged
+   rmst on Exponential/Weibull and their PH wrappers, keeping other summaries
+   and unavailable features planned. Remove the unverified old Slice A gate
+   status sentence, without claiming A9/Slice A/the release is complete.
+2. Add a direct home-page guide-list link to proportional-hazards.md, with a
+   concise description of the built-in wrapper, batch/grid use, likelihoods,
+   RMST and initial-release derivative limits. Distinguish the custom-family
+   recipe link so users can find the real built-in wrapper guide directly.
+3. Add proportional-hazards to the root toctree immediately after
+   builtin-families, giving home contents, sidebar and ordinary page relations.
+4. docs/proportional-hazards.md: remove ONLY orphan: true. Preserve all other
+   front matter and the entire body/8 executable cells byte-for-byte, since
+   the maintainer is still reviewing it. This addresses PH.5 N-2.
+
+No code/API, test, dependency, config, playground, spec/deviation/protected
+path or other guide changes. No new test merely mirrors a Markdown link.
+Run scripts/build_docs.sh DIRECTLY, no redirect/env assignment/shell wrapper,
+forcing notebook execution in both dtype modes with warnings fatal. Inspect
+both generated home main articles for the direct PH link AND contents link,
+sidebar presence and guide/home relations; check the guide body/code unchanged
+and its eight executed outputs/figure retained. Run applicable static/API
+checks and whitespace/scope audit. No core/wheel rerun for this docs-only edit.
+
+Overwrite REVIEW.md, record the public-capability claims against spec 4.4 /
+8.7 /12.2 and the exact checks, commit, invoke independent-review PH.6 exactly
+(up to three rounds) and stop/report. Report final/previous/original SHAs and
+remaining work. Never merge, push, publish or recreate an A9 worktree.
+
+PH.6 results: 15 changed docs lines (index +10/-4, guide orphan -1).
+Guide bytes equal the reviewed source with ONLY the orphan line removed;
+all prose/cells unchanged. Direct strict docs build exits 0 in both modes.
+Both generated HOME main articles contain a direct prose link AND toctree
+link to PH, plus the global sidebar entry. Guide relations are prev built-in
+families /next likelihoods. All eight executed outputs retained; figure hash
+unchanged. Ruff/mypy/whitespace clean; API-reference test 1 passed (0.30s).
+No code/dependency/protected/config/playground/body edits or generated output
+committed. Exact commands/scope/outputs in REVIEW.md. Commit and invoke PH.6
+independent-review round 1/3 exactly; stop/report. PH.5 N-2 is addressed here,
+not handed back to A9. No A9 task or worktree needs reopening.
+
+Remaining: final PH evidence/acceptance audit (independent PH spec tests still
+not supplied) and the maintainer's ongoing review of the guide. Navigation
+will be completed here, not handed back to the retired A9 workstream.
+
+---
+
 # PH.5 — Executable proportional-hazards guide (2026-11-01)
 
 Authorized by “ok on to next part”. Clean release-ph start /previous PH.4 final:

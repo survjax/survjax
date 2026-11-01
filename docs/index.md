@@ -2,13 +2,15 @@
 
 survjax is a JAX library for survival analysis. The current implementation
 can describe survival observations (`SurvivalData`), provides the exponential
-and Weibull distributions, and lets you write your own survival
+and Weibull distributions and a proportional-hazards wrapper, and lets you
+write your own survival
 distributions, from which survjax derives survival, cumulative hazard,
 hazard, density and CDF. Every distribution can be evaluated pointwise or on
 a shared time grid. Exact/right-censored likelihoods without truncation are
 available, along with Harrell's concordance for caller-supplied risk scores.
-Other likelihood modes, families, summaries and evaluation metrics are
-planned; the Slice A completion gate has not yet been met.
+Restricted mean survival time (`rmst`) is available for the exponential and
+Weibull families and their PH wrappers. Additional likelihood modes, families,
+summaries and evaluation metrics are planned.
 
 [Verifying the Slice A subset](slice-a-verification.md) covers compiled
 derivatives, installed-wheel checks and reproducing the CPU baseline.
@@ -24,9 +26,12 @@ both constructors, diagnostics and R input conventions.
 [Exponential and Weibull](builtin-families.md) introduces the built-in
 families, their behaviour at time zero and infinity, and how their parameters
 map to R's `survival` and `flexsurv` and to NumPyro.
+[Proportional hazards](proportional-hazards.md) introduces the built-in wrapper,
+log hazard ratios, batch and time-grid shapes, likelihoods and restricted
+means, including the initial-release derivative limits.
 [Survival curves and time grids](grids.md) evaluates batches of
 distributions, including posterior draws, at many times at once. The
-[distributions guide](distributions.md) builds constant-hazard, Gompertz,
+[custom-distribution guide](distributions.md) builds constant-hazard, Gompertz,
 piecewise-constant and proportional-hazards models from their survival
 functions. The [playground](playground.ipynb) uses only synthetic data and the
 current public API. The [API reference](api.md) lists every public class and
@@ -39,6 +44,7 @@ is built.
 playground
 survival-data
 builtin-families
+proportional-hazards
 likelihood
 numerical-behaviour
 slice-a-verification
