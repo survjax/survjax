@@ -1,8 +1,38 @@
 # MNIST.16 — Showcase walkthrough and README
 
-Independent review: round 1/3 (MNIST.16)
-Independent code review: MNIST.15 round 2/3.
+Independent review: round 1/3 (MNIST.16), verdict merge.
+Independent code review: MNIST.15 round 2/3, verdict merge.
 MNIST.14 round 2: merge; F-1/F-2/N-1/N-2 addressed.
+
+## Final handoff
+
+All four requested steps are complete. MNIST.13 (spec) passed in round 1,
+MNIST.14 (data) in round 2, MNIST.15 (model/run/results) in round 2 and
+MNIST.16 (walkthrough/README) in round 1. Reviews are in
+`../review/slices/MNIST.13.md` through `MNIST.16.md`.
+Final combined float32 MNIST suite: **30 passed in 56.68s**, running
+`tests/unit/test_mnist_data.py`, `test_mnist_outcomes.py` and all
+`check_mnist_*.py` with the examples group.
+
+MNIST.15 F-1/F-2/N-2 are fixed in 294159d; N-1 (approximate size targets)
+is accepted to retain readable formatting. S-1/S-2 flag older spec wording
+about metadata and runtime gradient checks; implementation follows the
+maintainer's explicit INSTRUCTION.md. Deviation statuses remain maintainer-owned.
+MNIST.16 has no blockers or should-fix findings. Its three nits remain:
+README results link opens metadata, one generated sentence repeats 1.38,
+and attribution retains the original HTTP MNIST URL. No further step remains.
+
+Both reviewers' broad A10 gates pass lint, typing, implementation suites
+(1106 passed/7 skipped and 1112 passed/1 skipped) and doctests (4 per mode).
+The x64 spec suite has 2328 passed/27 skipped and five wheel setup errors:
+SURVJAX_WHEEL is unset. The gate stops before the x32 spec suite, so this is
+not a claim of a clean full gate. Docs independently build in both modes.
+Implementer visual inspection and all-figure byte checks cover the reviewer's
+reported browser/permission limitations.
+
+Docs implementation: 90155dd, verification record: cf87e93; preceding code
+step: 7db112e, review fix-up: 294159d. Rewrite starting point: c1a0915;
+original worktree base: ee72c83. This final record changes no implementation.
 
 ## Read first
 
@@ -54,7 +84,7 @@ Checks completed:
 
 No new tests for prose. Existing code acceptance and live notebook execution
 supply the relevant evidence. Final rebuild and rendered-command recheck are
-recorded below before completion; independent review is still required.
+recorded below; completed independent reviews are summarized above.
 
 ## MNIST.15 code review handoff
 

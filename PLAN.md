@@ -1,3 +1,12 @@
+# MNIST showcase — completed
+
+All four INSTRUCTION.md steps are implemented and independently reviewed:
+MNIST.13 round 1 merge, MNIST.14 round 2 merge, MNIST.15 round 2 merge,
+MNIST.16 round 1 merge. Final combined float32 MNIST suite: 30 passed in
+56.68s. Full results and both rendered docs modes verified. REVIEW.md records
+remaining nonblocking nits and the broad gate's missing-wheel setup errors.
+No implementation sub-steps remain; maintainer reviews the entire use case.
+
 # MNIST.15 review follow-up — training behaviour and historical records
 
 Round 1 F-1: restore the removed behavioural training test, using three epochs
