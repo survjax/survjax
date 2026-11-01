@@ -343,8 +343,10 @@ patients.survival(12.0), patients.hazard(3.0)
 patients[2].baseline.rates.shape, patients[2].baseline.starts
 ```
 
-Built-in proportional hazards and accelerated failure time wrappers are
-planned for a later slice; this example only shows how nesting works.
+This local class only illustrates nesting. The supported built-in
+[`survjax.ProportionalHazards`](proportional-hazards.md) takes `log_hazard_ratio`
+rather than this example's `hazard_ratio`. Accelerated failure time wrappers
+remain planned for a later slice.
 
 ## Distributions are JAX values
 
