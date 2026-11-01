@@ -2917,3 +2917,10 @@ MNIST.15 regression follow-up: the ordinary smoke fit did not reproduce the
 full-cohort convergence failure. Add the real 50k fit to the optional reference
 suite, comparing with the independently derived profile optimum at existing
 float32 tolerances. Focused reference suite: 2 passed in 4.58s. No code change.
+
+MNIST.16 verification completed: direct scripts/build_docs.sh passes both
+parent modes (with approved escalation after sandbox cache/shutdown errors).
+Final page source and rendered commands verified in native Brave; 66 local
+links/assets/fragments per mode pass, figures match committed outputs and
+metadata/metrics/cohorts are current. Ruff/format/mypy and relevant pre-commit
+checks pass. Independent reviews remain; no implementation sub-steps remain.

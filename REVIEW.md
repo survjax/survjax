@@ -47,7 +47,7 @@ Checks completed:
   figures (hard reload required to clear old SVG cache), timing and takeaways.
   Browser-host connector was unavailable, so used native browser UI.
 - Visual inspection identified long command lines; wrap each command across
-  two shell lines (still one command). Final direct two-mode rebuild underway.
+  two shell lines (still one command). Final direct two-mode rebuild passed; both modes report build succeeded.
 - Ruff: All checks passed; 139 files already formatted. mypy: no issues in
   21 source files. Diff whitespace clean. Pre-commit checks passed on example
   source, docs, README, hook config and three generated SVGs (TOML skipped).
@@ -94,7 +94,14 @@ The reviewer accepted the data step despite that environmental gate issue.
 
 ## Remaining
 
-Only final build/visual verification and independent MNIST.15/MNIST.16 reviews.
+Only independent MNIST.15/MNIST.16 reviews remain.
 No further implementation sub-step, publishing, merge or release action planned.
 Legacy spec wording notes S-1 in the earlier reviews remain maintainer-owned;
 the explicit current brief governs fixed censoring and reduced metadata.
+
+Final docs verification: direct escalated scripts/build_docs.sh exited 0 for
+both modes after command wrapping; x64 MNIST notebook executed in 8.51s.
+HTML audit again passes 66 local links/assets/fragments per mode, with clean
+rendered output and committed figures. Native Brave confirms the x64 smoke
+command fits, three-decimal live/full tables render, and no setup output is
+visible. The x32 page was also visually checked. Ruff/mypy pass unchanged.
