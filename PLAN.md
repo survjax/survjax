@@ -1,3 +1,67 @@
+# SIM.6 — Accepted-fit performance and synchronized timings (2026-11-02)
+
+Clean start and previous simulation final:
+458ebbd559fb5540b4eb7a32784d93143fe4d79b (SIM.5 round 2: merge).
+Integration base: 95f453279ab9bffad1c67dc234a56d46b534a677.
+Original worktree base: 8757c0fda78e34e6e818249adedd2a144a33c33d.
+SIM.5 F-1 fixed; N-1 direct-script imports/layout deferred to CLI/docs,
+N-2 optimizer-status fragility documented, N-3 theta-only nonfinite test is a
+nonblocking remaining nit. SIM.5 reviewer raw gate ended with wheel-fixture setup errors, not code
+failures; its exact results are recorded separately in REVIEW.md. Preserve all plan history.
+The maintainer explicitly authorized SIM.5 and this next bit in one request.
+
+One concept, about 300 changed source/check lines: accepted-only summaries and
+synchronized timing/orchestration. No CLI or saved results in this step.
+Use-case 01 details Performance measures/Timing; spec 3.3, 7.2, 10.3,
+11.4, 12.2 release item 4 and 12.3. Read main/details/common and handoffs.
+
+Files and demo interfaces:
+- examples/weibull_simulation/run.py: add performance(fits, truth), pure JAX
+  reductions over accepted fits only. Bias log HR, empirical SD (ddof=1),
+  root-mean-square model SE, inclusive log-Wald coverage, strict |z|>1.96
+  power. MCSE formulas exactly as details, no MCSE for model SE. Cast counts
+  to the float dtype before division. Rejected NaN placeholders are substituted
+  before arithmetic. With zero accepted, statistics are undefined (NaN); with
+  one, empirical SD and its/bias MCSE are undefined. Defined singleton measures
+  remain defined. No additional acceptance filters or silent failure dropping.
+- Keep study.py (306 lines) and its frozen generator import contract untouched;
+  use the existing spec-named run.py as an importable engine. CLI/docs will
+  deliberately import the engine and resolve direct-script imports (SIM.5 N-1).
+- Add typed ModelRun/ScenarioRun result containers and run_scenario(index,n,R,c).
+  Prepare/validate once; realized pooled censoring uses floating counts. Fit
+  both models. Synchronize prepared inputs before measuring. First call includes
+  block_until_ready on the whole FitResult; warm time is median of 3 subsequent
+  synchronized calls. Rate is requested R / warm seconds. Report first-call
+  seconds honestly: an existing cached executable need not compile again. No
+  cache clearing. Return raw fits, counts and summaries with timings.
+- examples/weibull_simulation/check_performance.py: explicit optional-group
+  checks, with hand-computed estimates/MCSEs, rejected NaN exclusion, zero/one
+  accepted edge cases and eager/jit agreement. Spy on fit/clock/synchronization
+  to check first+three warm calls and median without timing thresholds; one
+  real small scenario checks both models' orchestration and returned totals.
+- REVIEW.md: reading order, invariants, requirement/check mapping, exact checks
+  and review rounds. No library API, new dependency, config, protected script,
+  docs or other agent files. No differentiation promise through the optimizer.
+
+Checks: dedicated x64 performance/scenario/fit suites, generator suites in
+separate x64/x32 processes, Ruff, mypy, lock consistency, unchanged fresh-wheel
+through-A10 gate. Commit then exact independent-review SIM.6 (max 3 rounds),
+fix blocker/should-fix findings between rounds, then stop/report as requested.
+Implemented: run.py 226 lines, adds 115 lines; dedicated checks 170 lines.
+Hand measures/MCSEs, rejected huge/NaN rows, zero/singleton accepted and timing
+order/median/requested-throughput all pass. Combined optional suites: 35
+passed in 68.80s; after stronger timing assertions, performance 6 passed in
+8.60s. Generators 17 per dtype (8.65s/8.15s); Ruff/mypy/lock clean.
+Fresh-wheel through-A10 exit 0: own 1282/1287 passes (8/3 skips), doctests 4
+per mode, independent 2333/2324 passes (27/36 skips). Exact outputs in
+REVIEW.md. Added a rejected NaN-theta/finite-objective check for masking and
+SIM.5 nonblocking N-3. Commit and independent-review next, then stop.
+Remaining: CLI smoke, full six-scenario study/results/figures, executable docs.
+Docs to-do: importable runner layout, overlap reason columns/unique failed,
+accepted-only denominators, undefined small-count summaries, timing convention.
+
+---
+
 # SIM.5 — Compiled scenario runner and failure accounting (2026-11-02)
 
 Clean start/base and previous simulation step final:
