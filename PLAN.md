@@ -8,8 +8,9 @@ files, not the external spec checkout.
 
 Files: `scripts/gpu_ci.py` (exclude the external `spec` symlink from the
 source archive while retaining safe extraction); `tests/unit/test_gpu_ci_archive.py`
-(regression check that the produced archive contains no `spec` link and can
-be extracted with the `data` filter); `PLAN.md` and `REVIEW.md`.
+(regression check that builds an isolated git fixture, then verifies its
+archive contains no `spec` path and extracts with the `data` filter);
+`PLAN.md` and `REVIEW.md`.
 Public API: none. Spec sections: none; this is CI runner transport only.
 
 Keep the fix within 300 changed lines. Run the focused regression test, Ruff

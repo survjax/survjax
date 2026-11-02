@@ -1,4 +1,4 @@
-Independent review: round 2/3
+Independent review: round 3/3
 
 # GPU.1 — Modal runner and GPU test marker
 
@@ -61,6 +61,19 @@ Validation after fixes:
 - Ruff format/check on `scripts/gpu_ci.py` and the regression test — passed;
   `python3 -m py_compile scripts/gpu_ci.py tests/unit/test_gpu_ci_archive.py`
   passed; `git diff --check` clean.
+
+Round 3 finding B-2 was addressed after the final review: the regression test
+now creates and commits a temporary git repository under `tmp_path`, then
+changes into it before calling `_source_archive`. It no longer assumes the
+tests run from a checkout with `.git`, as Modal runs them from an extracted
+archive. The focused test passes from the normal checkout. No further
+independent-review round is available under the three-round limit, and no
+Modal GPU run was made after this test-only follow-up.
+
+Round 3 verdict was `maintainer` because of B-2, which is now fixed in a
+follow-up commit without another review round. N-1 (guard coverage) and N-4
+(probe failure does not gate tests, despite the docstring) remain open; they
+are outside this archive fix.
 
 Cost estimate at current Modal Function rates: T4 $0.000164/s, CPU
 $0.0000131/core/s, memory $0.00000222/GiB/s. With fixed 2-core/8-GiB limits,

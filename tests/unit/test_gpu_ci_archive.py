@@ -2,6 +2,7 @@
 
 import importlib.util
 import io
+import subprocess
 import sys
 import tarfile
 from pathlib import Path
@@ -40,6 +41,24 @@ def _load_runner(monkeypatch):
 
 def test_source_archive_can_be_safely_extracted(tmp_path, monkeypatch):
     runner = _load_runner(monkeypatch)
+
+    repository = tmp_path / "source"
+    repository.mkdir()
+    (repository / "pyproject.toml").write_text("[project]\nname = 'archive-test'\n")
+    (repository / "spec").write_text("external design checkout link\n")
+
+    def git(*args):
+        subprocess.run(
+            ["git", *args], cwd=repository, check=True, capture_output=True, text=True
+        )
+
+    git("init", "--quiet")
+    git("config", "user.email", "archive-test@example.invalid")
+    git("config", "user.name", "Archive Test")
+    git("add", "pyproject.toml", "spec")
+    git("commit", "--quiet", "-m", "Create archive fixture")
+    monkeypatch.chdir(repository)
+
     source = runner._source_archive("HEAD")
 
     destination = tmp_path / "repo"
