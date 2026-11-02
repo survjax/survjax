@@ -145,3 +145,21 @@ def test_real_optimizer_failure_is_counted():
     counts = failure_counts(fits)
     assert counts["attempted"] == counts["failed"] == counts["solver"] == 1
     assert counts["accepted"] == 0
+
+
+@pytest.mark.parametrize("reason", ["solver", "nonfinite", "gradient", "hessian"])
+def test_each_failure_gate_has_its_own_column(reason):
+    """D-033: isolate each rejection gate so swapped reason labels fail."""
+    p = jnp.zeros(2)
+    objective = jnp.array(jnp.nan if reason == "nonfinite" else 1.0)
+    gradient = jnp.array([2e-5 if reason == "gradient" else 0.0, 0.0])
+    hessian = jnp.array([[1.0, 2.0], [2.0, 1.0]]) if reason == "hessian" else jnp.eye(2)
+    fit = _assess_fit(p, objective, gradient, hessian, jnp.array(reason != "solver"))
+    fits = jax.tree.map(lambda x: x[None], fit)
+    columns = jax.jit(failure_columns)(fits)
+    assert fits.estimable[0] and columns["failed"][0]
+    combined = jnp.zeros(1, dtype=bool)
+    for name in ("solver", "nonfinite", "gradient", "hessian", "unestimable"):
+        np.testing.assert_array_equal(columns[name], [name == reason])
+        combined = combined | columns[name]
+    np.testing.assert_array_equal(columns["failed"], combined)

@@ -62,7 +62,8 @@ suite 23 passed (23.87s); unchanged fit suite contributes 15 cases. Generators
 17 per dtype (3.11s/3.03s), Ruff/mypy/lock clean. Fresh-wheel through-A10:
 exit 0, own 1282/1287 passed (8/3 skips), doctests 4 per mode, independent
 2333/2324 passed (27/36 skips). Exact outputs/investigations in REVIEW.md.
-Commit and independent review next; after merge verdict proceed to SIM.6 as
+Round 1 F-1: add four isolated reason checks (14 scenario checks pass); no
+production change. Request round 2; after merge verdict proceed to SIM.6 as
 explicitly requested, then stop after that step's review.
 
 ---

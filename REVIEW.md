@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # SIM.5 — Compiled scenarios and independent failure columns
 
@@ -112,3 +112,17 @@ performance/MCSE summaries and synchronized timings, as the user explicitly
 requested both steps. Still stop for any maintainer verdict/spec question.
 Remaining after SIM.6: CLI smoke, six-scenario full study/results/figures and
 executable simulation docs. No remote, merge, rebase or publication actions.
+
+## Round 1 response — F-1
+
+F-1 fixed with four independent hand cases in check_scenario.py: solver only,
+NaN objective only, score 2e-5 only, and indefinite Hessian only. Every case
+asserts exactly its own reason and failed == OR(all applicable reasons).
+They use the reviewed _assess_fit, tying each reason to the actual rejection
+policy. No production code, thresholds or tolerances changed. Dedicated
+scenario checks: 14 passed in 28.45s (including concurrent reviewer gate load).
+The two duplicate-gate mutants described in F-1 are distinguished by these
+isolated cases; no mutation execution claimed here.
+N-1 is tracked for the CLI/docs step: script imports and intentional importable
+engine layout. N-2 remains the documented pinned-environment test limitation;
+do not reinterpret a future optimizer-status change as a PH accuracy regression.
