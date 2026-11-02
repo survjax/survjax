@@ -1,3 +1,26 @@
+# BAYES.2 fix-up — Pairing and endpoint regressions (2026-11-02)
+
+Maintainer requests continuation from clean 55a578e (previous integration
+step head); original worktree base b1291a8. Same Bayesian sub-slice.
+One concept: finish BAYES.2 review findings now PH/RMST are integrated.
+Files: check_model.py, model.py, run.py, PLAN.md, REVIEW.md. Spec 11.3,
+02-details Grids/Route A; integer-to-float rule in current AGENTS.md.
+No API/module/dependency/spec/protected edits; under 100 implementation lines.
+
+- F-003: cross the arm values so separately sorted differences cannot pass.
+- Test tau_max exactly 5, and use a posterior grid ending at 7 to distinguish
+  RMST(5) from the grid endpoint, with unequal draw/grid lengths.
+- N-003: replace the route shape bare assert with an explicit failure.
+- Integration N-2: cast censoring indicators before mean, preserving float64.
+- Check fixed numerical expectations analytically; run all optional checks,
+  smoke metadata and deliberate pairing/endpoint/shape mutations. Ruff/mypy
+  and whitespace; no repeat unchanged full core gate (passed on integration).
+Write REVIEW.md, commit fix-up, use independent-review BAYES.2 round 2/3,
+then stop per verdict. Later substeps: full convergence/truth audit and saved
+results, figures/prior predictive, predictive KM/external validation, docs.
+
+---
+
 # BAYES.integration — Resolve the maintainer-started main merge (2026-11-01)
 
 Maintainer explicitly requests resolving the active merge on release-bayes.

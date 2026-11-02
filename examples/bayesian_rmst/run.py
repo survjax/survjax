@@ -89,7 +89,9 @@ def main() -> None:
             for name in ("survjax", "jax", "jaxlib", "numpy", "numpyro")
         },
         "censor_limit_years": trial.censor_limit,
-        "censored_fraction": float(jax.numpy.mean(~trial.data.exact)),
+        "censored_fraction": float(
+            jax.numpy.mean((~trial.data.exact).astype(trial.data.lower.dtype))
+        ),
         "sampling_seconds_including_compile": elapsed,
         "divergences_per_chain": extra["diverging"].sum(axis=1).tolist(),
         "numpyro_diagnostics": {

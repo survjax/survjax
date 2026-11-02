@@ -90,8 +90,8 @@ def check_factor() -> None:
 
 def check_aggregation_and_grids() -> None:
     """02-details: paired draw arithmetic and half-year follow-up boundary."""
-    # Hand arithmetic: paired deltas [1,-1,0], mean=0, sample SD=1, P>0=1/3.
-    rmst = jnp.array([[1.0, 2.0], [3.0, 2.0], [5.0, 5.0]])
+    # Hand arithmetic: paired deltas [2,-2,0], mean=0, sample SD=2, P>0=1/3.
+    rmst = jnp.array([[1.0, 3.0], [3.0, 1.0], [5.0, 5.0]])
     draws = PosteriorDraws(
         jnp.array([1.0, 3.0, 5.0]),
         jnp.ones(3),
@@ -103,9 +103,9 @@ def check_aggregation_and_grids() -> None:
     np.testing.assert_allclose(probability, 1 / 3, atol=1e-12, rtol=0)
     for key, value in {
         "mean": 0.0,
-        "sd": 1.0,
-        "lower_95": -0.95,
-        "upper_95": 0.95,
+        "sd": 2.0,
+        "lower_95": -1.9,
+        "upper_95": 1.9,
     }.items():
         np.testing.assert_allclose(
             table["delta_RMST(5)"][key], value, atol=1e-12, rtol=0
@@ -119,6 +119,13 @@ def check_aggregation_and_grids() -> None:
         np.testing.assert_allclose(
             tau_grid, np.linspace(0, 5.5, 101), atol=1e-12, rtol=0
         )
+    # A constant observed time has p90=5: equality must be accepted.
+    _, boundary_grid = time_grids(
+        survjax.SurvivalData(jnp.array([5.0, 5.0]), jnp.ones(2))
+    )
+    np.testing.assert_allclose(
+        boundary_grid, np.linspace(0, 5, 101), atol=1e-12, rtol=0
+    )
     try:
         time_grids(survjax.SurvivalData(jnp.array([1.0, 4.0]), jnp.ones(2)))
     except ValueError:
@@ -136,13 +143,13 @@ def check_posterior_routes() -> None:
         "gamma": jnp.log(jnp.array([0.5, 1.0, 2.0])),
     }
     t_grid = jnp.array([0.0, 1.0, 5.0, 10.0])
-    tau_grid = jnp.array([0.0, 2.0, 5.0])
+    tau_grid = jnp.array([0.0, 2.0, 5.0, 7.0])
     draws = posterior_draws(samples, t_grid, tau_grid)
     # Shape=1: r=HR_arm/b0, S(t)=exp(-rt), RMST(tau)=(1-exp(-r*tau))/r.
     rates = np.array([[0.5, 0.25], [0.25, 0.25], [0.125, 0.25]])
     expected_rmst = -np.expm1(-np.asarray(tau_grid)[:, None, None] * rates) / rates
     np.testing.assert_allclose(draws.rmst_curve, expected_rmst, atol=1e-12, rtol=0)
-    np.testing.assert_allclose(draws.rmst_tau, expected_rmst[-1], atol=1e-12, rtol=0)
+    np.testing.assert_allclose(draws.rmst_tau, expected_rmst[2], atol=1e-12, rtol=0)
     expected_survival = np.exp(-np.asarray(t_grid)[:, None, None] * rates)
     np.testing.assert_allclose(draws.survival, expected_survival, atol=1e-12, rtol=0)
     np.testing.assert_allclose(draws.shape, np.ones(3), atol=1e-12, rtol=0)

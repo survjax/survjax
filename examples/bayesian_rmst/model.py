@@ -190,7 +190,10 @@ def check_rmst_routes(
     for actual, expected in zip(
         aligned, (draws.rmst_tau, draws.rmst_curve), strict=True
     ):
-        assert actual.shape == expected.shape
+        if actual.shape != expected.shape:
+            raise AssertionError(
+                f"RMST route shapes differ: {actual.shape} != {expected.shape}"
+            )
         np.testing.assert_allclose(
             actual, expected, atol=1e-12, rtol=0, equal_nan=False
         )
