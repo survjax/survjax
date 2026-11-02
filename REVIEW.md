@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # SIM.6 — Accepted-fit performance and synchronized timings
 
@@ -113,3 +113,24 @@ fixture is pinned-environment/status plumbing, not transformation invariance
 or extreme PH derivative accuracy. D-033 status remains maintainer-owned.
 Remaining after this step: CLI smoke, six-scenario full study/results/figures,
 executable docs. Never merge, rebase, push or publish.
+
+
+## Round 1 response
+
+F-1 fixed: new three-accepted-row test uses gamma=[0,1,2], truth=0.
+Hand mean=1, sum squared deviations=2 and ddof=1 SD=1, so bias MCSE is
+1/sqrt(3), empirical-SE MCSE is .5. Checks both eager and jit with unchanged
+ordinary tolerances. No production formula/threshold changes.
+Final combined performance/scenario/fit checks: 36 passed in 26.65s.
+Ruff format/check and git diff --check clean after the test fix.
+Reviewer round-1 focused checks: 35 passed in 26.54s. Raw through-A10 gate
+exited 1 with own suites/doctests passing, x64 spec 2328 passed/27 skipped/5
+SURVJAX_WHEEL setup errors; x32 spec not run. Our fresh-wheel gate above
+passed both modes. No reason to repeat unchanged core suites for this test fix.
+
+N-1 tracked explicitly for full-run metadata: CPU model, JAX version, thread
+settings, calibrated c values, realized censoring and exact run command.
+S-1 recorded as D-034 and asked of the maintainer for the later full-run
+label/cache decision. No action on the spec question: first_call_seconds and
+cache behavior remain unchanged, and no table/metadata label exists yet.
+The question does not block SIM.6 per the reviewer; stop after this review.

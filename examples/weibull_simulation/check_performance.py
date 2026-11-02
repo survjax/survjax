@@ -168,3 +168,29 @@ def test_real_scenario_retains_both_models_counts_censoring_and_timings():
         np.testing.assert_allclose(
             record.fits_per_second, 2 / record.warm_seconds, atol=ATOL, rtol=RTOL
         )
+
+
+def test_three_accepted_distinguish_bias_and_empirical_se_mcse():
+    """01 MCSE: gamma=[0,1,2] has SD=1; 1/sqrt(3) differs from 1/2."""
+    rows = [
+        _assess_fit(
+            jnp.array([0.0, gamma]),
+            jnp.array(1.0),
+            jnp.zeros(2),
+            jnp.eye(2),
+            jnp.array(True),
+        )
+        for gamma in (0.0, 1.0, 2.0)
+    ]
+    fits = jax.tree.map(lambda *xs: jnp.stack(xs), *rows)
+    # Hand derivation: mean=1, sum squared deviations=2, ddof=1 variance=1.
+    expected = {
+        "bias": 1.0,
+        "empirical_se": 1.0,
+        "bias_mcse": 1 / np.sqrt(3),
+        "empirical_se_mcse": 0.5,
+    }
+    for fn in (runner.performance, jax.jit(runner.performance)):
+        actual = fn(fits, 0.0)
+        for name, value in expected.items():
+            np.testing.assert_allclose(actual[name], value, atol=ATOL, rtol=RTOL)

@@ -6,6 +6,25 @@ now D-030. Historical RMST plans/reviews citing D-028 refer to D-030 here;
 those records remain verbatim. No entry body, decision or status is changed.
 
 
+## D-034 Full-study timing labels when scenarios reuse compilation
+
+- Step: SIM.6 independent review round 1, S-1 (nonblocking for SIM.6).
+- Spec: use-cases/01-weibull-simulation-details.md, Timing; SPECIFICATION.md
+  12.2 release item 4 and 12.3.
+- Spec says: per scenario/model, compile time is the first jitted-vmap call
+  including synchronization. Warm time is the median of three later calls.
+- Observed: the module-level fitter can reuse compiled code for the second
+  censoring level at the same (R,n,model), so that scenario's first call need
+  not include compilation. This follows from the signature; no cache-behavior
+  experiment claimed. A future column labelled compile time could mislead.
+- Did/propose: retain the honest first_call_seconds field and synchronization
+  unchanged in SIM.6. Asked the maintainer how the later full-run table should
+  label it: first-call time with cache reuse explained; compilation once per
+  (n,model); or cleared caches per scenario. No output-label/cache policy
+  change before the decision. This does not affect the current summary fix.
+- Status: open.
+
+
 ## D-033 Simulation failure reasons when multiple acceptance gates fail
 
 - Step: SIM.5 planning (compiled scenarios and failure accounting).

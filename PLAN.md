@@ -57,6 +57,11 @@ per mode, independent 2333/2324 passes (27/36 skips). Exact outputs in
 REVIEW.md. Added a rejected NaN-theta/finite-objective check for masking and
 SIM.5 nonblocking N-3. Commit and independent-review next, then stop.
 Remaining: CLI smoke, full six-scenario study/results/figures, executable docs.
+SIM.6 round 1 F-1: add a three-accepted hand case distinguishing the two
+MCSE formulas (1/sqrt(3) vs .5); production code unchanged. S-1 is D-034,
+asked of the maintainer and deferred to full-run labeling; no cache policy
+change now. Full-run metadata must record CPU model, JAX version, thread
+settings, calibrated/realized censoring and command explicitly (N-1).
 Docs to-do: importable runner layout, overlap reason columns/unique failed,
 accepted-only denominators, undefined small-count summaries, timing convention.
 
