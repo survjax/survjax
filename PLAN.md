@@ -1,3 +1,34 @@
+# GPU.1 — Modal runner and GPU test marker (2026-11-02)
+
+Branch ci, base a3519520588cb638aff475cb4bcdec14b3d26741. User explicitly
+requested a one-command paid Modal runner, 12-hour/$10 caps, GPU test marking,
+PR-to-main/nightly/manual triggers, and fork exclusion. User approved Modal's
+isolated SDK in conversation; do not change project dependencies or uv.lock.
+
+Files: scripts/gpu_ci.py (single local Modal invocation; transfers the current
+commit's source archive; locked dev setup plus JAX CUDA 12 plugin at the exact
+locked JAX/JAXlib versions; both dtype suites; wheel-install smoke on CPU;
+actual-device assertions; zipped logs/results returned locally); tests/conftest.py
+(mark all collected tests gpu except tests/install), pyproject.toml (register
+marker); REVIEW.md (overwrite for this step). No workflow yet; the guarded
+GitHub trigger belongs in the next step. No tests/spec, numerical code, public
+API, or dependencies/lock changes.
+
+Budget: T4 + 2 CPU cores + 8 GiB at current Modal rates is about $0.749/hour;
+12 hours plus a 10-minute startup allowance is about $9.11, below $10. No
+retries, volumes, or other GPU workers. A code-level deadline and Modal timeout
+both enforce the 12-hour ceiling; reject a requested cap if current rates make
+the estimate exceed $10. The hosted workflow uses five hours because GitHub
+hosted jobs have a six-hour maximum, with the remaining hour for result return.
+
+GPU.1 stays within 300 changed implementation lines. Run static/targeted
+checks, document exact outputs, commit and independently review before
+stopping. The next step adds the GitHub workflow, including fork protection.
+Hosted execution requires one-time Modal auth. No credentials are needed for a
+local Modal run after login.
+
+---
+
 # CI.integration — Finish maintainer-started main merge (2026-11-01)
 
 Branch ci; merge already in progress when requested. Finish this existing

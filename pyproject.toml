@@ -53,3 +53,6 @@ ignore = ["E501"]
 [tool.mypy]
 files = ["src"]
 check_untyped_defs = true
+
+[tool.pytest.ini_options]
+markers = ["gpu: test applies to an optional JAX GPU backend verification run"]
