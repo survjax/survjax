@@ -31,6 +31,9 @@ def audit_posterior(
         divergences: Boolean (chain, draw) NUTS flags.
     Returns:
         Diagnostics, true quantities, threshold settings and explicit failures.
+    Raises:
+        ValueError: Malformed axes or nonfinite draws (hard input errors, before
+            an audit exists). Acceptance failures return evidence for saving.
     """
     import arviz as az
     import jax.numpy as jnp

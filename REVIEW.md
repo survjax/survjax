@@ -1,6 +1,25 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # BAYES.3 — Full posterior audit and reproducible output
+
+Round 1 returned fix-first. F-001: independent 40-digit mpmath quadrature
+now checks all five recorded true values, including the arm order/sign.
+F-002: a separate wrong delta interval must fail; shift only chain 0's derived
+delta, then compare recorded R-hat against NumPyro summary of an independently
+grouped (4,1000) chain matrix. An initial assertion of failure alone did not
+catch order=F (split R-hat also detects time trends); the exact comparison does.
+N-002: docstring explicitly distinguishes hard malformed/nonfinite input
+errors before an audit exists from acceptance failures, which are saved.
+N-001 is a nonblocking duplication nit; retain fixed design literals rather
+than add a configuration layer in this step.
+
+Current checks: optional full check_model passes with truth/delta additions;
+standalone enhanced audit/artifact check passes, and the order=F mutant is
+detected by the exact R-hat comparison. Truth-arm and dropped-delta mutants are detected. Ruff format,
+lint, mypy and whitespace pass. No numerical/sampling behavior change, no
+repeated full run or core gate. Cumulative source/check changes are 310 lines
+(308 additions, 2 removals), about the 300-line step target; initial review
+already covered the full audit/persistence capability, not just this fix-up.
 
 Read PLAN.md BAYES.3; run.py audit_posterior/save_results and main integration;
 check_model.py check_audit_and_artifacts; 02-details Sampling/Truth/Files.

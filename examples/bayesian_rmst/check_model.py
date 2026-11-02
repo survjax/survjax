@@ -185,6 +185,51 @@ def check_audit_and_artifacts() -> None:
     audit = audit_posterior(samples, derived, table, flags)
     assert audit["passed"], audit["failures"]
     assert len(audit["diagnostics"]) == 8
+    import mpmath as mp
+
+    # Independent physical PH survival integral, 40-digit quadrature in years.
+    with mp.workdps(40):
+        truth_rmst = [
+            float(
+                mp.quad(
+                    lambda t, hr=hr: mp.exp(
+                        -hr * (t / mp.mpf("11.42")) ** mp.mpf("1.38")
+                    ),
+                    [0, 5],
+                )
+            )
+            for hr in (mp.mpf(1), mp.mpf(".7"))
+        ]
+    expected_truth = dict(
+        zip(names, [1.38, 0.7, *truth_rmst, truth_rmst[1] - truth_rmst[0]], strict=True)
+    )
+    for name, value in expected_truth.items():
+        np.testing.assert_allclose(audit["truth"][name], value, atol=1e-12, rtol=0)
+    delta_miss = dict(table, **{"delta_RMST(5)": {"lower_95": -0.2, "upper_95": -0.1}})
+    assert (
+        "delta_RMST(5): truth outside 95% interval"
+        in audit_posterior(samples, derived, delta_miss, flags)["failures"]
+    )
+    # Chain-major flattened draws: shift only chain 0's treatment RMST.
+    shifted_derived = derived._replace(rmst_tau=rmst.at[:1000, 1].add(5.0))
+    derived_bad = audit_posterior(samples, shifted_derived, table, flags)
+    from numpyro.diagnostics import summary
+
+    chain_delta = np.asarray(shifted_derived.rmst_tau[:, 1] - rmst[:, 0]).reshape(
+        4, 1000
+    )
+    expected_rhat = summary({"delta": chain_delta}, group_by_chain=True)["delta"][
+        "r_hat"
+    ]
+    np.testing.assert_allclose(
+        derived_bad["diagnostics"]["delta_RMST(5)"]["r_hat"],
+        expected_rhat,
+        atol=1e-12,
+        rtol=0,
+    )
+
+    assert any("delta_RMST(5): r_hat" in failure for failure in derived_bad["failures"])
+
     from unittest.mock import patch
 
     # Boundary values must fail: r_hat is strictly below 1.01, ESS strictly above 400.

@@ -1,3 +1,18 @@
+# BAYES.3 review fix-up — Truth and derived-chain oracles (2026-11-02)
+
+Round 1 fix-first: F-001 and F-002 require independent truth quadrature,
+separate delta coverage failure and a shifted derived chain in the checks.
+Add those in check_model.py; clarify hard input error semantics in run.py
+(N-002). Preserve priors, sampling and output behavior. N-001 shared constants
+is a nit; avoid adding configuration abstraction for three fixed demo values.
+Run full optional checks, mutate truth-arm order/coverage/reshape ordering,
+Ruff/mypy/whitespace; no repeat full posterior or core gate for test/docstring
+changes. Update REVIEW.md, separate fix-up commit, BAYES.3 round 2/3 and stop.
+Cumulative implementation/check size stays about 300 changed lines, excluding
+plan/review as the maintainer requests. No new dependency/module/API/spec edit.
+
+---
+
 # BAYES.3 — Full posterior audit and reproducible output (2026-11-02)
 
 Start clean at aeb249d; original worktree base b1291a8. Maintainer requests
