@@ -158,8 +158,94 @@ def check_posterior_routes() -> None:
     print(f"posterior route checks passed; maximum absolute error={error}")
 
 
+def check_audit_and_artifacts() -> None:
+    """Known-law chains detect nonconvergence, missing truth and persistence errors."""
+    import json
+    import tempfile
+    from pathlib import Path
+
+    from examples.bayesian_rmst.run import audit_posterior, save_results
+
+    # Independent iid Normal chains have common means; shifted chains do not.
+    rng = np.random.default_rng(20261102)
+    samples = {
+        name: jnp.asarray(rng.normal(size=(4, 1000)))
+        for name in ("log_k", "log_b0", "gamma")
+    }
+    # Independent synthetic derived draws; these test diagnostics, not a posterior fit.
+    shape = jnp.asarray(rng.normal(1.38, 0.05, 4000))
+    hr = jnp.asarray(rng.normal(0.7, 0.05, 4000))
+    rmst = jnp.asarray(rng.normal(4.0, 0.1, (4000, 2)))
+    derived = PosteriorDraws(
+        shape, hr, rmst, jnp.zeros((2, 4000, 2)), jnp.ones((2, 4000, 2))
+    )
+    names = ("k", "HR", "RMST0(5)", "RMST1(5)", "delta_RMST(5)")
+    table = {name: {"lower_95": -10.0, "upper_95": 10.0} for name in names}
+    flags = jnp.zeros((4, 1000), dtype=bool)
+    audit = audit_posterior(samples, derived, table, flags)
+    assert audit["passed"], audit["failures"]
+    assert len(audit["diagnostics"]) == 8
+    from unittest.mock import patch
+
+    # Boundary values must fail: r_hat is strictly below 1.01, ESS strictly above 400.
+    def boundary_summary(values, **kw):
+        return {name: {"r_hat": 1.01, "n_eff": 400.0} for name in values}
+
+    with (
+        patch("numpyro.diagnostics.summary", boundary_summary),
+        patch("arviz.ess", return_value=400.0),
+    ):
+        boundary = audit_posterior(samples, derived, table, flags)
+        assert len(boundary["failures"]) == 24
+    with patch(
+        "numpyro.diagnostics.summary",
+        lambda values, **kw: {
+            name: {"r_hat": float("nan"), "n_eff": 1000.0} for name in values
+        },
+    ):
+        invalid = audit_posterior(samples, derived, table, flags)
+        assert not invalid["passed"]
+        json.dumps(invalid, allow_nan=False)
+    shifted = dict(samples)
+    shifted["gamma"] = shifted["gamma"].at[0].add(5.0)
+    bad = audit_posterior(shifted, derived, table, flags.at[0, 0].set(True))
+    assert not bad["passed"]
+    assert any("gamma: r_hat" in failure for failure in bad["failures"])
+    assert "divergences=1" in bad["failures"]
+    narrow = dict(table, HR={"lower_95": 0.8, "upper_95": 0.9})
+    assert (
+        "HR: truth outside 95% interval"
+        in audit_posterior(samples, derived, narrow, flags)["failures"]
+    )
+    try:
+        audit_posterior(samples, derived, table, flags.T)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Transposed chain axes accepted")
+    with tempfile.TemporaryDirectory() as directory:
+        output = Path(directory) / "run"
+        trial = make_trial()
+        grids = (jnp.array([0.0, 20.0]), jnp.array([0.0, 5.0]))
+        save_results(output, {"audit": audit}, samples, trial, grids, derived, flags)
+        assert json.loads((output / "metadata.json").read_text())["audit"] == audit
+        with np.load(output / "arrays.npz", allow_pickle=False) as saved:
+            np.testing.assert_array_equal(saved["sample_gamma"], samples["gamma"])
+            np.testing.assert_array_equal(saved["rmst_tau"], rmst)
+            np.testing.assert_array_equal(saved["event"], trial.data.exact)
+            np.testing.assert_array_equal(saved["tau_grid"], grids[1])
+        try:
+            save_results(output, {}, samples, trial, grids, derived, flags)
+        except FileExistsError:
+            pass
+        else:
+            raise AssertionError("Existing artifact directory overwritten")
+    print("audit and artifact checks passed")
+
+
 if __name__ == "__main__":
     check_trial()
     check_aggregation_and_grids()
     check_factor()
     check_posterior_routes()
+    check_audit_and_artifacts()

@@ -1,3 +1,35 @@
+# BAYES.3 — Full posterior audit and reproducible output (2026-11-02)
+
+Start clean at aeb249d; original worktree base b1291a8. Maintainer requests
+meaningful combined implementation/tests before review (exclude plan/review
+lines). One complete capability, target 200–300 changed source/check lines:
+run.py gains full posterior diagnostics/truth audit and optional saved output;
+check_model.py checks diagnostic failures, known-law chains and artifact reload.
+No new module/API/dependency/protected/spec/docs edits. Spec 11.3/12.1 and
+02-details Sampling/Truth; existing chosen Normal(0,5) priors unchanged.
+
+Audit all three log parameters and five reported quantities using chain/draw
+axes, NumPyro split R-hat/ESS and ArviZ tail ESS. Thresholds strictly R-hat<1.01,
+ESS>400 and no divergences, applicable only to full. Compute true RMST via the
+verified library at k=1.38,b0=11.42,HR=.7; require HR and delta truth inside
+95% intervals. Record failures without reseeding/tuning; full exits nonzero
+on failure, smoke labels thresholds exploratory. Save metadata plus synthetic
+observations, chain samples, grids and draw-level curves to optional --output
+so future plots/docs can reproduce the run. No default writes/overwriting of
+committed artifacts. Save evidence before raising on failed audit.
+
+Run optional checks and both smoke/full fixed configurations; record actual
+full diagnostics/truth/timing. Use /tmp outputs this step, not a generated-file
+commit that overwhelms code review. Check reload and shapes/values. Ruff/mypy,
+whitespace; no repeat unchanged core gate. Commit, independent-review BAYES.3
+round 1/3, then stop. If changed implementation/check lines are too few, combine
+related audit/persistence validation before review as requested; do not pad.
+Remaining: committed full results/figures and prior predictive, predictive KM
+with external validation, executable docs. Docs to-do: interpretation of audit
+and recorded priors; no full convergence claim until observed gates pass.
+
+---
+
 # BAYES.2 fix-up — Pairing and endpoint regressions (2026-11-02)
 
 Maintainer requests continuation from clean 55a578e (previous integration
