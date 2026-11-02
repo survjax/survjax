@@ -1,4 +1,4 @@
-"""Optional checks: JAX_ENABLE_X64=1 uv run --group examples pytest -q <this file>."""
+"""Optional checks: JAX_ENABLE_X64=1 uv run --locked --group examples pytest -q <this file>."""
 
 import sys
 from pathlib import Path
@@ -15,6 +15,7 @@ import impl_tolerances as tol  # noqa: E402
 
 import survjax  # noqa: E402
 from examples.weibull_simulation.study import (  # noqa: E402
+    _assess_fit,
     calibrate_censoring,
     fit_replicate,
     generate_weibull,
@@ -146,3 +147,54 @@ def test_jitted_vmap_preserves_estimable_and_unestimable_replicates():
         result.theta[0], [-np.log(3), np.log(0.5)], atol=tol.SIMULATION_FIT_ATOL, rtol=0
     )
     assert np.isnan(result.theta[1]).all() and np.isnan(result.hr_interval[1]).all()
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "none",
+        "solver",
+        "gradient",
+        "threshold",
+        "nan_gradient",
+        "theta",
+        "objective",
+        "hessian",
+        "indefinite",
+    ],
+)
+def test_estimable_fit_acceptance_gates_and_rejected_inference(failure):
+    """01 acceptance: each failed gate rejects and retains raw diagnostics."""
+    theta = jnp.array([np.nan if failure == "theta" else 0.0, 0.0])
+    value = jnp.asarray(np.nan if failure == "objective" else 1.0)
+    score = {"gradient": 2e-5, "threshold": 1e-5, "nan_gradient": np.nan}.get(
+        failure, 0.0
+    )
+    gradient = jnp.array([score, 0.0])
+    # Positive control H^-1=[[.5,-.5],[-.5,1]] gives gamma SE=1.
+    hessian = (
+        jnp.array([[1.0, 2.0], [2.0, 1.0]])
+        if failure == "indefinite"
+        else jnp.array([[4.0, 2.0], [2.0, 2.0]])
+    )
+    if failure == "hessian":
+        hessian = hessian.at[0, 0].set(jnp.nan)
+    success = jnp.asarray(failure != "solver")
+    inputs = (theta, value, gradient, hessian, success)
+    for assess in (_assess_fit, jax.jit(_assess_fit)):
+        result = assess(*inputs)
+        assert result.estimable and bool(result.accepted) == (failure == "none")
+        assert result.solver_success == success
+        assert bool(result.hessian_ok) == (failure not in ("hessian", "indefinite"))
+        for actual, expected in zip(result[:4], inputs[:4], strict=True):
+            np.testing.assert_array_equal(actual, expected)
+        if failure == "none":
+            np.testing.assert_allclose(result.log_hr_se, 1.0, atol=ATOL, rtol=RTOL)
+            np.testing.assert_allclose(
+                result.hr_interval,
+                np.exp(np.array([-1.96, 1.96])),
+                atol=ATOL,
+                rtol=RTOL,
+            )
+        else:
+            assert np.isnan(result.log_hr_se) and np.isnan(result.hr_interval).all()

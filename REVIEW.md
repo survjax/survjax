@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # SIM.4 — Single-replicate PH fitting
 
@@ -7,6 +7,50 @@ maintainer-integrated PH/RMST). Previous simulation step final:
 afc266a684be990406ec6152b7eb035b6bb1aa26. Original worktree base:
 8757c0fda78e34e6e818249adedd2a144a33c33d. No integration performed here.
 Preserve all merged PLAN history; prepend this use-case continuation only.
+
+
+## Round 1 response (2026-11-02)
+
+Written round 1 on 1005ac7 returned fix-first; no spec questions.
+- F-1 fixed: extract the existing post-solve policy into private _assess_fit,
+  called only for estimable optimizer results. Preserve all acceptance tests,
+  Cholesky substitutions, raw diagnostics and inference arithmetic. BFGS,
+  starts and the public demo interface are unchanged.
+- Nine hand-input acceptance cases run eagerly and jitted: positive control,
+  unsuccessful solver, score 2e-5, score exactly 1e-5, NaN score, NaN theta,
+  NaN objective, NaN Hessian, indefinite Hessian [[1,2],[2,1]]. Each failure
+  independently exercises a gate; all raw diagnostic fields are retained;
+  rejected SE/interval are NaN. Positive H=[[4,2],[2,2]] has inverse-gamma
+  variance 1 and verifies the accepted inference path.
+- N-2 fixed: check-file command now uses --locked like PLAN/REVIEW.
+- N-1 remains a maintainer-owned decision about the protected ordinary gate;
+  no protected scripts or dependency-discovery changes are made.
+
+This is a separate review-fix sub-step/commit, about 120 changed source/check
+lines (mostly moving the existing block), not a new simulation feature.
+The original implementation had 308 changed implementation lines. The
+cumulative implementation diff now has 374 lines after required guard
+coverage; study.py is 306 lines, close to its ~300-line guideline. No new
+module, dependency, public API or tolerance. This records the review-driven
+scope increase explicitly; the next scenario work remains separate.
+
+Fix-up checks:
+- Optional fit command below: 15 passed in 18.63s (six original + nine cases).
+- Generator checks below: 17 passed in 2.72s (x64) / 17 in 2.69s (x32).
+- Ruff: 140 files already formatted / All checks passed!
+- mypy: Success: no issues found in 22 source files.
+- uv lock --check: Resolved 171 packages, exit 0. git diff --check: clean.
+No full-gate repeat for this example-only refactor; the initial fresh-wheel
+through-A10 evidence below remains the core regression evidence. All changed
+example code is covered by the final 15 optional checks and generator checks.
+
+Reviewer round 1 independently ran the six original fit checks (6 passed in
+19.83s). Its first `--through SIM.4` gate was an invocation error, not a code
+result; the corrected `--through A10` gate passed Ruff/mypy, both own suites
+(1282/1287 passed, 8/3 skipped), doctests 4 per mode, then x64 spec tests gave
+2328 passed / 27 skipped / 5 wheel setup errors (SURVJAX_WHEEL unset). It
+stopped before x32 spec tests. Our fresh-wheel wrapper passed both modes as
+recorded below. Reviewer-owned temporary-worktree cleanup remains untouched.
 
 ## Reading order
 

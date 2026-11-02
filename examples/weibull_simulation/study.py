@@ -161,6 +161,43 @@ class FitResult(NamedTuple):
     accepted: jax.Array
 
 
+def _assess_fit(
+    theta: jax.Array,
+    value: jax.Array,
+    gradient: jax.Array,
+    hessian: jax.Array,
+    solver_success: jax.Array,
+) -> FitResult:
+    """Assess an estimable optimizer result, retaining diagnostics on rejection."""
+    identity = jnp.eye(theta.size, dtype=theta.dtype)
+    finite_hessian = jnp.all(jnp.isfinite(hessian))
+    chol = jnp.linalg.cholesky(jnp.where(finite_hessian, hessian, identity))
+    hessian_ok = finite_hessian & jnp.all(jnp.isfinite(chol))
+    finite = jnp.all(jnp.isfinite(theta)) & jnp.isfinite(value)
+    accepted = (
+        solver_success & finite & (jnp.max(jnp.abs(gradient)) < 1e-5) & hessian_ok
+    )
+    # 01-details: [H^-1]_gamma,gamma = ||L^-1 e_gamma||^2 for H=L L^T.
+    safe_chol = jnp.where(hessian_ok, chol, identity)
+    column = jax.scipy.linalg.solve_triangular(safe_chol, identity[:, -1], lower=True)
+    se = jnp.sqrt(jnp.sum(column**2))
+    safe_gamma = jnp.where(accepted, theta[-1], 0.0)
+    safe_se = jnp.where(accepted, se, 1.0)
+    interval = jnp.exp(safe_gamma + jnp.array([-1.96, 1.96]) * safe_se)
+    return FitResult(
+        theta,
+        value,
+        gradient,
+        hessian,
+        jnp.where(accepted, se, jnp.nan),
+        jnp.where(accepted, interval, jnp.nan),
+        solver_success,
+        hessian_ok,
+        jnp.asarray(True),
+        accepted,
+    )
+
+
 def negative_log_likelihood(
     theta: jax.Array,
     data: survjax.SurvivalData,
@@ -242,35 +279,12 @@ def fit_replicate(
         theta = solution.value
         value, gradient = jax.value_and_grad(objective)(theta)
         hessian = jax.hessian(objective)(theta)
-        identity = jnp.eye(size, dtype=theta.dtype)
-        finite_hessian = jnp.all(jnp.isfinite(hessian))
-        chol = jnp.linalg.cholesky(jnp.where(finite_hessian, hessian, identity))
-        hessian_ok = finite_hessian & jnp.all(jnp.isfinite(chol))
-        solver_success = solution.result == optx.RESULTS.successful
-        finite = jnp.all(jnp.isfinite(theta)) & jnp.isfinite(value)
-        accepted = (
-            solver_success & finite & (jnp.max(jnp.abs(gradient)) < 1e-5) & hessian_ok
-        )
-        # 01-details: [H^-1]_gamma,gamma = ||L^-1 e_gamma||^2 for H=L L^T.
-        safe_chol = jnp.where(hessian_ok, chol, identity)
-        column = jax.scipy.linalg.solve_triangular(
-            safe_chol, identity[:, -1], lower=True
-        )
-        se = jnp.sqrt(jnp.sum(column**2))
-        safe_gamma = jnp.where(accepted, theta[-1], 0.0)
-        safe_se = jnp.where(accepted, se, 1.0)
-        interval = jnp.exp(safe_gamma + jnp.array([-1.96, 1.96]) * safe_se)
-        return FitResult(
+        return _assess_fit(
             theta,
             value,
             gradient,
             hessian,
-            jnp.where(accepted, se, jnp.nan),
-            jnp.where(accepted, interval, jnp.nan),
-            solver_success,
-            hessian_ok,
-            estimable,
-            accepted,
+            solution.result == optx.RESULTS.successful,
         )
 
     def unestimable(_: None) -> FitResult:

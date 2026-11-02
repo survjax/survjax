@@ -66,6 +66,23 @@ exited 0: own suites 1282/1287 passed (8/3 skipped), doctests 4 per mode,
 independent 2333/2324 passed (27/36 skipped). REVIEW.md has exact timings,
 commands and limits. Commit and independent review follow, then stop.
 
+
+Round 1 (1005ac7) returned fix-first, F-1: rejected-but-estimable fits have
+no coverage and removing gradient/Cholesky gates survives. Review-directed
+fix-up: extract the post-solve policy into private _assess_fit with unchanged
+BFGS settings and inference arithmetic. Add hand-input cases for solver
+failure, over/boundary/NaN gradient, nonfinite theta/objective, indefinite/NaN
+Hessian, and a positive control. Assert raw diagnostic preservation, flags and
+NaN rejected inference, eagerly and jitted. This is a separate small review
+fix-up commit; no new concept/API/dependency/module. N-2: align the check-file
+invocation with --locked. N-1 remains a maintainer-owned protected-gate decision.
+Fix-up checks: 15 optional checks passed (18.63s), generators 17 per dtype
+(2.72s/2.69s), Ruff/mypy/lock checks clean. No core changes; initial full gate
+not repeated for the example-only extraction. Review fix-up is a separate
+~120-line diff (mostly code movement); cumulative implementation scope is
+374 lines, disclosed in REVIEW.md. study.py is 306 lines. Commit and request
+round 2, then stop after the skill's verdict.
+
 ---
 
 # RMST.final — Combined evidence and maintainer handoff (2026-11-01)
