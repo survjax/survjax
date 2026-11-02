@@ -1,6 +1,6 @@
 # MNIST.18 — Runnable notebook companion
 
-Independent review: round 1/3.
+Independent review: round 1/3, verdict merge (2026-11-02).
 
 ## Read first
 
@@ -43,3 +43,15 @@ Executed copies are /tmp/survival-mnist-executed.ipynb and
 Implementation files: 235-line notebook plus 13 README/docs lines, below 300.
 Starting/previous step 4020dda; original worktree base ee72c83.
 No known issue; independent review is the only remaining sub-step.
+
+## Completed independent review
+
+MNIST.18 round 1 reviewed 39c2be2: merge, no blockers/should-fix findings.
+Report: ../review/slices/MNIST.18.md. Reviewer executed smoke successfully,
+rebuilt both docs modes and passed notebook Ruff formatting/lint.
+N-1/N-2/N-3 remain accepted nits: notebook execution is manual rather than a
+permanent gate, its documented in-checkout requirement has no custom error
+outside a checkout, and it reuses the example's private figure helper.
+No additional abstraction or misuse guards added to this showcase.
+Reviewer did not rerun full mode; implementer execution above covers it.
+Interactive JupyterLab UI was not tested. No remaining sub-steps.
