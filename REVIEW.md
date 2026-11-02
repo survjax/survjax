@@ -1,102 +1,85 @@
-Independent review: round 2/3
+Independent review: round 1/3
 
-# BAYES.4 — Survival and treatment-effect figures
+# BAYES.5 — Posterior predictive trial/KM check
 
-Round 1 returned fix-first. F-001 addressed with 72 additional check lines:
-closed-form physical survival truth on all plotted times, 40-digit mpmath
-integrals for true delta at tau=5 and three curve points; prior line data per
-arm vs saved prior_curves; both figures' KM time/value ordinates per arm;
-Figure 3 axvspan coordinates vs exact .025/.975 posterior quantiles.
-The original review unit had 335 source/check lines; these necessary validation
-fixes are a separate fix-up commit, not another plotting feature. No inflation
-with plan/review/generated figures. Dedicated check passes, and in-memory
-truth-arm/prior-arm/KM-arm/90%-interval mutants are all now detected.
-
-F-002 addressed by a durable Docs to-do block in PLAN.md: copy the R versions,
-command procedure, dataset key, precision/alignment explanation and <6e-16
-result to the eventual page source; include prior interpretation/captions and
-figures.py's KM import story. The full original R command remains below and
-in the reviewed commit. N-004: source is now a directory name, not an absolute
-local path. N-001 truth/key literals and N-005 approved KM placement are
-nonblocking and left unchanged; no new public layer/configuration added.
-Ruff format/lint, mypy and whitespace pass after fixes. No repeated posterior,
-R comparison or core gate for additional checks and metadata-path change.
-
-Read PLAN.md BAYES.4 and both 02 use-case files; figures.py KM/prior/band helpers
-then render_figures; check_figures.py numerical and rendered-figure checks.
-Previous step/head 69629c9; original worktree base b1291a8. Maintainer explicitly
-approves figures.py/check_figures.py because the existing files are near 300
-lines. Two approved demo modules, 335 actual source/check lines excluding
-plan/review, roughly the requested 300-line review unit. No library API, new
-dependency, core, protected path, docs or spec edits. Generated output is not
-committed here. Same Bayesian sub-slice, plan history retained.
+Read PLAN.md BAYES.5, 02-details Posterior predictive/Keys/KM; model.py
+predictive_trials; figures.py Figure 5/output metadata; check_figures.py's
+independent generation and all-line checks; examples/bayesian_rmst/README.md.
+Previous step/head 1472f52; original worktree base b1291a8. Same Bayesian
+sub-slice, existing approved modules. 310 changed code/check/operational-doc
+lines excluding PLAN/REVIEW: 255 changed Python lines plus 55-line README.
+No module, API, dependency, protected file, core, docs/ or spec edit.
 
 Invariants:
-- Figures use the passing full saved run, not a new posterior fit or mean
-  parameters. Require config=full, audit.passed and exact committed prior
-  metadata. No output overwriting; create a new directory only.
-- Prior Predictive uses root=20261025, fold 2 then 2; 200 unconditioned prior
-  sample sites from the existing model. Only survival evaluated, not extreme
-  prior RMST. All curves must be finite; no dropping, clipping or reseeding.
-- Figure 1: 200 thin curves per arm and observed KM; label Normal(0,5) on the
-  three log parameters. D-033 remains open, not resolved by plotting.
-- Figure 2: time-first saved survival (201,4000,2), reduce draw axis 1 for
-  .025/.5/.975 quantiles, truth and observed per-arm KM. Pointwise bands,
-  not simultaneous. Both survival panels use 0–20 years and common y scale.
-- Figure 3: normalized posterior histogram of paired delta RMST(5), 95%
-  equal-tail interval, truth and zero; honest histogram label rather than KDE.
-- Figure 4: paired treatment-control RMST for every draw before quantiles;
-  median/band on the specified tau grid, true delta and zero.
-- Host KM uses distinct event times; all tied censorings remain in the risk
-  set for event deaths. Step coordinates start at (0,1), extend flat to the
-  arm's last observation and no farther. All-censored cohorts remain at one.
-  Demo-only NumPy computation, not a differentiable public estimator.
-- Matplotlib Agg backend; each figure closes after SVG/PNG output. Metadata
-  records source run, prior key mapping/200 draws and Matplotlib version;
-  prior_curves.npz retains the exact evaluated prior curves with grid.
+- Exactly 100 evenly spaced flattened posterior indices floor(i*S/100).
+  From 4000 chain-major draws, indices 0,40,...,3960 cover each chain 25 times.
+  This deterministic selection is recorded, not claimed as an independent
+  posterior subsample or additional convergence evidence.
+- Stream 3 = fold_in(fold_in(key(20261025),2),3); each replicate folds its
+  index into stream 3. Shared generator alone owns the event/censor split.
+- Preserve observed arm assignment and known original synthetic censor limit.
+  Generate both event times and independent censor uniforms afresh. PH uses
+  gamma*arm and equivalent scale b0*exp(-gamma*arm/k), as designed.
+- Concrete host validation; not an outer jit/gradient API. Selected parameters
+  explicitly converted to float64, x64 required. Reject malformed shapes,
+  nonfinite parameters, absent/nonbinary arms, invalid c and unrepresentable
+  natural shape/scale. No clipping, floors, dropping or reseeding. Latent
+  infinite event times can exist from U=0 under the shared generator contract;
+  observed times and censoring are finite; exact observed times must be >0.
+- JAX vmap generates arrays (100,N), including event/censor latent arrays.
+  Figure 5 shows all 100 per-arm KMs through their own last observed follow-up,
+  then observed KM. It labels the known synthetic censor simplification.
+- Save predictive_trials.npz with exact indices/time/event/latent fields;
+  figures.json records key mapping, rule, indices and actual known c. Existing
+  output directory remains protected. Renderer emits five SVG/PNG pairs.
+- No posterior rerun or new KM estimator: reuse the reviewed KM validated
+  against R. The predictive check is visual, not a new threshold or p-value.
+- README records runnable commands, artifact contract, four-chain selection,
+  RNG/censor assumptions, valid-failure saving vs hard input errors, and limits.
+  Priors remain Normal(0,5), D-033 open, not resolved by this feature.
 
 Evidence (2026-11-02):
 - `JAX_ENABLE_X64=1 uv run --group examples python -m
   examples.bayesian_rmst.check_figures /private/tmp/bayes3-final-full-20261102`:
-  exit 0: KM, quantile, figure and overwrite checks passed. Hand KM tied
-  case has two deaths among four at t=1 (S=.5), last death at t=2 (S=0);
-  all-censored [1,3] extends to 3 at S=1. Crossed-arm analytical band checks
-  paired differences, axis and quantiles. Captured figures check 200 prior
-  lines plus KM, density axis, delta lines; posterior/delta median ordinates
-  compared against independent direct reductions of saved arrays. Four SVG
-  and PNG files emitted, all nonempty; existing destination rejected.
-- Final render command: `JAX_ENABLE_X64=1 uv run --group examples python -m
+  dedicated predictive generation/key/domain checks plus existing/new figure
+  checks pass, including final rerun after explicit float64 promotion.
+- Independent NumPy inverse-CDF algebra on 100 variable-parameter replicates,
+  N=4, with literal root/folds and split U/C keys: compare latent event and
+  censor time, min observation and event flag, atol1e-12/rtol0. Exact indices,
+  repeated-seed arrays, different fresh censoring, wrong-prior-stream contrast,
+  dtype/shape, rejected malformed/log-overflow/NaN cases checked. Float32
+  input parameters promoted to float64 and verified.
+- Full-artifact checks: independent first/last replicate inverse-CDFs from the
+  saved selected posterior parameters and original c; all 200 plotted replicate
+  KM time/value arrays and both observed overlays match saved predictive trials;
+  all generated arrays reload with allow_pickle=False; metadata indices/key
+  folds/censor limit match inputs; all five figure pairs emitted. Existing
+  original four-figure truth/panel/interval tests remain active.
+- In-memory mutation probes (no source/worktree changes): wrong stream 2,
+  first 100 instead of evenly spaced indices, negated treatment eta, renderer
+  c=1 instead of original c, and predictive KM panels swapped. All five are
+  detected by AssertionError in the dedicated checks.
+- `JAX_ENABLE_X64=1 uv run --group examples python -m
   examples.bayesian_rmst.figures /private/tmp/bayes3-final-full-20261102
-  /private/tmp/bayes4-final-figures-20261102`: exit 0. All four PNGs visually
-  inspected (posterior/delta rechecked after style cleanup): no clipping,
-  readable axes/legends and visible truth/intervals. PNG/SVG output retained
-  there; source full arrays remain outside git as in BAYES.3.
-- Prior probe: (201,200,2), no nonfinite curves; prior shape range approximately
-  1.94e-6 to 1.66e5. Plot shows many nearly flat/step-like/extreme curves under
-  chosen broad priors. No inference that these priors are justified; prior
-  assessment remains a maintainer decision in D-033 and the eventual page.
-- External one-off KM comparison (not fixture regeneration): R version 4.4.2,
-  survival 3.7.0. Export full saved time/event/arm via np.savetxt to
-  /private/tmp/bayes4-trial.csv. R command:
-  `Rscript -e 'd <- read.csv("/private/tmp/bayes4-trial.csv"); library(survival);
-  out <- do.call(rbind,lapply(0:1,function(g) { f <- survfit(Surv(time,event) ~ 1,
-  data=d[d$arm==g,]); data.frame(arm=g,time=f$time,survival=f$surv) }));
-  write.csv(out,"/private/tmp/bayes4-r-km.csv",row.names=FALSE)'`.
-  Both arms compared at all 150 sorted original observed times: max absolute
-  error 4.4408920985e-16 /5.5511151231e-16, atol=1e-14, rtol=0.
-- First comparison used rounded R CSV times directly in searchsorted and
-  landed before some exact jumps. That comparison failed (not a KM value
-  failure). Verified R times against original sorted times at atol=1e-12,
-  then evaluated each step at its original observed time; no epsilon, altered
-  time or probability adjustment, nor tolerance relaxation. R outputs remain
-  one-off evidence, not hand-written or approximated fixture values.
-- `uv run ruff format --check .`: 144 files already formatted;
-  `uv run ruff check .`: All checks passed!; `uv run mypy src`: 22 files clean;
-  `git diff --check`: exit 0. Matplotlib temporary-cache/font warnings emitted.
-- No repeated core gate, full NUTS or docs build for example-only additions.
-  Dedicated checks run in x64 only because the Bayesian design requires it.
+  /private/tmp/bayes5-figures-20261102`: exit 0. Figure 5 visually inspected:
+  readable per-arm labels/legend, 100 light-blue KMs plus black observed KM,
+  title explains known synthetic censoring; no clipping. Figures 1–4 are
+  unchanged numerically and remain exercised by their checks.
+- Independent predictive output reload: (100,300) arrays, indices first
+  [0,40,80]/last[3880,3920,3960]; mean censor fraction .5412, replicate range
+  .42–.623333. Known c=19.17253543619806 years. These are descriptive only,
+  no fitted-data match/convergence/model-correctness claim.
+- Ruff format/check pass: 145 files already formatted, All checks passed!
+  mypy src: 22 files clean; git diff --check passes. Matplotlib temporary
+  font-cache warnings are emitted, not hidden.
+- No repeated full core gate, NUTS or R comparison: no core/test/spec changes,
+  no change to reviewed actual-trial KM or numerical library. Existing R
+  comparison evidence is carried in prior PLAN Docs to-do. No docs build yet.
 
-Remaining: posterior predictive KM figure 5, committed full artifact delivery,
-executable page/rendered HTML and prior interpretation. This step does not
-claim those gates or change D-033. No patient data, network acquisition,
-library event-time sampling or publishing.
+Artifact output: /private/tmp/bayes5-figures-20261102, five figure pairs,
+prior/predictive NPZ and figures.json. Input full run remains BAYES.3's saved
+full posterior. Nothing generated is committed with code in this step.
+
+Remaining substeps: commit reproducible full artifacts and executable docs
+page; interpret prior curves/maintainer's D-033 choice. The posterior predictive
+check is now implemented; no library sampling/clinical data/public KM added.

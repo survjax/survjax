@@ -10,7 +10,11 @@ import numpyro.distributions as distributions
 from numpyro.infer import Predictive
 
 import survjax
-from examples.weibull_simulation.study import calibrate_censoring, generate_weibull
+from examples.weibull_simulation.study import (
+    GeneratedData,
+    calibrate_censoring,
+    generate_weibull,
+)
 
 
 class Trial(NamedTuple):
@@ -230,3 +234,67 @@ def summarize_draws(draws: PosteriorDraws) -> tuple[dict[str, dict[str, float]],
             "upper_95": float(high),
         }
     return table, float(np.mean(delta > 0))
+
+
+def predictive_trials(
+    samples: dict[str, jax.Array], arm: jax.Array, censor_limit: float
+) -> tuple[jax.Array, GeneratedData]:
+    """Generate 100 trials from evenly spaced posterior draws on stream 3.
+
+    Args:
+        samples: Concrete flattened (S,) log_k/log_b0/gamma, S>=100.
+        arm: Concrete (N,) binary indicators with both arms present.
+        censor_limit: Known positive finite synthetic Uniform(0,c) limit.
+    Returns:
+        Selected indices (100,) and shared-generator arrays (100,N).
+        Each replicate uses fold_in(use_case_key(3), replicate_index).
+    Raises:
+        ValueError: Float64 disabled, malformed inputs or unrepresentable draws.
+    """
+    values = [np.asarray(samples[name]) for name in ("log_k", "log_b0", "gamma")]
+    arms = np.asarray(arm)
+    if not jax.config.x64_enabled:
+        raise ValueError("Bayesian predictive trials require float64")
+    if (
+        values[0].ndim != 1
+        or values[0].size < 100
+        or any(
+            value.shape != values[0].shape or not np.all(np.isfinite(value))
+            for value in values
+        )
+    ):
+        raise ValueError("Expected >=100 finite flattened posterior draws")
+    if (
+        arms.ndim != 1
+        or not arms.size
+        or set(np.unique(arms)) != {0.0, 1.0}
+        or not np.isfinite(censor_limit)
+        or censor_limit <= 0
+    ):
+        raise ValueError("Expected both binary arms and a positive finite censor limit")
+    indices = jnp.arange(100) * values[0].size // 100
+    selected = [jnp.asarray(value, dtype=jnp.float64)[indices] for value in values]
+    with np.errstate(over="ignore", under="ignore"):
+        natural = np.exp(np.asarray(selected[:2]))
+    if not np.all(np.isfinite(natural) & (natural > 0)):
+        raise ValueError("Predictive shape/scale is unrepresentable")
+    keys = jax.vmap(lambda i: jax.random.fold_in(use_case_key(3), i))(jnp.arange(100))
+    generated = jax.vmap(
+        lambda key, log_k, log_b, gamma: generate_weibull(
+            key,
+            jnp.exp(log_k),
+            jnp.exp(log_b),
+            censor_limit,
+            log_hazard_ratio=gamma * arm,
+        )
+    )(keys, *selected)
+    if (
+        not np.all(np.isfinite(generated.time))
+        or np.any(np.asarray(generated.time) < 0)
+        or np.any(np.asarray(generated.event) & (np.asarray(generated.time) <= 0))
+        or not np.all(np.isfinite(generated.censor_time))
+    ):
+        raise ValueError(
+            "Predictive draw failed numerically; investigate without reseeding"
+        )
+    return indices, generated

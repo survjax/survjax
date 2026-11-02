@@ -1,3 +1,47 @@
+# BAYES.5 — Posterior predictive trial/KM check (2026-11-02)
+
+Start clean 1472f52; original worktree base b1291a8. Maintainer requests next
+parts and ~300 actual code/check/docs lines before review. One capability:
+reproducible 100-trial posterior predictive figure plus reusable artifacts and
+run instructions. Spec 11.3 and both 02 use-case docs/shared 00; no spec edits.
+Use existing approved modules, no dependency/API/protected/core/docs/ changes.
+
+model.py: demo-only generation helper for flattened posterior arrays. Select
+100 evenly spaced draw indices (floor integer arithmetic), covering all four
+chain blocks in the saved NumPyro chain-major full run. Use stream 3 and
+fold_in(replicate index), each supplied key split by shared generator into U/C.
+No inference that any replicate selection is a convergence check; record exact
+indices/selection rule/key mapping. Observed arms and the known calibrated c
+are fixed, independent censoring is freshly generated. Return time/event/latent
+arrays; reject malformed parameters rather than alter/drop/reseed.
+figures.py: integrate figure 5 into existing renderer; all 100 per-arm KMs,
+observed KM overlay, labelled known synthetic censoring simplification. Save
+predictive arrays/indices and metadata alongside figures without overwriting.
+check_figures.py: exact selected-parameter/key wiring versus inverse-CDF algebra,
+arm effects and fresh censoring, seed reproducibility, domains/failure behavior,
+all 200 plotted replicate KMs and observed overlays versus generated arrays,
+output reload and figure metadata. Keep files about 300 lines each.
+examples/bayesian_rmst/README.md: concise operational run/artifact/interpretation
+notes for this reproducible capability, with explicit remaining docs/prior work.
+
+Run dedicated optional checks + generation transformations, render/inspect all
+five figures, Ruff/mypy/whitespace. Reuse reviewed actual-trial KM R evidence;
+no R regeneration or new dependency. If initial code size is too small, combine
+related artifact/reproducibility checks before review as requested. Commit,
+independent-review BAYES.5 round 1/3, then stop per verdict.
+Docs to-do: figure 5 uses known c because synthetic; no posterior-predictive
+p-value/coverage gate, show all replicate curves and avoid claiming visual fit
+proves model correctness. Existing D-033 stays open; prior choice unchanged.
+Remaining: committed artifact delivery and executable page/prior interpretation.
+
+Implementation: 310 actual changed Python/operational README lines excluding
+plan/review (255 Python +55 README). Existing files remain 300/297/283 lines.
+Generation/algebra checks, all predictive KM lines, metadata/reload and five
+mutants pass; rendered Figure 5 visually checked. Ruff/mypy pass. REVIEW.md
+records limits/commands. No new numerical library or posterior fit.
+
+---
+
 # BAYES.4 review fix-up — Figure wiring oracles (2026-11-02)
 
 Round 1 fix-first: add F-001 checks for all truth overlays, prior/KM arm wiring

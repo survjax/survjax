@@ -1,4 +1,4 @@
-"""Figures 1–4: JAX_ENABLE_X64=1 uv run --group examples python -m examples.bayesian_rmst.figures INPUT OUTPUT."""
+"""Figures 1–5: JAX_ENABLE_X64=1 uv run --group examples python -m examples.bayesian_rmst.figures INPUT OUTPUT."""
 
 import argparse
 import json
@@ -11,7 +11,7 @@ import numpy as np
 from numpyro.infer import Predictive
 
 import survjax
-from examples.bayesian_rmst.model import model, use_case_key
+from examples.bayesian_rmst.model import model, predictive_trials, use_case_key
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -106,7 +106,7 @@ def render_figures(source: Path, output: Path) -> dict:
 
     Args:
         source: Directory containing metadata.json and arrays.npz from run.py.
-        output: New directory receiving four SVG/PNG pairs and figure metadata.
+        output: New directory receiving five SVG/PNG pairs and figure metadata.
     Returns:
         Figure metadata including prior specification and source-run settings.
     Raises:
@@ -232,6 +232,40 @@ def render_figures(source: Path, output: Path) -> dict:
     )
     ax.legend(fontsize=8)
     save(fig, 4)
+    samples = {
+        name: jnp.asarray(arrays[f"sample_{name}"]).reshape(-1)
+        for name in ("log_k", "log_b0", "gamma")
+    }
+    indices, replicated = predictive_trials(
+        samples, jnp.asarray(arm), record["censor_limit_years"]
+    )
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
+    for group, ax in enumerate(axes):
+        selected = arm == group
+        for replicate in range(100):
+            coords = kaplan_meier(
+                np.asarray(replicated.time[replicate])[selected],
+                np.asarray(replicated.event[replicate])[selected],
+            )
+            ax.step(
+                *coords,
+                where="post",
+                color="C0",
+                alpha=0.12,
+                linewidth=0.7,
+                label="Replicated KM (100 trials)" if replicate == 0 else None,
+            )
+        ax.step(*km[group], where="post", color="black", label="Observed KM")
+        ax.set(title=labels[group], xlabel="Time (years)", xlim=(0, 20), ylim=(0, 1.02))
+        ax.legend(fontsize=8)
+    axes[0].set_ylabel("Survival probability")
+    fig.suptitle("Posterior predictive check · known synthetic Uniform(0, c) censoring")
+    save(fig, 5)
+    np.savez_compressed(
+        output / "predictive_trials.npz",
+        indices=np.asarray(indices),
+        **{name: np.asarray(value) for name, value in replicated._asdict().items()},
+    )
     metadata = {
         "source": source.name,
         "source_run": record,
@@ -240,7 +274,13 @@ def render_figures(source: Path, output: Path) -> dict:
         "prior_root_seed": 20261025,
         "prior_fold_in": [2, 2],
         "prior_all_finite": True,
-        "figures": [f"fig{i}.svg" for i in range(1, 5)],
+        "figures": [f"fig{i}.svg" for i in range(1, 6)],
+        "predictive_draws": 100,
+        "predictive_fold_in": [2, 3],
+        "predictive_key_rule": "fold_in(stream_3, replicate_index)",
+        "predictive_draw_selection": "floor(replicate_index * S / 100)",
+        "predictive_indices": np.asarray(indices).tolist(),
+        "predictive_known_censor_limit": record["censor_limit_years"],
     }
     (output / "figures.json").write_text(
         json.dumps(metadata, indent=2, allow_nan=False) + "\n"
