@@ -1,39 +1,54 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # GPU.1 — Modal runner and GPU test marker
 
 Read PLAN.md GPU.1, then scripts/gpu_ci.py, tests/conftest.py,
 pyproject.toml, and this review. Base commit: a3519520588cb638aff475cb4bcdec14b3d26741.
 
-Invariants:
-- The local entrypoint sends only a clean committed HEAD source archive. It
-  never includes uncommitted files or repository credentials.
-- Runtime is bounded by the CLI limit (at most 12 hours) and by Modal's
-  12-hour function timeout. The modeled resource cost includes a 10-minute
-  startup allowance and the script refuses estimates above the requested cap.
-- JAX and jaxlib versions come from uv.lock and are both explicitly pinned
-  when installing the CUDA 12 extra. Tests assert a working GPU backend.
-- All collected tests outside tests/install carry the gpu marker; isolated
-  wheel-install tests stay CPU-only. Both dtype modes and the install smoke
-  tests run in the remote job.
-- No public package API, dependencies, lockfile, spec tests or numerical code
-  changed. The GitHub workflow is a separate remaining step.
+Round 1 findings addressed:
+- B-1: Modal CLI options are now typed parameters on `@app.local_entrypoint`;
+  the exact one-command invocation is in the script docstring.
+- F-1: Modal CPU and memory requests now have matching hard limits (2 cores,
+  8 GiB). The $10 guard checks current modeled compute cost including a
+  10-minute startup allowance. This limits compute charges to the model, not
+  provider-independent fees or future rate changes. Modal can restart a
+  preempted function, so repeated attempts could exceed the estimate.
+- F-2: `jax` and `jaxlib` are pinned to uv.lock. The CUDA 12 extra resolves its
+  plugin/library wheels at run time; `uv pip freeze` records installed package
+  versions, and `nvidia-smi` records the driver and GPU in the result archive.
+- N-2: The module docstring states that all tests outside tests/install are
+  currently marked gpu; the marker is ready for future CPU/GPU test separation.
+- N-3: Removed manual argparse, the placeholder command list, duplicate lock
+  parsing, redundant imports and unused SDK-version print. The direct Python
+  invocation retains the CUDA install in the environment; wheel smoke tests
+  explicitly use CPU.
+- N-1: No dedicated test was added for these guards; the Modal CLI guard probe
+  could not run because the uvx download timed out. This remains unverified.
 
-Validation:
-- `uv run ruff format --check scripts/gpu_ci.py tests/conftest.py`:
-  2 files already formatted.
-- `uv run ruff check scripts/gpu_ci.py tests/conftest.py`: All checks passed.
-- `uv run mypy src`: Success, 22 source files.
-- `uv lock --check`: Resolved 171 packages; lock unchanged.
+Validation after fixes:
+- Ruff format/check on scripts/gpu_ci.py and tests/conftest.py: passed.
+- `uv run mypy src`: Success, no issues in 22 source files.
 - `python3 -m py_compile scripts/gpu_ci.py`: passed.
 - `uv run --no-sync pytest --collect-only -q -m gpu tests/unit`: 1169 tests
-  collected in 1.41s. Tests were collected, not executed on a GPU.
+  collected in 2.32s.
 - `git diff --check`: clean.
-- No Modal credentials or remote GPU execution were available, so provider
-  invocation and GPU runtime remain unverified.
+- Modal CLI guard probe (`uvx --from modal==1.6.3 modal run scripts/gpu_ci.py
+  --max-runtime-hours 12 --max-cost-usd 1`) was blocked downloading the Modal
+  CLI dependency (`watchfiles` metadata request timed out); no Modal app ran.
+- Direct guard harness with a stub Modal decorator: rejected a 12-hour run
+  under a $1 cap before checking git state or contacting Modal.
+- Round 1 independent gate: ruff/mypy passed; own suites passed (1282 x64,
+  1287 x32); 5 spec wheel-test setup errors because `SURVJAX_WHEEL` was not
+  provided. The reviewer could not run scripts/check_wheel.sh in its checkout.
+- No real Modal/GPU run or provider invocation is claimed.
 
-Pricing estimate uses Modal's current standard Function rates: T4 $0.000164/s,
-CPU $0.0000131/core/s, memory $0.00000222/GiB/s. Two cores, 8 GiB and 12 hours
-plus 10 minutes estimate to $9.11. This is an estimate guard, not a provider
-enforced billing ceiling; Starter includes $30/month in compute credits.
-GitHub workflow trigger and fork guard remain for the next step.
+Cost estimate at current Modal Function rates: T4 $0.000164/s, CPU
+$0.0000131/core/s, memory $0.00000222/GiB/s. With fixed 2-core/8-GiB limits,
+12 hours plus 10 minutes estimates to $9.11. Plugin and CUDA library versions
+are recorded, not individually pinned; no project dependency or lock changed.
+The 12-hour timeout is per Modal execution attempt. Modal documents that a
+preempted function can be restarted, so the $10 figure is not an absolute
+provider billing ceiling across repeated preemptions.
+
+Remaining after this step: add the CPU-independent GitHub GPU workflow with
+same-repository PR, nightly and manual triggers, and the fork-PR guard.

@@ -1,10 +1,15 @@
-"""Run the current commit's GPU-marked tests on a short-lived Modal T4."""
+"""Run the current commit's GPU-marked tests on a short-lived Modal T4.
+
+After installing Modal and logging in once, run:
+`uvx --from modal==1.6.3 modal run scripts/gpu_ci.py --max-runtime-hours 12 --max-cost-usd 10`
+
+All tests outside tests/install are currently marked gpu; wheel-install tests
+run separately on CPU. A successful GPU probe is required before tests run.
+"""
 
 from __future__ import annotations
 
-import argparse
 import io
-import json
 import subprocess
 import tarfile
 import tempfile
@@ -21,7 +26,6 @@ CPU_PER_CORE_SECOND = 0.0000131
 MEMORY_PER_GIB_SECOND = 0.00000222
 CPU_CORES = 2
 MEMORY_GIB = 8
-MODAL_VERSION = "1.6.3"
 UV_VERSION = "0.11.19"
 
 app = modal.App("survjax-gpu-tests")
@@ -63,14 +67,13 @@ def _run(
 @app.function(
     image=image,
     gpu="T4",
-    cpu=CPU_CORES,
-    memory=MEMORY_GIB * 1024,
+    cpu=(CPU_CORES, CPU_CORES),
+    memory=(MEMORY_GIB * 1024, MEMORY_GIB * 1024),
     timeout=HOURS * 3600,
     startup_timeout=600,
 )
 def run_gpu_tests(commit: str, source_archive: bytes, runtime_hours: float) -> bytes:
     import os
-    import tempfile
 
     with tempfile.TemporaryDirectory(prefix="survjax-gpu-") as temporary:
         root = Path(temporary)
@@ -87,57 +90,62 @@ def run_gpu_tests(commit: str, source_archive: bytes, runtime_hours: float) -> b
         deadline = time.monotonic() + runtime_hours * 3600
         status = 0
 
-        commands = [
-            ("environment", ["uv", "sync", "--locked", "--group", "dev"]),
-            ("cuda-install", []),
-        ]
-        for name, command in commands:
-            if name == "cuda-install":
-                import tomllib
-
-                lock = tomllib.loads((repo / "uv.lock").read_text())
-                jax_version = next(
-                    package["version"]
-                    for package in lock["package"]
-                    if package["name"] == "jax"
-                )
-                jaxlib_version = next(
-                    package["version"]
-                    for package in lock["package"]
-                    if package["name"] == "jaxlib"
-                )
-                command.extend(
-                    [
-                        "uv",
-                        "pip",
-                        "install",
-                        "--python",
-                        ".venv/bin/python",
-                        f"jax[cuda12]=={jax_version}",
-                        f"jaxlib=={jaxlib_version}",
-                    ]
-                )
-            code = _run(
-                command,
-                cwd=repo,
-                env=env,
-                log=results / f"{name}.log",
-                deadline=deadline,
-            )
-            if code:
-                status = code
-                break
-
+        code = _run(
+            ["uv", "sync", "--locked", "--group", "dev"],
+            cwd=repo,
+            env=env,
+            log=results / "environment.log",
+            deadline=deadline,
+        )
+        if code:
+            status = code
         if status == 0:
             import tomllib
 
             lock = tomllib.loads((repo / "uv.lock").read_text())
-            versions = {
+            jax_versions = {
                 package["name"]: package["version"]
                 for package in lock["package"]
                 if package["name"] in {"jax", "jaxlib"}
             }
-            (results / "versions.json").write_text(json.dumps(versions, indent=2))
+            code = _run(
+                [
+                    "uv",
+                    "pip",
+                    "install",
+                    "--python",
+                    ".venv/bin/python",
+                    f"jax[cuda12]=={jax_versions['jax']}",
+                    f"jaxlib=={jax_versions['jaxlib']}",
+                ],
+                cwd=repo,
+                env=env,
+                log=results / "cuda-install.log",
+                deadline=deadline,
+            )
+            if code:
+                status = code
+
+        if status == 0:
+            for name, command in (
+                ("gpu-driver.log", ["nvidia-smi"]),
+                (
+                    "python-packages.log",
+                    ["uv", "pip", "freeze", "--python", ".venv/bin/python"],
+                ),
+            ):
+                code = _run(
+                    command,
+                    cwd=repo,
+                    env=env,
+                    log=results / name,
+                    deadline=deadline,
+                )
+                if code:
+                    status = code
+                    break
+
+        if status == 0:
             build_dir = results / "wheel"
             build_dir.mkdir()
             code = _run(
@@ -217,6 +225,7 @@ def run_gpu_tests(commit: str, source_archive: bytes, runtime_hours: float) -> b
                 for name, command in runs:
                     test_env = dict(mode_env)
                     if name == "install":
+                        # Wheel tests are an isolated CPU install smoke test.
                         test_env["JAX_PLATFORMS"] = "cpu"
                     code = _run(
                         command,
@@ -240,23 +249,19 @@ def run_gpu_tests(commit: str, source_archive: bytes, runtime_hours: float) -> b
 
 
 @app.local_entrypoint()
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--max-runtime-hours", type=float, default=HOURS)
-    parser.add_argument("--max-cost-usd", type=float, default=BUDGET_USD)
-    arguments = parser.parse_args()
-    if not 0 < arguments.max_runtime_hours <= HOURS:
+def main(max_runtime_hours: float = HOURS, max_cost_usd: float = BUDGET_USD) -> None:
+    if not 0 < max_runtime_hours <= HOURS:
         raise SystemExit(f"Runtime must be greater than 0 and at most {HOURS} hours.")
-    estimated_cost = (arguments.max_runtime_hours * 3600 + 600) * (
+    estimated_cost = (max_runtime_hours * 3600 + 600) * (
         GPU_PER_SECOND
         + CPU_CORES * CPU_PER_CORE_SECOND
         + MEMORY_GIB * MEMORY_PER_GIB_SECOND
     )
-    if arguments.max_cost_usd <= 0 or estimated_cost > arguments.max_cost_usd:
+    if max_cost_usd <= 0 or estimated_cost > max_cost_usd:
         raise SystemExit(
-            f"Configured {arguments.max_runtime_hours:g}-hour estimate is "
+            f"Configured {max_runtime_hours:g}-hour estimate is "
             f"${estimated_cost:.2f}; "
-            f"requested cap is ${arguments.max_cost_usd:.2f}. No job started."
+            f"requested cap is ${max_cost_usd:.2f}. No job started."
         )
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
     dirty = subprocess.check_output(["git", "status", "--porcelain"], text=True)
@@ -264,10 +269,10 @@ def main() -> None:
         raise SystemExit("Commit or stash changes before a GPU run; only HEAD is sent.")
     source = subprocess.check_output(["git", "archive", "--format=tar.gz", "HEAD"])
     print(
-        f"Commit {commit}; T4; hard timeout {arguments.max_runtime_hours:g} h; "
+        f"Commit {commit}; T4; hard timeout {max_runtime_hours:g} h; "
         f"estimated maximum ${estimated_cost:.2f}."
     )
-    result = run_gpu_tests.remote(commit, source, arguments.max_runtime_hours)
+    result = run_gpu_tests.remote(commit, source, max_runtime_hours)
     artifact = Path(tempfile.gettempdir()) / f"survjax-gpu-{commit[:12]}.zip"
     artifact.write_bytes(result)
     print(f"Results: {artifact}")
@@ -275,7 +280,3 @@ def main() -> None:
         status = int(archive.read("exit-code.txt").decode().strip())
     if status:
         raise SystemExit(status)
-
-
-if __name__ == "__main__":
-    print(f"Modal SDK {MODAL_VERSION}; maximum runtime {HOURS} hours.")
