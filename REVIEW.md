@@ -1,6 +1,6 @@
 # MNIST.17 — Apply walkthrough annotations
 
-Independent review: round 1/3 requested; blocked by reviewer usage limit.
+Independent review: round 1/3 completed, verdict merge (2026-11-02).
 
 ## Read first
 
@@ -44,3 +44,17 @@ independent-review step 2, stop after the failed retry and report. Only the
 independent review remains; docs edits and verification are complete.
 Native Brave reload also confirms the changed loss, shape sentence, removals
 and parameterization note in the rendered x64 page.
+
+## Completed independent review (2026-11-02)
+
+Maintainer requested resumption after the usage-limit failure. Round 1 reviewed
+bf9c27b and returned merge; report: ../review/slices/MNIST.17.md.
+No blockers or should-fix findings. N-1 accepted: the requested untyped loss
+copy can drift, but currently matches the implementation. S-1 is nonblocking:
+censor fractions remain in linked metadata, and the table reports the CNN and
+oracle metrics; the reviewer reads both reporting requirements as met.
+Both docs modes rebuilt successfully (MNIST 9.61s x32, 13.57s x64), with
+rendered changed values/removals checked. Broad check.sh was not rerun for
+this docs-only step. Reviewer did not access untracked mnist2.md or inspect
+the browser; the implementer's prior annotation and browser checks cover those.
+No implementation fix or additional sub-step remains.
