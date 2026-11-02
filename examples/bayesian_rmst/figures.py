@@ -233,7 +233,7 @@ def render_figures(source: Path, output: Path) -> dict:
     ax.legend(fontsize=8)
     save(fig, 4)
     metadata = {
-        "source": str(source.resolve()),
+        "source": source.name,
         "source_run": record,
         "prior_draws": 200,
         "matplotlib_version": matplotlib.__version__,

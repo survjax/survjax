@@ -44,7 +44,79 @@ def check_figures(source: Path) -> None:
         assert len(captured[0].axes[0].lines) == 201  # 200 priors plus observed KM.
         assert "Density" == captured[2].axes[0].get_ylabel()
         assert len(captured[3].axes[0].lines) == 3  # median, truth, zero.
+        import mpmath as mp
+
+        with mp.workdps(40):
+            true5 = [
+                float(
+                    mp.quad(
+                        lambda t, h=h: mp.exp(
+                            -h * (t / mp.mpf("11.42")) ** mp.mpf("1.38")
+                        ),
+                        [0, 5],
+                    )
+                )
+                for h in (mp.mpf(1), mp.mpf(".7"))
+            ]
+        np.testing.assert_allclose(
+            captured[2].axes[0].lines[0].get_xdata(),
+            true5[1] - true5[0],
+            atol=1e-12,
+            rtol=0,
+        )
+        with np.load(output / "prior_curves.npz", allow_pickle=False) as prior:
+            for group in (0, 1):
+                np.testing.assert_array_equal(
+                    captured[0].axes[group].lines[0].get_ydata(),
+                    prior["survival"][:, 0, group],
+                )
         with np.load(source / "arrays.npz", allow_pickle=False) as saved:
+            delta = saved["rmst_tau"][:, 1] - saved["rmst_tau"][:, 0]
+            low, high = np.quantile(delta, [0.025, 0.975])
+            interval = captured[2].axes[0].patches[-1]
+            np.testing.assert_allclose(
+                [interval.get_x(), interval.get_width()],
+                [low, high - low],
+                atol=1e-12,
+                rtol=0,
+            )
+            for group, hr in enumerate((1.0, 0.7)):
+                true_s = np.exp(-hr * (saved["t_grid"] / 11.42) ** 1.38)
+                np.testing.assert_allclose(
+                    captured[1].axes[group].lines[1].get_ydata(),
+                    true_s,
+                    atol=1e-12,
+                    rtol=0,
+                )
+                selected = saved["arm"] == group
+                km_t, km_s = kaplan_meier(
+                    saved["time"][selected], saved["event"][selected]
+                )
+                for figure, index in ((0, 200), (1, 2)):
+                    np.testing.assert_array_equal(
+                        captured[figure].axes[group].lines[index].get_xdata(), km_t
+                    )
+                    np.testing.assert_array_equal(
+                        captured[figure].axes[group].lines[index].get_ydata(), km_s
+                    )
+            for index in (0, 50, 100):
+                cutoff = float(saved["tau_grid"][index])
+                with mp.workdps(40):
+                    true_delta = mp.quad(
+                        lambda t: (
+                            mp.exp(
+                                -mp.mpf(".7") * (t / mp.mpf("11.42")) ** mp.mpf("1.38")
+                            )
+                            - mp.exp(-((t / mp.mpf("11.42")) ** mp.mpf("1.38")))
+                        ),
+                        [0, cutoff],
+                    )
+                np.testing.assert_allclose(
+                    captured[3].axes[0].lines[1].get_ydata()[index],
+                    float(true_delta),
+                    atol=1e-12,
+                    rtol=0,
+                )
             paired = saved["rmst_curve"][:, :, 1] - saved["rmst_curve"][:, :, 0]
             np.testing.assert_allclose(
                 captured[3].axes[0].lines[0].get_ydata(),

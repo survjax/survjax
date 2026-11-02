@@ -1,6 +1,26 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # BAYES.4 — Survival and treatment-effect figures
+
+Round 1 returned fix-first. F-001 addressed with 72 additional check lines:
+closed-form physical survival truth on all plotted times, 40-digit mpmath
+integrals for true delta at tau=5 and three curve points; prior line data per
+arm vs saved prior_curves; both figures' KM time/value ordinates per arm;
+Figure 3 axvspan coordinates vs exact .025/.975 posterior quantiles.
+The original review unit had 335 source/check lines; these necessary validation
+fixes are a separate fix-up commit, not another plotting feature. No inflation
+with plan/review/generated figures. Dedicated check passes, and in-memory
+truth-arm/prior-arm/KM-arm/90%-interval mutants are all now detected.
+
+F-002 addressed by a durable Docs to-do block in PLAN.md: copy the R versions,
+command procedure, dataset key, precision/alignment explanation and <6e-16
+result to the eventual page source; include prior interpretation/captions and
+figures.py's KM import story. The full original R command remains below and
+in the reviewed commit. N-004: source is now a directory name, not an absolute
+local path. N-001 truth/key literals and N-005 approved KM placement are
+nonblocking and left unchanged; no new public layer/configuration added.
+Ruff format/lint, mypy and whitespace pass after fixes. No repeated posterior,
+R comparison or core gate for additional checks and metadata-path change.
 
 Read PLAN.md BAYES.4 and both 02 use-case files; figures.py KM/prior/band helpers
 then render_figures; check_figures.py numerical and rendered-figure checks.

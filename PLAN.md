@@ -1,3 +1,27 @@
+# BAYES.4 review fix-up — Figure wiring oracles (2026-11-02)
+
+Round 1 fix-first: add F-001 checks for all truth overlays, prior/KM arm wiring
+and the density interval extent. Independent physical survival formula and
+40-digit mpmath integrals check truth; prior_curves.npz and actual per-arm
+KM check rendered lines. F-002 Docs to-do below. N-004 remove the absolute
+source path from figure metadata. N-001/N-005 stay nonblocking, preserve the
+approved module placement and note the page import. Separate fix-up commit;
+run dedicated checks and all four formerly missed mutants, Ruff/mypy, then
+BAYES.4 independent review round 2/3 and stop. These necessary review checks
+extend the initial ~300-line capability, not a separate feature.
+
+Docs to-do: in the future Bayesian page source, carry the one-off KM/R note:
+R 4.4.2 + survival 3.7.0, actual synthetic trial from root20261025/fold2/fold0;
+export time,event,arm then run survfit(Surv(time,event)~1) separately by arm.
+Compare at all 150 original observed times each; max errors 4.44e-16/5.55e-16
+(atol1e-14), aligning R CSV times with original times to avoid jump-rounding.
+Full command is retained in this step's Git version of REVIEW.md. Include
+interpretation of broad Normal(0,5) prior curves under open D-033, captions
+for all four figures, and that demo KM is imported from figures.py (approved
+module split), not a public survjax API. No docs source edits in this code step.
+
+---
+
 # BAYES.4 — Survival and treatment-effect figures (2026-11-02)
 
 Start at clean 69629c9; original worktree base b1291a8. Maintainer requests
