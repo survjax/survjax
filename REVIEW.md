@@ -1,60 +1,45 @@
-# MNIST.17 — Apply walkthrough annotations
+# MNIST.18 — Runnable notebook companion
 
-Independent review: round 1/3 completed, verdict merge (2026-11-02).
+Independent review: round 1/3.
 
 ## Read first
 
-1. PLAN.md MNIST.17: complete annotation checklist from maintainer's mnist2.md.
-2. docs/use-cases/survival-mnist.md diff from 7840cd7.
-3. Built docs/_build/html-x32/use-cases/survival-mnist.html and x64 equivalent.
+1. PLAN.md MNIST.18: user requested a runnable notebook in addition to code/docs.
+2. examples/survival_mnist/survival-mnist.ipynb: 11 cells, outputs cleared.
+3. Example README launch command and docs page notebook download link.
 
-The maintainer requested all deletions and comments in mnist2.md, including
-removing the censor-fraction sentence, pixel-scaling/outcome-repeat prose and
-oracle-gap sentence. Actual shapes replace the relative shape difference.
-The loss is shown without annotations (docs only); Adam is called an optimizer;
-timing starts “Calculating”; takeaways describe shared shape/per-image scale
-as a choice, with both parameters per image as a possible alternative.
-The annotation file is user-owned and remains untouched/untracked; the plan
-records its full checklist for the reviewer checkout. No new spec decision:
-metadata still reports censor fractions and the table retains oracle metrics.
-No runtime/API/dependency/result changes. The note proposes no implemented
-per-image shape head and preserves the shared-shape risk-score explanation.
+The notebook runs the example directly in its kernel: data, intercept fitting,
+training, prediction, evaluation and figures. CONFIG chooses smoke or full.
+It reuses data/model functions and run._figures; editable model source remains
+model.py (restart/run-all instructions). No separate trainer, API or dependency.
+The untyped loss excerpt is explanatory and matches the example's computation.
+Saved full-run results are explicitly distinguished from current notebook results.
+Cohort sizes, keys, float32 convention, labels excluded from training, checkpoint
+selection and metric definitions remain those of use-case03/spec 11.2.
+It is a repository notebook, not a standalone file: launch/dependency and cache
+instructions are included. It finds the repository from root or example cwd.
+Figures go to a fresh temporary directory, never the committed results folder.
+Original mnist2.md remains untouched/untracked.
 
-## Verification and invariants
+## Verification
 
-- Direct scripts/build_docs.sh exited 0; both modes report build succeeded.
-  Live MNIST execution: 16.51s x32, 21.58s x64. IPKernelApp emits the existing
-  TCP-without-encryption warning; no notebook execution errors.
-- Parsed both rendered pages: untyped loss, shape 1.368 versus 1.380,
-  flexible-parameter note and timing wording present; deleted passages absent.
-- AST comparison: displayed loss body equals model.py loss body (excluding
-  its docstring); no computation changes. All annotation comments removed.
-- git diff --check: clean. No new tests for prose, no broad gate rerun by
-  implementer. Docs build executes smoke; the previous full results are reused.
+- nbformat schema validates; saved notebook has no outputs/execution counts.
+- nbclient executed all cells, smoke from the notebook directory; no cell errors.
+  Outputs include 5k/1k/2k sizes, epoch 1, live metrics, a generating-curves PNG,
+  CNN source, three live SVGs and committed full metrics/headline SVG.
+- A temporary copy with CONFIG=full executed all cells from repository root:
+  50k/10k/10k, epoch 7. Live rounded metrics match committed full metrics:
+  CNN -1.127/1.368/.689, intercept -1.238/1.188/.500, oracle -1.111/1.380/.698.
+- Initial sandbox smoke execution succeeded but kernel shutdown hit a psutil
+  PermissionError. Final smoke and full executions used normal kernel permissions
+  and succeeded; only the existing IPKernelApp TCP warning remained.
+- scripts/build_docs.sh directly: exit 0, both modes build succeeded. Notebook
+  download href resolves to a byte-identical copy of the source in both builds.
+- Ruff format/check on notebook: 1 already formatted; all checks passed.
+  git diff --check clean. No new tests or broad gate: no library/runtime changes.
 
-Starting/previous step 7840cd7; original worktree base ee72c83. One docs step,
-no remaining sub-steps beyond independent review. No known implementation issue.
-
-## Review execution status
-
-Both the initial invocation and the one permitted retry exited 1 with:
-“You've hit your 5-hour limit · resets 12:20am (Europe/Amsterdam)”.
-No MNIST.17.md review file was produced. No verdict is claimed. Following
-independent-review step 2, stop after the failed retry and report. Only the
-independent review remains; docs edits and verification are complete.
-Native Brave reload also confirms the changed loss, shape sentence, removals
-and parameterization note in the rendered x64 page.
-
-## Completed independent review (2026-11-02)
-
-Maintainer requested resumption after the usage-limit failure. Round 1 reviewed
-bf9c27b and returned merge; report: ../review/slices/MNIST.17.md.
-No blockers or should-fix findings. N-1 accepted: the requested untyped loss
-copy can drift, but currently matches the implementation. S-1 is nonblocking:
-censor fractions remain in linked metadata, and the table reports the CNN and
-oracle metrics; the reviewer reads both reporting requirements as met.
-Both docs modes rebuilt successfully (MNIST 9.61s x32, 13.57s x64), with
-rendered changed values/removals checked. Broad check.sh was not rerun for
-this docs-only step. Reviewer did not access untracked mnist2.md or inspect
-the browser; the implementer's prior annotation and browser checks cover those.
-No implementation fix or additional sub-step remains.
+Executed copies are /tmp/survival-mnist-executed.ipynb and
+/tmp/survival-mnist-full-executed.ipynb; no output or data committed.
+Implementation files: 235-line notebook plus 13 README/docs lines, below 300.
+Starting/previous step 4020dda; original worktree base ee72c83.
+No known issue; independent review is the only remaining sub-step.

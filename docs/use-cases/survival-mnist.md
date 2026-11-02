@@ -17,6 +17,10 @@ each one “survives”, with half the outcomes censored and without ever being
 told which digit it is looking at. Because we invented the survival times,
 we know the true curve for every image and can see how close the network gets.
 
+Try the {download}`runnable Jupyter notebook <../../examples/survival_mnist/survival-mnist.ipynb>`
+for a cell-by-cell experiment. Open it inside the repository with the launch
+command in the {download}`example README <../../examples/survival_mnist/README.md>`.
+
 The connection between the network and the survival model is just three lines:
 
 ```python

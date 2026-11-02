@@ -1,3 +1,18 @@
+# MNIST.18 — Runnable notebook companion
+
+Starting/previous step 4020dda; original worktree base ee72c83. Add
+examples/survival_mnist/survival-mnist.ipynb, with editable smoke/full config,
+direct data/fit/train/predict/evaluate cells, live figures and committed full
+results. Reuse existing example functions and docs-group Jupyter dependencies.
+Link and give launch command in the example README; add docs download link.
+No public API, dependency, library, model or numerical changes. User explicitly
+requests this additional artifact; spec 11.2/use-case03 narrative and cohorts
+apply. Keep saved notebook outputs empty; execute a temporary copy using
+nbclient from the notebook directory and inspect outputs. Check notebook schema,
+Ruff, both docs builds and download link. No new test suite for this companion:
+execution covers its integration with the already-tested example. One docs step,
+then commit and independent review.
+
 # MNIST.17 — Apply annotated walkthrough edits
 
 Starting/previous step commit 7840cd7; original worktree base ee72c83.

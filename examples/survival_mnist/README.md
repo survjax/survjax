@@ -23,5 +23,14 @@ Start with the three-line loss in [model.py](model.py), or follow the
 [walkthrough](../../docs/use-cases/survival-mnist.md), which runs smoke live
 and explains how to substitute your own network.
 
+For an interactive, cell-by-cell run, open the [Jupyter notebook](survival-mnist.ipynb):
+
+```bash
+uv run --group docs --group examples jupyter lab examples/survival_mnist/survival-mnist.ipynb
+```
+
+Choose Python 3 and restart/run all cells. It defaults to smoke; set `CONFIG`
+to `"full"` for ten epochs. Run it inside this repository checkout.
+
 MNIST is by Y. LeCun, C. Cortes and C. J. C. Burges, under CC BY-SA 3.0.
 [Dataset](http://yann.lecun.com/exdb/mnist/); survival outcomes are synthetic.
