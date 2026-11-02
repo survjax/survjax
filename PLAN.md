@@ -1,3 +1,72 @@
+# SIM.5 — Compiled scenario runner and failure accounting (2026-11-02)
+
+Clean start/base and previous simulation step final:
+`d3ceb0fadb5052564079a46ac8e799bf0a7fbbc3` (SIM.4 round 2: merge).
+Integration base: 95f453279ab9bffad1c67dc234a56d46b534a677; original worktree
+base: 8757c0fda78e34e6e818249adedd2a144a33c33d.
+Preserve all unfinished and merged plan history below.
+
+D-033 is settled by the maintainer: record all reasons separately, allowing
+multiple reasons per rejected fit, and an overall failed column for the unique
+total. Unestimable rows get that reason; placeholder diagnostics are not actual
+solver attempts. The maintainer explicitly requests "implement this and then
+the next bit as well": complete/review SIM.5, report its verdict in progress,
+then implement/review SIM.6 performance/MCSE summaries without another approval.
+Stop after SIM.6; still stop on a maintainer verdict or unresolved spec question.
+
+Self-contained step, under 300 code/check/decision-record lines:
+- examples/weibull_simulation/run.py (named by use case 01): scenario/batch
+  functions in this separate module, leaving the 306-line study.py unchanged.
+  Caller passes the pre-calibrated c; do not recalibrate per replicate/n.
+  Fixed equal allocation, k=1.38,b0=11.42,gamma=log(.7), explicit root/fold_in/
+  split key scheme. Generate a (R,N) cohort and validate on the host before
+  fitting with one compiled vmap per model.
+- Return raw FitResult batches, per-replicate reasons and accepted/failed
+  counts under D-033. Timing and high-level orchestration move to SIM.6
+  alongside performance summaries to keep both commits small.
+  No parameter/MLE/solver changes, no failure dropping or retries.
+- examples/weibull_simulation/check_scenario.py: dedicated optional checks for
+  key mapping and allocation, generation versus primitive draws, compiled fits
+  versus reviewed single-fit values, hand failures/count conservation, and
+  overlapping failure columns and unique-total counts. Add a real locked-BFGS
+  failure regression to cover SIM.4 N-3 solver-status wiring; this is a failure
+  accounting check, not an extreme-range derivative-accuracy claim. Keep checks explicit like
+  check_fit.py; no protected gate edits or silent dependency skips.
+- REVIEW.md to be overwritten only when implementation begins; record D-033's
+  decision, requirement mapping, exact checks and remaining scope. No library
+  API or dependency changes. No new unnamed library module (run.py is demo code).
+
+Readiness probe (existing reviewed fitter only, no implementation edits):
+valid four exact times equal to 1, two per arm, Weibull fit returns
+estimable=True, solver_success=True, accepted=False, hessian_ok=False;
+theta=[709,0,0], objective=-2832, gradient=[0,0,0]. This verifies why raw
+solver success is insufficient; it does not broaden the no-events definition
+of unestimable or claim tail-derivative accuracy. Not a full-study run.
+
+After the decision: use explicit examples-group float64 scenario/fit checks,
+generator checks in both dtype processes, Ruff/mypy/lock consistency and the
+unchanged fresh-wheel through-A10 gate. Commit, exact independent-review SIM.5
+up to three rounds, then report and proceed to the explicitly authorized SIM.6.
+Remaining subsequent steps after SIM.6:
+CLI smoke, full study/results/figures and executable docs.
+Docs to-do: explain the selected reason policy and timing convention there.
+
+
+Implemented: run.py 113 lines, dedicated checks 147 lines, D-033 record 24
+lines. Compiled fits for both models agree with reviewed single-fit values;
+closed-form scores are checked at each fitted theta (not different fits'
+small residuals). No tolerance change. Added real jitted optimizer-failure
+plumbing check, closing SIM.4 N-3 for a locked-environment failure case.
+Final scenario suite 10 passed (11.26s); combined pre-boundary fit/scenario
+suite 23 passed (23.87s); unchanged fit suite contributes 15 cases. Generators
+17 per dtype (3.11s/3.03s), Ruff/mypy/lock clean. Fresh-wheel through-A10:
+exit 0, own 1282/1287 passed (8/3 skips), doctests 4 per mode, independent
+2333/2324 passed (27/36 skips). Exact outputs/investigations in REVIEW.md.
+Commit and independent review next; after merge verdict proceed to SIM.6 as
+explicitly requested, then stop after that step's review.
+
+---
+
 # SIM.4 — Fit one replicate with the integrated PH models (2026-11-01)
 
 Clean start/base: 95f453279ab9bffad1c67dc234a56d46b534a677 on release-simulation.

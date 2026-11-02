@@ -5,6 +5,30 @@ D-028. PH's constructor entry retains D-028; RMST's zero-boundary entry is
 now D-030. Historical RMST plans/reviews citing D-028 refer to D-030 here;
 those records remain verbatim. No entry body, decision or status is changed.
 
+
+## D-033 Simulation failure reasons when multiple acceptance gates fail
+
+- Step: SIM.5 planning (compiled scenarios and failure accounting).
+- Spec: use-cases/01-weibull-simulation-details.md, Models and fitting / Fit
+  acceptance and Performance measures; SPECIFICATION.md 12.2 release item 4.
+- Spec says: record solver, nonfinite, gradient, hessian or unestimable per
+  replicate, and report attempted/accepted/failed-by-reason counts. It does
+  not specify precedence or whether reason counts may overlap when several
+  acceptance conditions fail. The reviewed fitter retains independent gates.
+- Did/propose: no classifier implemented. Propose one mutually exclusive
+  reason using priority unestimable -> solver -> nonfinite -> gradient ->
+  hessian, preserving the spec's listed acceptance-gate order after the
+  no-events check. Then accepted plus category counts equals total replicates.
+  Alternative: retain all failed gates and explicitly report overlapping
+  reason counts alongside the unique total failed. Await maintainer choice.
+- Maintainer decision (2026-11-02): "record every separately and add one
+  overall 'failed' column that determines the sum". Implement independent
+  overlapping reason columns; overall failed is the unique rejected-fit mask.
+  Unestimable rows are not solver attempts, so placeholder diagnostics do not
+  create solver/nonfinite/gradient/hessian reports for those rows.
+- Status: open (formal disposition remains maintainer-owned).
+
+
 ## D-032 PH RMST when the equivalent natural parameter is unrepresentable
 
 - Step: PH.3a independent review round 1, S-1 (non-blocking for that round).
