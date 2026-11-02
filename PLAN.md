@@ -1,3 +1,40 @@
+# BAYES.4 — Survival and treatment-effect figures (2026-11-02)
+
+Start at clean 69629c9; original worktree base b1291a8. Maintainer requests
+~300 actual implementation/check lines excluding plan/review. Target one
+complete ~280–300-line plotting capability: figures 1–4 from the saved full
+posterior, observed per-arm KM, 200 specified prior draws, truth overlays and
+paired delta bands. Re-read revision-41 spec and both 02 files/shared 00.
+
+Maintainer explicitly approves figures.py and check_figures.py in this turn;
+existing files are 232/282/296 lines.
+No public API, project dependency, core/protected/spec/docs edit. Implement
+host-only product-limit KM with event-before-censor ties, display until each
+arm's last observed follow-up; validate against hand algebra and one-off R
+survfit on the actual synthetic trial, recording version/command, no fixture
+regeneration. Generate prior parameters with Predictive and stream 2, evaluate
+survival only (no RMST on extreme prior draws); preserve Normal(0,5), expose
+rather than hide extreme curves. Plot posterior median/pointwise bands from
+saved draw arrays, density and interval of delta at 5, paired delta(tau) band
+and true curve. Validate axis aggregation/paired differences against explicit
+arrays; check figures/labels/line count and inspect PNG renders visually.
+
+Plot output goes to a new directory under /tmp in this step, protects existing
+results, records prior seed/prior policy and input metadata. Do not commit
+huge generated SVG/NPZ changes with code. No posterior rerun needed. Keep
+predictive KM figure 5 and executable docs/committed artifact delivery for
+subsequent steps. Run dedicated optional checks, R comparison, Ruff/mypy and
+whitespace, then commit, independent review BAYES.4 round 1/3 and stop.
+
+Implementation: 335 source/check lines in the two approved modules (no generated
+figures in the code commit). Final dedicated checks and Ruff/mypy pass. Rendered
+figures 1–4 and inspected PNGs; broad prior curves retained. R 4.4.2/survival
+3.7.0 agrees at all 150 observed times per arm, max error <6e-16. R CSV time
+round-trip requires aligning with original observed times before step lookup;
+no probability/time adjustment or tolerance relaxation. REVIEW.md holds details.
+
+---
+
 # BAYES.3 review fix-up — Truth and derived-chain oracles (2026-11-02)
 
 Round 1 fix-first: F-001 and F-002 require independent truth quadrature,

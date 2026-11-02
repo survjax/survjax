@@ -1,89 +1,82 @@
-Independent review: round 2/3
+Independent review: round 1/3
 
-# BAYES.3 — Full posterior audit and reproducible output
+# BAYES.4 — Survival and treatment-effect figures
 
-Round 1 returned fix-first. F-001: independent 40-digit mpmath quadrature
-now checks all five recorded true values, including the arm order/sign.
-F-002: a separate wrong delta interval must fail; shift only chain 0's derived
-delta, then compare recorded R-hat against NumPyro summary of an independently
-grouped (4,1000) chain matrix. An initial assertion of failure alone did not
-catch order=F (split R-hat also detects time trends); the exact comparison does.
-N-002: docstring explicitly distinguishes hard malformed/nonfinite input
-errors before an audit exists from acceptance failures, which are saved.
-N-001 is a nonblocking duplication nit; retain fixed design literals rather
-than add a configuration layer in this step.
-
-Current checks: optional full check_model passes with truth/delta additions;
-standalone enhanced audit/artifact check passes, and the order=F mutant is
-detected by the exact R-hat comparison. Truth-arm and dropped-delta mutants are detected. Ruff format,
-lint, mypy and whitespace pass. No numerical/sampling behavior change, no
-repeated full run or core gate. Cumulative source/check changes are 310 lines
-(308 additions, 2 removals), about the 300-line step target; initial review
-already covered the full audit/persistence capability, not just this fix-up.
-
-Read PLAN.md BAYES.3; run.py audit_posterior/save_results and main integration;
-check_model.py check_audit_and_artifacts; 02-details Sampling/Truth/Files.
-Previous step/head aeb249d; original worktree base b1291a8. Same Bayesian
-sub-slice. Maintainer explicitly requests meaningful combined work before
-review, excluding plan/review lines: 262 changed source/check lines (260 added,
-2 removed), no new module, API, dependency, protected file, core or docs edit.
+Read PLAN.md BAYES.4 and both 02 use-case files; figures.py KM/prior/band helpers
+then render_figures; check_figures.py numerical and rendered-figure checks.
+Previous step/head 69629c9; original worktree base b1291a8. Maintainer explicitly
+approves figures.py/check_figures.py because the existing files are near 300
+lines. Two approved demo modules, 335 actual source/check lines excluding
+plan/review, roughly the requested 300-line review unit. No library API, new
+dependency, core, protected path, docs or spec edits. Generated output is not
+committed here. Same Bayesian sub-slice, plan history retained.
 
 Invariants:
-- Four explicit chain axes preserved; flattened derived draws reshape into
-  NumPyro's chain-major order. Diagnose all three log parameters and all five
-  reported quantities. NumPyro summary supplies split R-hat/n_eff as required
-  by 02-details; ArviZ supplies tail ESS. No rank/bulk method substitution.
-- Strict R-hat<1.01, both ESS>400, zero divergences. Thresholds apply to full;
-  smoke records failures but remains explicitly exploratory. Nonfinite metrics
-  fail and serialize as null, not NaN. Nonfinite draws or malformed axes raise.
-- True RMST uses verified PH-Weibull at k=1.38,b0=11.42,HR=.7. Record all
-  coverage indicators; require HR and delta RMST truth within equal-tail 95%.
-- Full failure outputs are saved before nonzero exit; never reseed or tune.
-  Existing output directory is rejected before sampling and by save_results.
-- Optional output includes JSON settings/diagnostics/truth/timing and NPZ
-  observations, chains, flags, grids and per-draw curves; no pickle. No default
-  output path or committed generated-file churn. Core remains optional-free.
-- Priors remain the maintainer's Normal(0,5); D-033 remains open. Nothing here
-  claims prior-predictive justification or resolves that decision.
+- Figures use the passing full saved run, not a new posterior fit or mean
+  parameters. Require config=full, audit.passed and exact committed prior
+  metadata. No output overwriting; create a new directory only.
+- Prior Predictive uses root=20261025, fold 2 then 2; 200 unconditioned prior
+  sample sites from the existing model. Only survival evaluated, not extreme
+  prior RMST. All curves must be finite; no dropping, clipping or reseeding.
+- Figure 1: 200 thin curves per arm and observed KM; label Normal(0,5) on the
+  three log parameters. D-033 remains open, not resolved by plotting.
+- Figure 2: time-first saved survival (201,4000,2), reduce draw axis 1 for
+  .025/.5/.975 quantiles, truth and observed per-arm KM. Pointwise bands,
+  not simultaneous. Both survival panels use 0–20 years and common y scale.
+- Figure 3: normalized posterior histogram of paired delta RMST(5), 95%
+  equal-tail interval, truth and zero; honest histogram label rather than KDE.
+- Figure 4: paired treatment-control RMST for every draw before quantiles;
+  median/band on the specified tau grid, true delta and zero.
+- Host KM uses distinct event times; all tied censorings remain in the risk
+  set for event deaths. Step coordinates start at (0,1), extend flat to the
+  arm's last observation and no farther. All-censored cohorts remain at one.
+  Demo-only NumPy computation, not a differentiable public estimator.
+- Matplotlib Agg backend; each figure closes after SVG/PNG output. Metadata
+  records source run, prior key mapping/200 draws and Matplotlib version;
+  prior_curves.npz retains the exact evaluated prior curves with grid.
 
-Checks (2026-11-02):
+Evidence (2026-11-02):
 - `JAX_ENABLE_X64=1 uv run --group examples python -m
-  examples.bayesian_rmst.check_model`: exit 0. Trial/grid/aggregation,
-  factor/plate/sites, analytical routes (error 0.0), audit/artifact checks pass.
-  New checks: seeded iid Normal chains pass; a shifted gamma chain and a
-  divergence fail; wrong HR interval fails; transposed flags fail; mocked
-  r_hat=1.01 and ESS=400 fail all 24 metrics; NaN r_hat fails but JSON remains
-  valid. Temporary output reload checks arrays/metadata; overwrite rejected.
-- First full attempt stopped at ArviZ's daily home-cache stamp PermissionError.
-  Reran same seed/settings with required escalation, passed. ArviZ FutureWarning
-  and Matplotlib temporary-cache warnings observed, not hidden.
-- Final command: `uv run --group examples examples/bayesian_rmst/run.py
-  --config full --output /private/tmp/bayes3-final-full-20261102`, stdout in
-  /private/tmp/bayes3-final-full-20261102.log: exit 0. Four parallel CPU chains,
-  1000 warmup+1000 retained each, x64. Zero divergences; max R-hat 1.003555,
-  min NumPyro ESS 2158.578, min tail ESS 2250.707 (across eight quantities).
-  HR 95% [.5941096753,1.1688700067] includes .7; delta RMST 95%
-  [-.0802711574,.2743181956] includes true .1701579210. All five truths inside
-  intervals; P(delta>0)=.84725. Full audit passed, no failures.
-- Final runtime before output 20.981s, sampling 2.249s/postprocessing 5.085s
-  including compilation; imports/audit included in the total. This is measured
-  on this CPU only, not a docs-build/platform runtime guarantee. Full live docs
-  is feasible here; actual executable page build still needs verification.
-- Independent reload of final NPZ: chains (4,1000), survival (201,4000,2),
-  RMST curve (101,4000,2), event (300,), allow_pickle=False; checks pass.
-- Smoke with --output /private/tmp/bayes3-smoke-20261102: exit 0; short-chain
-  audit explicitly exploratory. Full was run twice with identical settings
-  (second after adding runtime/JSON-failure telemetry), no reseeding/tuning.
-- Ruff format/lint and mypy src pass (142 formatted, 22 typed source files);
-  git diff --check passes. Initial lint lambda assignment fixed to def.
-- No repeated core gate or docs build: source/core/tests/docs unchanged;
-  prior integration wheel-backed acceptance and core runs remain historical.
+  examples.bayesian_rmst.check_figures /private/tmp/bayes3-final-full-20261102`:
+  exit 0: KM, quantile, figure and overwrite checks passed. Hand KM tied
+  case has two deaths among four at t=1 (S=.5), last death at t=2 (S=0);
+  all-censored [1,3] extends to 3 at S=1. Crossed-arm analytical band checks
+  paired differences, axis and quantiles. Captured figures check 200 prior
+  lines plus KM, density axis, delta lines; posterior/delta median ordinates
+  compared against independent direct reductions of saved arrays. Four SVG
+  and PNG files emitted, all nonempty; existing destination rejected.
+- Final render command: `JAX_ENABLE_X64=1 uv run --group examples python -m
+  examples.bayesian_rmst.figures /private/tmp/bayes3-final-full-20261102
+  /private/tmp/bayes4-final-figures-20261102`: exit 0. All four PNGs visually
+  inspected (posterior/delta rechecked after style cleanup): no clipping,
+  readable axes/legends and visible truth/intervals. PNG/SVG output retained
+  there; source full arrays remain outside git as in BAYES.3.
+- Prior probe: (201,200,2), no nonfinite curves; prior shape range approximately
+  1.94e-6 to 1.66e5. Plot shows many nearly flat/step-like/extreme curves under
+  chosen broad priors. No inference that these priors are justified; prior
+  assessment remains a maintainer decision in D-033 and the eventual page.
+- External one-off KM comparison (not fixture regeneration): R version 4.4.2,
+  survival 3.7.0. Export full saved time/event/arm via np.savetxt to
+  /private/tmp/bayes4-trial.csv. R command:
+  `Rscript -e 'd <- read.csv("/private/tmp/bayes4-trial.csv"); library(survival);
+  out <- do.call(rbind,lapply(0:1,function(g) { f <- survfit(Surv(time,event) ~ 1,
+  data=d[d$arm==g,]); data.frame(arm=g,time=f$time,survival=f$surv) }));
+  write.csv(out,"/private/tmp/bayes4-r-km.csv",row.names=FALSE)'`.
+  Both arms compared at all 150 sorted original observed times: max absolute
+  error 4.4408920985e-16 /5.5511151231e-16, atol=1e-14, rtol=0.
+- First comparison used rounded R CSV times directly in searchsorted and
+  landed before some exact jumps. That comparison failed (not a KM value
+  failure). Verified R times against original sorted times at atol=1e-12,
+  then evaluated each step at its original observed time; no epsilon, altered
+  time or probability adjustment, nor tolerance relaxation. R outputs remain
+  one-off evidence, not hand-written or approximated fixture values.
+- `uv run ruff format --check .`: 144 files already formatted;
+  `uv run ruff check .`: All checks passed!; `uv run mypy src`: 22 files clean;
+  `git diff --check`: exit 0. Matplotlib temporary-cache/font warnings emitted.
+- No repeated core gate, full NUTS or docs build for example-only additions.
+  Dedicated checks run in x64 only because the Bayesian design requires it.
 
-Artifacts are outside git for review of code without generated-data volume:
-/private/tmp/bayes3-final-full-20261102/{metadata.json,arrays.npz}.
-Installed pinned optional environment is unchanged: NumPyro .22.0, ArviZ .23.0,
-JAX/jaxlib .11.2, NumPy 2.5.3. No new dependencies.
-
-Remaining: committed full results/figures and prior predictive assessment,
-predictive KM plus external validation, executable docs. No claim those gates
-are done; no clinical data, external messages, library sampling or new API.
+Remaining: posterior predictive KM figure 5, committed full artifact delivery,
+executable page/rendered HTML and prior interpretation. This step does not
+claim those gates or change D-033. No patient data, network acquisition,
+library event-time sampling or publishing.
