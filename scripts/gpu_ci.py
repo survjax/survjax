@@ -64,6 +64,13 @@ def _run(
         return 124
 
 
+def _source_archive(commit: str) -> bytes:
+    """Archive the dev-ci commit without its external design-repo symlink."""
+    return subprocess.check_output(
+        ["git", "archive", "--format=tar.gz", commit, "--", ".", ":(exclude)spec"]
+    )
+
+
 @app.function(
     image=image,
     gpu="T4",
@@ -267,7 +274,7 @@ def main(max_runtime_hours: float = HOURS, max_cost_usd: float = BUDGET_USD) -> 
     dirty = subprocess.check_output(["git", "status", "--porcelain"], text=True)
     if dirty:
         raise SystemExit("Commit or stash changes before a GPU run; only HEAD is sent.")
-    source = subprocess.check_output(["git", "archive", "--format=tar.gz", "HEAD"])
+    source = _source_archive("HEAD")
     print(
         f"Commit {commit}; T4; hard timeout {max_runtime_hours:g} h; "
         f"estimated maximum ${estimated_cost:.2f}."

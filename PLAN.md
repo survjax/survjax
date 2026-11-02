@@ -1,3 +1,21 @@
+# GPU.1 follow-up — Keep the Modal source archive extractable
+
+The first real Modal run showed that `git archive` preserves the top-level
+`spec -> ../design/spec` link, which Python's safe `tarfile` data filter
+rejects. Keep the external design-repository link out of the transferred
+archive; tests and wheel building use committed test fixtures and package
+files, not the external spec checkout.
+
+Files: `scripts/gpu_ci.py` (exclude the external `spec` symlink from the
+source archive while retaining safe extraction); `tests/unit/test_gpu_ci_archive.py`
+(regression check that the produced archive contains no `spec` link and can
+be extracted with the `data` filter); `PLAN.md` and `REVIEW.md`.
+Public API: none. Spec sections: none; this is CI runner transport only.
+
+Keep the fix within 300 changed lines. Run the focused regression test, Ruff
+format/check, Python compile, and whitespace check. Commit on `ci`, then
+continue the independent-review process already in progress for GPU.1.
+
 # GPU.1 — Modal runner and GPU test marker (2026-11-02)
 
 Branch ci, base a3519520588cb638aff475cb4bcdec14b3d26741. User explicitly

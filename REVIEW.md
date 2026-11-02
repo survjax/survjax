@@ -2,8 +2,24 @@ Independent review: round 2/3
 
 # GPU.1 — Modal runner and GPU test marker
 
-Read PLAN.md GPU.1, then scripts/gpu_ci.py, tests/conftest.py,
-pyproject.toml, and this review. Base commit: a3519520588cb638aff475cb4bcdec14b3d26741.
+Read PLAN.md GPU.1 follow-up, then scripts/gpu_ci.py,
+tests/unit/test_gpu_ci_archive.py, tests/conftest.py, pyproject.toml, and this
+review. Base commit: a3519520588cb638aff475cb4bcdec14b3d26741.
+
+Invariants for the follow-up:
+- The archive sent to Modal contains only paths from the dev-ci commit and no
+  top-level link into the sibling design repository.
+- Remote extraction continues using Python's `data` filter for every member.
+- GPU tests and wheel building do not read the external top-level `spec` link;
+  committed fixtures remain in the archive.
+
+The archive regression test checks both that `spec` is absent and that the
+result extracts under the same `data` filter used remotely.
+
+Observed real Modal run before this fix: commit
+6df96957329d012e37cf2023a89ef5a978d4829a failed at remote extraction with
+`LinkOutsideDestinationError` for `spec -> ../design/spec`, before dependency
+installation or tests. Modal run: https://modal.com/apps/vanamsterdam/main/ap-ORcnLOQqNmikgGNeO7dhtc.
 
 Round 1 findings addressed:
 - B-1: Modal CLI options are now typed parameters on `@app.local_entrypoint`;
@@ -40,7 +56,11 @@ Validation after fixes:
 - Round 1 independent gate: ruff/mypy passed; own suites passed (1282 x64,
   1287 x32); 5 spec wheel-test setup errors because `SURVJAX_WHEEL` was not
   provided. The reviewer could not run scripts/check_wheel.sh in its checkout.
-- No real Modal/GPU run or provider invocation is claimed.
+- Follow-up regression test: `uv run --group test pytest
+  tests/unit/test_gpu_ci_archive.py -q` — 1 passed.
+- Ruff format/check on `scripts/gpu_ci.py` and the regression test — passed;
+  `python3 -m py_compile scripts/gpu_ci.py tests/unit/test_gpu_ci_archive.py`
+  passed; `git diff --check` clean.
 
 Cost estimate at current Modal Function rates: T4 $0.000164/s, CPU
 $0.0000131/core/s, memory $0.00000222/GiB/s. With fixed 2-core/8-GiB limits,
