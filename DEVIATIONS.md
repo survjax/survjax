@@ -57,6 +57,12 @@ those records remain verbatim. No entry body, decision or status is changed.
   Alternative: add separate per-scenario timing runs alongside the batched
   fits. Ask the maintainer before treating either as the full-study policy;
   do not invent per-scenario time allocations by dividing measured times.
+- Maintainer decision (2026-11-04): "ok agreed; on to next bit" accepts the
+  recommended explicitly shared batch timings and C*R/warm throughput.
+  Retain first_call_seconds, median-of-three warm_seconds, timed_scenarios=C
+  and repeated shared times per row. Do not add separate per-scenario timing
+  runs or invent allocated per-scenario times. The spec remains read-only;
+  formal entry disposition remains maintainer-owned.
 - Status: open.
 
 

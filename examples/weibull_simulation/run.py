@@ -1,7 +1,6 @@
-"""Scenario engine and CLI performance tables; detailed exports follow later."""
+"""Batched Weibull PH simulations with summary and replicate CSV exports."""
 
 import argparse
-import csv
 from pathlib import Path
 from time import perf_counter
 from typing import Literal, NamedTuple
@@ -14,8 +13,10 @@ from jax.typing import ArrayLike
 import survjax
 
 if __package__:
+    from ._results import write_results
     from .study import FitResult, calibrate_censoring, fit_replicate, generate_weibull
 else:
+    from _results import write_results
     from study import FitResult, calibrate_censoring, fit_replicate, generate_weibull
 
 ROOT_SEED = 20261025
@@ -176,7 +177,9 @@ def performance(fits: FitResult, truth: float = TRUE_LOG_HR) -> dict[str, jax.Ar
     return result
 
 
-_summarize = jax.jit(lambda fits: (failure_counts(fits), performance(fits)))
+_summarize = jax.jit(
+    lambda fits: (failure_counts(fits), performance(fits), failure_columns(fits))
+)
 
 
 class ModelRun(NamedTuple):
@@ -188,6 +191,7 @@ class ModelRun(NamedTuple):
     first_call_seconds: float
     warm_seconds: float
     fits_per_second: float
+    failure_masks: dict[str, jax.Array]
 
 
 class ScenarioRun(NamedTuple):
@@ -237,19 +241,19 @@ def run_scenario(
     # Different parameter dimensions require distinct model graphs; both batch C/R.
     for model in ("weibull", "exponential"):
         fits, first, warm = _time_model(data, arm, model)
-        counts, measures = _summarize(fits)
+        counts, measures, masks = _summarize(fits)
         models[model] = ModelRun(
-            fits, counts, measures, first, warm, fits.accepted.size / warm
+            fits, counts, measures, first, warm, fits.accepted.size / warm, masks
         )
     return ScenarioRun(censor_limit, realized, models)
 
 
 def run_config(config: Literal["smoke", "full"], out: Path) -> None:
-    """Run the specified grid and write performance.csv (detailed exports later).
+    """Run the specified grid and write summary and complete replicate CSVs.
 
     Args:
         config: Smoke uses n=100,R=20; full uses n=100,300,1000,R=1000.
-        out: Output directory, created if needed; performance.csv is replaced.
+        out: Output directory, created if needed; both CSVs are replaced.
     Raises:
         ValueError: Unknown configuration or float64 disabled.
         OSError: Output cannot be written. Calibration/validation errors propagate.
@@ -258,6 +262,7 @@ def run_config(config: Literal["smoke", "full"], out: Path) -> None:
         raise ValueError("config must be smoke or full")
     if not jax.config.x64_enabled:
         raise ValueError("simulation configurations require JAX_ENABLE_X64=1")
+    out.mkdir(parents=True, exist_ok=True)
     sizes, replicates = ((100,), 20) if config == "smoke" else ((100, 300, 1000), 1000)
     # Host-only root finding runs once per target before compiled generation/fitting.
     limits = {
@@ -266,44 +271,15 @@ def run_config(config: Literal["smoke", "full"], out: Path) -> None:
         )
         for target in (0.25, 0.55)
     }
-    rows = []
+    batches = []
     # Changing n changes array shapes and requires a separate compiled batch.
     for group, n in enumerate(sizes):
         indices = np.arange(group * len(limits), (group + 1) * len(limits))
         scenario = jax.device_get(
             run_scenario(indices, n, replicates, np.array(list(limits.values())))
         )
-        # Only CSV serialization iterates scenarios/models on the host; numerics are batched.
-        for level, target in enumerate(limits):
-            for model in ("weibull", "exponential"):
-                record = scenario.models[model]
-                rows.append(
-                    {
-                        "scenario": int(indices[level]),
-                        "n": n,
-                        "target_censoring": target,
-                        "censor_limit": scenario.censor_limit[level],
-                        "realized_censoring": scenario.realized_censoring[level],
-                        "model": model,
-                        **{
-                            name: int(value[level])
-                            for name, value in record.failures.items()
-                        },
-                        **{
-                            name: float(value[level])
-                            for name, value in record.performance.items()
-                        },
-                        "timed_scenarios": len(limits),
-                        "first_call_seconds": record.first_call_seconds,
-                        "warm_seconds": record.warm_seconds,
-                        "fits_per_second": record.fits_per_second,
-                    }
-                )
-    out.mkdir(parents=True, exist_ok=True)
-    with (out / "performance.csv").open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
-        writer.writeheader()
-        writer.writerows(rows)
+        batches.append((indices, n, scenario))
+    write_results(out, limits, batches)
 
 
 def main(argv: list[str] | None = None) -> None:

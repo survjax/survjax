@@ -56,7 +56,29 @@ def test_configuration_grid_calibration_and_csv_fields(config, tmp_path, monkeyp
             "hessian": 2,
             "unestimable": 1,
         }
+        flags = np.zeros((2, r), dtype=bool)
+        flags[:, :4] = True
+        # Fake numerical outputs exercise serialization without running the full grid.
+        from examples.weibull_simulation.study import FitResult
+
+        p = 3
+        fits = FitResult(
+            np.zeros((2, r, p)),
+            np.zeros((2, r)),
+            np.zeros((2, r, p)),
+            np.zeros((2, r, p, p)),
+            np.zeros((2, r)),
+            np.zeros((2, r, 2)),
+            ~flags,
+            ~flags,
+            ~flags,
+            ~flags,
+        )
         record = SimpleNamespace(
+            fits=fits,
+            failure_masks={
+                name: flags for name in counts if name not in ("attempted", "accepted")
+            },
             failures={name: np.full(2, value) for name, value in counts.items()},
             performance={name: np.full(2, value) for name, value in metrics.items()},
             first_call_seconds=10.0,
@@ -143,6 +165,11 @@ def test_unknown_configuration_does_not_start_work(tmp_path, monkeypatch):
     assert not (tmp_path / "absent").exists()
     with pytest.raises(SystemExit):
         runner.main(["--config", "unknown", "--out", str(tmp_path)])
+    blocked = tmp_path / "file"
+    blocked.write_text("keep")
+    with pytest.raises(FileExistsError):
+        runner.run_config("smoke", blocked)
+    assert blocked.read_text() == "keep"
 
 
 def test_import_keeps_precision_and_imported_runner_refuses_float32(tmp_path):
@@ -226,3 +253,11 @@ def test_direct_script_smoke_writes_four_complete_summary_rows(tmp_path):
             atol=ATOL,
             rtol=RTOL,
         )
+
+    with (tmp_path / "replicates.csv").open(newline="") as handle:
+        raw = list(csv.DictReader(handle))
+    assert len(raw) == 80
+    assert len({(r["scenario"], r["model"], r["replicate"]) for r in raw}) == 80
+    assert all(
+        int(r["parameter_count"]) == (3 if r["model"] == "weibull" else 2) for r in raw
+    )

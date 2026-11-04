@@ -1,3 +1,71 @@
+# SIM.7b.1 — Complete per-replicate CSV export (2026-11-04)
+
+Start / previous simulation final: 49f57462583259606abca2ecceed2ef846392c03.
+Reviewed batching implementation: 877daf120aa43a4d11b49f04fd04b7ccb39af2d6.
+Maintainer merge base: d2469e0a7e719dbcb276277e6fd80a447626ad4e.
+Original worktree base: 8757c0fda78e34e6e818249adedd2a144a33c33d.
+Clean release-simulation. The maintainer accepts shared-batch timing (D-034)
+and says "on to next bit" after the concrete _results.py export proposal.
+Proceed with that proposed demo-only helper under the next-step authorization;
+no further module/library/dependency expansion. Preserve all plan history.
+
+Split before code: SIM.7b.1 extracts CSV serialization and adds complete raw
+replicate records; SIM.7b.2 adds metadata/provenance. This keeps the combined
+source/check diff near 300 lines without hiding numerical code in a helper.
+No full study/figures or complete artifact claim before metadata exists.
+
+Files/interfaces and invariants:
+- run.py: keep nested C/R vmaps and last-axis statistics unchanged. Include
+  failure_columns in the compiled _summarize output and ModelRun so all masks
+  are computed on device, together with counts/performance. Transfer once per
+  n, collect host records, then call _results.write_results. No Python fitting
+  or numerical scenario/replicate loop. Create output directory after config/
+  x64 guards and before calibration (SIM.7a N-1); fail early for a file path.
+- New examples/weibull_simulation/_results.py: the previously proposed private
+  demo serializer, not a library API. Two CSVs: performance.csv retains its
+  reviewed fields, counts and shared timing scope with explicit schema order
+  (fix batching N-1); replicates.csv contains every (scenario,model,replicate),
+  including rejected/unestimable, with theta, objective, gradient, Hessian,
+  SE, HR interval, raw solver/Hessian/estimability/acceptance flags and every
+  separate reason plus overall failed. Use numeric theta_i/gradient_i/
+  hessian_i_j columns, parameter_count and log_hr; unused Exponential parameter
+  columns are empty, not fake zeros. Real NaN/inf diagnostics remain numeric
+  CSV spellings, never blank/substituted. Reason/flag values are 0/1.
+  Every Python loop is explained as host serialization of computed records;
+  no estimator, numerical reduction or failure-policy duplication in helper.
+- check_results.py: explicit optional-group host CSV checks. Hand fit results
+  include accepted, overlapping failures, theta/objective/gradient/Hessian
+  NaNs and unestimable placeholders for both model dimensions and two levels.
+  Round-trip every vector/matrix/flag/reason and verify unique row identifiers,
+  count conservation and stable summary headers. No tolerance changes.
+- check_cli.py: adapt fake runner to include raw result fields/masks, extend
+  real smoke to require all 80 raw rows, reconstruct failure-count totals from
+  them and cross-check summaries. Add unusable-output early-rejection case.
+- DEVIATIONS.md D-034: record the maintainer decision, leave status open.
+  REVIEW.md: overwrite for this step, exact requirement/check mapping and
+  independent-review count. Shared study.py/core/dependencies unchanged.
+
+Use-case 01 main/details/common: all failed fits recorded, seeds/outputs;
+spec 7.2, 10.3, 11.4, 12.2 release item 4. Dedicated x64 export/CLI/fit/
+scenario/performance checks, generators in both dtype processes, Ruff/mypy/
+lock and unchanged fresh-wheel through-A10 gate. Commit and run exact
+independent-review SIM.7b.1 (up to 3 rounds), then stop/report.
+Implemented: write_results stores every raw diagnostic/flag and fixes summary
+field order; failure masks are returned by the existing compiled summary.
+Runner now 297 lines, helper 130; code/check diff 337 lines including 39
+removed old serialization lines (298 added). Metadata was split out before
+code. Combined focused suite 49 passed (40.22s), real smoke 4.90s with 80 raw
+records; strengthened matrix/gradient round-trip fixture passes (1.45s).
+Generators 17 per dtype (3.40s each), static checks clean. Fresh-wheel
+through-A10 exit 0: own 1282/1287 passed (8/3 skips), doctests 4 per mode,
+independent 2333/2324 passed (27/36 skips). Exact outputs in REVIEW.md.
+Commit and exact independent review next, then stop after this step.
+Remaining: provenance/metadata, full results and figures, executable docs.
+Docs to-do: exported parameter order, numeric blank-vs-NaN meaning, complete
+failure columns, shared batch timing and results-vs-live smoke labels.
+
+---
+
 # SIM.7a.batch — Batch same-size censoring scenarios in JAX (2026-11-04)
 
 Start / previous step final: 6a9c96b7c2935f18d8467d3266625bd12aaaba6e.

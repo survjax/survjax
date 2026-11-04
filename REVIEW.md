@@ -1,132 +1,119 @@
 Independent review: round 1/3
 
-# SIM.7a.batch — Batch same-size censoring scenarios in JAX
+# SIM.7b.1 — Complete per-replicate CSV export
 
-Start/previous final: 6a9c96b7c2935f18d8467d3266625bd12aaaba6e.
-Maintainer merge base: d2469e0a7e719dbcb276277e6fd80a447626ad4e.
+Start/previous final: 49f57462583259606abca2ecceed2ef846392c03.
+Reviewed numerical batching: 877daf120aa43a4d11b49f04fd04b7ccb39af2d6.
+Merge base: d2469e0a7e719dbcb276277e6fd80a447626ad4e.
 Original worktree base: 8757c0fda78e34e6e818249adedd2a144a33c33d.
-User explicitly requests JAX batching across same-size scenarios and comments
-justifying remaining Python loops. No export helper approval is inferred.
-Read PLAN.md's correction, run.py and the focused CLI/scenario/summary checks.
-Numerical fitter/core/generator contract/dependencies remain unchanged.
+The maintainer accepts shared-batch timing and authorizes the next export
+step after the _results.py proposal. Record D-034's decision without changing
+its formal open status or editing read-only spec. The previous maintainer
+verdict's timing choice is settled; no need to reopen that approval.
 
-Counts and summaries must retain censoring-level axes and reduce replicates
-only. Timings are for the whole same-size batch; CSV states timed_scenarios
-and throughput uses C*R. No made-up per-scenario time allocation. Existing
-scalar demo helpers remain usable. Exact scenario/replicate/U-C keys and host
-observation validation must be preserved. No numerical Python scenario loop.
+Read PLAN.md SIM.7b.1, _results.py, run.py integration and check_results/CLI.
+All fits and masks are computed together in JAX. The helper serializes host
+records, including every rejected/unestimable fit; no Python numerical loop,
+new core API/dependency, protected path or shared study.py change.
+Metadata/provenance is the next separate step before full study outputs.
+## Reading order and scope
 
-## Reading order / implementation
+1. DEVIATIONS.md D-034's explicit maintainer decision; PLAN.md SIM.7b.1 split.
+2. _results.py host-only writer and fixed two-model numeric CSV schema.
+3. run.py: _summarize returns masks with counts/performance; ModelRun carries
+   them; create output directory before calibration; collect already-host
+   batches and call write_results. Existing numerical reductions/fit unchanged.
+4. check_results.py round-trip fixture, check_cli.py fake grid and real smoke.
 
-1. PLAN.md SIM.7a.batch and use-case 01 seed/fitting/performance semantics.
-2. run.py prepare_scenario, _fit_batch, last-axis counts/performance, _summarize,
-   run_scenario and the corrected sample-size loop in run_config.
-3. check_scenario.py grouped numerical equivalence and trace-count reuse;
-   check_performance.py independent grouped hand statistics;
-   check_cli.py batched dispatch and independent real smoke key checks.
-4. study.py: three explanatory comments only; generator/calibration/fitter
-   numerical code and the frozen shared import contract are unchanged.
+The helper was proposed with its exact path and purpose before this step;
+"on to next bit" follows that proposal and accepts proceeding with exports.
+No other new module/API/dependency is introduced. The full CSV+metadata step
+was split before implementation: metadata is SIM.7b.2. No complete full-run
+artifact/evidence claim before metadata and figures exist.
 
-Changed implementation/check lines: about 295, excluding PLAN/REVIEW.
-run.py is 321 lines, near the approximate module-size target; the proposed
-export helper remains unapproved/uncreated, and no extra helper layer or
-library API has been added. The current correction stays self-contained.
+## Invariants / requirement mapping
 
-## Invariants / tests
+- Computation stays in the C/R JAX batch; failure_columns joins counts and
+  performance in the existing compiled _summarize call. Every returned mask
+  has shape (C,R). ModelRun carries the masks; no host reimplementation of
+  acceptance conditions, per-scenario JAX calls or estimator work in writer.
+  Device transfer remains once per n, before the serialization helper.
+- write_results receives only completed host batches. All its loops are
+  explicitly host serialization: static schema, levels, heterogeneous model
+  record shapes, CSV rows and vector/matrix cells. No filtering by accepted;
+  every (scenario,model,replicate) is retained, including unestimable cases.
+- performance.csv has fixed count/measure order, avoiding device_get dict
+  sorting (batch review N-1). Existing values, scenario order, unique failed
+  totals and independent overlap counts remain unchanged. Shared group times,
+  timed_scenarios=C and C*R/warm are now explicitly approved in D-034. No
+  timing-code change, separate timing runs or allocated per-scenario times.
+- replicates.csv includes theta_i, gradient_i and hessian_i_j raw numeric
+  cells, objective, log_hr and SE/HR interval, raw solver_success/hessian_ok/
+  estimable/accepted flags, plus failed and every independent reason. Parameter
+  count disambiguates the Weibull's 3 vs Exponential's 2 parameters. Missing
+  Exponential third-parameter cells are blank; real diagnostic NaN/inf values
+  remain numeric CSV spellings. No zero fill, clipping or hidden row dropping.
+- Fixed schema is for the two specified models only, not a new extension API.
+  Parameter order remains Weibull(log k,log b0,gamma) and Exponential(log
+  lambda0,gamma), exactly the reviewed fitter. Formal metadata map is next.
+- out.mkdir runs after config/x64 guards but before calibration/fitting,
+  fixing the carried SIM.7a nit for an existing-file --out. CSV writes still
+  occur only after all n batches have completed. This is not a claim to
+  detect every possible later filesystem failure before calculation.
+- Shared study.py/core/dependencies/protected scripts unchanged. Runner is
+  back to 297 lines. _results.py is 130 lines. The implementation/check diff
+  is 337 lines including 39 deleted lines of moved serialization; 298 added.
+  This is near the 300-line target after splitting metadata into the next step.
 
-- Scalar preparation still yields (R,N). Matching nonempty (C,) index/limit
-  vectors yield (C,R,N); positive even n/R, integer nonnegative indices,
-  matching shapes, finite positive limits and x64 are checked on the host.
-  Four new invalid vector/type cases cover these guards.
-- Outer generation vmap owns fold_in(scenario_index), inner vmap owns split(R)
-  and the unchanged generator splits U/C. The exact scalar keys are preserved;
-  no flattened split(C*R), common random keys across levels or padding.
-  Host observation validation still runs on the complete generated batch.
-- One module-level fit_batch jit contains the two vmaps. Scalar R-only calls
-  retain one vmap. No Python runtime iteration over censoring levels or fits.
-  Two model graphs have different theta dimensions; their static dispatch
-  loop is explained, rather than padding a heterogeneous parameter vector.
-- failure_counts is now pure JAX with scalar/(C,) outputs, not host Python int
-  extraction. This is a demo helper change, not the frozen generator contract.
-  Counts and every performance reduction use only the last replicate axis.
-  The means broadcast back via mean[...,None]; count casts precede division.
-  Rejected NaNs are substituted before arithmetic. Strict acceptance, SD,
-  MCSE and overlap/unique-failure formulas are unchanged.
-- A stable module-level _summarize jit jointly computes counts/performance
-  over all levels. The existing scalar hand/timing tests still pass.
-- Independent two-level summary fixture: accepted gamma=[0,3] with SE=[1,.5]
-  and true gamma=.5 yields bias=1, SD=3/sqrt(2), RMS SE=sqrt(.625), coverage/
-  power=.5. The second level has only gamma=1,SE=1 accepted: bias=.5,
-  RMS SE=1, coverage=1,power=0, zero Bernoulli MCSEs and undefined SD/SD+bias
-  MCSE. Accepted counts [2,1], failed [2,3], attempts [4,4] must stay separate.
-  Eager/jit agree at unchanged ordinary x64 tolerances. No pooled denominator.
-- For both actual models, grouped (C=2,R=2,N=20) generation/fit outputs match
-  the scalar path for each level at the existing value tolerances (theta,
-  objective,H,SE,CI and acceptance). Independent real CLI inverse-CDF/key
-  reconstruction also remains green. Scores at different fitted points are
-  not compared as identical residues; fixed-input derivative checks remain.
-- Actual trace counter: run the grouped fitter, change observed values with
-  the same shape/static observation metadata, run again, require one trace.
-  No private cache-size API or clearing caches. Eager/Python callback counting
-  is test instrumentation at trace time only.
-- run_config dispatches once per n, with indices [0,1], [2,3], [4,5] and both
-  calibrated limits together. Fake full-grid checks assert these exact calls.
-  Calibration still runs once per target on the host before numerical batches.
-- Remaining Python loops/comprehensions are explained: static result-schema
-  tracing, distinct model graphs, host root calibration, synchronized host
-  timing samples, n-dependent compilation and post-device_get CSV writing.
-  study.py comments explain host quadrature/bracketing/bisection too.
-- Timings cover the C*R-fit batch. CSV repeats the shared first/warm timings
-  with timed_scenarios=C and computes rate=C*R/warm, never R/warm or invented
-  per-scenario times. Each row's statistics/counts retain its own R. This is
-  the direct measurement scope of the user's explicit batching correction;
-  D-034's later full-run compile label/cache question is not silently closed.
+## Meaningful checks
 
-## Actual checks / investigations
+- For P=3 and P=2, construct three hand diagnostic rows using reviewed
+  _assess_fit: accepted; rejected with nonfinite theta/objective/score/Hessian
+  plus solver failure; unestimable with placeholder diagnostics. Stack two
+  levels with opposite replicate order so a wrong-level export is visible.
+  Positive-definite H=L L^T has distinct diagonal values, good gradients are
+  distinct nonzero values below 1e-5, and raw nonfinite values include NaN,
+  +inf and -inf. Expected output is the supplied input records, not a second
+  run of the serializer. Compare every raw numeric/vector/matrix/flag/reason
+  exactly, including nonfinite values; no numerical tolerance was added.
+- Twelve raw rows (2 levels * 2 models * 3 replicates), all unique IDs. Each
+  level/model has attempted=3, accepted=1, unique failed=2 and reason sums=5.
+  Raw flag/reason sums reproduce each summary column, including the gated
+  unestimable reason. Assert intended count-column order and unused blanks.
+- Existing mocked smoke/full CLI grid still checks n/order/R/calibration once
+  and every summary field. Its artificial raw fields now satisfy the export
+  interface; these fakes are for dispatch/serialization, not likelihood claims.
+- Real direct-script smoke must additionally emit all 80 unique raw rows and
+  correct parameter counts for both models. Existing primitive-key/NumPy
+  inverse-CDF censoring checks, timing scope and count conservation stay green.
+- Invalid --out is a regular file with known contents. Under a calibration
+  stub that fails if called, valid smoke request raises FileExistsError and
+  leaves those contents intact. This proves rejection precedes numerical work.
 
-Initial updated CLI run: 3 failed,23 passed (27.86s); all failures were model
-CSV order. jax.device_get rebuilds dict pytrees in sorted-key order, so model
-order became exponential first. Fixed serialization to use the explicit
-weibull/exponential order after the one host transfer. No numerical failure,
-expected-value/tolerance relaxation or change to the generator.
-Grouped performance/scenario checks: 24 passed in 27.83s.
-`JAX_ENABLE_X64=1 uv run --locked --group examples pytest -q -s examples/weibull_simulation/check_cli.py examples/weibull_simulation/check_performance.py examples/weibull_simulation/check_scenario.py examples/weibull_simulation/check_fit.py`:
-44 passed in 43.28s; real direct-script smoke 5.20s. After four new invalid
-configuration cases, scenario file alone: 20 passed in 18.57s; unchanged
-CLI/performance/fit files contribute 5/8/15 cases. No full-grid execution.
+## Actual commands/results
+
+`JAX_ENABLE_X64=1 uv run --locked --group examples pytest -q -s examples/weibull_simulation/check_results.py examples/weibull_simulation/check_cli.py examples/weibull_simulation/check_performance.py examples/weibull_simulation/check_scenario.py examples/weibull_simulation/check_fit.py`:
+49 passed in 40.22s; direct-script smoke 4.90s. After strengthening the
+round-trip fixture with distinct gradients/SPD Hessian, check_results alone:
+1 passed in 1.45s. No failure/tolerance adjustment.
 `JAX_ENABLE_X64=1/0 uv run pytest -q tests/unit/test_simulation_generator.py`:
-17 passed in 3.62s / 17 passed in 3.66s, no skips.
-Ruff format: 144 files already formatted; Ruff lint: All checks passed!
-`uv run mypy src`: no issues found in 22 source files.
+17 passed in 3.40s in each mode, no skips.
+Ruff format: 146 files already formatted; lint: All checks passed!
+`uv run mypy src`: Success: no issues found in 22 source files.
 `uv lock --check`: Resolved 171 packages, exit 0. Whitespace check clean.
 `scripts/check_wheel.sh --through A10`: exit 0, final
 `check: all gates passed through A10`. Own x64: 1282 passed/8 skipped in
-127.59s; x32: 1287 passed/3 skipped in 119.02s. Doctests: 4 per mode in
-1.03s/1.00s. Independent x64: 2333 passed/27 skipped in 67.08s; x32:
-2324 passed/36 skipped in 61.06s. Log:
-/private/tmp/survjax-sim7a-batch-gate.log. Fresh wheel/install checks included;
-optional demo checks remain separate, with no protected gate changes.
+127.03s; x32: 1287 passed/3 skipped in 115.49s. Doctests: 4 per mode in
+.95s/.86s. Independent x64: 2333 passed/27 skipped in 65.82s; x32:
+2324 passed/36 skipped in 61.01s. Log /private/tmp/survjax-sim7b1-gate.log.
+Fresh wheel built; installed wheel/extension checks included. Dedicated demo
+checks remain explicit separate commands; no protected runner changes.
 
-## Remaining scope
+## Remaining / limits
 
-Complete replicate/metadata exports (new helper proposal still awaits explicit
-approval), full study/figures and executable docs. No new dependency, core,
-protected-path, docs or spec edit. Preserve unfinished plan history. Stop
-when this correction's independent review finishes; never merge/rebase/push.
-
-## Independent review round 1 — maintainer verdict
-
-Reviewer confirms batching/key preservation/per-level summaries, 5/5 mutants
-caught, but F-1 requires a timing policy decision. Extend existing D-034
-with the spec departure and concrete alternatives; no code change or policy
-answer is made. This record-only follow-up logs the question as required by
-the working agreement. Do not rerun review for a different verdict before a
-maintainer answer. The implementation remains the reviewed 877daf1.
-N-1: alphabetical count/statistic CSV field order is nonblocking.
-N-2: 321-line runner and test assertion comments are nits; defer cleanup to
-the approved follow-up rather than introduce an unapproved helper now.
-Independent raw gate: own suites 1282/1287 passed (8/3 skips), doctests 4 per
-mode, x64 spec 2328 passed/27 skipped/5 missing-SURVJAX_WHEEL setup errors;
-x32 spec not run. Our fresh-wheel wrapper above passed both spec modes.
-Reviewer focused CLI/scenario/performance checks: 33 passed in 25.21s;
-real smoke: all 20 per scenario/model accepted, censoring .25/.5475.
+Metadata/provenance, then full six-scenario results and figures, then
+executable docs. No full R=1000 fit or release acceptance claim here.
+D-034 approval is recorded but its formal status stays maintainer-owned.
+Do not reopen the settled timing choice or the simulation D-033 policy.
+The separate CI D-033 collision from the merge remains for maintainer
+bookkeeping. No merge/rebase/push/publication. Stop after independent review.
