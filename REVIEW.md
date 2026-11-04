@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # GPU.2 — Manual Modal GPU check and README badge
 
@@ -39,3 +39,8 @@ Implementation and validation:
 - No project tests or live workflow were run. GitHub secrets are not present
   until configured by the maintainer; the workflow must reach the default
   branch before its Run workflow button is available.
+
+Round 1 finding S-1 resolved by the maintainer's direction: GPU CI is a
+pre-tag check only for releases claiming the tested T4/CUDA 12 configuration.
+The README badge alt text and explanation now name that configuration, and
+CPU-only releases are explicitly left to CPU CI.

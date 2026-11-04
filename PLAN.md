@@ -4,7 +4,8 @@ Add `.github/workflows/gpu.yml` with only `workflow_dispatch`. It checks out
 the event's immutable `github.sha`, runs the existing Modal GPU runner with a
 five-hour execution cap and $10 cost cap, uploads its result ZIP, and writes
 the ref/SHA/job result to the Actions summary. Add a README status badge scoped
-to the latest manual GPU run on `main`, with text explaining that scope.
+to the latest manual GPU run on `main`; require it only before releases that
+claim the tested NVIDIA T4/CUDA 12 configuration, not CPU-only releases.
 
 Files: `.github/workflows/gpu.yml`, `README.md`, `PLAN.md`, `REVIEW.md`.
 Public API: none. Tests to add: none; validate workflow YAML and its dispatch,

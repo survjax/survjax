@@ -1,6 +1,6 @@
 # survjax
 
-[![GPU CI: latest manual run on main](https://github.com/vanAmsterdam/survjax/actions/workflows/gpu.yml/badge.svg?branch=main&event=workflow_dispatch)](https://github.com/vanAmsterdam/survjax/actions/workflows/gpu.yml)
+[![GPU CI on NVIDIA T4 / CUDA 12: latest manual run on main](https://github.com/vanAmsterdam/survjax/actions/workflows/gpu.yml/badge.svg?branch=main&event=workflow_dispatch)](https://github.com/vanAmsterdam/survjax/actions/workflows/gpu.yml)
 
 **Survival analysis in JAX**
 
@@ -117,6 +117,7 @@ and custom distributions.
 `survjax` is under active development. Contributions and co-maintenance are welcome.
 If you're interested in helping, please open an issue or reach out directly.
 
-The GPU badge shows the latest manually started Modal GPU run on `main`. Each
-run is attached to the selected commit in GitHub Actions; create a version tag
-on that exact commit only after its GPU check passes.
+The GPU badge shows the latest manually started Modal GPU run on `main` for an
+NVIDIA T4 with CUDA 12. Each run is attached to the selected commit in GitHub
+Actions. Run GPU CI before tagging a release that claims support for this
+configuration; CPU-only releases need only pass CPU CI.
