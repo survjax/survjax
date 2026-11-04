@@ -52,14 +52,17 @@ lock and unchanged fresh-wheel through-A10 gate. Commit and run exact
 independent-review SIM.7b.1 (up to 3 rounds), then stop/report.
 Implemented: write_results stores every raw diagnostic/flag and fixes summary
 field order; failure masks are returned by the existing compiled summary.
-Runner now 297 lines, helper 130; code/check diff 337 lines including 39
-removed old serialization lines (298 added). Metadata was split out before
+Runner now 297 lines, helper 130; code/check diff 336 lines including 39
+removed old serialization lines (297 added). Metadata was split out before
 code. Combined focused suite 49 passed (40.22s), real smoke 4.90s with 80 raw
 records; strengthened matrix/gradient round-trip fixture passes (1.45s).
 Generators 17 per dtype (3.40s each), static checks clean. Fresh-wheel
 through-A10 exit 0: own 1282/1287 passed (8/3 skips), doctests 4 per mode,
 independent 2333/2324 passed (27/36 skips). Exact outputs in REVIEW.md.
 Commit and exact independent review next, then stop after this step.
+Round 1 fix-up (tests only): F-1 checks every unused Exponential matrix/vector
+cell is blank, N-1 pins all measure-column ordering, N-2 reconciles real smoke
+raw flags and summary totals. No exporter/numerical changes. Round 2 next.
 Remaining: provenance/metadata, full results and figures, executable docs.
 Docs to-do: exported parameter order, numeric blank-vs-NaN meaning, complete
 failure columns, shared batch timing and results-vs-live smoke labels.

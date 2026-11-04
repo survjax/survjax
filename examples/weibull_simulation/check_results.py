@@ -58,6 +58,10 @@ def test_complete_csv_roundtrip_preserves_every_fit_diagnostic_and_failure(tmp_p
         list(summaries[0])[6:14]
         == "attempted accepted failed solver nonfinite gradient hessian unestimable".split()
     )
+    assert (
+        list(summaries[0])[14:23]
+        == "bias bias_mcse empirical_se empirical_se_mcse model_se coverage coverage_mcse power power_mcse".split()
+    )
     # Host round-trip assertions compare CSV values directly with the input records.
     for row in raw:
         level, r = int(row["scenario"]) - 4, int(row["replicate"])
@@ -86,7 +90,8 @@ def test_complete_csv_roundtrip_preserves_every_fit_diagnostic_and_failure(tmp_p
         for name, mask in record.failure_masks.items():
             assert int(row[name]) == int(mask[level, r])
         if p == 2:
-            assert row["theta_2"] == row["gradient_2"] == row["hessian_2_2"] == ""
+            unused = "theta_2 gradient_2 hessian_0_2 hessian_1_2 hessian_2_0 hessian_2_1 hessian_2_2".split()
+            assert all(row[name] == "" for name in unused)
     for row in summaries:
         cohort = [
             r

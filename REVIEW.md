@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # SIM.7b.1 — Complete per-replicate CSV export
 
@@ -62,7 +62,7 @@ artifact/evidence claim before metadata and figures exist.
   detect every possible later filesystem failure before calculation.
 - Shared study.py/core/dependencies/protected scripts unchanged. Runner is
   back to 297 lines. _results.py is 130 lines. The implementation/check diff
-  is 337 lines including 39 deleted lines of moved serialization; 298 added.
+  is 336 lines including 39 deleted lines of moved serialization; 297 added.
   This is near the 300-line target after splitting metadata into the next step.
 
 ## Meaningful checks
@@ -117,3 +117,22 @@ D-034 approval is recorded but its formal status stays maintainer-owned.
 Do not reopen the settled timing choice or the simulation D-033 policy.
 The separate CI D-033 collision from the merge remains for maintainer
 bookkeeping. No merge/rebase/push/publication. Stop after independent review.
+
+## Round 1 responses
+
+F-1 fixed: check every unused Exponential column explicitly, including all
+four off-diagonal Hessian cells plus theta_2, gradient_2 and hessian_2_2.
+Zero padding in any of those cells must fail; numerical implementation and
+schema are unchanged. N-1 fixed: assert the full performance-measure header
+order independently of the serializer constants. N-2 fixed: real smoke now
+reconstructs each accepted/failed/reason total from the 80 raw rows and
+compares it with the corresponding summary, as the plan promised.
+No production change, expectation relaxation or tolerance change. Targeted
+export/CLI checks: 6 passed in 6.99s, real smoke 4.78s. Ruff format/lint and
+whitespace checks pass. Unchanged core gate was not repeated for test-only
+assertion additions.
+Reviewer raw gate: ordinary suites/doctests passed; x64 spec 2328 passed /
+5 missing-SURVJAX_WHEEL setup errors, x32 spec not run. Initial fresh-wheel
+wrapper passed both modes as recorded above. Do not claim the raw gate passed.
+Reviewer cleanup left its reverted mutation worktree; only the reviewer or
+maintainer may clean it, outside this agent's independent-review permissions.

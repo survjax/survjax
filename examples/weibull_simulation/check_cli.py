@@ -261,3 +261,14 @@ def test_direct_script_smoke_writes_four_complete_summary_rows(tmp_path):
     assert all(
         int(r["parameter_count"]) == (3 if r["model"] == "weibull" else 2) for r in raw
     )
+    # Compare serialized flags to each summary; this is host-side verification only.
+    for row in rows:
+        cohort = [
+            r
+            for r in raw
+            if (r["scenario"], r["model"]) == (row["scenario"], row["model"])
+        ]
+        for (
+            name
+        ) in "accepted failed solver nonfinite gradient hessian unestimable".split():
+            assert sum(int(r[name]) for r in cohort) == int(row[name])
