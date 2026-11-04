@@ -46,6 +46,17 @@ those records remain verbatim. No entry body, decision or status is changed.
   label it: first-call time with cache reuse explained; compilation once per
   (n,model); or cleared caches per scenario. No output-label/cache policy
   change before the decision. This does not affect the current summary fix.
+- SIM.7a.batch review F-1 (2026-11-04): the maintainer directed batching
+  same-size censoring scenarios in JAX. The implementation measures the
+  resulting C*R-fit call, repeats its shared first/warm times per CSV row,
+  labels timed_scenarios=C and reports C*R/warm throughput. This differs
+  from the use case's per-scenario timing and R/warm definition. The change
+  should have been logged here before implementation; no timing-policy
+  approval is claimed from the batching instruction alone.
+- Proposed decision: retain those explicitly shared batch measurements.
+  Alternative: add separate per-scenario timing runs alongside the batched
+  fits. Ask the maintainer before treating either as the full-study policy;
+  do not invent per-scenario time allocations by dividing measured times.
 - Status: open.
 
 

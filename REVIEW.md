@@ -113,3 +113,20 @@ Complete replicate/metadata exports (new helper proposal still awaits explicit
 approval), full study/figures and executable docs. No new dependency, core,
 protected-path, docs or spec edit. Preserve unfinished plan history. Stop
 when this correction's independent review finishes; never merge/rebase/push.
+
+## Independent review round 1 — maintainer verdict
+
+Reviewer confirms batching/key preservation/per-level summaries, 5/5 mutants
+caught, but F-1 requires a timing policy decision. Extend existing D-034
+with the spec departure and concrete alternatives; no code change or policy
+answer is made. This record-only follow-up logs the question as required by
+the working agreement. Do not rerun review for a different verdict before a
+maintainer answer. The implementation remains the reviewed 877daf1.
+N-1: alphabetical count/statistic CSV field order is nonblocking.
+N-2: 321-line runner and test assertion comments are nits; defer cleanup to
+the approved follow-up rather than introduce an unapproved helper now.
+Independent raw gate: own suites 1282/1287 passed (8/3 skips), doctests 4 per
+mode, x64 spec 2328 passed/27 skipped/5 missing-SURVJAX_WHEEL setup errors;
+x32 spec not run. Our fresh-wheel wrapper above passed both spec modes.
+Reviewer focused CLI/scenario/performance checks: 33 passed in 25.21s;
+real smoke: all 20 per scenario/model accepted, censoring .25/.5475.
