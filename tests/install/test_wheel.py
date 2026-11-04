@@ -85,7 +85,11 @@ def installed(wheel, tmp_path_factory):
         cwd=directory,
         env=env,
     )
-    python = directory / "venv" / "bin" / "python"
+    python = (
+        directory
+        / "venv"
+        / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
+    )
     _run(
         [
             "uv",

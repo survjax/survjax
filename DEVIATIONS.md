@@ -1,5 +1,29 @@
 # Deviations and spec questions
 
+CI merge ID reconciliation (2026-11-01): incoming main already uses D-030
+for the RMST zero-boundary entry. CI's protected-path guard entry is now
+D-033. Historical CI plans/reviews citing D-030 refer to D-033 here; those
+records remain verbatim. Only the entry ID changes; decisions/statuses stay.
+
+## D-033 Protected-path guard on GitHub pull-request merge refs
+
+- Step: CI.1 independent review, S-1 / F-2 (2026-11-01).
+- Spec section: 10.3 CI verification; working agreement protected-path rules.
+- Spec says: Linux CPU CI is required. The local gate permits selected paths
+  based on meta-* and spectests-* branch prefixes; PR CI checks a detached
+  merge ref, whose branch name is HEAD. The PR branch policy is not stated.
+- Observed: checkout fetches origin/main without creating local main on most
+  CI events, so the unchanged gate skips its guard but prints guard: ok.
+  Creating local main enables the guard, but detached PRs lose exemptions.
+- Proposed: use the PR source branch name for the existing exemptions while
+  testing the merge commit, and create a local main reference for comparison.
+  Maintainer agreed in conversation to source-branch exemptions, merge-commit
+  tests, and an active guard. Implement in the workflow without editing the
+  protected gate: create local main and attach the source name at the merge
+  commit. A source named main maps to ci-pr-main to preserve the baseline;
+  both use ordinary no-exemption rules. Status remains maintainer-owned.
+- Status: open.
+
 Merge ID reconciliation (2026-10-31): both workstreams independently assigned
 D-028. PH's constructor entry retains D-028; RMST's zero-boundary entry is
 now D-030. Historical RMST plans/reviews citing D-028 refer to D-030 here;
