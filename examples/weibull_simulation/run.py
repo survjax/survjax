@@ -1,5 +1,9 @@
-"""Scenario engine and accepted-fit summaries; CLI delivery is a later step."""
+"""Scenario engine and CLI performance tables; detailed exports follow later."""
 
+import argparse
+import csv
+from itertools import product
+from pathlib import Path
 from time import perf_counter
 from typing import Literal, NamedTuple
 
@@ -9,7 +13,10 @@ import numpy as np
 
 import survjax
 
-from .study import FitResult, fit_replicate, generate_weibull
+if __package__:
+    from .study import FitResult, calibrate_censoring, fit_replicate, generate_weibull
+else:
+    from study import FitResult, calibrate_censoring, fit_replicate, generate_weibull
 
 ROOT_SEED = 20261025
 TRUE_LOG_HR = float(np.log(0.7))
@@ -224,3 +231,67 @@ def run_scenario(
             replicates / warm,
         )
     return ScenarioRun(censor_limit, realized, models)
+
+
+def run_config(config: Literal["smoke", "full"], out: Path) -> None:
+    """Run the specified grid and write performance.csv (detailed exports later).
+
+    Args:
+        config: Smoke uses n=100,R=20; full uses n=100,300,1000,R=1000.
+        out: Output directory, created if needed; performance.csv is replaced.
+    Raises:
+        ValueError: Unknown configuration or float64 disabled.
+        OSError: Output cannot be written. Calibration/validation errors propagate.
+    """
+    if config not in ("smoke", "full"):
+        raise ValueError("config must be smoke or full")
+    if not jax.config.x64_enabled:
+        raise ValueError("simulation configurations require JAX_ENABLE_X64=1")
+    sizes, replicates = ((100,), 20) if config == "smoke" else ((100, 300, 1000), 1000)
+    limits = {
+        target: calibrate_censoring(
+            1.38, 11.42, target, log_hazard_ratio=np.array([0.0, TRUE_LOG_HR])
+        )
+        for target in (0.25, 0.55)
+    }
+    rows = []
+    for index, (n, target) in enumerate(product(sizes, limits)):
+        scenario = run_scenario(index, n, replicates, limits[target])
+        for model, record in scenario.models.items():
+            rows.append(
+                {
+                    "scenario": index,
+                    "n": n,
+                    "target_censoring": target,
+                    "censor_limit": scenario.censor_limit,
+                    "realized_censoring": scenario.realized_censoring,
+                    "model": model,
+                    **record.failures,
+                    **{
+                        name: float(value) for name, value in record.performance.items()
+                    },
+                    "first_call_seconds": record.first_call_seconds,
+                    "warm_seconds": record.warm_seconds,
+                    "fits_per_second": record.fits_per_second,
+                }
+            )
+    out.mkdir(parents=True, exist_ok=True)
+    with (out / "performance.csv").open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def main(argv: list[str] | None = None) -> None:
+    """Run the --config {smoke,full} --out DIR command in float64."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--config", choices=("smoke", "full"), required=True)
+    parser.add_argument("--out", type=Path, required=True)
+    args = parser.parse_args(argv)
+    # Common demo convention: the runner selects x64; imports never change it.
+    jax.config.update("jax_enable_x64", True)
+    run_config(args.config, args.out)
+
+
+if __name__ == "__main__":
+    main()

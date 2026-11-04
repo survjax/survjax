@@ -1,3 +1,87 @@
+# SIM.7a — CLI configurations and smoke performance CSV (2026-11-04)
+
+Step start / current integration base:
+d2469e0a7e719dbcb276277e6fd80a447626ad4e (maintainer completed main merge).
+Previous simulation final: 8d0fb5edb248038dc7bcc9a9af1e6326f120da15.
+Original worktree base: 8757c0fda78e34e6e818249adedd2a144a33c33d.
+Clean release-simulation; maintainer says "merge done; on to next bits".
+Preserve all merged/unfinished plan history below. SIM.6 review round 2 had
+no remaining code findings; its maintainer verdict concerned timing labels
+for full-run output, not the implemented first_call_seconds field.
+
+Split before code: SIM.7a adds CLI/configuration and performance.csv only;
+SIM.7b will add per-replicate CSV and complete provenance/metadata before
+any full-study evidence is recorded. SIM.8 adds full results and figures in
+separate reviewable commits as needed; final step is executable docs.
+No full-study/figure/metadata deliverable claim in this first CLI step.
+
+Files and demo interfaces (about 300 changed implementation/check lines):
+- examples/weibull_simulation/run.py: support direct-script and package
+  imports without changing study.py or the shared generator contract. Add
+  run_config(config, out) for smoke (n=100,R=20) and full (n=100,300,1000;
+  R=1000), each with censoring targets .25/.55. Calibrate exactly once per
+  target using equally weighted arm LPs [0,log(.7)] and baseline k/b0.
+  Enumerate n ascending then targets, pass those exact indices to the reviewed
+  runner (same explicit key scheme). No optimizer/acceptance formula changes.
+- Write performance.csv with scenario/n/target/calibrated/realized censoring,
+  model, attempted/accepted/unique failed and every separate overlapping
+  reason, all accepted-only measures/MCSEs and reviewed timing fields. Keep
+  first_call_seconds honest; no compile-time label/cache-policy decision.
+  The raw per-replicate export is SIM.7b, not silently claimed here.
+- CLI: --config {smoke,full} and required --out directory. Only the CLI main
+  sets x64, as a runner; importing the module/run_config does not change JAX
+  precision. Reject invalid config and disabled x64 before fitting/output.
+  Full configuration wiring is checked with a fake runner; do not execute
+  the full study in this step. Source file stays about 300 lines.
+- examples/weibull_simulation/check_cli.py: explicit optional-group checks for
+  both configuration grids/order/R, one calibration per target with correct
+  pooled PH inputs, lossless summary CSV fields/failure totals/timing labels,
+  invalid arguments/configuration and a real direct-script smoke subprocess
+  starting with x64 disabled. Check its rows/counts/calibration independently.
+  No numerical tolerance additions or standard runner/protected-file edits.
+- REVIEW.md: overwrite for this step, record invariants, exact checks and
+  independent-review round count. No new dependency/public library API/module,
+  core, docs, protected path or other-agent implementation edits.
+
+Spec: use-case 01 main/details (DGP, Seeds, Performance, Files and commands,
+smoke/full sizes), common conventions; 10.3, 11.4, 12.2 release item 4.
+Existing summary/fit numerical checks plus generator tests in both processes,
+Ruff/mypy/lock checks and the unchanged fresh-wheel through-A10 gate.
+Commit and run independent-review SIM.7a (up to 3 rounds with fix-ups), then
+stop/report. No merge, rebase, push or publication.
+
+Tracking: D-034 remains the future full-run table/cache question; current CSV
+uses the existing reviewed first_call_seconds field. The merged ledger has
+two D-033 headings (CI guard and simulation failure policy); references here
+mean the simulation heading, whose maintainer choice is already recorded.
+Do not change another workstream's ID/status or reopen the settled policy.
+Implemented: run.py totals 297 lines (+73/-2); dedicated checks 222 lines.
+Smoke direct script passes in 4.54s; combined optional suites 41 passed in
+30.99s. Generators: 17 per dtype (3.42s/3.44s). Ruff/mypy/lock checks clean.
+An initial gate stopped at test dictionary-style C408 errors; fixed without
+numerical changes and reran the fresh-wheel gate. Final gate exit 0, all
+gates passed through A10: own 1282/1287 passed (8/3 skips), doctests 4 per
+mode, independent 2333/2324 passed (27/36 skips). Exact outputs in REVIEW.md.
+Commit and request independent review, then stop after its verdict.
+
+Next-step proposal (not implementation/approval): SIM.7b needs demo-only
+examples/weibull_simulation/_results.py to keep the already 297-line runner
+and 306-line shared study module from growing. It would serialize all raw
+replicate estimates/objective/gradient/Hessian/flags and Wald inference to
+CSV, and metadata.json with exact grid, versions/CPU/thread settings,
+seeds/key scheme, solver policy, calibrated/realized censoring and timings.
+Move CSV assembly out of run.py into that helper, adding no dependency or
+library API. Tests would round-trip an overlapping/rejected fixture and a
+real smoke run, cross-check totals and metadata, and ensure undefined
+inference is represented explicitly. Keep that step under about 300 lines
+or split again. AGENTS.md requires maintainer approval for an unnamed module;
+request that approval before creating it. No metadata/full-study claim here.
+
+Docs to-do: exact CLI invocation, partial-vs-complete output scope until
+SIM.7b, summary-column definitions and imported-runner layout.
+
+---
+
 # SIM.6 — Accepted-fit performance and synchronized timings (2026-11-02)
 
 Clean start and previous simulation final:

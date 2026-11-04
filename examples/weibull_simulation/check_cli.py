@@ -1,0 +1,222 @@
+"""JAX_ENABLE_X64=1 uv run --locked --group examples pytest -q -s <this file>."""
+
+import csv
+import os
+import subprocess
+import sys
+from pathlib import Path
+from time import perf_counter
+from types import SimpleNamespace
+
+import jax
+import numpy as np
+import pytest
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path[:0] = [str(ROOT), str(ROOT / "tests")]
+import impl_tolerances as tol  # noqa: E402
+
+from examples.weibull_simulation import run as runner  # noqa: E402
+
+if not jax.config.x64_enabled:
+    raise RuntimeError("Run CLI checks with JAX_ENABLE_X64=1")
+
+ATOL, RTOL = tol.ATOL[True], tol.RTOL[True]
+
+
+@pytest.mark.parametrize("config", ["smoke", "full"])
+def test_configuration_grid_calibration_and_csv_fields(config, tmp_path, monkeypatch):
+    """01 DGP/seeds/files: calibrate twice, n-then-target order, lossless table."""
+    calibrated, calls = [], []
+    metrics = {
+        "bias": 0.1,
+        "bias_mcse": 0.02,
+        "empirical_se": 0.3,
+        "empirical_se_mcse": 0.04,
+        "model_se": 0.5,
+        "coverage": 0.6,
+        "coverage_mcse": 0.07,
+        "power": 0.8,
+        "power_mcse": 0.09,
+    }
+
+    def calibrate(k, b, target, *, log_hazard_ratio):
+        calibrated.append((k, b, target, log_hazard_ratio))
+        return {0.25: 47.0, 0.55: 19.0}[target]
+
+    def scenario(index, n, r, c):
+        calls.append((index, n, r, c))
+        counts = {
+            "attempted": r,
+            "accepted": r - 4,
+            "failed": 4,
+            "solver": 1,
+            "nonfinite": 2,
+            "gradient": 3,
+            "hessian": 2,
+            "unestimable": 1,
+        }
+        record = SimpleNamespace(
+            failures=counts,
+            performance=metrics,
+            first_call_seconds=10.0,
+            warm_seconds=2.0,
+            fits_per_second=r / 2,
+        )
+        return runner.ScenarioRun(
+            c, 0.3 + 0.01 * index, {"weibull": record, "exponential": record}
+        )
+
+    monkeypatch.setattr(runner, "calibrate_censoring", calibrate)
+    monkeypatch.setattr(runner, "run_scenario", scenario)
+    out = tmp_path / "nested" / config
+    runner.run_config(config, out)
+    sizes, r = ([100], 20) if config == "smoke" else ([100, 300, 1000], 1000)
+    expected = [
+        (i, n, r, c)
+        for i, (n, c) in enumerate((n, c) for n in sizes for c in [47.0, 19.0])
+    ]
+    assert calls == expected
+    assert [(k, b, target) for k, b, target, _ in calibrated] == [
+        (1.38, 11.42, 0.25),
+        (1.38, 11.42, 0.55),
+    ]
+    for _, _, _, lp in calibrated:
+        np.testing.assert_allclose(lp, [0.0, np.log(0.7)], atol=ATOL, rtol=RTOL)
+    with (out / "performance.csv").open(newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    assert len(rows) == 2 * len(expected)
+    for row, (index, n, _, c) in zip(
+        rows, [x for x in expected for _ in range(2)], strict=True
+    ):
+        assert int(row["scenario"]) == index and int(row["n"]) == n
+        assert float(row["target_censoring"]) == (0.25 if c == 47.0 else 0.55)
+        assert float(row["censor_limit"]) == c
+        assert float(row["realized_censoring"]) == 0.3 + 0.01 * index
+        counts = {
+            "attempted": r,
+            "accepted": r - 4,
+            "failed": 4,
+            "solver": 1,
+            "nonfinite": 2,
+            "gradient": 3,
+            "hessian": 2,
+            "unestimable": 1,
+        }
+        for name, value in {
+            **counts,
+            **metrics,
+            "first_call_seconds": 10.0,
+            "warm_seconds": 2.0,
+            "fits_per_second": r / 2,
+        }.items():
+            assert float(row[name]) == value
+        assert set(row) == {
+            "scenario",
+            "n",
+            "target_censoring",
+            "censor_limit",
+            "realized_censoring",
+            "model",
+            *counts,
+            *metrics,
+            "first_call_seconds",
+            "warm_seconds",
+            "fits_per_second",
+        }
+    assert [row["model"] for row in rows] == ["weibull", "exponential"] * len(expected)
+
+
+def test_unknown_configuration_does_not_start_work(tmp_path, monkeypatch):
+    """01 configurations: invalid requests must fail before calibration/output."""
+
+    def unexpected(*args, **kwargs):
+        pytest.fail("invalid configuration started work")
+
+    monkeypatch.setattr(runner, "calibrate_censoring", unexpected)
+    with pytest.raises(ValueError, match="config must be"):
+        runner.run_config("unknown", tmp_path / "absent")
+    assert not (tmp_path / "absent").exists()
+    with pytest.raises(SystemExit):
+        runner.main(["--config", "unknown", "--out", str(tmp_path)])
+
+
+def test_import_keeps_precision_and_imported_runner_refuses_float32(tmp_path):
+    """Common float64 convention: only CLI main selects precision, not imports."""
+    code = (
+        "import jax; from pathlib import Path; "
+        "from examples.weibull_simulation import run; "
+        "assert not jax.config.x64_enabled; "
+        f"run.run_config('smoke', Path({str(tmp_path / 'absent')!r}))"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=ROOT,
+        env={**os.environ, "JAX_ENABLE_X64": "0"},
+        text=True,
+        capture_output=True,
+        timeout=30,
+    )
+    assert result.returncode != 0
+    assert "simulation configurations require JAX_ENABLE_X64=1" in result.stderr
+    assert not (tmp_path / "absent").exists()
+
+
+def test_direct_script_smoke_writes_four_complete_summary_rows(tmp_path):
+    """01 smoke: documented script entry, two scenarios, 20 fits/model, float64."""
+    start = perf_counter()
+    subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "examples/weibull_simulation/run.py"),
+            "--config",
+            "smoke",
+            "--out",
+            str(tmp_path),
+        ],
+        cwd=ROOT,
+        env={**os.environ, "JAX_ENABLE_X64": "0"},
+        check=True,
+        timeout=120,
+    )
+    print(f"direct-script smoke: {perf_counter() - start:.2f}s")
+    with (tmp_path / "performance.csv").open(newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    assert [
+        (int(x["scenario"]), int(x["n"]), float(x["target_censoring"]), x["model"])
+        for x in rows
+    ] == [
+        (i, 100, p, m)
+        for i, p in enumerate([0.25, 0.55])
+        for m in ["weibull", "exponential"]
+    ]
+    assert float(rows[0]["censor_limit"]) > float(rows[2]["censor_limit"]) > 0
+    arm = np.repeat([0, 1], 50)
+    for i, row in enumerate(rows[::2]):
+        c = float(row["censor_limit"])
+        keys = jax.random.split(jax.random.fold_in(jax.random.key(20261025), i), 20)
+        censored = 0
+        for key in keys:
+            uk, ck = jax.random.split(key)
+            u = np.asarray(jax.random.uniform(uk, (100,), dtype="float64"))
+            t = 11.42 * (-np.log(u) * np.exp(-np.log(0.7) * arm)) ** (1 / 1.38)
+            censor = c * np.asarray(jax.random.uniform(ck, (100,), dtype="float64"))
+            censored += np.count_nonzero(t > censor)
+        np.testing.assert_allclose(
+            float(row["realized_censoring"]), censored / 2000, atol=ATOL, rtol=RTOL
+        )
+    for row in rows:
+        attempted, accepted, failed = (
+            int(row[x]) for x in ("attempted", "accepted", "failed")
+        )
+        assert attempted == 20 and accepted + failed == attempted
+        for reason in ("solver", "nonfinite", "gradient", "hessian", "unestimable"):
+            assert 0 <= int(row[reason]) <= failed
+        for timing in ("first_call_seconds", "warm_seconds", "fits_per_second"):
+            assert np.isfinite(float(row[timing])) and float(row[timing]) > 0
+        np.testing.assert_allclose(
+            float(row["fits_per_second"]),
+            20 / float(row["warm_seconds"]),
+            atol=ATOL,
+            rtol=RTOL,
+        )

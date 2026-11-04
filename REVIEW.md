@@ -1,172 +1,113 @@
-Independent review: round 2/3
+Independent review: round 1/3
 
-# SIM.6 — Accepted-fit performance and synchronized timings
+# SIM.7a — CLI configurations and smoke performance CSV
 
-Start/previous final: 458ebbd559fb5540b4eb7a32784d93143fe4d79b.
-Integration base: 95f453279ab9bffad1c67dc234a56d46b534a677.
+Start / integration base: d2469e0a7e719dbcb276277e6fd80a447626ad4e.
+Previous simulation final: 8d0fb5edb248038dc7bcc9a9af1e6326f120da15.
 Original worktree base: 8757c0fda78e34e6e818249adedd2a144a33c33d.
-Branch release-simulation. SIM.5 reviewed merge round 2; user explicitly
-requested "implement this and then the next bit as well", authorizing this
-step after SIM.5's review. Stop after this step's review. No CLI/full study yet.
-Preserve merged/unfinished plan history. No public library API, dependency,
-protected path, config, docs or other workstream changes.
+Read PLAN.md SIM.7a, use-case 01 main/details, then run.py and check_cli.py.
+The maintainer completed the merge and explicitly authorized the next bit.
+Preserve plan history; previous review records remain in Git at the start.
 
-## Reading order
+One small CLI/configuration step; performance.csv only. Complete per-replicate
+CSV/metadata is SIM.7b before full-run evidence; figures/full results/docs are
+later steps. No new dependency, library API, unnamed module, core or protected
+path change. Shared study.py and generator imports stay unchanged.
 
-1. PLAN.md SIM.6 and use-case 01 details Performance measures/Timing.
-2. examples/weibull_simulation/run.py performance, ModelRun/ScenarioRun,
-   _time_model and run_scenario. Earlier SIM.5 functions are unchanged.
-3. examples/weibull_simulation/check_performance.py.
-4. Existing study.py (306 lines) and shared generator import contract stay
-   untouched. The importable engine intentionally lives in run.py; direct
-   script imports and docs imports/layout are tracked for the CLI/docs steps
-   (SIM.5 N-1). No attempt to deliver the CLI in this commit.
+D-034 remains for the full-run label/cache decision. This step retains the
+reviewed honest first_call_seconds field and changes no timing/cache policy.
+The two merged D-033 entries are distinct: simulation failure policy is settled
+by the recorded user decision, CI guard is another workstream's record. No
+formal status/ID changes in this step.
 
-## Invariants and requirement mapping
+## Reading order and scope
 
-- Only accepted fits contribute to performance. Retain every raw fit and its
-  independent reasons/unique failed count. No extra acceptance gates, retries,
-  or silently missing rows. Summary counts remain in failure_counts.
-- Gamma is the final theta entry for either model. Bias is mean gamma - truth;
-  empirical SE is sample SD (ddof=1); model SE is sqrt(mean(se**2)), not mean
-  SE. Bias MCSE=SD/sqrt(R_acc), SD MCSE=SD/sqrt(2*(R_acc-1)). No model-SE MCSE.
-- Coverage uses inclusive log-Wald endpoints gamma +/-1.96*SE. Equivalent to
-  the HR interval containment for finite values, avoiding unnecessary exp.
-  Power rejects strictly |gamma/SE|>1.96. Bernoulli MCSE=sqrt(p*(1-p)/R_acc).
-- Cast integer counts to the floating parameter dtype before division (spec
-  3.3). Replace rejected gamma/SE before subtracting, squaring or dividing
-  (7.2), so rejected huge/NaN estimates and NaN inference cannot poison sums.
-  No floors, epsilons or clipping; substitute denominators only where no
-  statistical estimate is defined. Zero accepted: all statistics undefined
-  NaN; one accepted: sample SD and SD/bias MCSE undefined, other measures
-  remain defined. This is ordinary ddof=1 arithmetic, not a new failure policy.
-- performance is pure JAX, eager/jittable; host timing/count extraction stays
-  outside jit. No differentiation guarantee through optimization or discrete
-  acceptance/statistical decisions. Core derivatives are unchanged.
-- run_scenario prepares/host-validates once, uses the same generated cohort
-  for both models, and records realized pooled censoring as a float mean.
-  Calibration stays caller-owned, once per target, unchanged from SIM.5.
-- _time_model synchronizes data/arm before the clock, then one first call and
-  exactly three subsequent warm calls, each blocking the entire FitResult.
-  Warm time is median(3), rate=requested R / warm seconds, never R_acc/time.
-  First-call seconds include compilation if not already cached. No cache
-  clearing or speed threshold. Later metadata will report these honestly.
-- run.py stays under 300 lines (226); the unchanged study.py does not grow.
-  Source/check diff is about 290 lines, including a focused SIM.5 N-3 check.
+1. PLAN.md SIM.7a and use-case 01 main/details: grids, calibration, seed order,
+   performance measures, smoke budget and documented command.
+2. run.py import branch, run_config and main. Existing numerical code unchanged.
+3. check_cli.py: mocked grid/export tests and the actual documented script run.
+4. Existing check_fit/check_scenario/check_performance and generator tests.
 
-## Analytical and orchestration checks
+This step is about 297 changed source/check lines: run.py +73/-2 and
+check_cli.py 222 lines; run.py totals 297. Complete replicate/metadata exports
+remain SIM.7b, followed by full results/figures and executable docs. No full
+study or complete-artifact claim. Do not grow study.py or add a new module.
 
-- Two accepted estimates gamma=[0,3], SE=[1,.5], true gamma=.5: bias=1,
-  empirical SD=3/sqrt(2), bias and SD MCSE=1.5, RMS model SE=sqrt(.625),
-  coverage=power=.5, each Bernoulli MCSE=1/sqrt(8). These are hand algebra,
-  not expectations obtained from code under test. Check eager and jit at the
-  unchanged ordinary x64 tolerances from tests/impl_tolerances.py.
-- Rejected huge gamma and rejected NaN gamma/SE do not contribute. The
-  theta-only NaN row has finite objective and the actual reviewed acceptance
-  flag; require its nonfinite reason (closes nonblocking SIM.5 N-3).
-- Zero accepted: every statistic is NaN and failed=4. Singleton z=1.96 has
-  inclusive coverage, strict nonrejection, model SE=1, bias=1.96 and zero
-  Bernoulli MCSEs; ddof-dependent quantities are NaN.
-- Timing spy delegates real synchronization and asserts the whole result
-  object, exact block/clock/fit order, four calls, first 10 and warm [1,7,2]
-  -> median 2 (different from mean). A controlled scenario with 4 requested,
-  2 accepted and warm=2 verifies rate=2, not 1. No wall-clock thresholds.
-- One real n=100,R=2 scenario checks both models, all retained rows/counts,
-  realized censoring against independent NumPy event counts and positive
-  finite timings/rates. Not a smoke acceptance/full study or coverage claim.
+## Invariants and independent checks
+
+- Exactly smoke n=100,R=20, or full n=100,300,1000,R=1000; both targets .25/.55.
+  Config validation and the precision guard run before calibration/output.
+- Calibrate exactly once per target, with k=1.38,b0=11.42 and equally weighted
+  arm LPs [0,log(.7)]; no recalibration across sample sizes. Enumerate n first,
+  target second, passing indices 0..1/0..5 to the unchanged reviewed key scheme.
+  Mocked checks capture every call and independently assert these exact inputs,
+  grid/order/R values and one calibration per target for both configurations.
+- Reuse run_scenario without changing BFGS, acceptance, performance formulas,
+  thresholds or timing. Cast summary scalars on the host only; no tracer
+  conversion/new JAX numerical path. Every model is a row, retaining all
+  reason counts plus unique failed, attempted and accepted totals.
+- CSV contains scenario/n/target/calibrated c/realized censoring/model, every
+  reviewed summary and failure field, first_call_seconds, warm_seconds and
+  fits_per_second. Fake records have different metric/reason values so the
+  round-trip assertions distinguish their names. Reason sums exceed failed
+  in that fixture; nothing sums overlapping reasons into the overall failed.
+  All expected CSV values come from explicit fake input records, not by
+  invoking the export under test. No pandas/optional dependency is added.
+- Direct-script import uses local study.py; package import stays relative.
+  Both refer to the same unchanged shared generator. No broad ImportError
+  fallback that could hide a missing dependency. Only CLI main selects x64;
+  imported run_config raises on disabled x64. The float32 subprocess verifies
+  import preserves mode and run_config refuses before filesystem work.
+- Actual smoke runs the documented script entry in a fresh subprocess whose
+  initial JAX_ENABLE_X64=0. Main enables float64. It must complete within the
+  use case's 120s docs timeout (not a new speed target). Four rows must be in
+  the exact specified scenario/model order, with R=20 and count conservation.
+- Reconstruct smoke censoring independently from primitive JAX uniform keys
+  and NumPy inverse-CDF algebra on n=100,R=20, using the emitted c. Compare
+  that integer censored count / 2000 against the emitted pooled censoring.
+  Existing analytical/empirical calibration tests cover the root itself.
+  Require positive finite timing/rates and rate=20/warm. Do not assert
+  nominal coverage or all accepted at R=20; those are not smoke requirements.
+- Unknown config rejects before calibration/creating output; argparse also
+  rejects an invalid --config. No new numerical tolerances or silent skips.
 
 ## Actual commands/results
 
-`JAX_ENABLE_X64=1 uv run --locked --group examples pytest -q examples/weibull_simulation/check_performance.py examples/weibull_simulation/check_scenario.py examples/weibull_simulation/check_fit.py`:
-35 passed in 68.80s (6 performance, 14 scenario, 15 fit).
-After stronger timing-spy/throughput assertions, performance file alone:
-6 passed in 8.60s. Earlier performance runs: 5 passed in 13.75s, then 6 passed
-in 10.26s. No numerical failure or tolerance adjustment.
-Generator commands (`JAX_ENABLE_X64=1/0 uv run pytest -q tests/unit/test_simulation_generator.py`):
-17 passed in 8.65s / 17 passed in 8.15s, no skips.
-`uv run ruff format --check .`: 143 files already formatted.
+`JAX_ENABLE_X64=1 uv run --locked --group examples pytest -q -s examples/weibull_simulation/check_cli.py`:
+5 passed in 7.28s; direct-script smoke 4.41s. After adding the argparse
+invalid-choice assertion, the combined CLI/performance/scenario/fit command
+(same prefix, all four explicit check_*.py files): 41 passed in 30.99s;
+direct-script smoke 4.54s. The argparse error text is an expected rejection,
+not a failed test. Full grid was mocked, not executed.
+`JAX_ENABLE_X64=1/0 uv run pytest -q tests/unit/test_simulation_generator.py`:
+17 passed in 3.42s / 17 passed in 3.44s, no skips.
+`uv run ruff format --check .`: 144 files already formatted.
 `uv run ruff check .`: All checks passed!
 `uv run mypy src`: Success: no issues found in 22 source files.
 `uv lock --check`: Resolved 171 packages, exit 0. `git diff --check`: clean.
-`scripts/check_wheel.sh --through A10`: exit 0, final
-`check: all gates passed through A10`. Own x64: 1282 passed/8 skipped in
-180.18s; x32: 1287 passed/3 skipped in 172.67s. Doctests: 4 per mode in
-1.29s/1.22s. Independent x64: 2333 passed/27 skipped in 74.84s; x32:
-2324 passed/36 skipped in 61.12s. Log: /private/tmp/survjax-sim6-gate.log.
-Wheel built fresh with unchanged core/packaging, install/spec smoke included.
-Optional example checks are explicit separate commands, not ordinary-gate
-coverage; no standard/protected script modifications.
-Tested versions (metadata query, no dependencies changed): Python3.12.9,
-JAX/jaxlib0.11.2, NumPy2.5.3, Optimistix0.1.0, pytest9.1.1. CPU reference.
+Initial Ruff/full-gate attempt stopped at C408 for three dictionary-literal
+style issues in the new tests. Replaced dict(...) with literals; no test
+assertion/numerical failure and no tolerance change. Initial gate log:
+/private/tmp/survjax-sim7a-gate-initial.log.
+`scripts/check_wheel.sh --through A10`: final exit 0,
+`check: all gates passed through A10`.
+Own x64: 1282 passed/8 skipped in 134.91s; x32: 1287 passed/3 skipped in
+119.10s. Doctests: 4 passed per mode in 1.02s/.86s. Independent x64:
+2333 passed/27 skipped in 67.60s; x32: 2324 passed/36 skipped in 62.67s.
+Final log: /private/tmp/survjax-sim7a-gate.log. Fresh wheel built; wheel and
+installed extension checks included. Optional demo checks are separate from
+this ordinary gate. No protected/standard runner changes.
 
-## Prior review and remaining work
+## Remaining scope / questions
 
-SIM.5 round 2 written verdict merge; F-1 fixed, N-3 now tested here.
-Reviewer round-2 raw gate exited 1: own suites 1282/1287 pass, doctests pass,
-x64 spec 2328 pass/27 skips/5 wheel-fixture setup errors (SURVJAX_WHEEL unset),
-x32 spec not run after that exit. Focused fit/scenario: 29 passed. The
-implementer's SIM.5 fresh-wheel wrapper passed both spec modes; these are
-separate outcomes, not a claim that the reviewer's raw gate passed.
-Independent review file: /Users/wamster3/dev/survjax/review/slices/SIM.5.md.
-N-1 direct-script imports is deferred to CLI/docs; N-2 real solver-failure
-fixture is pinned-environment/status plumbing, not transformation invariance
-or extreme PH derivative accuracy. D-033 status remains maintainer-owned.
-Remaining after this step: CLI smoke, six-scenario full study/results/figures,
-executable docs. Never merge, rebase, push or publish.
-
-
-## Round 1 response
-
-F-1 fixed: new three-accepted-row test uses gamma=[0,1,2], truth=0.
-Hand mean=1, sum squared deviations=2 and ddof=1 SD=1, so bias MCSE is
-1/sqrt(3), empirical-SE MCSE is .5. Checks both eager and jit with unchanged
-ordinary tolerances. No production formula/threshold changes.
-Final combined performance/scenario/fit checks: 36 passed in 26.65s.
-Ruff format/check and git diff --check clean after the test fix.
-Reviewer round-1 focused checks: 35 passed in 26.54s. Raw through-A10 gate
-exited 1 with own suites/doctests passing, x64 spec 2328 passed/27 skipped/5
-SURVJAX_WHEEL setup errors; x32 spec not run. Our fresh-wheel gate above
-passed both modes. No reason to repeat unchanged core suites for this test fix.
-
-N-1 tracked explicitly for full-run metadata: CPU model, JAX version, thread
-settings, calibrated c values, realized censoring and exact run command.
-S-1 recorded as D-034 and asked of the maintainer for the later full-run
-label/cache decision. No action on the spec question: first_call_seconds and
-cache behavior remain unchanged, and no table/metadata label exists yet.
-The question does not block SIM.6 per the reviewer; stop after this review.
-
----
-
-# Preserved incoming main review (963c7fc, verbatim)
-
-Independent review: round 1/3
-
-# A9.close — Reconcile completed A9 records
-
-Read PLAN.md's A9.close section, plans/A9.md's closure note and retained
-A9.d1 gate map, then plans/README.md's A9 row. Previous current review is
-preserved in Git at a351952:REVIEW.md (CI.integration).
-
-Invariants:
-- Original plans/A9.md text and the integrated PLAN.md history remain
-  verbatim after new wrappers. No unfinished unrelated work is discarded.
-- The gate/narrative map is copied verbatim from 14155ed:REVIEW.md. Its
-  historical pending/attribution language is retained, not a new run claim.
-- A9.4 round 1 and A9.d1 round 2 both have independent merge verdicts.
-  A9.d1's F-1/N-1/N-2 are fixed. Maintainer requested this bookkeeping.
-- A9.3 remains withdrawn. A9 closure does not accept all Slice A/release
-  work, resolve deviations or change other workstream ownership.
-- No source/docs pages/tests/spec/dependency/protected paths are changed.
-  No new test is appropriate for these record-only edits.
-
-Spec context: 7.3, 10.3, 12.1–12.3. The retained gate map names each test,
-artifact and docs narrative item with its original validation provenance.
-The newer combined through-A10 result is cited from a351952:REVIEW.md,
-not rerun. The final A9.d1 verdict was read from the independent report.
-
-Validation: preservation/reference/scope assertions pass: both historical
-plans and the gate map are verbatim; all three artifact paths and four
-commit references exist; exactly the four intended record files differ.
-Whitespace check: git diff --check exits 0. No pytest, numerical gate, benchmark, R, docs build or accelerator
-execution in this bookkeeping step. No uncertainty about implementation is
-introduced; overall Slice A/release acceptance remains maintainer-owned.
+SIM.7b must export every per-replicate diagnostic/failure flag and metadata
+with CPU model, JAX/Python/dependency versions, thread settings, seeds/key
+scheme, solver settings, calibrated/realized censoring and exact command.
+Do not record full-run evidence until those exports and figures are ready.
+D-034's wider compile-report/cache question remains for that full-run step;
+CSV currently uses the reviewed first_call_seconds name and never implies
+that a cached first call incurred compilation. The maintainer explicitly
+resumed after the prior maintainer verdict; no new policy is implemented.
+The ledger's two D-033 headings must be distinguished by topic; this step
+does not resolve/relabel either entry or another agent's history.
+Stop after this step's independent review. No merge/rebase/push/publication.
