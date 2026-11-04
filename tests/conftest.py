@@ -19,6 +19,14 @@ def x64_enabled() -> bool:
     return os.environ["JAX_ENABLE_X64"] == "1"
 
 
+def pytest_collection_modifyitems(items):
+    """Mark all project tests except isolated wheel-install tests for GPU CI."""
+    gpu_marker = pytest.mark.gpu
+    for item in items:
+        if "install" not in item.path.parts:
+            item.add_marker(gpu_marker)
+
+
 _R_FIXTURES = Path(__file__).parent / "fixtures"
 
 
