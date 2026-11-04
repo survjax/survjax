@@ -1,3 +1,26 @@
+# A9.close — Reconcile completed A9 records (2026-11-04)
+
+Maintainer requested A9 bookkeeping on the existing a9 branch at a351952.
+Files: PLAN.md, plans/A9.md, plans/README.md and REVIEW.md. Public API,
+code, tests and dependencies touched: none. No protected-path changes.
+
+Pre-edit plan: add a dated closure note to the A9 archive, preserving its
+historical text verbatim; retain the completed A9.d1 gate/narrative map in
+that archive verbatim from 14155ed:REVIEW.md; correct the archive index's
+stale pending labels. The existing integrated plans below remain verbatim.
+Cite A9.4 round-1 and A9.d1 round-2 merge verdicts and the later combined
+gate evidence without claiming new execution or whole-Slice-A acceptance.
+The maintainer's bookkeeping instruction authorizes this record closure.
+
+Spec context: 7.3, 10.3, 12.1–12.3. No new tests: this step only reconciles
+records. Verify historical-text and gate-map byte preservation, referenced
+paths/commits, diff scope and whitespace. Do not repeat numerical tests,
+docs builds or benchmark measurements for unchanged executable inputs.
+Commit once, run independent-review as A9.close (at most three rounds),
+address required findings in fix-up commits, then stop/report.
+
+---
+
 # CI.integration — Finish maintainer-started main merge (2026-11-01)
 
 Branch ci; merge already in progress when requested. Finish this existing
