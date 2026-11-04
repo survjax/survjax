@@ -1,3 +1,22 @@
+# GPU.2 — Manually dispatched GPU check for a selected commit
+
+Add `.github/workflows/gpu.yml` with only `workflow_dispatch`. It checks out
+the event's immutable `github.sha`, runs the existing Modal GPU runner with a
+five-hour execution cap and $10 cost cap, uploads its result ZIP, and writes
+the ref/SHA/job result to the Actions summary. Add a README status badge scoped
+to the latest manual GPU run on `main`, with text explaining that scope.
+
+Files: `.github/workflows/gpu.yml`, `README.md`, `PLAN.md`, `REVIEW.md`.
+Public API: none. Tests to add: none; validate workflow YAML and its dispatch,
+SHA pinning, Modal secret references, artifact and summary configuration.
+Spec sections: none (CI and release workflow only). Modal auth is supplied by
+repository secrets `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`; setting secrets
+in GitHub is a maintainer setup step, not part of this code change.
+
+Keep the change under 300 lines. Commit on `ci`, then use the independent
+review workflow and stop. The workflow runs only when manually dispatched;
+the tag is created afterward at the SHA that passed.
+
 # CI.integration — Finish maintainer-started main merge (2026-11-01)
 
 Branch ci; merge already in progress when requested. Finish this existing

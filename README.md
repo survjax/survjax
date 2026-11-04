@@ -1,5 +1,7 @@
 # survjax
 
+[![GPU CI: latest manual run on main](https://github.com/vanAmsterdam/survjax/actions/workflows/gpu.yml/badge.svg?branch=main&event=workflow_dispatch)](https://github.com/vanAmsterdam/survjax/actions/workflows/gpu.yml)
+
 **Survival analysis in JAX**
 
 `survjax` is a lightweight, extensible JAX library for survival likelihoods,
@@ -114,3 +116,7 @@ and custom distributions.
 
 `survjax` is under active development. Contributions and co-maintenance are welcome.
 If you're interested in helping, please open an issue or reach out directly.
+
+The GPU badge shows the latest manually started Modal GPU run on `main`. Each
+run is attached to the selected commit in GitHub Actions; create a version tag
+on that exact commit only after its GPU check passes.
