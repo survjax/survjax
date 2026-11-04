@@ -111,6 +111,7 @@ def calibrate_censoring(
         raise ValueError("effective PH scales must be positive and finite")
 
     rules = {}
+    # Host-only calibration checks two quadrature orders once before JAX batching.
     for order in (64, 128):
         nodes, weights = np.polynomial.legendre.leggauss(order)
         rules[order] = ((nodes + 1) / 2, weights / 2)
@@ -124,6 +125,7 @@ def calibrate_censoring(
         return float(np.dot(weights * 8 * nodes**7, survival.mean(axis=1)))
 
     low, high = 0.0, float(np.median(b))
+    # Host bracketing converges before the compiled simulation is started.
     for _ in range(128):
         if fraction(high, 128) < target:
             break
@@ -132,6 +134,7 @@ def calibrate_censoring(
             raise RuntimeError("censoring calibration bracket overflowed")
     else:
         raise RuntimeError("censoring calibration could not bracket target")
+    # Host bisection is calibration work, never a loop over simulated replicates.
     for _ in range(100):
         c = low + (high - low) / 2
         value = fraction(c, 128)

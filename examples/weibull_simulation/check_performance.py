@@ -194,3 +194,40 @@ def test_three_accepted_distinguish_bias_and_empirical_se_mcse():
         actual = fn(fits, 0.0)
         for name, value in expected.items():
             np.testing.assert_allclose(actual[name], value, atol=ATOL, rtol=RTOL)
+
+
+def test_grouped_summaries_reduce_replicates_without_pooling_scenarios():
+    """01 performance: retain C, with R_acc=2 in one level and 1 in the other."""
+    second = jax.vmap(
+        lambda gamma: _assess_fit(
+            jnp.array([0.0, gamma]),
+            jnp.array(1.0),
+            jnp.zeros(2),
+            jnp.eye(2),
+            jnp.array(True),
+        )
+    )(jnp.array([1.0, jnp.nan, jnp.nan, jnp.nan]))
+    fits = jax.tree.map(lambda a, b: jnp.stack([a, b]), _hand_fits(), second)
+    counts = jax.jit(runner.failure_counts)(fits)
+    np.testing.assert_array_equal(counts["attempted"], [4, 4])
+    np.testing.assert_array_equal(counts["accepted"], [2, 1])
+    np.testing.assert_array_equal(counts["failed"], [2, 3])
+    np.testing.assert_array_equal(counts["solver"], [1, 0])
+    np.testing.assert_array_equal(counts["nonfinite"], [1, 3])
+    # Independent hand algebra: first scenario as above; second gamma=1, SE=1.
+    expected = {
+        "bias": [1.0, 0.5],
+        "bias_mcse": [1.5, np.nan],
+        "empirical_se": [3 / np.sqrt(2), np.nan],
+        "empirical_se_mcse": [1.5, np.nan],
+        "model_se": [np.sqrt(0.625), 1.0],
+        "coverage": [0.5, 1.0],
+        "coverage_mcse": [1 / np.sqrt(8), 0.0],
+        "power": [0.5, 0.0],
+        "power_mcse": [1 / np.sqrt(8), 0.0],
+    }
+    # Host assertions inspect both eager and compiled vector-valued summaries.
+    for fn in (runner.performance, jax.jit(runner.performance)):
+        actual = fn(fits, 0.5)
+        for name, value in expected.items():
+            np.testing.assert_allclose(actual[name], value, atol=ATOL, rtol=RTOL)

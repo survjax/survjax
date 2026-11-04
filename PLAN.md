@@ -1,3 +1,69 @@
+# SIM.7a.batch — Batch same-size censoring scenarios in JAX (2026-11-04)
+
+Start / previous step final: 6a9c96b7c2935f18d8467d3266625bd12aaaba6e.
+Maintainer merge base: d2469e0a7e719dbcb276277e6fd80a447626ad4e.
+Original worktree base: 8757c0fda78e34e6e818249adedd2a144a33c33d.
+Clean release-simulation. The maintainer explicitly corrects the Python
+scenario-dispatch loop: batch same-size scenarios, keep only justified Python
+loops and explain them in code. This direction supersedes the SIM.7a
+one-scenario-at-a-time dispatch plan. Preserve all unfinished plan history.
+
+One correction, about 300 changed implementation/check lines:
+- run.py: prepare_scenario accepts a scalar pair or equal-shaped 1D arrays
+  of scenario indices/censor limits. Nested vmaps generate (C,R,N) data with
+  the exact original root -> fold_in(index) -> split(R) -> U/C keys. Scalar
+  calls retain (R,N) behavior. Host validation remains before fitting.
+- fit_batch supports (R,N) or (C,R,N) with nested vmaps inside one module-level
+  jit per model. No Python numerical iteration across scenarios/replicates.
+  Summaries/failure counts reduce only the last replicate axis, retaining C;
+  compile their joint computation once. Keep strict acceptance/MCSE formulas,
+  overlapping reasons and unique failed; no fitter or library changes.
+- run_config loops only over n (changing shapes require separate compilation),
+  calling the grouped runner once per n with indices [0,1], [2,3], [4,5].
+  Calibration stays once per target. Device-to-host transfer happens before
+  CSV-only loops, whose comments explain that they do no numerical fitting.
+  Explain every remaining Python loop/comprehension in the demo runner:
+  host calibration, static model/schema dispatch, wall-clock timing and CSV.
+- Timings cover the actual C*R-fit batch, without inventing per-scenario
+  allocation. Repeat shared times with timed_scenarios=C on each CSV row;
+  throughput numerator is C*R. Per-scenario counts/statistics remain separate.
+  This is a consequence of the explicit batching correction; D-034's future
+  full-study compile-report label/cache choice remains open. No cache clearing.
+- Existing check_cli.py: adapt mocked dispatch to assert one batched call per
+  n, original index/target order and per-scenario output. Actual script smoke
+  continues independently checking keys/censoring and verifies timing scope.
+- check_scenario.py: grouped generation/fits vs existing scalar path, plus
+  actual trace-count reuse for changed values at fixed C/R/N.
+- check_performance.py: independent hand expectations for grouped reductions
+  with differing accepted counts. Existing scalar/timing tests must stay green.
+- No new module, dependency, library API, protected path or docs edits. study.py
+  numerical code and generator contract stay unchanged; only comments may
+  explain its existing host-only calibration loops if needed.
+
+Read use-case 01 main/details/common and handoffs; spec 7.2–7.3, 10.3,
+11.4 and 12.2 release item 4. Ordinary-range fitting remains unchanged.
+Focused explicit x64 demo checks, generators in both dtype processes,
+Ruff/mypy/lock and fresh-wheel through-A10 gate. Write REVIEW.md, commit and
+run independent-review SIM.7a.batch (max three rounds with fix-ups), then stop.
+Implementation: nested C/R generation and fitting, last-axis summaries/counts,
+compiled joint summaries and a single grouped dispatch per n. Every remaining
+Python loop has a host/static justification. Counts are JAX arrays until the
+single device_get before CSV output. Code/check diff is about 295 lines;
+run.py 321 lines, near the approximate file-size target; no new module.
+Combined optional checks 44 passed (43.28s), smoke 5.20s. After four added
+invalid grouped-input cases, scenario suite 20 passed (18.57s); other files
+are unchanged. Generators 17 per dtype (3.62s/3.66s), static checks clean.
+Initial CSV ordering failures due to device_get's dict sorting were fixed by
+explicit model order. No numerical/tolerance change. Fresh-wheel through-A10
+exit 0: own 1282/1287 passed (8/3 skips), doctests 4 per mode, independent
+2333/2324 passed (27/36 skips). REVIEW.md has exact commands/timings. Commit
+and exact independent review next; stop after this correction's verdict.
+Remaining: complete per-replicate/metadata exports (new helper proposal still
+awaits approval), full results/figures and executable docs. Docs to-do: group
+axes, justified host loops and shared timing scope, alongside existing CLI.
+
+---
+
 # SIM.7a — CLI configurations and smoke performance CSV (2026-11-04)
 
 Step start / current integration base:

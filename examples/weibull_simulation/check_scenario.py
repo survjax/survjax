@@ -44,11 +44,22 @@ def test_scenario_matches_prescribed_keys_and_inverse_cdf():
     assert data.shape == (2, 6) and data.lower.dtype == jnp.float64
 
 
-@pytest.mark.parametrize("n,r,c", [(3, 2, 20.0), (6, 0, 20.0), (6, 2, 0.0)])
-def test_scenario_rejects_invalid_configuration(n, r, c):
+@pytest.mark.parametrize(
+    "index,n,r,c",
+    [
+        (0, 3, 2, 20.0),
+        (0, 6, 0, 20.0),
+        (0, 6, 2, 0.0),
+        ([0, 1], 6, 2, [20.0]),
+        ([], 6, 2, []),
+        ([0, -1], 6, 2, [20.0, 35.0]),
+        (1.5, 6, 2, 20.0),
+    ],
+)
+def test_scenario_rejects_invalid_configuration(index, n, r, c):
     """01 DGP: positive even allocation, positive R and a finite positive c."""
     with pytest.raises(ValueError):
-        prepare_scenario(0, n, r, c)
+        prepare_scenario(index, n, r, c)
 
 
 @pytest.mark.parametrize("model", ["weibull", "exponential"])
@@ -163,3 +174,39 @@ def test_each_failure_gate_has_its_own_column(reason):
         np.testing.assert_array_equal(columns[name], [name == reason])
         combined = combined | columns[name]
     np.testing.assert_array_equal(columns["failed"], combined)
+
+
+@pytest.mark.parametrize("model", ["weibull", "exponential"])
+def test_grouped_fits_preserve_scalar_results_and_reuse_trace(model):
+    """01 seeds/fitting, spec 7.2: C/R vmaps and same-shaped value changes."""
+    from examples.weibull_simulation import run as runner
+
+    data, arm = prepare_scenario(np.array([2, 3]), 20, 2, np.array([20.0, 35.0]))
+    assert data.shape == (2, 2, 20)
+    traces = []
+
+    def traced(d):
+        traces.append(1)
+        return runner._fit_batch(d, arm, model=model)
+
+    compiled = jax.jit(traced)
+    grouped = compiled(data)
+    changed = survjax.SurvivalData(data.lower * 2, event=data.exact)
+    changed.issues.raise_if_invalid()
+    jax.block_until_ready(compiled(changed))
+    assert traces == [1]
+    # Host-side reference checks deliberately compare separate scalar scenarios.
+    for level in range(2):
+        scalar, _ = prepare_scenario(level + 2, 20, 2, [20.0, 35.0][level])
+        np.testing.assert_allclose(
+            data.lower[level], scalar.lower, atol=ATOL, rtol=RTOL
+        )
+        reference = fit_batch(scalar, arm, model=model)
+        np.testing.assert_array_equal(grouped.accepted[level], reference.accepted)
+        for field in ("theta", "objective", "hessian", "log_hr_se", "hr_interval"):
+            np.testing.assert_allclose(
+                getattr(grouped, field)[level],
+                getattr(reference, field),
+                atol=ATOL,
+                rtol=RTOL,
+            )

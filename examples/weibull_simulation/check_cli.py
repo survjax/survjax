@@ -44,8 +44,8 @@ def test_configuration_grid_calibration_and_csv_fields(config, tmp_path, monkeyp
         calibrated.append((k, b, target, log_hazard_ratio))
         return {0.25: 47.0, 0.55: 19.0}[target]
 
-    def scenario(index, n, r, c):
-        calls.append((index, n, r, c))
+    def scenario(indices, n, r, c):
+        calls.append((indices.tolist(), n, r, c.tolist()))
         counts = {
             "attempted": r,
             "accepted": r - 4,
@@ -57,14 +57,14 @@ def test_configuration_grid_calibration_and_csv_fields(config, tmp_path, monkeyp
             "unestimable": 1,
         }
         record = SimpleNamespace(
-            failures=counts,
-            performance=metrics,
+            failures={name: np.full(2, value) for name, value in counts.items()},
+            performance={name: np.full(2, value) for name, value in metrics.items()},
             first_call_seconds=10.0,
             warm_seconds=2.0,
-            fits_per_second=r / 2,
+            fits_per_second=2 * r / 2,
         )
         return runner.ScenarioRun(
-            c, 0.3 + 0.01 * index, {"weibull": record, "exponential": record}
+            c, 0.3 + 0.01 * indices, {"weibull": record, "exponential": record}
         )
 
     monkeypatch.setattr(runner, "calibrate_censoring", calibrate)
@@ -76,7 +76,9 @@ def test_configuration_grid_calibration_and_csv_fields(config, tmp_path, monkeyp
         (i, n, r, c)
         for i, (n, c) in enumerate((n, c) for n in sizes for c in [47.0, 19.0])
     ]
-    assert calls == expected
+    assert calls == [
+        ([2 * i, 2 * i + 1], n, r, [47.0, 19.0]) for i, n in enumerate(sizes)
+    ]
     assert [(k, b, target) for k, b, target, _ in calibrated] == [
         (1.38, 11.42, 0.25),
         (1.38, 11.42, 0.55),
@@ -108,7 +110,8 @@ def test_configuration_grid_calibration_and_csv_fields(config, tmp_path, monkeyp
             **metrics,
             "first_call_seconds": 10.0,
             "warm_seconds": 2.0,
-            "fits_per_second": r / 2,
+            "fits_per_second": 2 * r / 2,
+            "timed_scenarios": 2,
         }.items():
             assert float(row[name]) == value
         assert set(row) == {
@@ -120,6 +123,7 @@ def test_configuration_grid_calibration_and_csv_fields(config, tmp_path, monkeyp
             "model",
             *counts,
             *metrics,
+            "timed_scenarios",
             "first_call_seconds",
             "warm_seconds",
             "fits_per_second",
@@ -205,7 +209,9 @@ def test_direct_script_smoke_writes_four_complete_summary_rows(tmp_path):
         np.testing.assert_allclose(
             float(row["realized_censoring"]), censored / 2000, atol=ATOL, rtol=RTOL
         )
+    # Host-side assertions inspect already serialized scenario rows.
     for row in rows:
+        assert int(row["timed_scenarios"]) == 2
         attempted, accepted, failed = (
             int(row[x]) for x in ("attempted", "accepted", "failed")
         )
@@ -216,7 +222,7 @@ def test_direct_script_smoke_writes_four_complete_summary_rows(tmp_path):
             assert np.isfinite(float(row[timing])) and float(row[timing]) > 0
         np.testing.assert_allclose(
             float(row["fits_per_second"]),
-            20 / float(row["warm_seconds"]),
+            40 / float(row["warm_seconds"]),
             atol=ATOL,
             rtol=RTOL,
         )
