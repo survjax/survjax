@@ -1,138 +1,126 @@
-Independent review: round 2/3
+Independent review: round 1/3
 
-# SIM.7b.1 — Complete per-replicate CSV export
+# SIM.7b.2 — Runtime provenance and metadata.json
 
-Start/previous final: 49f57462583259606abca2ecceed2ef846392c03.
-Reviewed numerical batching: 877daf120aa43a4d11b49f04fd04b7ccb39af2d6.
+Start/previous final: f4cfbfcc498c727ca95258fc1638b88309992d22.
 Merge base: d2469e0a7e719dbcb276277e6fd80a447626ad4e.
 Original worktree base: 8757c0fda78e34e6e818249adedd2a144a33c33d.
-The maintainer accepts shared-batch timing and authorizes the next export
-step after the _results.py proposal. Record D-034's decision without changing
-its formal open status or editing read-only spec. The previous maintainer
-verdict's timing choice is settled; no need to reopen that approval.
+User authorizes next provenance step; D-034 shared timings already approved.
+Read PLAN.md SIM.7b.2, the new functions in existing _results.py, run.py's two
+host calls, then check_metadata.py and actual CLI metadata checks.
+No new module/dependency/library API, numerical fitter/generator change,
+protected path, docs or spec edit. Preserve plan history.
 
-Read PLAN.md SIM.7b.1, _results.py, run.py integration and check_results/CLI.
-All fits and masks are computed together in JAX. The helper serializes host
-records, including every rejected/unestimable fit; no Python numerical loop,
-new core API/dependency, protected path or shared study.py change.
-Metadata/provenance is the next separate step before full study outputs.
-## Reading order and scope
+Snapshot identity before simulation/CSV writes; runtime facts must not be
+invented. Thread environment null means unset, not a measured worker count.
+Actual Python process argv is sys.orig_argv, not a claimed uv shell wrapper.
+Final JSON adds exact scenario/censoring and grouped synchronized timing;
+allow_nan=False. Metadata writing happens only after both CSVs succeed.
+## Reading order / scope
 
-1. DEVIATIONS.md D-034's explicit maintainer decision; PLAN.md SIM.7b.1 split.
-2. _results.py host-only writer and fixed two-model numeric CSV schema.
-3. run.py: _summarize returns masks with counts/performance; ModelRun carries
-   them; create output directory before calibration; collect already-host
-   batches and call write_results. Existing numerical reductions/fit unchanged.
-4. check_results.py round-trip fixture, check_cli.py fake grid and real smoke.
+1. PLAN.md SIM.7b.2, use-case common/details metadata requirements and D-034's
+   already-approved grouped timing scope.
+2. _results.py: _cpu_model, capture_metadata, write_metadata and invalidation
+   of prior metadata immediately before CSV replacement.
+3. run.py: snapshot before calibration/fitting, final metadata after CSVs.
+4. check_metadata.py and check_cli.py real smoke/ordering assertions;
+   check_results.py stale-marker invalidation assertion.
 
-The helper was proposed with its exact path and purpose before this step;
-"on to next bit" follows that proposal and accepts proceeding with exports.
-No other new module/API/dependency is introduced. The full CSV+metadata step
-was split before implementation: metadata is SIM.7b.2. No complete full-run
-artifact/evidence claim before metadata and figures exist.
+No numerical batching, fitter, acceptance, generator, core/API/dependency,
+protected path, docs or spec change. Existing helper only. Implementation /
+check diff is near the 300-line target (about 346 including field/fixture
+layout); helper 301 lines, runner 299, separate metadata checks 147 lines.
+Metadata was split from CSV export before code. Preserve plan history.
 
 ## Invariants / requirement mapping
 
-- Computation stays in the C/R JAX batch; failure_columns joins counts and
-  performance in the existing compiled _summarize call. Every returned mask
-  has shape (C,R). ModelRun carries the masks; no host reimplementation of
-  acceptance conditions, per-scenario JAX calls or estimator work in writer.
-  Device transfer remains once per n, before the serialization helper.
-- write_results receives only completed host batches. All its loops are
-  explicitly host serialization: static schema, levels, heterogeneous model
-  record shapes, CSV rows and vector/matrix cells. No filtering by accepted;
-  every (scenario,model,replicate) is retained, including unestimable cases.
-- performance.csv has fixed count/measure order, avoiding device_get dict
-  sorting (batch review N-1). Existing values, scenario order, unique failed
-  totals and independent overlap counts remain unchanged. Shared group times,
-  timed_scenarios=C and C*R/warm are now explicitly approved in D-034. No
-  timing-code change, separate timing runs or allocated per-scenario times.
-- replicates.csv includes theta_i, gradient_i and hessian_i_j raw numeric
-  cells, objective, log_hr and SE/HR interval, raw solver_success/hessian_ok/
-  estimable/accepted flags, plus failed and every independent reason. Parameter
-  count disambiguates the Weibull's 3 vs Exponential's 2 parameters. Missing
-  Exponential third-parameter cells are blank; real diagnostic NaN/inf values
-  remain numeric CSV spellings. No zero fill, clipping or hidden row dropping.
-- Fixed schema is for the two specified models only, not a new extension API.
-  Parameter order remains Weibull(log k,log b0,gamma) and Exponential(log
-  lambda0,gamma), exactly the reviewed fitter. Formal metadata map is next.
-- out.mkdir runs after config/x64 guards but before calibration/fitting,
-  fixing the carried SIM.7a nit for an existing-file --out. CSV writes still
-  occur only after all n batches have completed. This is not a claim to
-  detect every possible later filesystem failure before calculation.
-- Shared study.py/core/dependencies/protected scripts unchanged. Runner is
-  back to 297 lines. _results.py is 130 lines. The implementation/check diff
-  is 336 lines including 39 deleted lines of moved serialization; 297 added.
-  This is near the 300-line target after splitting metadata into the next step.
+- capture_metadata is called after config/x64/output-directory validation and
+  before calibration or fitting. Mocked grid wrapper asserts the directory
+  exists and neither calibration nor grouped runner has been called yet.
+  Source Git HEAD/dirty-at-start, lock SHA-256 and spec-seen are captured once,
+  before new CSV files can affect worktree state. Dirty-at-start includes all
+  pre-existing worktree changes, not a guarantee about code changes alone.
+- Invocation is the actual sys.orig_argv list and cwd with run_config as the
+  entry point. It includes Python flags/executable and does not claim to know
+  a parent shell's uv wrapper. Direct imported calls still record their
+  process context along with the requested configuration/output directory.
+- Runtime records actual Python and package versions (survjax/JAX/jaxlib/
+  NumPy/Optimistix/Matplotlib), OS/machine, CPU model/logical count, actual
+  backend/devices/x64 and PRNG implementation. Darwin CPU model is sysctl;
+  Linux-style proc text/fallback has a host fixture check. No cross-platform
+  runtime matrix is advertised; only the local macOS CPU environment ran.
+- Curated XLA/OMP/BLAS/TF/JAX thread variables are copied literally, with JSON
+  null for unset. The effective worker count is explicitly 'not measured';
+  logical CPU count is not reported as a measured worker-thread count.
+- Root key 20261025 and fold_in(index)->split(R)->split(U,C) are recorded,
+  with fixed DGP truth, equal arm allocation and independent Uniform censoring.
+  Exact parameter order, solver/starter/acceptance/no-event/inference policies
+  and CSV conventions describe the existing reviewed computation only.
+- Final JSON contains once-per-target calibrated limits and every group's
+  indices/n/R/C, target/limit/realized censoring, and timing per model. The
+  group times are shared C*R-fit measurements and throughput, per approved
+  D-034; synchronized first call may include compilation, warm is median(3).
+  All loops are host metadata/schema serialization with comments, not fitting.
+- write_metadata preserves the pre-run snapshot rather than mutating it;
+  JSON allow_nan=False rejects undefined metadata values. Payload is rendered
+  before writing. Old metadata is invalidated only when CSV replacement starts;
+  fitting/early validation failures preserve an existing complete result set,
+  while partial CSV/JSON failures cannot leave old provenance certifying new
+  files. Metadata is written only after write_results returns successfully.
+- No supplemental per-scenario fit/timing loop, cache clearing, new policy,
+  floors or numerical tolerance changes. No full R=1000 study run yet.
 
 ## Meaningful checks
 
-- For P=3 and P=2, construct three hand diagnostic rows using reviewed
-  _assess_fit: accepted; rejected with nonfinite theta/objective/score/Hessian
-  plus solver failure; unestimable with placeholder diagnostics. Stack two
-  levels with opposite replicate order so a wrong-level export is visible.
-  Positive-definite H=L L^T has distinct diagonal values, good gradients are
-  distinct nonzero values below 1e-5, and raw nonfinite values include NaN,
-  +inf and -inf. Expected output is the supplied input records, not a second
-  run of the serializer. Compare every raw numeric/vector/matrix/flag/reason
-  exactly, including nonfinite values; no numerical tolerance was added.
-- Twelve raw rows (2 levels * 2 models * 3 replicates), all unique IDs. Each
-  level/model has attempted=3, accepted=1, unique failed=2 and reason sums=5.
-  Raw flag/reason sums reproduce each summary column, including the gated
-  unestimable reason. Assert intended count-column order and unused blanks.
-- Existing mocked smoke/full CLI grid still checks n/order/R/calibration once
-  and every summary field. Its artificial raw fields now satisfy the export
-  interface; these fakes are for dispatch/serialization, not likelihood claims.
-- Real direct-script smoke must additionally emit all 80 unique raw rows and
-  correct parameter counts for both models. Existing primitive-key/NumPy
-  inverse-CDF censoring checks, timing scope and count conservation stay green.
-- Invalid --out is a regular file with known contents. Under a calibration
-  stub that fails if called, valid smoke request raises FileExistsError and
-  leaves those contents intact. This proves rejection precedes numerical work.
+- CPU probe fixture: parse supplied Linux-style model name, then return None
+  when the probe and platform.processor are unavailable. This is fixture
+  coverage, not actual Linux runtime evidence.
+- Two host batches with different n/R/index ranges, reversed model timing
+  magnitudes and distinct censoring fractions round-trip exactly through JSON.
+  Check every scenario entry/model timing and preserve original source fields.
+  Inject NaN into a scenario's metadata and require strict JSON rejection.
+- Actual CLI smoke remains one subprocess and produces the two CSVs plus
+  metadata.json. Compare metadata c/realized censoring/timings with every
+  corresponding CSV row; require correct n/R/C, config, root seed, CPU backend,
+  x64, exact actual Python argv, Git HEAD, lock hash, spec-seen, DGP and BFGS
+  tolerances. Compare package versions and CPU brand to independent host
+  queries. Child OMP_NUM_THREADS='2' is recorded and deliberately unset
+  MKL_NUM_THREADS becomes null. Existing raw-flag/count and primitive-key
+  checks remain green; no second smoke invocation just for metadata.
+- Existing-file --out/config/x64 guards still reject before calibration;
+  snapshot wrapper checks pre-work ordering. The raw CSV fixture begins with
+  a stale metadata marker and verifies write_results removes it.
 
-## Actual commands/results
+## Actual checks / environment investigation
 
-`JAX_ENABLE_X64=1 uv run --locked --group examples pytest -q -s examples/weibull_simulation/check_results.py examples/weibull_simulation/check_cli.py examples/weibull_simulation/check_performance.py examples/weibull_simulation/check_scenario.py examples/weibull_simulation/check_fit.py`:
-49 passed in 40.22s; direct-script smoke 4.90s. After strengthening the
-round-trip fixture with distinct gradients/SPD Hessian, check_results alone:
-1 passed in 1.45s. No failure/tolerance adjustment.
+Initial restricted optional run: 3 failed/5 passed in 2.47s, all from macOS
+sysctl CPU query denied by the sandbox, before calibration/fitting. Retried
+with host access as required; no CPU value was fabricated, probe skipped,
+error relabelled or numerical tolerance changed. Focused metadata/export/CLI
+retry: 8 passed in 8.15s, smoke 5.22s. A Ruff import-layout issue was fixed.
+
+Final full explicit optional command (host access required for sysctl):
+`uv run --locked --group examples env JAX_ENABLE_X64=1 pytest -q -s examples/weibull_simulation/check_metadata.py examples/weibull_simulation/check_results.py examples/weibull_simulation/check_cli.py examples/weibull_simulation/check_performance.py examples/weibull_simulation/check_scenario.py examples/weibull_simulation/check_fit.py`
+51 passed in 55.51s; direct-script smoke 6.62s (concurrent full gate load).
 `JAX_ENABLE_X64=1/0 uv run pytest -q tests/unit/test_simulation_generator.py`:
-17 passed in 3.40s in each mode, no skips.
-Ruff format: 146 files already formatted; lint: All checks passed!
-`uv run mypy src`: Success: no issues found in 22 source files.
+17 passed in 3.87s / 17 passed in 3.82s, no skips.
+Ruff format: 147 files already formatted; lint: All checks passed!
+`uv run mypy src`: no issues found in 22 source files.
 `uv lock --check`: Resolved 171 packages, exit 0. Whitespace check clean.
 `scripts/check_wheel.sh --through A10`: exit 0, final
 `check: all gates passed through A10`. Own x64: 1282 passed/8 skipped in
-127.03s; x32: 1287 passed/3 skipped in 115.49s. Doctests: 4 per mode in
-.95s/.86s. Independent x64: 2333 passed/27 skipped in 65.82s; x32:
-2324 passed/36 skipped in 61.01s. Log /private/tmp/survjax-sim7b1-gate.log.
+128.95s; x32: 1287 passed/3 skipped in 120.42s. Doctests: 4 per mode in
+1.03s/.93s. Independent x64: 2333 passed/27 skipped in 69.37s; x32:
+2324 passed/36 skipped in 62.25s. Log /private/tmp/survjax-sim7b2-gate.log.
 Fresh wheel built; installed wheel/extension checks included. Dedicated demo
-checks remain explicit separate commands; no protected runner changes.
+checks are explicit and separate from this ordinary gate.
 
-## Remaining / limits
+Actual host probe: Apple M4 Max, arm64, logical CPUs=16, CPU backend cpu:0;
+Python3.12.9, JAX/jaxlib0.11.2, NumPy2.5.3, Optimistix0.1.0,
+Matplotlib3.11.2, survjax0.0.1.dev0. Versions unchanged, no lockfile edits.
 
-Metadata/provenance, then full six-scenario results and figures, then
-executable docs. No full R=1000 fit or release acceptance claim here.
-D-034 approval is recorded but its formal status stays maintainer-owned.
-Do not reopen the settled timing choice or the simulation D-033 policy.
-The separate CI D-033 collision from the merge remains for maintainer
-bookkeeping. No merge/rebase/push/publication. Stop after independent review.
+## Remaining scope
 
-## Round 1 responses
-
-F-1 fixed: check every unused Exponential column explicitly, including all
-four off-diagonal Hessian cells plus theta_2, gradient_2 and hessian_2_2.
-Zero padding in any of those cells must fail; numerical implementation and
-schema are unchanged. N-1 fixed: assert the full performance-measure header
-order independently of the serializer constants. N-2 fixed: real smoke now
-reconstructs each accepted/failed/reason total from the 80 raw rows and
-compares it with the corresponding summary, as the plan promised.
-No production change, expectation relaxation or tolerance change. Targeted
-export/CLI checks: 6 passed in 6.99s, real smoke 4.78s. Ruff format/lint and
-whitespace checks pass. Unchanged core gate was not repeated for test-only
-assertion additions.
-Reviewer raw gate: ordinary suites/doctests passed; x64 spec 2328 passed /
-5 missing-SURVJAX_WHEEL setup errors, x32 spec not run. Initial fresh-wheel
-wrapper passed both modes as recorded above. Do not claim the raw gate passed.
-Reviewer cleanup left its reverted mutation worktree; only the reviewer or
-maintainer may clean it, outside this agent's independent-review permissions.
+Full six-scenario evidence/results and figures, then executable docs. Current
+metadata proves run completion/provenance facts, not release coverage or
+figure acceptance. No merge/rebase/push/publication. Stop after this review.

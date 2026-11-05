@@ -1,3 +1,72 @@
+# SIM.7b.2 — Runtime provenance and metadata.json (2026-11-05)
+
+Start / previous simulation final: f4cfbfcc498c727ca95258fc1638b88309992d22
+(SIM.7b.1 round 2: merge). Maintainer merge base:
+d2469e0a7e719dbcb276277e6fd80a447626ad4e. Original worktree base:
+8757c0fda78e34e6e818249adedd2a144a33c33d.
+Clean release-simulation; maintainer says "ok on to next bit". Preserve all
+unfinished/merged plan history. Existing approved _results.py only; no new
+module/dependency/library API/protected path or docs edits.
+
+One host-only provenance step, about 300 changed code/check lines:
+- _results.py: capture_metadata(config, root_seed, log_hr) snapshots Python
+  process argv/cwd, code HEAD and worktree-dirty-at-start, lock SHA-256 and
+  spec-seen, tested package versions, OS/CPU identity/logical CPU count,
+  actual JAX backend/devices/x64, and curated thread environment settings.
+  Capture before calibration/fitting/CSV writing so new output files do not
+  create a misleading dirty-at-start flag. CPU model via Darwin sysctl or
+  /proc/cpuinfo/platform.processor fallback; report missing info explicitly.
+  Thread env unset is JSON null; effective worker count is not measured.
+- Record exact root seed and fold_in/split scheme; DGP k=1.38,b0=11.42,
+  HR=.7/log HR, fixed equal allocation and independent Uniform(0,c). Record
+  solver BFGS rtol/atol=1e-8,max_steps=1000,throw=False, exact start policy,
+  strict gradient<1e-5/finite/success/Cholesky acceptance and no-event policy.
+  Parameter order, flag semantics and raw CSV unused-blank vs NaN conventions
+  identify how to interpret the approved records, without duplicating fitting.
+- write_metadata(out, snapshot, limits, batches) adds output path, once-per-
+  target calibrated c and all scenario indices/n/R/realized censoring. Store
+  timing once per (n,model) group with C/R and shared first/warm time/rate;
+  median(3), synchronized whole results, first call may include compilation,
+  C*R/warm as approved D-034. No invented per-scenario time allocation/cache
+  clearing. JSON uses allow_nan=False. Write only after both CSVs succeed.
+  Invalidate old metadata just before CSV replacement; failures must not leave
+  stale provenance attached to partly replaced CSVs.
+- run.py: snapshot after config/x64/output-directory validation, before work;
+  write metadata after CSVs. Keep all numerical batching and CSV values
+  unchanged. Captured command is actual Python sys.orig_argv, not an invented
+  uv parent-shell invocation; config/output fields describe direct calls too.
+- check_metadata.py: mocked CPU fallback probes, exact JSON round-trip
+  with distinct two-size/two-level provenance/timing values, capture-at-start
+  ordering and strict nonfinite rejection. Add real smoke cross-file checks
+  in check_cli.py for grid/c/realized censoring/timing/runtime/source/backend/seeds
+  and Python argv. No new timing thresholds beyond existing smoke timeout.
+- REVIEW.md: overwrite, include requirement/check map and actual results.
+  Numerical code and the shared generator contract stay untouched.
+
+Spec/use-case: 00-common metadata versions/seeds/settings/timings; 01 main
+and details DGP, Seeds, Models, Timing, Files; 10.3, 11.4, 12.2 release item 4
+and 12.3. Test current CPU/macOS environment only; mocked host branches are
+not a claim of a tested cross-platform runtime matrix. No full-study run or
+coverage claim here. Run explicit x64 metadata/export/CLI/fit/scenario checks,
+generators in both dtype processes, Ruff/mypy/lock and unchanged fresh-wheel
+through-A10 gate. Commit and exact independent-review SIM.7b.2, at most three
+rounds with fix-ups, then stop/report.
+Implemented metadata snapshot/final JSON in existing helper. Source identity
+is captured before work, final group facts after CSV success, stale markers
+invalidated before CSV replacement. No numerical code changed. Helper 301
+lines, runner 299; code/check diff about 346 lines (mostly JSON/fixture fields).
+Full optional suite 51 passed (55.51s), smoke 6.62s; generators 17 per dtype
+(3.87s/3.82s), static checks clean. Initial sandbox sysctl denial was resolved
+by rerunning with host access, not by weakening CPU provenance. Fresh-wheel
+through-A10 exit 0: own 1282/1287 passed (8/3 skips), doctests 4 per mode,
+independent 2333/2324 passed (27/36 skips). Exact commands/times in REVIEW.md.
+Commit and exact independent review next, then stop after this step.
+Remaining: full six-scenario evidence/results and figures, executable docs.
+Docs to-do: provenance fields, actual Python argv vs outer invocation,
+unset thread settings/effective count, shared group timings and CSV schema.
+
+---
+
 # SIM.7b.1 — Complete per-replicate CSV export (2026-11-04)
 
 Start / previous simulation final: 49f57462583259606abca2ecceed2ef846392c03.

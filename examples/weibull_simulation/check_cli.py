@@ -17,6 +17,9 @@ sys.path[:0] = [str(ROOT), str(ROOT / "tests")]
 import impl_tolerances as tol  # noqa: E402
 
 from examples.weibull_simulation import run as runner  # noqa: E402
+from examples.weibull_simulation.check_metadata import (  # noqa: E402
+    assert_smoke_metadata,
+)
 
 if not jax.config.x64_enabled:
     raise RuntimeError("Run CLI checks with JAX_ENABLE_X64=1")
@@ -92,6 +95,13 @@ def test_configuration_grid_calibration_and_csv_fields(config, tmp_path, monkeyp
     monkeypatch.setattr(runner, "calibrate_censoring", calibrate)
     monkeypatch.setattr(runner, "run_scenario", scenario)
     out = tmp_path / "nested" / config
+    capture = runner.capture_metadata
+
+    def before_work(*args):
+        assert not calls and not calibrated and out.is_dir()
+        return capture(*args)
+
+    monkeypatch.setattr(runner, "capture_metadata", before_work)
     runner.run_config(config, out)
     sizes, r = ([100], 20) if config == "smoke" else ([100, 300, 1000], 1000)
     expected = [
@@ -196,6 +206,8 @@ def test_import_keeps_precision_and_imported_runner_refuses_float32(tmp_path):
 def test_direct_script_smoke_writes_four_complete_summary_rows(tmp_path):
     """01 smoke: documented script entry, two scenarios, 20 fits/model, float64."""
     start = perf_counter()
+    env = {**os.environ, "JAX_ENABLE_X64": "0", "OMP_NUM_THREADS": "2"}
+    env.pop("MKL_NUM_THREADS", None)
     subprocess.run(
         [
             sys.executable,
@@ -206,7 +218,7 @@ def test_direct_script_smoke_writes_four_complete_summary_rows(tmp_path):
             str(tmp_path),
         ],
         cwd=ROOT,
-        env={**os.environ, "JAX_ENABLE_X64": "0"},
+        env=env,
         check=True,
         timeout=120,
     )
@@ -272,3 +284,5 @@ def test_direct_script_smoke_writes_four_complete_summary_rows(tmp_path):
             name
         ) in "accepted failed solver nonfinite gradient hessian unestimable".split():
             assert sum(int(r[name]) for r in cohort) == int(row[name])
+
+    assert_smoke_metadata(tmp_path, rows)

@@ -47,7 +47,9 @@ def test_complete_csv_roundtrip_preserves_every_fit_diagnostic_and_failure(tmp_p
     batch = jax.device_get(
         runner.ScenarioRun(np.array([40.0, 20.0]), jnp.array([0.25, 0.55]), models)
     )
+    (tmp_path / "metadata.json").write_text("stale")
     write_results(tmp_path, {0.25: 40.0, 0.55: 20.0}, [(np.array([4, 5]), 6, batch)])
+    assert not (tmp_path / "metadata.json").exists()
     with (tmp_path / "performance.csv").open(newline="") as handle:
         summaries = list(csv.DictReader(handle))
     with (tmp_path / "replicates.csv").open(newline="") as handle:
