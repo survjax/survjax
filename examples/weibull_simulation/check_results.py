@@ -150,7 +150,7 @@ def test_compact_evidence_preserves_all_failures_histogram_and_shared_replicate(
     tmp_path,
 ):
     """D-035: complete histogram and failed-ID complement, not a fit subsample."""
-    from examples.weibull_simulation._plots import _read_csv, write_evidence
+    from examples.weibull_simulation.check_full import _read_csv, write_evidence
 
     _compact_fixture(tmp_path)
     out = tmp_path / "compact"
@@ -183,7 +183,7 @@ def test_compact_evidence_preserves_all_failures_histogram_and_shared_replicate(
 )
 def test_inconsistent_raw_evidence_is_rejected_before_output(tmp_path, corruption):
     """D-035: compact artifacts cannot certify incomplete/inconsistent raw records."""
-    from examples.weibull_simulation._plots import _csv, write_evidence
+    from examples.weibull_simulation.check_full import _csv, write_evidence
 
     raw, _ = _compact_fixture(tmp_path)
     if corruption == "duplicate":
@@ -210,7 +210,7 @@ def test_inconsistent_raw_evidence_is_rejected_before_output(tmp_path, corruptio
 
 def test_no_accepted_estimates_produces_empty_histogram_and_illustration(tmp_path):
     """D-035: no accepted fits is represented explicitly, with every failure kept."""
-    from examples.weibull_simulation._plots import _csv, _read_csv, write_evidence
+    from examples.weibull_simulation.check_full import _csv, _read_csv, write_evidence
 
     raw, summaries = _compact_fixture(tmp_path)
     for row in raw:
@@ -226,14 +226,19 @@ def test_no_accepted_estimates_produces_empty_histogram_and_illustration(tmp_pat
     assert len(_read_csv(tmp_path / "failures.csv")) == 6
 
 
-def test_histogram_lattice_rounding_never_excludes_a_minimum(tmp_path):
-    """17*.025 rounds above .425; move only the display edge outward."""
-    from examples.weibull_simulation._plots import _csv, write_evidence
+@pytest.mark.parametrize("low,high", [(0.425, 2.0), (0.1, np.nextafter(0.45, 1.0))])
+def test_histogram_lattice_rounding_never_excludes_extrema(tmp_path, low, high):
+    """17*.025 can round high; ceil(nextafter(.45)/.025)*.025 can round low."""
+    from examples.weibull_simulation.check_full import _csv, write_evidence
 
     raw, _ = _compact_fixture(tmp_path)
-    raw[0]["log_hr"] = np.log(0.425)
+    # Host boundary fixtures only; all actual accepted estimates remain untouched.
+    for row in raw:
+        if row["accepted"] == "1":
+            row["log_hr"] = np.log(low if row["replicate"] == "0" else high)
     (tmp_path / "replicates.csv").write_text(_csv(raw, list(raw[0])))
     write_evidence(tmp_path, tmp_path)
     histogram = json.loads((tmp_path / "sampling_histograms.json").read_text())
-    assert histogram["edges"][0] <= np.exp(float(raw[0]["log_hr"]))
+    assert histogram["edges"][0] <= np.exp(np.log(low))
+    assert histogram["edges"][-1] >= np.exp(np.log(high))
     assert all(sum(s["counts"]) == 2 for s in histogram["series"])

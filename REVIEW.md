@@ -1,141 +1,59 @@
-Independent review: round 2/3
+Independent review: round 1/3
 
-# SIM.8b — Compact, reproducible full-study evidence writer
+# SIM.8c.1 — Full-run provenance and reducer placement
 
-## Round 1 findings and fix-up
+Read PLAN.md SIM.8c.1 and approved D-035, then results/metadata.json and
+performance.csv, then the reducer rename/import changes and boundary test.
+Previous final: 61c5cc62a7f890175b40aa6a1333566800d2e809 (SIM.8b round 2
+merge; F-1/F-2/N-1/N-2/N-3 fixed). Integration base
+ d2469e0a7e719dbcb276277e6fd80a447626ad4e; original worktree base
+8757c0fda78e34e6e818249adedd2a144a33c33d. Remain release-simulation.
+The maintainer explicitly authorized compact evidence AND the next figure
+step; these are budgeted sub-steps with independent reviews, not a merge.
 
-F-1 fixed: count-preserving acceptance swaps and moved reasons test the
-per-row exclusivity/OR checks, independently of aggregate count validation.
-F-2 fixed: the real direct-script smoke now asserts compact files exist,
-binds the manifest to its actual raw CSV hash and checks any illustration
-rows are accepted scenario-1 fits. No extra fit/subprocess.
-N-1 fixed: move a rounded-inward display edge outward one bin, with the
-.425 lattice counterexample. Estimates/probabilities remain unchanged.
-N-2 addressed trivially: hoist both CSV schemas and remove duplication.
-N-3 fixed: record reducer_commit alongside reducer_sha256; later figure
-code can change the file while the exact historical source stays locatable.
+## Scope and invariants
 
-Round 2 validation: focused export/CLI/metadata 20 passed in 9.21 s;
-Ruff format/check and mypy src pass. Full reduction rerun exits 0; all five
-compact payloads still match the measured proposal byte for byte. Only
-manifest reducer identity changes. No repeat of the passed cumulative wheel
-gate: no core, numerical-fit, dependency or runner-numerical changes.
-Reviewer round-1 raw gate had 5 SURVJAX_WHEEL setup errors (2328 passed),
-so stopped before x32 acceptance; our wheel-supplying gate below passed both.
-The reviewer independently recounted all 12,000 raw records and confirmed
-the exact 127 failures, 11,873 histogram totals and illustration parameters.
+Only 213 generated lines: original metadata and all 12 summary rows, copied
+byte for byte from the clean a3792a7703ed539db777472d876bd00ac2d1568e full
+run. Historical invocation/output_directory in metadata are deliberately
+preserved; they describe the raw run, not its later copy to results/.
+No raw replicate CSV is staged/copied. Other compact files follow in the
+next split; no manifest yet claims this partial artifact set is complete.
 
-## Initial step context
+Move the reviewed reducer from _plots.py to the previously proposed
+check_full.py and update existing imports. This makes room for the authorized
+figure step while keeping modules under ~300 lines. No public library or
+shared generator import contract changes. Python loops remain host audits/I/O.
+Two nonblocking round-2 nits addressed in this provenance sub-step:
+N-4: parameterized low/high edge test, including nextafter(.45,1) with a
+smaller minimum so the high-edge adjustment is necessary. No binning change.
+N-5: reducer_path and reducer_dirty (file-specific Git status) now accompany
+commit/hash. A dirty reducer is explicitly distinguishable from recorded HEAD.
+No dependency/core/protected-path/docs/solver/seed/acceptance/timing change.
 
-Read in order:
-1. PLAN.md SIM.8b, D-035 maintainer decision, use-case main/details outputs.
-2. examples/weibull_simulation/_plots.py write_evidence (new approved helper).
-3. run.py's post-export call, _results.py manifest invalidation, .gitignore.
-4. check_results.py hand CSV/negative checks and check_cli.py fake-count repair.
+## Checks
 
-Previous step final / source base: a3792a7703ed539db777472d876bd00ac2d1568e.
-Maintainer integration: d2469e0a7e719dbcb276277e6fd80a447626ad4e.
-Original worktree: 8757c0fda78e34e6e818249adedd2a144a33c33d.
-The maintainer approved the compact replacement and explicitly requested the
-next figure step as well. Both code steps receive independent review; source
-and generated evidence are split to preserve normal review budgets. This
-commit has no generated data, fitting/core API/dependency/protected-file edits.
-Named _plots.py was proposed before approval; no additional unnamed helper.
-
-## Contract and invariants
-
-D-035 overrides the use case's committed raw-replicate requirement. Full raw
-CSV remains local, and is ignored at the conventional results/replicates.csv
-path. Existing CLI now also derives compact outputs after raw CSV/metadata.
-Raw numerical generation/fitting/keys/acceptance remain unchanged and JAX
-batched; Python loops here only audit and serialize existing host records.
-
-Every group must have unique complete 0..attempted-1 IDs. Flags are binary,
-accepted complements failed, failed is the OR of separate reasons, and each
-accepted/failure count matches the performance table. Counts may overlap by
-reason; failed is never computed by summing reasons. Every rejected ID with
-all reason flags, max absolute gradient (including NaN if unavailable), and
-log HR is retained. Accepted IDs are their complement in the recorded design.
-
-Every accepted HR is positive/finite and included in common .025 bins.
-Outward histogram edges modify display bins only, not fitted estimates.
-Empty accepted sets get zero counts. One mutually accepted replicate is
-selected at n=300/.55 (n=100/.55 for smoke); if none, illustration.csv has a
-header only. Later plotting must handle that explicitly. Current full run
-selects scenario 3, replicate 0 for both models. Metadata/performance bytes
-are preserved; evidence.json binds all original raw/output hashes and the
-reducer source hash. It is written last and invalidated with raw CSV replacement;
-no stale manifest should certify a partial write. This is not a filesystem
-transaction against concurrent writers, which are outside this single-run CLI.
-
-## Checks and evidence
-
-Ruff format/check and mypy src passed (148 files; 22 source files).
-Optional focused command (CPU probing requires escalation in this sandbox):
+Ruff format/check and mypy src pass. Focused command:
 
 ```bash
 JAX_ENABLE_X64=1 uv run --locked --group examples pytest -q examples/weibull_simulation/check_results.py examples/weibull_simulation/check_cli.py examples/weibull_simulation/check_metadata.py
 ```
 
-16 passed in 11.89 s. Initial sandboxed invocation: 15 passed/1 failed because
-its existing CPU-identity expectation calls sysctl; the escalated rerun passed.
-Final check_results.py rerun after the stale-manifest/empty-accepted checks
-and fixture cleanup: 7 passed in 2.64 s. No tolerance was changed.
+21 passed in 10.40 s. Edge checks alone: 11 passed in 4.34 s.
+Manual stdlib audit: all 12 summary rows, six scenarios, 12,000 attempts,
+11,873 accepted/127 failed; each attempted=accepted+failed=1000. Metadata
+is clean a3792a7, lock hash matches, both Weibull n=1000 coverage checks are
+within three MCSE of .95. Byte hashes equal originals:
+performance 33c9f420b5ecc80d3d75f8f097671569fbade13945cc4629f0205359760e175e;
+metadata 475f578d9413bd3eed88aaa2b93abcd34fee3736394e87258f392f31dcba899f.
+No raw CSV exists under results/. git diff --check passes.
 
-```bash
-scripts/check_wheel.sh --through A10
-uv run --locked --group examples python examples/weibull_simulation/_plots.py --results /private/tmp/survjax-sim-full-a3792a7 --out /private/tmp/survjax-sim-compact-implemented
-```
+No repeated cumulative gate for this host-only move/artifact/test step.
+SIM.8b's scripts/check_wheel.sh --through A10 passed implementer tests
+1282/1287, doctests 4 each and acceptance 2333/2324 (x64/x32), with their
+expected skips. The reviewer's raw gate lacks SURVJAX_WHEEL and reports five
+wheel-setup errors; this is separate from the passing wheel-supplying gate.
 
-Cumulative wheel gate exited 0: implementer tests x64 1282 passed/8 skipped
-(185.37 s), float32 1287 passed/3 skipped (132.77 s); source doctests 4 passed
-each mode; acceptance x64 2333 passed/27 skipped (78.84 s), float32 2324
-passed/36 skipped (66.45 s). Final: "check: all gates passed through A10".
-Wheel retained at /var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/
-survjax-wheel.3hjJds/survjax-0.0.1.dev0-py3-none-any.whl. The reduction
-command exited 0, generated 23,481 bytes including manifest. It keeps all 127
-failures and histogram counts total 11,873; the 4.6 MiB raw CSV is not copied.
-All five approved compact payloads have exactly the prototype bytes; source
-metadata remains clean a3792a7, not falsely attributed to this postprocessor.
-
-Requirement mapping: hand fixture checks overlapping failures and accepted-ID
-complement, both lower/final-upper histogram inclusion, common replicate
-selection, source/output checksums and no copied raw CSV. Four corruption
-checks reject missing/duplicate IDs, reason-count and acceptance inconsistency
-before creating output. The no-accepted-fit case retains all six failures,
-zero histogram counts and an empty illustration. Existing roundtrip proves raw diagnostics still retain
-rejections/unestimable rows and invalidates metadata/evidence on replacement.
-Existing CLI checks both grids, calibrated constants/keys/export schema and
-executes the smoke command. Fake reason masks now match their stated counts;
-no assertions were weakened. These are optional explicit checks, not a silent
-skip or new dependency in ordinary core tests.
-
-## Full-run science already audited before reduction
-
-The full CLI ran from clean a3792a7 into /private/tmp/survjax-sim-full-a3792a7.
-Its metadata records CPU Apple M4 Max, Python 3.12.9, JAX/jaxlib 0.11.2,
-NumPy 2.5.3, Optimistix 0.1.0, Matplotlib 3.11.2, x64 and unset curated thread
-settings; effective worker count and peak memory not measured. Calibrated c
-47.793149053990135/.25 and 19.17253543619806/.55. Full has 12,000 fits:
-11,873 accepted, 127 gradient-only rejections, all solver-success/finite/SPD/
-estimable. Strict-gradient residuals range 1.0008445445388515e-5 to
-5.097075334365111e-5. Maximum rejected H^-1*g log-HR correction is
-1.0307596577744073e-7; Exponential closed-form d_g/Y_g log-HR discrepancy
-across all fits is <=1.0307596665093399e-7. Small local discrepancies despite
-failed scores are observed; relative solver stopping on the summed objective
-is a plausible explanation, not an instrumented causal proof. No gate changed.
-Weibull n=1000 coverage .9434156378600823 +/- .007410825977435696 MCSE and
-.9307851239669421 +/- .00815805747879105 MCSE: -.88848/-2.35532 MCSE from
-.95, both within 3 MCSE.
-
-Independent exploratory audit /private/tmp/check_full_expanded.py reconstructs
-all PRNG draws with JAX primitives and NumPy inverse CDF, checks all objectives,
-analytical scores/Hessians/inference/counts/summary MCSEs, and both calibration
-integrals at 40-digit precision. Its two hand-derivative checks passed. This
-exploratory audit is not claimed as a committed check; the new committed code
-is a compact exporter/consistency audit, not another survival implementation.
-Full raw SHA-256: 58bc3ae48a263f0f4ea9ab522bbdff0cf02627301bcbd0477e370e7785fbc7a4.
-
-Remaining: commit compact artifacts in budgeted pieces, implement/review the
-three figures (explicitly authorized next), then executable docs. The frozen
-shared generator import contract is unchanged; no merge/push/publication.
+Remaining authorized work: derived failure/histogram/illustration/manifest
+files and their committed checks, then three SVG figures. Executable docs
+remain after these reviewed steps. No merge/push/publication.

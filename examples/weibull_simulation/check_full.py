@@ -160,6 +160,8 @@ def write_evidence(source: Path, out: Path) -> None:
             + "\n"
         ).encode(),
     }
+    reducer_root = Path(__file__).resolve().parents[2]
+    reducer_path = str(Path(__file__).resolve().relative_to(reducer_root))
     manifest = {
         "schema_version": 1,
         "reducer_commit": subprocess.check_output(
@@ -167,6 +169,14 @@ def write_evidence(source: Path, out: Path) -> None:
             cwd=Path(__file__).resolve().parents[2],
             text=True,
         ).strip(),
+        "reducer_path": reducer_path,
+        "reducer_dirty": bool(
+            subprocess.check_output(
+                ["git", "status", "--porcelain", "--", reducer_path],
+                cwd=reducer_root,
+                text=True,
+            ).strip()
+        ),
         "reducer_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "source_sha256": {
             name: hashlib.sha256((source / name).read_bytes()).hexdigest()

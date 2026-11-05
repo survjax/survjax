@@ -1,3 +1,27 @@
+# SIM.8c.1 — Full-run provenance and reducer placement (2026-11-05)
+
+Previous final: 61c5cc62a7f890175b40aa6a1333566800d2e809, SIM.8b round 2
+merge (F-1/F-2 and N-1/N-2/N-3 fixed). Original/integration bases unchanged.
+Continue the explicitly approved compact-evidence and next-figure work.
+
+Budgeted artifact sub-step: original results/metadata.json (200 lines) and
+performance.csv (13 lines), copied byte for byte from the audited clean
+source a3792a7703ed539db777472d876bd00ac2d1568e. No raw CSV in Git.
+Move the reducer from _plots.py to the already proposed check_full.py so
+both evidence auditing and the coming figure module stay below ~300 lines.
+Update existing imports/CLI references; generator/public library API unchanged.
+N-5 provenance refinement: record reducer source path and file-dirty state
+alongside commit/hash. N-4: extend the histogram-edge hand test to a maximum
+near .45; this is a test-only addition to the reviewed display-edge policy.
+Checks: all focused optional export/CLI/provenance checks, Ruff/mypy,
+byte hashes, six-scenario/count/coverage/provenance checks; no refit or repeat
+of the already passing core wheel gate for this host-only move/artifact step.
+REVIEW.md and independent review, then the authorized derived-data sub-step
+and three-figure step. This commit intentionally does not write an evidence
+manifest until all of its compact payloads are available in the next split.
+
+---
+
 # SIM.8b — Approved compact evidence writer (2026-11-05)
 
 Previous final / code start: a3792a7703ed539db777472d876bd00ac2d1568e.
