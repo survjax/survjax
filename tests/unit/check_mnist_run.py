@@ -28,6 +28,13 @@ def test_smoke_cli(tmp_path):
     assert metadata["sizes"] == {"train": 5000, "validation": 1000, "test": 2000}
     assert metadata["selected_epoch"] == 1
     assert all((tmp_path / f"fig{i}.svg").is_file() for i in (1, 2, 3))
+    # The CSV layout is what the docs page and acceptance check read.
+    results = ROOT / "examples/survival_mnist/results"
+    for name in ("metrics.csv", "history.csv"):
+        written = (tmp_path / name).read_bytes()
+        assert b"\r" not in written
+        header = written.split(b"\n", 1)[0]
+        assert header == (results / name).read_bytes().split(b"\n", 1)[0]
 
 
 def test_full_results_meet_acceptance():

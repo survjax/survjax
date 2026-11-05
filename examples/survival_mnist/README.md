@@ -19,18 +19,19 @@ and three figures: predicted survival curves (`fig1.svg`), log scales by
 digit (`fig2.svg`) and epoch training/validation losses (`fig3.svg`).
 
 The committed full experiment is in [results/](results/metadata.json).
-Start with the three-line loss in [model.py](model.py), or follow the
-[walkthrough](../../docs/use-cases/survival-mnist.md), which runs smoke live
-and explains how to substitute your own network.
+Start with the loss in [model.py](model.py), or read the tutorial on the
+[docs page](../../docs/use-cases/survival-mnist.md), which runs smoke live and
+shows the committed full results.
 
-For an interactive, cell-by-cell run, open the [Jupyter notebook](survival-mnist.ipynb):
+The same tutorial runs cell by cell in the [Jupyter notebook](survival-mnist.ipynb):
 
 ```bash
 uv run --group docs --group examples jupyter lab examples/survival_mnist/survival-mnist.ipynb
 ```
 
-Choose Python 3 and restart/run all cells. It defaults to smoke; set `CONFIG`
-to `"full"` for ten epochs. Run it inside this repository checkout.
+Choose Python 3 and restart/run all cells. It trains the full configuration
+(about half a minute on a laptop CPU); set `CONFIG = "smoke"` for a one-epoch
+check. Run it inside this repository checkout.
 
 MNIST is by Y. LeCun, C. Cortes and C. J. C. Burges, under CC BY-SA 3.0.
 [Dataset](http://yann.lecun.com/exdb/mnist/); survival outcomes are synthetic.

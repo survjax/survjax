@@ -1,57 +1,59 @@
-# MNIST.18 — Runnable notebook companion
+# MNIST.19 — Simplify the example support code
 
-Independent review: round 1/3, verdict merge (2026-11-02).
+Independent review: round 1/3 (pending).
 
 ## Read first
 
-1. PLAN.md MNIST.18: user requested a runnable notebook in addition to code/docs.
-2. examples/survival_mnist/survival-mnist.ipynb: 11 cells, outputs cleared.
-3. Example README launch command and docs page notebook download link.
+1. PLAN.md MNIST.19: maintainer-requested cleanup after the tutorial notebook
+   and docs page were accepted (22906cb). Example code only.
+2. examples/survival_mnist/model.py: `evaluate` returns only mean log
+   likelihood, shape and C; `fit_intercept(data)` returns `(log_k, log_b)`.
+3. examples/survival_mnist/run.py: `_concordance_seconds` (moved from
+   `evaluate`), rows add `n` and timing, CSVs via pandas, pandas version.
+4. examples/survival_mnist/data.py: constants and `UC_KEY` at the top.
+5. Notebook: three source lines for the new signatures. README: notebook
+   default and docs-page wording. pyproject.toml: notebook-only ruff exception.
+6. Tests: check_mnist_metrics/reference/training/run updates and the new
+   optional check_mnist_notebook.py.
 
-The notebook runs the example directly in its kernel: data, intercept fitting,
-training, prediction, evaluation and figures. CONFIG chooses smoke or full.
-It reuses data/model functions and run._figures; editable model source remains
-model.py (restart/run-all instructions). No separate trainer, API or dependency.
-The untyped loss excerpt is explanatory and matches the example's computation.
-Saved full-run results are explicitly distinguished from current notebook results.
-Cohort sizes, keys, float32 convention, labels excluded from training, checkpoint
-selection and metric definitions remain those of use-case03/spec 11.2.
-It is a repository notebook, not a standalone file: launch/dependency and cache
-instructions are included. It finds the repository from root or example cwd.
-Figures go to a fresh temporary directory, never the committed results folder.
-Original mnist2.md remains untouched/untracked.
+## Invariants
 
-## Verification
+- Results are unchanged: `UC_KEY` is the same `fold_in(key(20261025), 3)`;
+  `fit_intercept` gets the same float32 rows (`observations[train]`) and the
+  same BFGS start (exponential MLE scale, log k = 0); `evaluate` computes the
+  same likelihood and C. Only the timing moved to run.py, where it keeps the
+  warm-up and the synchronized single call (use-case 03: C run time at n=10k).
+- metrics.csv/history.csv keep their columns, order, LF endings and float
+  repr, which the docs page and acceptance test read.
+- The docs page source is untouched; the notebook's saved outputs are kept.
 
-- nbformat schema validates; saved notebook has no outputs/execution counts.
-- nbclient executed all cells, smoke from the notebook directory; no cell errors.
-  Outputs include 5k/1k/2k sizes, epoch 1, live metrics, a generating-curves PNG,
-  CNN source, three live SVGs and committed full metrics/headline SVG.
-- A temporary copy with CONFIG=full executed all cells from repository root:
-  50k/10k/10k, epoch 7. Live rounded metrics match committed full metrics:
-  CNN -1.127/1.368/.689, intercept -1.238/1.188/.500, oracle -1.111/1.380/.698.
-- Initial sandbox smoke execution succeeded but kernel shutdown hit a psutil
-  PermissionError. Final smoke and full executions used normal kernel permissions
-  and succeeded; only the existing IPKernelApp TCP warning remained.
-- scripts/build_docs.sh directly: exit 0, both modes build succeeded. Notebook
-  download href resolves to a byte-identical copy of the source in both builds.
-- Ruff format/check on notebook: 1 already formatted; all checks passed.
-  git diff --check clean. No new tests or broad gate: no library/runtime changes.
+## Tests and evidence
 
-Executed copies are /tmp/survival-mnist-executed.ipynb and
-/tmp/survival-mnist-full-executed.ipynb; no output or data committed.
-Implementation files: 235-line notebook plus 13 README/docs lines, below 300.
-Starting/previous step 4020dda; original worktree base ee72c83.
-No known issue; independent review is the only remaining sub-step.
+- `check_mnist_metrics.py`: hand-derived `evaluate` cases without n/timing;
+  timing test now pins `run._concordance_seconds` (compile call excluded).
+- `check_mnist_reference.py`: tuple return, float32, profile-optimum match.
+- `check_mnist_run.py`: smoke CSV headers equal the committed ones; no CR.
+- `check_mnist_notebook.py`: the notebook runs every cell in smoke config
+  (would have caught the HEADER NameError found earlier).
 
-## Completed independent review
+## Checks run
 
-MNIST.18 round 1 reviewed 39c2be2: merge, no blockers/should-fix findings.
-Report: ../review/slices/MNIST.18.md. Reviewer executed smoke successfully,
-rebuilt both docs modes and passed notebook Ruff formatting/lint.
-N-1/N-2/N-3 remain accepted nits: notebook execution is manual rather than a
-permanent gate, its documented in-checkout requirement has no custom error
-outside a checkout, and it reuses the example's private figure helper.
-No additional abstraction or misuse guards added to this showcase.
-Reviewer did not rerun full mode; implementer execution above covers it.
-Interactive JupyterLab UI was not tested. No remaining sub-steps.
+- `uv run ruff format --check .`, `uv run ruff check .`, `uv run mypy src`: clean.
+- Optional MNIST suite, float32, with the docs group:
+  `pytest tests/unit/check_mnist_*.py tests/unit/test_mnist_*.py`: 31 passed.
+- `scripts/run_tests.sh`: 1106 passed, 7 skipped (x64); 1112 passed,
+  1 skipped (x32).
+- Fresh `run --config full`: history.csv byte-identical; metrics.csv identical
+  except `concordance_seconds`; metadata identical except timings and the new
+  pandas version. Committed results were not regenerated.
+- `scripts/build_docs.sh`: both modes succeed; MNIST tables equal the
+  previous build.
+- Notebook executed with nbclient in full config: every code cell's text/HTML
+  output and all three PNGs are byte-identical to the saved outputs.
+
+## Unsure about
+
+- The ruff exception for the notebook versus formatting it. Formatting would
+  rewrap seven lines of the accepted notebook, two with trailing comments.
+- Whether `results/metadata.json` should be regenerated to record pandas;
+  left as committed because no result changed.

@@ -12,7 +12,7 @@ import numpy as np
 import survjax
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from examples.survival_mnist import model  # noqa: E402
+from examples.survival_mnist import model, run  # noqa: E402
 from examples.survival_mnist.data import TRUE_LOG_SCALES, TRUE_SHAPE  # noqa: E402
 
 
@@ -23,14 +23,13 @@ def observations():
 def test_exponential_predictions_have_correct_likelihood_and_risk_direction():
     """03: exact exponential NLL is t/b+log b; smaller b predicts earlier events."""
     row = model.evaluate(0, np.log([1, 2, 4]), observations())
-    assert row["n"] == 3 and row["shape"] == 1 and row["concordance"] == 1
+    assert row["shape"] == 1 and row["concordance"] == 1
     np.testing.assert_allclose(
         row["mean_log_likelihood"],
         -(1 + np.log(2)),
         atol=tol.ATOL[False],
         rtol=tol.RTOL[False],
     )
-    assert row["concordance_seconds"] >= 0
     reversed_row = model.evaluate(0, np.log([4, 2, 1]), observations())
     assert reversed_row["concordance"] == 0
 
@@ -98,7 +97,7 @@ def test_metrics_include_the_final_partial_batch():
         atol=tol.ATOL[False],
         rtol=tol.RTOL[False],
     )
-    assert row["n"] == 129 and row["concordance"] == 0.5
+    assert row["concordance"] == 0.5
 
 
 def test_predict_keeps_the_final_partial_chunk():
@@ -124,8 +123,7 @@ def test_concordance_timing_excludes_the_compile_call(monkeypatch):
             completed.append(cost)
             return 0.5  # Constant scores give half credit to every comparable pair.
 
-    monkeypatch.setattr(model, "_concordance", lambda *args: DeferredScalar())
-    monkeypatch.setattr(model, "perf_counter", lambda: clock[0])
-    row = model.evaluate(0, 1.5, observations())
-    assert row["concordance_seconds"] == 2.0
+    monkeypatch.setattr(run, "_concordance", lambda *args: DeferredScalar())
+    monkeypatch.setattr(run, "perf_counter", lambda: clock[0])
+    assert run._concordance_seconds(1.5, observations()) == 2.0
     assert completed == [11.0, 2.0]

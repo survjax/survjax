@@ -5,17 +5,18 @@ from pathlib import Path
 
 import jax.numpy as jnp
 
+import survjax
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from examples.survival_mnist import model  # noqa: E402
 
 
 def test_intercept_fit_is_finite_float32():
     """03: BFGS fits the training-only reference in neural precision."""
-    fitted = model.fit_intercept(
-        jnp.array([1.0, 2.0, 4.0, 8.0]), jnp.array([1, 0, 1, 1])
-    )
-    assert fitted.dtype == jnp.float32
-    assert jnp.all(jnp.isfinite(fitted))
+    data = survjax.SurvivalData([1.0, 2.0, 4.0, 8.0], [1, 0, 1, 1], dtype=jnp.float32)
+    log_k, log_b = model.fit_intercept(data)
+    assert log_k.dtype == jnp.float32 and log_b.dtype == jnp.float32
+    assert jnp.isfinite(log_k) and jnp.isfinite(log_b)
 
 
 def test_full_cohort_float32_fit_matches_profile_optimum():
@@ -28,7 +29,9 @@ def test_full_cohort_float32_fit_matches_profile_optimum():
     _, labels = data.load_mnist()
     outcomes = data.generate_outcomes(labels)
     idx = data.split_indices()["train"]
-    fitted = model.fit_intercept(outcomes.time[idx], outcomes.event[idx])
+    fitted = model.fit_intercept(
+        survjax.SurvivalData(outcomes.time, outcomes.event)[idx]
+    )
     # Independent profile-score bisection on these fixed synthetic outcomes:
     # b**k = sum(t**k)/d; d/k + sum_event(log t)
     # - d*sum(t**k*log t)/sum(t**k) = 0. Host NumPy calculation, not survjax.

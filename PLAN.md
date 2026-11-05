@@ -1,3 +1,34 @@
+# MNIST.19 — Simplify the example support code
+
+Starting/previous step 22906cb (maintainer commit of the tutorial notebook and
+docs page); original worktree base ee72c83. Maintainer asked for the cleanup
+proposed after reviewing the support code against the accepted notebook.
+Example code only: no library/public API, spec or dependency changes (pandas
+was added to the examples group in 22906cb). Rendered notebook and docs page
+must stay the same; committed results stay byte-identical except timings.
+
+- model.py: evaluate() returns only mean log likelihood, shape and C (no n,
+  warm-up or timing); fit_intercept(data: SurvivalData) returns (log_k, log_b);
+  train() uses data.UC_KEY.
+- data.py: generating constants and UC_KEY (fold_in(root, 3), use-case 03
+  details "Splits and keys") at the top; split/outcome code uses UC_KEY.
+- run.py: adds n and the warmed, synchronized C timing to each row (spec
+  use-case 03: record C run time at n=10k); CSVs via pandas with LF endings;
+  pandas in recorded versions.
+- Notebook: new fit_intercept call; metrics table without column selection.
+  Docs page reads committed CSVs and is unchanged.
+- README: notebook defaults to full; current docs-page description.
+- pyproject.toml: 22906cb left `ruff check`/`ruff format --check` failing on
+  the notebook (E402 after the sys.path setup; unwrapped lines). Formatting it
+  would rewrap reader-facing lines of the accepted notebook, so add a
+  notebook-only E402 ignore and format exclusion instead (no new rule family).
+- Tests: update check_mnist_metrics/reference for the new signatures; move the
+  timing test to run's helper; add optional check_mnist_notebook.py executing
+  the notebook with CONFIG="smoke" through nbclient.
+- Verify: optional MNIST suite, run_tests.sh, ruff, mypy, a fresh full run
+  diffed against committed metrics/history, docs build in both modes, and the
+  notebook executed in full config compared with the accepted outputs.
+
 # MNIST.18 — Runnable notebook companion
 
 Starting/previous step 4020dda; original worktree base ee72c83. Add

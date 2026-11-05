@@ -1,19 +1,32 @@
 """Train a CNN with a survjax likelihood on synthetic MNIST survival times."""
 
 import argparse
-import csv
 import json
 import platform
 from importlib.metadata import version
 from pathlib import Path
 from time import perf_counter
 
+import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 import survjax
 from examples.survival_mnist import data, model
+
+_concordance = jax.jit(survjax.concordance_index)
+
+
+def _concordance_seconds(log_scale, data: survjax.SurvivalData) -> float:
+    """Time one synchronized Harrell's C call after a compiling warm-up call."""
+    scores = -jnp.broadcast_to(jnp.asarray(log_scale, dtype=jnp.float32), data.shape)
+    scores.block_until_ready()
+    float(_concordance(scores, data))
+    start = perf_counter()
+    float(_concordance(scores, data))
+    return perf_counter() - start
 
 
 def _figures(pixels, labels, log_k, log_scales, result, out: Path) -> None:
@@ -88,7 +101,7 @@ def main() -> None:
     training, validation, test = (
         cohorts[name] for name in ("train", "validation", "test")
     )
-    intercept = model.fit_intercept(outcomes.time[training], outcomes.event[training])
+    intercept = model.fit_intercept(observations[training])
     started = perf_counter()
     result = model.train(
         pixels[training],
@@ -102,7 +115,12 @@ def main() -> None:
     cnn, log_k = result.params
     log_scales = model.predict(cnn, pixels[test])
     rows = [
-        dict(model=name, **model.evaluate(shape, scales, observations[test]))
+        dict(
+            model=name,
+            n=len(test),
+            **model.evaluate(shape, scales, observations[test]),
+            concordance_seconds=_concordance_seconds(scales, observations[test]),
+        )
         for name, shape, scales in (
             ("cnn", log_k, log_scales),
             ("intercept", *intercept),
@@ -110,19 +128,14 @@ def main() -> None:
         )
     ]
     args.out.mkdir(parents=True, exist_ok=True)
-    with (args.out / "metrics.csv").open("w", newline="") as stream:
-        writer = csv.DictWriter(stream, fieldnames=list(rows[0]), lineterminator="\n")
-        writer.writeheader()
-        writer.writerows(rows)
-    with (args.out / "history.csv").open("w", newline="") as stream:
-        writer = csv.writer(stream, lineterminator="\n")
-        writer.writerow(("epoch", "training_nll", "validation_nll"))
-        writer.writerows(
-            (i, train, valid)
-            for i, (train, valid) in enumerate(
-                zip(result.training_nll, result.validation_nll, strict=True), 1
-            )
-        )
+    pd.DataFrame(rows).to_csv(
+        args.out / "metrics.csv", index=False, lineterminator="\n"
+    )
+    history = pd.DataFrame(
+        {"training_nll": result.training_nll, "validation_nll": result.validation_nll},
+        index=pd.RangeIndex(1, len(result.training_nll) + 1, name="epoch"),
+    )
+    history.to_csv(args.out / "history.csv", lineterminator="\n")
     metadata = {
         "config": args.config,
         "sizes": {name: len(idx) for name, idx in cohorts.items()},
@@ -146,6 +159,7 @@ def main() -> None:
                 "optax",
                 "optimistix",
                 "matplotlib",
+                "pandas",
             )
         },
         "python": platform.python_version(),

@@ -21,7 +21,7 @@ def test_gradients_are_finite_at_initialization_and_after_step_one():
     outcomes = data.generate_outcomes(labels)
     train = data.split_indices("smoke")["train"]
     observations = survjax.SurvivalData(outcomes.time, outcomes.event)[train]
-    intercept = model.fit_intercept(outcomes.time[train], outcomes.event[train])
+    intercept = model.fit_intercept(observations)
     uc = jax.random.fold_in(jax.random.key(20261025), 3)
     params = model.CNN(intercept[1], key=jax.random.fold_in(uc, 2)), intercept[0]
     key = jax.random.fold_in(jax.random.fold_in(uc, 3), 0)

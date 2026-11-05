@@ -1,6 +1,5 @@
 """Float32 neural survival model (use-case 03 Network)."""
 
-from time import perf_counter
 from typing import NamedTuple
 
 import equinox as eqx
@@ -11,6 +10,7 @@ import optimistix as optx
 from jax.typing import ArrayLike
 
 import survjax
+from examples.survival_mnist.data import UC_KEY
 
 
 class CNN(eqx.Module):
@@ -88,16 +88,15 @@ def train(
 ) -> TrainingResult:
     """Train the CNN and keep the epoch with the lowest validation NLL."""
     images = jnp.asarray(images)
-    uc = jax.random.fold_in(jax.random.key(20261025), 3)
     params = (
-        CNN(initial_intercept[1], key=jax.random.fold_in(uc, 2)),
+        CNN(initial_intercept[1], key=jax.random.fold_in(UC_KEY, 2)),
         initial_intercept[0],
     )
     state = _optimizer.init(eqx.filter(params, eqx.is_inexact_array))
     best_params, best_nll, selected_epoch = params, float("inf"), 0
     training_history, validation_history = [], []
     for epoch in range(epochs):
-        key = jax.random.fold_in(jax.random.fold_in(uc, 3), epoch)
+        key = jax.random.fold_in(jax.random.fold_in(UC_KEY, 3), epoch)
         permutation = jax.random.permutation(key, len(data))
         losses = []
         for start in range(0, len(data) - 127, 128):
@@ -126,18 +125,19 @@ def _intercept_nll(theta, data):
     return -dist.log_likelihood(data).mean()
 
 
-def fit_intercept(time: ArrayLike, event: ArrayLike) -> jax.Array:
-    """Fit a float32 intercept-only Weibull on training observations."""
-    data = survjax.SurvivalData(time, event, dtype=jnp.float32)
-    initial_scale = data.lower.sum() / data.exact.sum(dtype=jnp.float32)
-    initial = jnp.stack((jnp.float32(0), jnp.log(initial_scale)))
-    return optx.minimise(
+def fit_intercept(data: survjax.SurvivalData) -> tuple[jax.Array, jax.Array]:
+    """Fit an intercept-only Weibull to float32 training data; return (log k, log b)."""
+    # Exponential MLE of the scale (total time / events) as the BFGS start.
+    initial_scale = data.lower.sum() / data.exact.sum(dtype=data.lower.dtype)
+    initial = jnp.stack((jnp.zeros_like(initial_scale), jnp.log(initial_scale)))
+    fitted = optx.minimise(
         _intercept_nll,
         optx.BFGS(rtol=3e-4, atol=3e-4),
         initial,
         args=data,
         max_steps=256,
     ).value
+    return fitted[0], fitted[1]
 
 
 _concordance = jax.jit(survjax.concordance_index)
@@ -145,20 +145,17 @@ _concordance = jax.jit(survjax.concordance_index)
 
 def evaluate(
     log_shape: ArrayLike, log_scale: ArrayLike, data: survjax.SurvivalData
-) -> dict[str, float | int]:
-    """Evaluate held-out likelihood, shape and warmed Harrell's C."""
+) -> dict[str, float]:
+    """Return held-out mean log likelihood, shape k and Harrell's C.
+
+    log_scale is a scalar or one value per row of data; with a shared shape,
+    -log_scale is a valid risk score for Harrell's C (use-case 03).
+    """
     log_k = jnp.asarray(log_shape, dtype=jnp.float32)
     log_b = jnp.broadcast_to(jnp.asarray(log_scale, dtype=jnp.float32), data.shape)
     dist = survjax.Weibull.from_log(log_shape=log_k, log_scale=log_b)
-    scores = (-log_b).block_until_ready()
-    float(_concordance(scores, data))
-    start = perf_counter()
-    concordance = float(_concordance(scores, data))
-    seconds = perf_counter() - start
     return {
-        "n": len(data),
         "mean_log_likelihood": float(dist.log_likelihood(data).mean()),
         "shape": float(jnp.exp(log_k)),
-        "concordance": concordance,
-        "concordance_seconds": seconds,
+        "concordance": float(_concordance(-log_b, data)),
     }

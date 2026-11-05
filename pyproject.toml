@@ -51,6 +51,14 @@ extend-exclude = ["spec"]
 select = ["E", "W", "F", "I", "B", "C4", "UP"]
 ignore = ["E501"]
 
+# The tutorial notebook keeps its reader-facing layout: its setup cell makes the
+# example package importable before importing it, and its lines are not rewrapped.
+[tool.ruff.lint.per-file-ignores]
+"examples/survival_mnist/survival-mnist.ipynb" = ["E402"]
+
+[tool.ruff.format]
+exclude = ["examples/survival_mnist/survival-mnist.ipynb"]
+
 [tool.mypy]
 files = ["src"]
 check_untyped_defs = true

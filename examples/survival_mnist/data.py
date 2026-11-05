@@ -13,6 +13,13 @@ from jax.typing import ArrayLike
 
 from examples.weibull_simulation.study import GeneratedData, generate_weibull
 
+# Generating rule: shared Weibull shape, digit-dependent log scale, Uniform censoring.
+TRUE_SHAPE = jnp.float32(1.38)
+TRUE_LOG_SCALES = jnp.log(jnp.float32(10)) - jnp.float32(0.2) * jnp.arange(10)
+CENSOR_LIMIT = 7.0
+# Use-case 03 key; splits, outcomes, initialization and shuffling fold in from it.
+UC_KEY = jax.random.fold_in(jax.random.key(20261025), 3)
+
 MIRROR = "https://ossci-datasets.s3.amazonaws.com/mnist/"
 RESOURCES = {
     "train-images-idx3-ubyte.gz": "440fcabf73cc546fa21475e81ea370265605f56be210a4024d2ca8f203523609",
@@ -62,9 +69,8 @@ def load_mnist(cache: Path | None = None) -> tuple[np.ndarray, np.ndarray]:
 
 def split_indices(config: str = "full") -> dict[str, np.ndarray]:
     """Return global indices for fixed train/validation/test cohorts."""
-    uc = jax.random.fold_in(jax.random.key(20261025), 3)
     permutation = np.asarray(
-        jax.random.permutation(jax.random.fold_in(uc, 1), 60000), dtype=np.int64
+        jax.random.permutation(jax.random.fold_in(UC_KEY, 1), 60000), dtype=np.int64
     )
     cohorts = {
         "train": permutation[10000:],
@@ -81,15 +87,9 @@ def split_indices(config: str = "full") -> dict[str, np.ndarray]:
     return cohorts
 
 
-TRUE_SHAPE = jnp.float32(1.38)
-TRUE_LOG_SCALES = jnp.log(jnp.float32(10)) - jnp.float32(0.2) * jnp.arange(10)
-CENSOR_LIMIT = 7.0
-
-
 def generate_outcomes(labels: ArrayLike) -> GeneratedData:
     """Generate outcomes once for all 70k images in official order."""
-    uc = jax.random.fold_in(jax.random.key(20261025), 3)
-    outcome_key = jax.random.fold_in(uc, 0)
+    outcome_key = jax.random.fold_in(UC_KEY, 0)
     keys = jax.vmap(lambda index: jax.random.fold_in(outcome_key, index))(
         jnp.arange(70000)
     )
