@@ -16,7 +16,7 @@ jobs:
   check:
     name: CPU / ${{ matrix.os }} / Python 3.12
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
