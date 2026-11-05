@@ -1,6 +1,28 @@
-Independent review: round 1/3
+Independent review: round 1/3 requested; no written round (reviewer quota)
 
 # SIM.8c.1 — Full-run provenance and reducer placement
+
+## Review availability (2026-11-05)
+
+Committed implementation/artifacts: 494abca2c1cd3473e6dc074c1effe7a657d17543.
+The exact independent-review command for SIM.8c.1 was invoked twice, the
+second being the skill's single permitted retry after no new round. Both
+exited 1: "You've hit your 5-hour limit · resets 2:40am (Europe/Amsterdam)".
+No SIM.8c.1 review file/round was written; there is no verdict to claim.
+SIM.8b remains merge at 61c5cc6 after two completed written review rounds.
+The maintainer has been asked whether to defer reviews and finish the
+remaining compact artifacts/figures. No dependent implementation proceeds
+before that waiver or restored review availability. This paragraph is status
+bookkeeping, not an implementation change or a review finding.
+
+Prepared outside Git: all compact files (23,634 bytes including manifest)
+from clean reducer 494abca, reducer_dirty=false. Figure source prototype
+/private/tmp/sim_figure_fragment.py and inspected SVG/PNG previews at
+/private/tmp/survjax-sim-figures-preview. No bulk raw data is staged/tracked.
+Data inputs remain /private/tmp/survjax-sim-full-a3792a7. The full compact
+bundle draft and future committed-evidence check are prepared externally;
+only metadata/performance are committed so far.
+
 
 Read PLAN.md SIM.8c.1 and approved D-035, then results/metadata.json and
 performance.csv, then the reducer rename/import changes and boundary test.

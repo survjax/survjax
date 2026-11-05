@@ -1,3 +1,10 @@
+Review availability note (SIM.8c.1, 2026-11-05): both exact Claude attempts
+for 494abca returned the five-hour quota limit, reset 02:40 Europe/Amsterdam.
+No written review. Skill's one retry is spent. Await maintainer waiver to
+finish compact artifacts/figures with review deferred, or reviewer availability.
+Preserve every unfinished section below. Last reviewed final is SIM.8b
+61c5cc62a7f890175b40aa6a1333566800d2e809 (round 2 merge).
+
 # SIM.8c.1 — Full-run provenance and reducer placement (2026-11-05)
 
 Previous final: 61c5cc62a7f890175b40aa6a1333566800d2e809, SIM.8b round 2
