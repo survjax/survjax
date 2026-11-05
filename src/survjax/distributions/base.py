@@ -161,6 +161,12 @@ class SurvivalDistribution:
     hazard_grid = _grid_methods.hazard_grid
     parameter_issues = _parameter_issues.parameter_issues
 
+    def _ph_equivalent(
+        self, eta: jax.Array, invalid: jax.Array
+    ) -> "SurvivalDistribution | None":
+        """Internal summary closure; invalid has the evaluated broadcast shape."""
+        return None
+
     def rmst(self, tau: ArrayLike) -> jax.Array:
         """Return the restricted mean event time, integral of S(t) to tau.
 
