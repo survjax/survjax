@@ -177,7 +177,10 @@ def test_compact_evidence_preserves_all_failures_histogram_and_shared_replicate(
     assert not (out / "replicates.csv").exists()
 
 
-@pytest.mark.parametrize("corruption", ["duplicate", "missing", "reason", "accepted"])
+@pytest.mark.parametrize(
+    "corruption",
+    ["duplicate", "missing", "reason", "accepted", "swap_accepted", "move_reasons"],
+)
 def test_inconsistent_raw_evidence_is_rejected_before_output(tmp_path, corruption):
     """D-035: compact artifacts cannot certify incomplete/inconsistent raw records."""
     from examples.weibull_simulation._plots import _csv, write_evidence
@@ -189,6 +192,13 @@ def test_inconsistent_raw_evidence_is_rejected_before_output(tmp_path, corruptio
         raw.pop()
     elif corruption == "reason":
         raw[1]["gradient"] = 0
+    elif corruption == "swap_accepted":
+        # Preserve every group total: one row is in both sets and one in neither.
+        raw[0]["accepted"], raw[1]["accepted"] = "0", "1"
+    elif corruption == "move_reasons":
+        # Preserve reason totals but put them on a row whose failed flag is zero.
+        raw[0].update(solver="1", gradient="1")
+        raw[1].update(solver="0", gradient="0")
     else:
         raw[0]["accepted"] = 0
     (tmp_path / "replicates.csv").write_text(_csv(raw, list(raw[0])))
@@ -214,3 +224,16 @@ def test_no_accepted_estimates_produces_empty_histogram_and_illustration(tmp_pat
     assert all(s["accepted"] == sum(s["counts"]) == 0 for s in histogram["series"])
     assert _read_csv(tmp_path / "illustration.csv") == []
     assert len(_read_csv(tmp_path / "failures.csv")) == 6
+
+
+def test_histogram_lattice_rounding_never_excludes_a_minimum(tmp_path):
+    """17*.025 rounds above .425; move only the display edge outward."""
+    from examples.weibull_simulation._plots import _csv, write_evidence
+
+    raw, _ = _compact_fixture(tmp_path)
+    raw[0]["log_hr"] = np.log(0.425)
+    (tmp_path / "replicates.csv").write_text(_csv(raw, list(raw[0])))
+    write_evidence(tmp_path, tmp_path)
+    histogram = json.loads((tmp_path / "sampling_histograms.json").read_text())
+    assert histogram["edges"][0] <= np.exp(float(raw[0]["log_hr"]))
+    assert all(sum(s["counts"]) == 2 for s in histogram["series"])

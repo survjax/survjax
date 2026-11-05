@@ -5,9 +5,15 @@ import csv
 import hashlib
 import io
 import json
+import subprocess
 from pathlib import Path
 
 import numpy as np
+
+_ILLUSTRATION_FIELDS = (
+    "scenario model replicate parameter_count theta_0 theta_1 theta_2".split()
+)
+_FAILURE_FIELDS = "scenario model replicate failed solver nonfinite gradient hessian unestimable max_abs_gradient log_hr".split()
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:
@@ -32,6 +38,7 @@ def write_evidence(source: Path, out: Path) -> None:
     Raises:
         ValueError: Missing/duplicate IDs, inconsistent counts/flags or invalid HRs.
         OSError: Input/output failure. No simulation or fitting occurs here.
+        subprocess.CalledProcessError: Reducer Git provenance cannot be read.
     """
     summaries = _read_csv(source / "performance.csv")
     raw = _read_csv(source / "replicates.csv")
@@ -98,6 +105,11 @@ def write_evidence(source: Path, out: Path) -> None:
     hi = (
         max(lo + 0.025, np.ceil(pooled.max() / 0.025) * 0.025) if pooled.size else 0.025
     )
+    # Binary multiplication can round a lattice edge inward by an ulp.
+    if pooled.size and lo > pooled.min():
+        lo -= 0.025
+    if pooled.size and hi < pooled.max():
+        hi += 0.025
     edges = np.linspace(lo, hi, round((hi - lo) / 0.025) + 1)
     for summary, hr in zip(summaries, accepted_hr, strict=True):
         counts, _ = np.histogram(hr, bins=edges)
@@ -125,22 +137,17 @@ def write_evidence(source: Path, out: Path) -> None:
             *({int(r["replicate"]) for r in c if r["accepted"] == "1"} for c in cohorts)
         )
         if common:
-            fields = "scenario model replicate parameter_count theta_0 theta_1 theta_2".split()
             illustration = [
-                {name: row[name] for name in fields}
+                {name: row[name] for name in _ILLUSTRATION_FIELDS}
                 for c in cohorts
                 for row in c
                 if int(row["replicate"]) == min(common)
             ]
-    fields = "scenario model replicate failed solver nonfinite gradient hessian unestimable max_abs_gradient log_hr".split()
     payloads = {
         "performance.csv": (source / "performance.csv").read_bytes(),
         "metadata.json": (source / "metadata.json").read_bytes(),
-        "failures.csv": _csv(failures, fields).encode(),
-        "illustration.csv": _csv(
-            illustration,
-            "scenario model replicate parameter_count theta_0 theta_1 theta_2".split(),
-        ).encode(),
+        "failures.csv": _csv(failures, _FAILURE_FIELDS).encode(),
+        "illustration.csv": _csv(illustration, _ILLUSTRATION_FIELDS).encode(),
         "sampling_histograms.json": (
             json.dumps(
                 {
@@ -155,6 +162,11 @@ def write_evidence(source: Path, out: Path) -> None:
     }
     manifest = {
         "schema_version": 1,
+        "reducer_commit": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=Path(__file__).resolve().parents[2],
+            text=True,
+        ).strip(),
         "reducer_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "source_sha256": {
             name: hashlib.sha256((source / name).read_bytes()).hexdigest()

@@ -1,6 +1,31 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # SIM.8b — Compact, reproducible full-study evidence writer
+
+## Round 1 findings and fix-up
+
+F-1 fixed: count-preserving acceptance swaps and moved reasons test the
+per-row exclusivity/OR checks, independently of aggregate count validation.
+F-2 fixed: the real direct-script smoke now asserts compact files exist,
+binds the manifest to its actual raw CSV hash and checks any illustration
+rows are accepted scenario-1 fits. No extra fit/subprocess.
+N-1 fixed: move a rounded-inward display edge outward one bin, with the
+.425 lattice counterexample. Estimates/probabilities remain unchanged.
+N-2 addressed trivially: hoist both CSV schemas and remove duplication.
+N-3 fixed: record reducer_commit alongside reducer_sha256; later figure
+code can change the file while the exact historical source stays locatable.
+
+Round 2 validation: focused export/CLI/metadata 20 passed in 9.21 s;
+Ruff format/check and mypy src pass. Full reduction rerun exits 0; all five
+compact payloads still match the measured proposal byte for byte. Only
+manifest reducer identity changes. No repeat of the passed cumulative wheel
+gate: no core, numerical-fit, dependency or runner-numerical changes.
+Reviewer round-1 raw gate had 5 SURVJAX_WHEEL setup errors (2328 passed),
+so stopped before x32 acceptance; our wheel-supplying gate below passed both.
+The reviewer independently recounted all 12,000 raw records and confirmed
+the exact 127 failures, 11,873 histogram totals and illustration parameters.
+
+## Initial step context
 
 Read in order:
 1. PLAN.md SIM.8b, D-035 maintainer decision, use-case main/details outputs.

@@ -1,6 +1,8 @@
 """JAX_ENABLE_X64=1 uv run --locked --group examples pytest -q -s <this file>."""
 
 import csv
+import hashlib
+import json
 import os
 import subprocess
 import sys
@@ -293,4 +295,29 @@ def test_direct_script_smoke_writes_four_complete_summary_rows(tmp_path):
         ) in "accepted failed solver nonfinite gradient hessian unestimable".split():
             assert sum(int(r[name]) for r in cohort) == int(row[name])
 
+    # Inspect emitted files only; no extra smoke fit/subprocess is needed.
+    for name in (
+        "evidence.json",
+        "failures.csv",
+        "sampling_histograms.json",
+        "illustration.csv",
+    ):
+        assert (tmp_path / name).is_file()
+    manifest = json.loads((tmp_path / "evidence.json").read_text())
+    assert (
+        manifest["source_sha256"]["replicates.csv"]
+        == hashlib.sha256((tmp_path / "replicates.csv").read_bytes()).hexdigest()
+    )
+    with (tmp_path / "illustration.csv").open(newline="") as handle:
+        illustration = list(csv.DictReader(handle))
+    assert not illustration or all(
+        r["scenario"] == "1"
+        and any(
+            (r["scenario"], r["model"], r["replicate"])
+            == (fit["scenario"], fit["model"], fit["replicate"])
+            and fit["accepted"] == "1"
+            for fit in raw
+        )
+        for r in illustration
+    )
     assert_smoke_metadata(tmp_path, rows)
