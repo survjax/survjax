@@ -9,6 +9,15 @@ from jax.typing import ArrayLike
 
 import survjax
 
+# Fixed use-case settings shared by execution and provenance (not library API).
+DGP_SHAPE: float = 1.38
+DGP_SCALE: float = 11.42
+BFGS_RTOL: float = 1e-8
+BFGS_ATOL: float = 1e-8
+BFGS_MAX_STEPS: int = 1000
+BFGS_THROW: bool = False
+GRADIENT_TOLERANCE: float = 1e-5
+
 
 class GeneratedData(NamedTuple):
     """Observed time/event and latent event/censor times, all of equal shape."""
@@ -178,7 +187,10 @@ def _assess_fit(
     hessian_ok = finite_hessian & jnp.all(jnp.isfinite(chol))
     finite = jnp.all(jnp.isfinite(theta)) & jnp.isfinite(value)
     accepted = (
-        solver_success & finite & (jnp.max(jnp.abs(gradient)) < 1e-5) & hessian_ok
+        solver_success
+        & finite
+        & (jnp.max(jnp.abs(gradient)) < GRADIENT_TOLERANCE)
+        & hessian_ok
     )
     # 01-details: [H^-1]_gamma,gamma = ||L^-1 e_gamma||^2 for H=L L^T.
     safe_chol = jnp.where(hessian_ok, chol, identity)
@@ -274,10 +286,10 @@ def fit_replicate(
 
         solution = optx.minimise(
             objective,
-            optx.BFGS(rtol=1e-8, atol=1e-8),
+            optx.BFGS(rtol=BFGS_RTOL, atol=BFGS_ATOL),
             start,
-            max_steps=1000,
-            throw=False,
+            max_steps=BFGS_MAX_STEPS,
+            throw=BFGS_THROW,
         )
         theta = solution.value
         value, gradient = jax.value_and_grad(objective)(theta)

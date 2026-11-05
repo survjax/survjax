@@ -16,6 +16,11 @@ from typing import TYPE_CHECKING
 import jax
 import numpy as np
 
+if __package__:
+    from . import study
+else:
+    import study
+
 if TYPE_CHECKING:
     from .run import ScenarioRun
 
@@ -146,16 +151,19 @@ _CPUINFO = Path("/proc/cpuinfo")
 
 def _cpu_model() -> str | None:
     """Inspect host CPU identity once; None means unavailable."""
-    if platform.system() == "Darwin":
-        command = ["sysctl", "-n", "machdep.cpu.brand_string"]
-        return subprocess.check_output(command, text=True).strip() or None
-    if _CPUINFO.exists():
-        # Host metadata probing precedes simulation; this is not a numerical loop.
-        for line in _CPUINFO.read_text().splitlines():
-            key, _, value = line.partition(":")
-            if key.strip() in ("model name", "Model"):
-                return value.strip() or None
-    return platform.processor() or None
+    try:
+        if platform.system() == "Darwin":
+            command = ["sysctl", "-n", "machdep.cpu.brand_string"]
+            return subprocess.check_output(command, text=True).strip() or None
+        if _CPUINFO.exists():
+            # Host metadata probing precedes simulation; this is not a numerical loop.
+            for line in _CPUINFO.read_text().splitlines():
+                key, _, value = line.partition(":")
+                if key.strip() in ("model name", "Model"):
+                    return value.strip() or None
+        return platform.processor() or None
+    except (OSError, subprocess.CalledProcessError):
+        return None
 
 
 def capture_metadata(config: str, root_seed: int, log_hr: float) -> dict[str, object]:
@@ -213,8 +221,8 @@ def capture_metadata(config: str, root_seed: int, log_hr: float) -> dict[str, ob
             "scheme": "key(root) -> fold_in(scenario_index) -> split(R) -> split(U,C)",
         },
         "dgp": {
-            "shape": 1.38,
-            "baseline_scale": 11.42,
+            "shape": study.DGP_SHAPE,
+            "baseline_scale": study.DGP_SCALE,
             "log_hr": log_hr,
             "allocation": "fixed n/2 per arm",
             "censoring": "independent Uniform(0,c)",
@@ -225,12 +233,13 @@ def capture_metadata(config: str, root_seed: int, log_hr: float) -> dict[str, ob
         },
         "fitting": {
             "solver": "optimistix.BFGS",
-            "rtol": 1e-8,
-            "atol": 1e-8,
-            "max_steps": 1000,
-            "throw": False,
+            "rtol": study.BFGS_RTOL,
+            "atol": study.BFGS_ATOL,
+            "max_steps": study.BFGS_MAX_STEPS,
+            "throw": study.BFGS_THROW,
             "starts": "Weibull (0,log(mean(Y)),0); Exponential (-log(mean(Y)),0)",
-            "acceptance": "solver success; finite theta/objective; max|gradient|<1e-5; finite positive-definite Hessian via Cholesky",
+            "gradient_tolerance": study.GRADIENT_TOLERANCE,
+            "acceptance": "solver success; finite theta/objective; strict max|gradient|<gradient_tolerance; finite positive-definite Hessian via Cholesky",
             "unestimable": "at least one arm has no observed event",
             "inference": "inverse exact Hessian; HR interval exp(log_hr +/-1.96 SE)",
         },

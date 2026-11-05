@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # SIM.7b.2 — Runtime provenance and metadata.json
 
@@ -124,3 +124,29 @@ Matplotlib3.11.2, survjax0.0.1.dev0. Versions unchanged, no lockfile edits.
 Full six-scenario evidence/results and figures, then executable docs. Current
 metadata proves run completion/provenance facts, not release coverage or
 figure acceptance. No merge/rebase/push/publication. Stop after this review.
+
+## Round 1 response
+
+F-1: share fixed DGP/BFGS/gradient constants in existing study.py, consumed
+by generation, calibration, fitting, failure masks and metadata. Values and
+all function signatures stay unchanged; no library API/configuration layer.
+Add an actual-fit spy comparing options passed to Optimistix with metadata,
+plus independent use-case assertions. This must catch a call-site override
+as well as a changed setting; metadata must not merely assert its own literals.
+N-2: CPU model query failures now return explicit None on every platform;
+Git/package inspection remains required. No fallback CPU model is invented.
+N-1: helper split is deferred; no new module is introduced in the fix-up.
+Final full optional suite: 54 passed in 55.79s, smoke 7.24s, using the same
+host-access command as the baseline. Additional solver-type and half-threshold
+assertions: metadata file 5 passed in 2.87s. The real jitted-fit spy observes
+BFGS type/rtol/atol/max_steps/throw and compares both metadata and independent
+use-case literals; a direct call at half the metadata gradient threshold is
+accepted. New denied-CPU cases exercise actual macOS nonzero-process and
+Linux read-permission errors. Generator suites: 17 passed in 3.50s per mode.
+Ruff format/lint, mypy (22 source files), lock (171 packages) and whitespace
+checks clean. No core/packaging changes; the unchanged core gate was not
+repeated for same-value demo constant substitution. Prior round's raw gate
+limits remain separate from the successful fresh-wheel wrapper.
+Reviewer raw gate: ordinary suites/doctests passed, x64 spec 2328 passed /
+5 missing-SURVJAX_WHEEL setup errors; x32 spec not run. Its /tmp mutation
+worktree cleanup remains reviewer/maintainer-owned.

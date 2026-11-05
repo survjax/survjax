@@ -13,9 +13,11 @@ from jax.typing import ArrayLike
 import survjax
 
 if __package__:
+    from . import study
     from ._results import capture_metadata, write_metadata, write_results
     from .study import FitResult, calibrate_censoring, fit_replicate, generate_weibull
 else:
+    import study
     from _results import capture_metadata, write_metadata, write_results
     from study import FitResult, calibrate_censoring, fit_replicate, generate_weibull
 
@@ -59,7 +61,9 @@ def prepare_scenario(
         key = jax.random.fold_in(jax.random.key(ROOT_SEED), index)
         keys = jax.random.split(key, replicates)
         return jax.vmap(
-            lambda k: generate_weibull(k, 1.38, 11.42, limit, log_hazard_ratio=lp)
+            lambda k: generate_weibull(
+                k, study.DGP_SHAPE, study.DGP_SCALE, limit, log_hazard_ratio=lp
+            )
         )(keys)
 
     draws = jax.vmap(generate)(jnp.atleast_1d(indices), jnp.atleast_1d(limits))
@@ -100,7 +104,7 @@ def failure_columns(fits: FitResult) -> dict[str, jax.Array]:
     """
     eligible = fits.estimable
     finite = jnp.all(jnp.isfinite(fits.theta), axis=-1) & jnp.isfinite(fits.objective)
-    score_ok = jnp.max(jnp.abs(fits.gradient), axis=-1) < 1e-5
+    score_ok = jnp.max(jnp.abs(fits.gradient), axis=-1) < study.GRADIENT_TOLERANCE
     return {
         "failed": ~fits.accepted,
         "solver": eligible & ~fits.solver_success,
@@ -268,7 +272,10 @@ def run_config(config: Literal["smoke", "full"], out: Path) -> None:
     # Host-only root finding runs once per target before compiled generation/fitting.
     limits = {
         target: calibrate_censoring(
-            1.38, 11.42, target, log_hazard_ratio=np.array([0.0, TRUE_LOG_HR])
+            study.DGP_SHAPE,
+            study.DGP_SCALE,
+            target,
+            log_hazard_ratio=np.array([0.0, TRUE_LOG_HR]),
         )
         for target in (0.25, 0.55)
     }

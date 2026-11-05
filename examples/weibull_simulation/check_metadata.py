@@ -145,3 +145,63 @@ def assert_smoke_metadata(out: Path, rows: list[dict[str, str]]) -> None:
                 ["sysctl", "-n", "machdep.cpu.brand_string"], text=True
             ).strip()
         )
+
+
+@pytest.mark.parametrize("system", ["Darwin", "Linux"])
+def test_denied_cpu_queries_report_unavailable_consistently(monkeypatch, system):
+    """Host-query failures report null CPU identity, never an invented model."""
+
+    def denied(*args, **kwargs):
+        if system == "Darwin":
+            raise subprocess.CalledProcessError(1, ["sysctl"])
+        raise PermissionError("cpuinfo denied")
+
+    monkeypatch.setattr(output.platform, "system", lambda: system)
+    monkeypatch.setattr(output.subprocess, "check_output", denied)
+    monkeypatch.setattr(
+        output, "_CPUINFO", SimpleNamespace(exists=lambda: True, read_text=denied)
+    )
+    assert output._cpu_model() is None
+
+
+def test_metadata_solver_settings_match_the_actual_fitter_call(monkeypatch):
+    """01 solver/provenance: catch a call-site override or shared-setting drift."""
+    import optimistix as optx
+
+    import survjax
+    from examples.weibull_simulation import study
+
+    settings = output.capture_metadata("smoke", 20261025, float(np.log(0.7)))["fitting"]
+    original, seen = optx.minimise, []
+
+    def spy(objective, solver, start, **kwargs):
+        assert type(solver).__name__ == settings["solver"].split(".")[-1]
+        seen.append((solver.rtol, solver.atol, kwargs["max_steps"], kwargs["throw"]))
+        return original(objective, solver, start, **kwargs)
+
+    monkeypatch.setattr(optx, "minimise", spy)
+    data = survjax.SurvivalData(
+        np.array([1.0, 2.0, 3.0, 2.0, 4.0, 6.0]),
+        event=np.array([1, 0, 1, 1, 1, 0], dtype=bool),
+    )
+    data.issues.raise_if_invalid()
+    fit = jax.jit(
+        lambda d: study.fit_replicate(
+            d, np.array([0, 0, 0, 1, 1, 1]), model="exponential"
+        )
+    )(data)
+    assert fit.accepted
+    assert seen == [
+        (settings["rtol"], settings["atol"], settings["max_steps"], settings["throw"])
+    ]
+    assert seen == [(1e-8, 1e-8, 1000, False)]
+    assert settings["gradient_tolerance"] == 1e-5
+    score = jax.numpy.array([settings["gradient_tolerance"] / 2, 0.0])
+    assessed = study._assess_fit(
+        jax.numpy.zeros(2),
+        jax.numpy.array(1.0),
+        score,
+        jax.numpy.eye(2),
+        jax.numpy.array(True),
+    )
+    assert assessed.accepted

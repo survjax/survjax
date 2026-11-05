@@ -61,6 +61,13 @@ by rerunning with host access, not by weakening CPU provenance. Fresh-wheel
 through-A10 exit 0: own 1282/1287 passed (8/3 skips), doctests 4 per mode,
 independent 2333/2324 passed (27/36 skips). Exact commands/times in REVIEW.md.
 Commit and exact independent review next, then stop after this step.
+Round 1 fix-up: F-1 shares fixed study settings across actual execution and
+metadata, with a real Optimistix call spy to detect drift. N-2 makes denied
+CPU-model probes consistently report null. Values/algorithms stay unchanged;
+no new module or configuration abstraction. Full optional checks 54 passed
+(55.79s), final metadata checks 5 passed (2.87s); generator 17 per dtype
+(3.50s each). Static checks clean. Record exact evidence in REVIEW.md, commit
+and request round 2; no new implementation step before that verdict.
 Remaining: full six-scenario evidence/results and figures, executable docs.
 Docs to-do: provenance fields, actual Python argv vs outer invocation,
 unset thread settings/effective count, shared group timings and CSV schema.
