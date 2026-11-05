@@ -55,4 +55,7 @@ files = ["src"]
 check_untyped_defs = true
 
 [tool.pytest.ini_options]
-markers = ["gpu: test applies to an optional JAX GPU backend verification run"]
+markers = [
+    "gpu: test applies to an optional JAX GPU backend verification run",
+    "slow: listed in tests/slow_tests.txt; skipped by the fast gate (-m 'not slow')",
+]

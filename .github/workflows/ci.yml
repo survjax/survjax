@@ -1,9 +1,19 @@
 name: CPU CI
 
+# Tier 2 (every push to main, every PR): Linux and macOS, the full suite, one
+# job per dtype mode. Tier 3 (weekly, or manual with full_matrix): Windows too.
 on:
   push:
+    branches: [main]
   pull_request:
+  schedule:
+    - cron: "17 3 * * 1"
   workflow_dispatch:
+    inputs:
+      full_matrix:
+        description: "Include Windows (tier 3)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -14,19 +24,22 @@ concurrency:
 
 jobs:
   check:
-    name: CPU / ${{ matrix.os }} / Python 3.12
+    name: CPU / ${{ matrix.os }} / x64=${{ matrix.x64 }} / Python 3.12
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-15, windows-2022]
+        os: ${{ fromJSON((github.event_name == 'schedule' || inputs.full_matrix) && '["ubuntu-24.04","macos-15","windows-2022"]' || '["ubuntu-24.04","macos-15"]') }}
+        x64: ["1", "0"]
     defaults:
       run:
         shell: bash
     env:
       JAX_PLATFORMS: cpu
       PYTEST_WORKERS: "2"
+      SURVJAX_X64_MODES: ${{ matrix.x64 }}
+      SURVJAX_JAX_CACHE: ${{ github.workspace }}/.jax-cache
       UV_LOCKED: "true"
     steps:
       - name: Keep shell scripts in LF format on checkout
@@ -81,7 +94,14 @@ jobs:
           print(jax.devices())
           assert all(device.platform == "cpu" for device in jax.devices())
           PY
-      - name: Run all gates through A10 in both dtype modes
+      - name: Restore the JAX compilation cache
+        uses: actions/cache@v4
+        with:
+          path: .jax-cache
+          key: jax-${{ runner.os }}-x64${{ matrix.x64 }}-${{ hashFiles('uv.lock') }}-${{ github.run_id }}
+          restore-keys: |
+            jax-${{ runner.os }}-x64${{ matrix.x64 }}-${{ hashFiles('uv.lock') }}-
+      - name: Run all gates through A10 in this dtype mode
         env:
           UV_OFFLINE: "1"
           UV_PYTHON_DOWNLOADS: never

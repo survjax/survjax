@@ -19,12 +19,32 @@ def x64_enabled() -> bool:
     return os.environ["JAX_ENABLE_X64"] == "1"
 
 
+_SLOW_TESTS = Path(__file__).parent / "slow_tests.txt"
+
+
+def _slow_test_ids() -> frozenset[str]:
+    if not _SLOW_TESTS.is_file():
+        return frozenset()
+    lines = (line.strip() for line in _SLOW_TESTS.read_text().splitlines())
+    return frozenset(line for line in lines if line and not line.startswith("#"))
+
+
 def pytest_collection_modifyitems(items):
-    """Mark all project tests except isolated wheel-install tests for GPU CI."""
+    """Mark tests for GPU CI and mark the listed slow tests.
+
+    All project tests except isolated wheel-install tests get ``gpu``. Tests
+    whose node ID is in ``tests/slow_tests.txt`` get ``slow``, so the fast
+    gate can run ``-m "not slow"``; regenerate that list with
+    ``scripts/update_slow_tests.sh``.
+    """
     gpu_marker = pytest.mark.gpu
+    slow_marker = pytest.mark.slow
+    slow_ids = _slow_test_ids()
     for item in items:
         if "install" not in item.path.parts:
             item.add_marker(gpu_marker)
+        if item.nodeid in slow_ids:
+            item.add_marker(slow_marker)
 
 
 _R_FIXTURES = Path(__file__).parent / "fixtures"
