@@ -80,7 +80,15 @@ def test_configuration_grid_calibration_and_csv_fields(config, tmp_path, monkeyp
         record = SimpleNamespace(
             fits=fits,
             failure_masks={
-                name: flags for name in counts if name not in ("attempted", "accepted")
+                name: np.broadcast_to(
+                    np.isin(
+                        np.arange(r),
+                        [3] if name == "unestimable" else np.arange(counts[name]),
+                    ),
+                    (2, r),
+                )
+                for name in counts
+                if name not in ("attempted", "accepted")
             },
             failures={name: np.full(2, value) for name, value in counts.items()},
             performance={name: np.full(2, value) for name, value in metrics.items()},

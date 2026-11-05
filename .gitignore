@@ -12,3 +12,6 @@ dist/
 docs/_build/
 docs/.jupyter_cache/
 docs/.ipynb_checkpoints/
+
+# Full simulation diagnostics are local; compact audited evidence is committed.
+/examples/weibull_simulation/results/replicates.csv

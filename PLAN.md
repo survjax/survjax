@@ -1,3 +1,153 @@
+# SIM.8b — Approved compact evidence writer (2026-11-05)
+
+Previous final / code start: a3792a7703ed539db777472d876bd00ac2d1568e.
+Integration base d2469e0a7e719dbcb276277e6fd80a447626ad4e; original base
+8757c0fda78e34e6e818249adedd2a144a33c33d. Branch release-simulation.
+Maintainer: "approved; do it and implement the next step" approves D-035's
+22 KiB compact evidence contract and the following figure step. Preserve all
+unfinished plan history below. Each small implementation/artifact split gets
+its own commit and independent review; continuation to figures is authorized.
+
+First code step (<=300 implementation/check lines):
+- Approved _plots.py helper: host-only write_evidence(source,out), CLI
+  --results DIR --out DIR. Read existing CSV/metadata; validate unique complete
+  IDs and count/reason correspondence. Keep original performance/provenance,
+  every rejected ID and separate reasons/max gradient/log HR, exact common
+  .025 HR-bin counts including every accepted estimate, and first mutually
+  accepted illustration replicate at n=300/55% (n=100/55% in smoke).
+  Manifest binds source raw checksums, reducer source identity, output hashes,
+  histogram convention and the accepted-ID complement convention. No refitting.
+- run.py invokes reduction after complete raw export/metadata so the approved
+  --config/--out entry point produces compact evidence too. Raw CSV stays local.
+- .gitignore excludes only this demo's results/replicates.csv, including explicit
+  staging checks before any artifact commit. No blanket result exclusion.
+- check_results.py: hand-created raw records check exact counts, failures,
+  edge-bin inclusion, selection, source/output hashes and incomplete-input
+  refusal. Existing optional suite remains separate from normal core tests.
+- D-035: record maintainer approval; status stays open. No spec/core/API/
+  dependency/protected-script/docs changes. Existing generator contract unchanged.
+- Run optional checks in x64, Ruff/mypy and cumulative wheel gate. REVIEW.md
+  records full-run analytical audit and exact evidence/review commands.
+
+Next authorized step SIM.9: extend _plots.py with three SVG figures from
+compact inputs: public PH survival curves per arm, six HR sampling histograms,
+and coverage +/- one MCSE labelled explicitly. Host loops only construct plot
+panels/curves, never simulate or fit; vectorize prediction over time/arms.
+Check plotted values/labels against hand cases and inspect rendered full figures.
+Keep generated SVG small with text fonts and compact XML whitespace; no raw
+fit diagnostics embedded. Code and generated evidence split to normal budgets.
+
+Artifact splits: original metadata+performance (213 lines) separately from
+failure/plot-input/manifest files (about 180 lines), then figures. All derive
+from the already audited clean a3792a7 full run; no artificial rerun of timings.
+Docs to-do: executable smoke, labelled full table/figures, D-035 storage and
+regeneration instructions, shared timing scope and failure investigation.
+
+---
+
+# SIM.8a revised storage proposal — no bulk fit records in Git (2026-11-05)
+
+Maintainer rejected committing the 4.6 MiB replicates.csv because it would
+remain in Git history. This supersedes the generated-data exception request
+below; preserve that unfinished planning history verbatim. No raw fit records
+have been staged or committed. Source/previous final remains a3792a7 (full SHA
+below), integration base d2469e0, original base 8757c0f. Remain release-simulation.
+
+Concrete measured alternative, derived outside the repo from the audited run:
+/private/tmp/survjax-sim-evidence-proposal, 22,243 bytes total before figures.
+- performance.csv: 3,926 bytes, all 12 original summary rows.
+- metadata.json: 5,729 bytes, original source/seed/environment/settings/timings.
+- failures.csv: 9,257 bytes, all 127 rejected IDs; failed plus every separate
+  reason column, max-absolute gradient, fitted log HR. Other replicate IDs
+  in the complete six-scenario/R=1000 design are accepted by complement.
+- sampling_histograms.json: 3,132 bytes, 63 common HR bins of width .025,
+  exact integer counts for each scenario/model, spanning every accepted HR.
+  All per-model totals equal the corresponding accepted counts; total 11,873.
+  Preserve exact edges and binning convention so the figure is reproducible.
+- illustration.csv: 199 bytes, complete fitted parameters for both models,
+  scenario 3 / replicate 0, both accepted. Public predictions can draw curves.
+
+This is a small, purpose-specific committed evidence set, not a compressed
+version of all per-fit diagnostics. Full run.py outputs continue to retain
+all raw diagnostics locally; ignore the raw output path in Git when approved.
+Record source raw SHA-256 in a small evidence manifest so derivation can be
+checked against the original audited output. Regeneration follows the locked
+source/seed; cross-platform bitwise identity is not promised. No upload/LFS,
+new storage dependency, core API, protected path, or solver-policy change.
+
+D-035 records the proposed change to the use case's committed replicates
+requirement. Await the maintainer's storage-contract decision before changing
+export code or committing artifacts. The small evidence allows ordinary
+review budgets: provenance/summary and derived diagnostics/plot inputs can be
+separate <=300-line artifact steps; audit and plotting code remain separate
+small reviewed steps. No oversized data exception is requested anymore.
+Permanent check_full.py / _plots.py approvals from the earlier request remain
+pending; no new named module is created by this proposal. Figure and docs
+work remains after the reviewed evidence steps.
+
+---
+
+# SIM.8a — Full-study evidence and independent artifact audit (2026-11-05)
+
+Start / previous simulation final: a3792a7703ed539db777472d876bd00ac2d1568e
+(SIM.7b.2 round 2: merge). Maintainer merge base:
+d2469e0a7e719dbcb276277e6fd80a447626ad4e. Original worktree base:
+8757c0fda78e34e6e818249adedd2a144a33c33d.
+Maintainer says "ok get to it". Remain on release-simulation; no merge/push.
+Preserve all unfinished plan history. Existing modules are near their size
+limits; no new plotting module is created without its proposed approval.
+
+Authorized readiness run (no new source code): the reviewed CLI was run from
+clean committed a3792a7 into /private/tmp/survjax-sim-full-a3792a7 before this
+plan edit. Metadata confirms that exact source and dirty-at-start=false,
+CPU Apple M4 Max, x64, both levels together per n/model. Root key/starts/
+BFGS/acceptance unchanged. Data generation/fitting remained JAX batched.
+Full: n=100,300,1000; R=1000 per scenario/model; 12,000 raw fit records.
+
+Pre-code audit plan (about 300 handwritten changed lines including checks):
+- examples/weibull_simulation/check_full.py: standalone explicit optional
+  full-artifact audit, with --results DIR. Check 6 scenarios, 12 summaries,
+  12,000 unique records, exact metadata/settings/counts/timing correspondence.
+  Reconstruct independent uniform draws with the prescribed fold_in/split
+  keys and NumPy inverse-CDF algebra, not the demo generator. Recompute pooled
+  censoring and no-event estimability. Use analytical PH score/Hessian algebra
+  for both models to check raw gradients/Hessians; no temporary distribution
+  implementation or replacement fitter. Compare with existing x64 tolerances.
+  Check exact acceptance/reason policy from saved diagnostics, recompute all
+  accepted-fit measures/MCSEs using NumPy, and enforce the n=1000 Weibull
+  95% +/-3 observed MCSE gate. Check rejected inference stays NaN.
+  Explain host loops as independent CSV/reference validation, never fitting.
+- Investigate every rejected fit without changing thresholds or dropping rows:
+  gradient range, finite/SPD status, and Newton gamma correction H^-1 g;
+  Exponential closed-form log-rate/log-HR MLE gives an additional independent
+  diagnostic. These comparisons do not substitute fits or reclassify failure.
+- Small dedicated hand cases or existing analytical cases validate audit
+  math where useful; do not mirror the exporter or write toy timing tests.
+- Write REVIEW.md with exact output map, commands, checksums, coverage gate,
+  failure investigation, versions/CPU/censoring/shared timings and limitations.
+
+Artifact boundary: performance.csv is 13 lines, metadata.json is 200 lines,
+replicates.csv is 12,001 lines / about 4.6 MiB. Before committing generated
+artifacts, present the audited concrete results and request the working-
+agreement exception for a separate generated-data commit over 300 lines.
+Keep handwritten audit/plot code within normal review budgets. No artifact
+copy into this repo until that approval; no format/dependency workaround.
+
+Figure follow-up proposal: examples/weibull_simulation/_plots.py, demo-only
+Matplotlib writer for the three specified SVG figures (true/fitted curves
+n=300,target=.55, accepted-fit HR distributions, coverage with MCSE bars).
+Uses saved fit parameters/flags and public survjax predictions; no refitting.
+Request approval for this unnamed helper before creating it. It avoids
+adding plotting responsibilities to the already ~300-line numerical modules.
+Figures and executable docs are separate reviewable steps after audited data.
+
+Initial full results: both n=1000 Weibull levels are within 3 MCSE of .95;
+127 rejected fits across the study, all gradient-only. Investigate before
+claiming release evidence. No new dependency/API/protected path/docs edits.
+No R/accelerator/reference patient data or public sampling API.
+
+---
+
 # SIM.7b.2 — Runtime provenance and metadata.json (2026-11-05)
 
 Start / previous simulation final: f4cfbfcc498c727ca95258fc1638b88309992d22

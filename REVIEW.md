@@ -1,152 +1,116 @@
-Independent review: round 2/3
+Independent review: round 1/3
 
-# SIM.7b.2 — Runtime provenance and metadata.json
+# SIM.8b — Compact, reproducible full-study evidence writer
 
-Start/previous final: f4cfbfcc498c727ca95258fc1638b88309992d22.
-Merge base: d2469e0a7e719dbcb276277e6fd80a447626ad4e.
-Original worktree base: 8757c0fda78e34e6e818249adedd2a144a33c33d.
-User authorizes next provenance step; D-034 shared timings already approved.
-Read PLAN.md SIM.7b.2, the new functions in existing _results.py, run.py's two
-host calls, then check_metadata.py and actual CLI metadata checks.
-No new module/dependency/library API, numerical fitter/generator change,
-protected path, docs or spec edit. Preserve plan history.
+Read in order:
+1. PLAN.md SIM.8b, D-035 maintainer decision, use-case main/details outputs.
+2. examples/weibull_simulation/_plots.py write_evidence (new approved helper).
+3. run.py's post-export call, _results.py manifest invalidation, .gitignore.
+4. check_results.py hand CSV/negative checks and check_cli.py fake-count repair.
 
-Snapshot identity before simulation/CSV writes; runtime facts must not be
-invented. Thread environment null means unset, not a measured worker count.
-Actual Python process argv is sys.orig_argv, not a claimed uv shell wrapper.
-Final JSON adds exact scenario/censoring and grouped synchronized timing;
-allow_nan=False. Metadata writing happens only after both CSVs succeed.
-## Reading order / scope
+Previous step final / source base: a3792a7703ed539db777472d876bd00ac2d1568e.
+Maintainer integration: d2469e0a7e719dbcb276277e6fd80a447626ad4e.
+Original worktree: 8757c0fda78e34e6e818249adedd2a144a33c33d.
+The maintainer approved the compact replacement and explicitly requested the
+next figure step as well. Both code steps receive independent review; source
+and generated evidence are split to preserve normal review budgets. This
+commit has no generated data, fitting/core API/dependency/protected-file edits.
+Named _plots.py was proposed before approval; no additional unnamed helper.
 
-1. PLAN.md SIM.7b.2, use-case common/details metadata requirements and D-034's
-   already-approved grouped timing scope.
-2. _results.py: _cpu_model, capture_metadata, write_metadata and invalidation
-   of prior metadata immediately before CSV replacement.
-3. run.py: snapshot before calibration/fitting, final metadata after CSVs.
-4. check_metadata.py and check_cli.py real smoke/ordering assertions;
-   check_results.py stale-marker invalidation assertion.
+## Contract and invariants
 
-No numerical batching, fitter, acceptance, generator, core/API/dependency,
-protected path, docs or spec change. Existing helper only. Implementation /
-check diff is near the 300-line target (about 346 including field/fixture
-layout); helper 301 lines, runner 299, separate metadata checks 147 lines.
-Metadata was split from CSV export before code. Preserve plan history.
+D-035 overrides the use case's committed raw-replicate requirement. Full raw
+CSV remains local, and is ignored at the conventional results/replicates.csv
+path. Existing CLI now also derives compact outputs after raw CSV/metadata.
+Raw numerical generation/fitting/keys/acceptance remain unchanged and JAX
+batched; Python loops here only audit and serialize existing host records.
 
-## Invariants / requirement mapping
+Every group must have unique complete 0..attempted-1 IDs. Flags are binary,
+accepted complements failed, failed is the OR of separate reasons, and each
+accepted/failure count matches the performance table. Counts may overlap by
+reason; failed is never computed by summing reasons. Every rejected ID with
+all reason flags, max absolute gradient (including NaN if unavailable), and
+log HR is retained. Accepted IDs are their complement in the recorded design.
 
-- capture_metadata is called after config/x64/output-directory validation and
-  before calibration or fitting. Mocked grid wrapper asserts the directory
-  exists and neither calibration nor grouped runner has been called yet.
-  Source Git HEAD/dirty-at-start, lock SHA-256 and spec-seen are captured once,
-  before new CSV files can affect worktree state. Dirty-at-start includes all
-  pre-existing worktree changes, not a guarantee about code changes alone.
-- Invocation is the actual sys.orig_argv list and cwd with run_config as the
-  entry point. It includes Python flags/executable and does not claim to know
-  a parent shell's uv wrapper. Direct imported calls still record their
-  process context along with the requested configuration/output directory.
-- Runtime records actual Python and package versions (survjax/JAX/jaxlib/
-  NumPy/Optimistix/Matplotlib), OS/machine, CPU model/logical count, actual
-  backend/devices/x64 and PRNG implementation. Darwin CPU model is sysctl;
-  Linux-style proc text/fallback has a host fixture check. No cross-platform
-  runtime matrix is advertised; only the local macOS CPU environment ran.
-- Curated XLA/OMP/BLAS/TF/JAX thread variables are copied literally, with JSON
-  null for unset. The effective worker count is explicitly 'not measured';
-  logical CPU count is not reported as a measured worker-thread count.
-- Root key 20261025 and fold_in(index)->split(R)->split(U,C) are recorded,
-  with fixed DGP truth, equal arm allocation and independent Uniform censoring.
-  Exact parameter order, solver/starter/acceptance/no-event/inference policies
-  and CSV conventions describe the existing reviewed computation only.
-- Final JSON contains once-per-target calibrated limits and every group's
-  indices/n/R/C, target/limit/realized censoring, and timing per model. The
-  group times are shared C*R-fit measurements and throughput, per approved
-  D-034; synchronized first call may include compilation, warm is median(3).
-  All loops are host metadata/schema serialization with comments, not fitting.
-- write_metadata preserves the pre-run snapshot rather than mutating it;
-  JSON allow_nan=False rejects undefined metadata values. Payload is rendered
-  before writing. Old metadata is invalidated only when CSV replacement starts;
-  fitting/early validation failures preserve an existing complete result set,
-  while partial CSV/JSON failures cannot leave old provenance certifying new
-  files. Metadata is written only after write_results returns successfully.
-- No supplemental per-scenario fit/timing loop, cache clearing, new policy,
-  floors or numerical tolerance changes. No full R=1000 study run yet.
+Every accepted HR is positive/finite and included in common .025 bins.
+Outward histogram edges modify display bins only, not fitted estimates.
+Empty accepted sets get zero counts. One mutually accepted replicate is
+selected at n=300/.55 (n=100/.55 for smoke); if none, illustration.csv has a
+header only. Later plotting must handle that explicitly. Current full run
+selects scenario 3, replicate 0 for both models. Metadata/performance bytes
+are preserved; evidence.json binds all original raw/output hashes and the
+reducer source hash. It is written last and invalidated with raw CSV replacement;
+no stale manifest should certify a partial write. This is not a filesystem
+transaction against concurrent writers, which are outside this single-run CLI.
 
-## Meaningful checks
+## Checks and evidence
 
-- CPU probe fixture: parse supplied Linux-style model name, then return None
-  when the probe and platform.processor are unavailable. This is fixture
-  coverage, not actual Linux runtime evidence.
-- Two host batches with different n/R/index ranges, reversed model timing
-  magnitudes and distinct censoring fractions round-trip exactly through JSON.
-  Check every scenario entry/model timing and preserve original source fields.
-  Inject NaN into a scenario's metadata and require strict JSON rejection.
-- Actual CLI smoke remains one subprocess and produces the two CSVs plus
-  metadata.json. Compare metadata c/realized censoring/timings with every
-  corresponding CSV row; require correct n/R/C, config, root seed, CPU backend,
-  x64, exact actual Python argv, Git HEAD, lock hash, spec-seen, DGP and BFGS
-  tolerances. Compare package versions and CPU brand to independent host
-  queries. Child OMP_NUM_THREADS='2' is recorded and deliberately unset
-  MKL_NUM_THREADS becomes null. Existing raw-flag/count and primitive-key
-  checks remain green; no second smoke invocation just for metadata.
-- Existing-file --out/config/x64 guards still reject before calibration;
-  snapshot wrapper checks pre-work ordering. The raw CSV fixture begins with
-  a stale metadata marker and verifies write_results removes it.
+Ruff format/check and mypy src passed (148 files; 22 source files).
+Optional focused command (CPU probing requires escalation in this sandbox):
 
-## Actual checks / environment investigation
+```bash
+JAX_ENABLE_X64=1 uv run --locked --group examples pytest -q examples/weibull_simulation/check_results.py examples/weibull_simulation/check_cli.py examples/weibull_simulation/check_metadata.py
+```
 
-Initial restricted optional run: 3 failed/5 passed in 2.47s, all from macOS
-sysctl CPU query denied by the sandbox, before calibration/fitting. Retried
-with host access as required; no CPU value was fabricated, probe skipped,
-error relabelled or numerical tolerance changed. Focused metadata/export/CLI
-retry: 8 passed in 8.15s, smoke 5.22s. A Ruff import-layout issue was fixed.
+16 passed in 11.89 s. Initial sandboxed invocation: 15 passed/1 failed because
+its existing CPU-identity expectation calls sysctl; the escalated rerun passed.
+Final check_results.py rerun after the stale-manifest/empty-accepted checks
+and fixture cleanup: 7 passed in 2.64 s. No tolerance was changed.
 
-Final full explicit optional command (host access required for sysctl):
-`uv run --locked --group examples env JAX_ENABLE_X64=1 pytest -q -s examples/weibull_simulation/check_metadata.py examples/weibull_simulation/check_results.py examples/weibull_simulation/check_cli.py examples/weibull_simulation/check_performance.py examples/weibull_simulation/check_scenario.py examples/weibull_simulation/check_fit.py`
-51 passed in 55.51s; direct-script smoke 6.62s (concurrent full gate load).
-`JAX_ENABLE_X64=1/0 uv run pytest -q tests/unit/test_simulation_generator.py`:
-17 passed in 3.87s / 17 passed in 3.82s, no skips.
-Ruff format: 147 files already formatted; lint: All checks passed!
-`uv run mypy src`: no issues found in 22 source files.
-`uv lock --check`: Resolved 171 packages, exit 0. Whitespace check clean.
-`scripts/check_wheel.sh --through A10`: exit 0, final
-`check: all gates passed through A10`. Own x64: 1282 passed/8 skipped in
-128.95s; x32: 1287 passed/3 skipped in 120.42s. Doctests: 4 per mode in
-1.03s/.93s. Independent x64: 2333 passed/27 skipped in 69.37s; x32:
-2324 passed/36 skipped in 62.25s. Log /private/tmp/survjax-sim7b2-gate.log.
-Fresh wheel built; installed wheel/extension checks included. Dedicated demo
-checks are explicit and separate from this ordinary gate.
+```bash
+scripts/check_wheel.sh --through A10
+uv run --locked --group examples python examples/weibull_simulation/_plots.py --results /private/tmp/survjax-sim-full-a3792a7 --out /private/tmp/survjax-sim-compact-implemented
+```
 
-Actual host probe: Apple M4 Max, arm64, logical CPUs=16, CPU backend cpu:0;
-Python3.12.9, JAX/jaxlib0.11.2, NumPy2.5.3, Optimistix0.1.0,
-Matplotlib3.11.2, survjax0.0.1.dev0. Versions unchanged, no lockfile edits.
+Cumulative wheel gate exited 0: implementer tests x64 1282 passed/8 skipped
+(185.37 s), float32 1287 passed/3 skipped (132.77 s); source doctests 4 passed
+each mode; acceptance x64 2333 passed/27 skipped (78.84 s), float32 2324
+passed/36 skipped (66.45 s). Final: "check: all gates passed through A10".
+Wheel retained at /var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/
+survjax-wheel.3hjJds/survjax-0.0.1.dev0-py3-none-any.whl. The reduction
+command exited 0, generated 23,481 bytes including manifest. It keeps all 127
+failures and histogram counts total 11,873; the 4.6 MiB raw CSV is not copied.
+All five approved compact payloads have exactly the prototype bytes; source
+metadata remains clean a3792a7, not falsely attributed to this postprocessor.
 
-## Remaining scope
+Requirement mapping: hand fixture checks overlapping failures and accepted-ID
+complement, both lower/final-upper histogram inclusion, common replicate
+selection, source/output checksums and no copied raw CSV. Four corruption
+checks reject missing/duplicate IDs, reason-count and acceptance inconsistency
+before creating output. The no-accepted-fit case retains all six failures,
+zero histogram counts and an empty illustration. Existing roundtrip proves raw diagnostics still retain
+rejections/unestimable rows and invalidates metadata/evidence on replacement.
+Existing CLI checks both grids, calibrated constants/keys/export schema and
+executes the smoke command. Fake reason masks now match their stated counts;
+no assertions were weakened. These are optional explicit checks, not a silent
+skip or new dependency in ordinary core tests.
 
-Full six-scenario evidence/results and figures, then executable docs. Current
-metadata proves run completion/provenance facts, not release coverage or
-figure acceptance. No merge/rebase/push/publication. Stop after this review.
+## Full-run science already audited before reduction
 
-## Round 1 response
+The full CLI ran from clean a3792a7 into /private/tmp/survjax-sim-full-a3792a7.
+Its metadata records CPU Apple M4 Max, Python 3.12.9, JAX/jaxlib 0.11.2,
+NumPy 2.5.3, Optimistix 0.1.0, Matplotlib 3.11.2, x64 and unset curated thread
+settings; effective worker count and peak memory not measured. Calibrated c
+47.793149053990135/.25 and 19.17253543619806/.55. Full has 12,000 fits:
+11,873 accepted, 127 gradient-only rejections, all solver-success/finite/SPD/
+estimable. Strict-gradient residuals range 1.0008445445388515e-5 to
+5.097075334365111e-5. Maximum rejected H^-1*g log-HR correction is
+1.0307596577744073e-7; Exponential closed-form d_g/Y_g log-HR discrepancy
+across all fits is <=1.0307596665093399e-7. Small local discrepancies despite
+failed scores are observed; relative solver stopping on the summed objective
+is a plausible explanation, not an instrumented causal proof. No gate changed.
+Weibull n=1000 coverage .9434156378600823 +/- .007410825977435696 MCSE and
+.9307851239669421 +/- .00815805747879105 MCSE: -.88848/-2.35532 MCSE from
+.95, both within 3 MCSE.
 
-F-1: share fixed DGP/BFGS/gradient constants in existing study.py, consumed
-by generation, calibration, fitting, failure masks and metadata. Values and
-all function signatures stay unchanged; no library API/configuration layer.
-Add an actual-fit spy comparing options passed to Optimistix with metadata,
-plus independent use-case assertions. This must catch a call-site override
-as well as a changed setting; metadata must not merely assert its own literals.
-N-2: CPU model query failures now return explicit None on every platform;
-Git/package inspection remains required. No fallback CPU model is invented.
-N-1: helper split is deferred; no new module is introduced in the fix-up.
-Final full optional suite: 54 passed in 55.79s, smoke 7.24s, using the same
-host-access command as the baseline. Additional solver-type and half-threshold
-assertions: metadata file 5 passed in 2.87s. The real jitted-fit spy observes
-BFGS type/rtol/atol/max_steps/throw and compares both metadata and independent
-use-case literals; a direct call at half the metadata gradient threshold is
-accepted. New denied-CPU cases exercise actual macOS nonzero-process and
-Linux read-permission errors. Generator suites: 17 passed in 3.50s per mode.
-Ruff format/lint, mypy (22 source files), lock (171 packages) and whitespace
-checks clean. No core/packaging changes; the unchanged core gate was not
-repeated for same-value demo constant substitution. Prior round's raw gate
-limits remain separate from the successful fresh-wheel wrapper.
-Reviewer raw gate: ordinary suites/doctests passed, x64 spec 2328 passed /
-5 missing-SURVJAX_WHEEL setup errors; x32 spec not run. Its /tmp mutation
-worktree cleanup remains reviewer/maintainer-owned.
+Independent exploratory audit /private/tmp/check_full_expanded.py reconstructs
+all PRNG draws with JAX primitives and NumPy inverse CDF, checks all objectives,
+analytical scores/Hessians/inference/counts/summary MCSEs, and both calibration
+integrals at 40-digit precision. Its two hand-derivative checks passed. This
+exploratory audit is not claimed as a committed check; the new committed code
+is a compact exporter/consistency audit, not another survival implementation.
+Full raw SHA-256: 58bc3ae48a263f0f4ea9ab522bbdff0cf02627301bcbd0477e370e7785fbc7a4.
+
+Remaining: commit compact artifacts in budgeted pieces, implement/review the
+three figures (explicitly authorized next), then executable docs. The frozen
+shared generator import contract is unchanged; no merge/push/publication.

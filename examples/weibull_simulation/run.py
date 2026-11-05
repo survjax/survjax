@@ -14,10 +14,12 @@ import survjax
 
 if __package__:
     from . import study
+    from ._plots import write_evidence
     from ._results import capture_metadata, write_metadata, write_results
     from .study import FitResult, calibrate_censoring, fit_replicate, generate_weibull
 else:
     import study
+    from _plots import write_evidence
     from _results import capture_metadata, write_metadata, write_results
     from study import FitResult, calibrate_censoring, fit_replicate, generate_weibull
 
@@ -289,6 +291,7 @@ def run_config(config: Literal["smoke", "full"], out: Path) -> None:
         batches.append((indices, n, scenario))
     write_results(out, limits, batches)
     write_metadata(out, snapshot, limits, batches)
+    write_evidence(out, out)
 
 
 def main(argv: list[str] | None = None) -> None:

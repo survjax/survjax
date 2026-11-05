@@ -1,5 +1,31 @@
 # Deviations and spec questions
 
+## D-035 Compact committed simulation evidence instead of bulk diagnostics
+
+- Step: SIM.8a storage proposal (2026-11-05).
+- Spec: use-cases/00-common.md Deliverable shape; use-cases/
+  01-weibull-simulation-details.md Files and commands; SPECIFICATION.md
+  12.2 release item 4.
+- Spec says: commit full-run results including replicates.parquet|csv,
+  performance, metadata and figures; record individual fit failure reasons.
+- Maintainer rejected committing the 4.6 MiB raw CSV because of permanent
+  Git history cost. No bulk artifact has been staged or committed.
+- Propose: retain complete raw outputs locally and regenerate using recorded
+  code/environment/keys. Commit the measured 22,243-byte evidence bundle:
+  original performance/metadata, all 127 failure IDs with separate reason
+  flags/max-gradient/log-HR, exact histogram counts spanning all 11,873
+  accepted fits, and both illustration-fit parameter vectors. A manifest
+  records raw source checksums and reduction conventions. Accepted IDs are
+  the complement of failed IDs within the fixed six x 1000 x two design.
+  This intentionally does not retain every successful fit's raw diagnostics
+  in Git; plotting inputs and the full-run audit remain reproducible.
+- Maintainer decision (2026-11-05): "approved; do it and implement the next
+  step" approves the 22 KiB compact evidence replacement and continuation to
+  figures. Keep raw diagnostics local and source/environment/seed reproducible.
+  No spec edit, external hosting, compression workaround or new dependency.
+- Status: open.
+
+
 CI merge ID reconciliation (2026-11-01): incoming main already uses D-030
 for the RMST zero-boundary entry. CI's protected-path guard entry is now
 D-033. Historical CI plans/reviews citing D-030 refer to D-033 here; those

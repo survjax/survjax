@@ -65,6 +65,7 @@ def write_results(
     """
     # Once CSV replacement starts, old provenance must not certify a partial rerun.
     (out / "metadata.json").unlink(missing_ok=True)
+    (out / "evidence.json").unlink(missing_ok=True)
     with (
         (out / "performance.csv").open("w", newline="") as summary_file,
         (out / "replicates.csv").open("w", newline="") as raw_file,

@@ -1,12 +1,15 @@
 """JAX_ENABLE_X64=1 uv run --locked --group examples pytest -q <this file>."""
 
 import csv
+import hashlib
+import json
 import sys
 from pathlib import Path
 
 import jax
 import jax.numpy as jnp
 import numpy as np
+import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -48,8 +51,10 @@ def test_complete_csv_roundtrip_preserves_every_fit_diagnostic_and_failure(tmp_p
         runner.ScenarioRun(np.array([40.0, 20.0]), jnp.array([0.25, 0.55]), models)
     )
     (tmp_path / "metadata.json").write_text("stale")
+    (tmp_path / "evidence.json").write_text("stale")
     write_results(tmp_path, {0.25: 40.0, 0.55: 20.0}, [(np.array([4, 5]), 6, batch)])
     assert not (tmp_path / "metadata.json").exists()
+    assert not (tmp_path / "evidence.json").exists()
     with (tmp_path / "performance.csv").open(newline="") as handle:
         summaries = list(csv.DictReader(handle))
     with (tmp_path / "replicates.csv").open(newline="") as handle:
@@ -116,3 +121,96 @@ def test_complete_csv_roundtrip_preserves_every_fit_diagnostic_and_failure(tmp_p
             )
             == 5
         )
+
+
+def _compact_fixture(tmp_path):
+    # Hand CSV: log(.5)=-log(2); accepted HRs .5 and 2. Middle ID fails
+    # solver and gradient; Weibull/Exponential maxima are 3e-5/2e-5.
+    raw = """scenario,model,replicate,parameter_count,log_hr,accepted,failed,solver,gradient,nonfinite,hessian,unestimable,theta_0,theta_1,theta_2,gradient_0,gradient_1,gradient_2
+3,weibull,0,3,-0.6931471805599453,1,0,0,0,0,0,0,0,0,-0.6931471805599453,0,0,0
+3,weibull,1,3,0,0,1,1,1,0,0,0,0,0,0,1e-5,2e-5,3e-5
+3,weibull,2,3,0.6931471805599453,1,0,0,0,0,0,0,0,0,0.6931471805599453,0,0,0
+3,exponential,0,2,-0.6931471805599453,1,0,0,0,0,0,0,0,-0.6931471805599453,,0,0,
+3,exponential,1,2,0,0,1,1,1,0,0,0,0,0,,1e-5,2e-5,
+3,exponential,2,2,0.6931471805599453,1,0,0,0,0,0,0,0,0.6931471805599453,,0,0,
+"""
+    summary = """scenario,n,target_censoring,model,attempted,accepted,failed,solver,gradient,nonfinite,hessian,unestimable
+3,300,0.55,weibull,3,2,1,1,1,0,0,0
+3,300,0.55,exponential,3,2,1,1,1,0,0,0
+"""
+    (tmp_path / "replicates.csv").write_text(raw)
+    (tmp_path / "performance.csv").write_text(summary)
+    (tmp_path / "metadata.json").write_text('{"source":{"commit":"fixture"}}')
+    return list(csv.DictReader(raw.splitlines())), list(
+        csv.DictReader(summary.splitlines())
+    )
+
+
+def test_compact_evidence_preserves_all_failures_histogram_and_shared_replicate(
+    tmp_path,
+):
+    """D-035: complete histogram and failed-ID complement, not a fit subsample."""
+    from examples.weibull_simulation._plots import _read_csv, write_evidence
+
+    _compact_fixture(tmp_path)
+    out = tmp_path / "compact"
+    write_evidence(tmp_path, out)
+    failures = _read_csv(out / "failures.csv")
+    assert [(r["model"], r["replicate"]) for r in failures] == [
+        ("weibull", "1"),
+        ("exponential", "1"),
+    ]
+    assert all(r["failed"] == r["solver"] == r["gradient"] == "1" for r in failures)
+    np.testing.assert_array_equal(
+        [float(r["max_abs_gradient"]) for r in failures], [3e-5, 2e-5]
+    )
+    histogram = json.loads((out / "sampling_histograms.json").read_text())
+    assert histogram["edges"][0] == 0.5 and histogram["edges"][-1] == 2.0
+    assert all(s["accepted"] == sum(s["counts"]) == 2 for s in histogram["series"])
+    assert all(s["counts"][0] == s["counts"][-1] == 1 for s in histogram["series"])
+    assert [r["replicate"] for r in _read_csv(out / "illustration.csv")] == ["0", "0"]
+    manifest = json.loads((out / "evidence.json").read_text())
+    for name, expected in manifest["source_sha256"].items():
+        assert hashlib.sha256((tmp_path / name).read_bytes()).hexdigest() == expected
+    for name, expected in manifest["output_sha256"].items():
+        assert hashlib.sha256((out / name).read_bytes()).hexdigest() == expected
+    assert not (out / "replicates.csv").exists()
+
+
+@pytest.mark.parametrize("corruption", ["duplicate", "missing", "reason", "accepted"])
+def test_inconsistent_raw_evidence_is_rejected_before_output(tmp_path, corruption):
+    """D-035: compact artifacts cannot certify incomplete/inconsistent raw records."""
+    from examples.weibull_simulation._plots import _csv, write_evidence
+
+    raw, _ = _compact_fixture(tmp_path)
+    if corruption == "duplicate":
+        raw[-1]["replicate"] = 0
+    elif corruption == "missing":
+        raw.pop()
+    elif corruption == "reason":
+        raw[1]["gradient"] = 0
+    else:
+        raw[0]["accepted"] = 0
+    (tmp_path / "replicates.csv").write_text(_csv(raw, list(raw[0])))
+    out = tmp_path / "absent"
+    with pytest.raises(ValueError):
+        write_evidence(tmp_path, out)
+    assert not out.exists()
+
+
+def test_no_accepted_estimates_produces_empty_histogram_and_illustration(tmp_path):
+    """D-035: no accepted fits is represented explicitly, with every failure kept."""
+    from examples.weibull_simulation._plots import _csv, _read_csv, write_evidence
+
+    raw, summaries = _compact_fixture(tmp_path)
+    for row in raw:
+        row.update(accepted=0, failed=1, solver=1, gradient=1)
+    for row in summaries:
+        row.update(accepted=0, failed=3, solver=3, gradient=3)
+    for name, rows in (("replicates.csv", raw), ("performance.csv", summaries)):
+        (tmp_path / name).write_text(_csv(rows, list(rows[0])))
+    write_evidence(tmp_path, tmp_path)
+    histogram = json.loads((tmp_path / "sampling_histograms.json").read_text())
+    assert all(s["accepted"] == sum(s["counts"]) == 0 for s in histogram["series"])
+    assert _read_csv(tmp_path / "illustration.csv") == []
+    assert len(_read_csv(tmp_path / "failures.csv")) == 6
