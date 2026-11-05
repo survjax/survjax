@@ -7,7 +7,6 @@ from importlib.metadata import version
 from pathlib import Path
 from time import perf_counter
 
-import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,16 +15,16 @@ import pandas as pd
 import survjax
 from examples.survival_mnist import data, model
 
-_concordance = jax.jit(survjax.concordance_index)
 
-
-def _concordance_seconds(log_scale, data: survjax.SurvivalData) -> float:
+def _concordance_seconds(log_scale, observations: survjax.SurvivalData) -> float:
     """Time one synchronized Harrell's C call after a compiling warm-up call."""
-    scores = -jnp.broadcast_to(jnp.asarray(log_scale, dtype=jnp.float32), data.shape)
-    scores.block_until_ready()
-    float(_concordance(scores, data))
+    scores = jnp.broadcast_to(
+        jnp.asarray(log_scale, dtype=jnp.float32), observations.shape
+    )
+    scores = (-scores).block_until_ready()
+    float(model.concordance_index(scores, observations))
     start = perf_counter()
-    float(_concordance(scores, data))
+    float(model.concordance_index(scores, observations))
     return perf_counter() - start
 
 

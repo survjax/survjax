@@ -1,3 +1,15 @@
+# MNIST.20 — One compiled concordance; no shadowed module name
+
+Starting/previous step bdce9b2 (MNIST.19, merge verdict); merged main at
+9e742bd. Maintainer: N-1 accepted, N-3 approved; fix N-2. model.py keeps the
+single `jax.jit(survjax.concordance_index)` as `concordance_index`, used by
+`evaluate` and by run.py's timing helper, whose `data` parameter becomes
+`observations` (it shadowed the imported `data` module). The timing test
+patches `model.concordance_index`. Example code only; results unchanged.
+Verify: ruff, mypy, optional MNIST suite (float32), smoke run, fast gate.
+
+---
+
 # Merge main into release-minst (2026-11-05)
 
 Maintainer-started merge of main (PH, RMST, CI, GPU) into the MNIST branch.

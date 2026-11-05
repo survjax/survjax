@@ -123,7 +123,7 @@ def test_concordance_timing_excludes_the_compile_call(monkeypatch):
             completed.append(cost)
             return 0.5  # Constant scores give half credit to every comparable pair.
 
-    monkeypatch.setattr(run, "_concordance", lambda *args: DeferredScalar())
+    monkeypatch.setattr(model, "concordance_index", lambda *args: DeferredScalar())
     monkeypatch.setattr(run, "perf_counter", lambda: clock[0])
     assert run._concordance_seconds(1.5, observations()) == 2.0
     assert completed == [11.0, 2.0]

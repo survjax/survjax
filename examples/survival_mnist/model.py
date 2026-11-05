@@ -140,7 +140,8 @@ def fit_intercept(data: survjax.SurvivalData) -> tuple[jax.Array, jax.Array]:
     return fitted[0], fitted[1]
 
 
-_concordance = jax.jit(survjax.concordance_index)
+# Compiled once; evaluate() and the runner's timing call the same function.
+concordance_index = jax.jit(survjax.concordance_index)
 
 
 def evaluate(
@@ -157,5 +158,5 @@ def evaluate(
     return {
         "mean_log_likelihood": float(dist.log_likelihood(data).mean()),
         "shape": float(jnp.exp(log_k)),
-        "concordance": float(_concordance(-log_b, data)),
+        "concordance": float(concordance_index(-log_b, data)),
     }
