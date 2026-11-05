@@ -218,6 +218,21 @@ scripts/check.sh --through A3   # everything above plus tests/spec up to step A3
 run it. Step A0 must make `scripts/run_tests.sh`, `ruff` and `mypy` work so that
 `check.sh` passes on the empty package.
 
+**Test tiers (sprint setup).** Use the cheapest tier that answers the question:
+
+| Tier | When | Command |
+| --- | --- | --- |
+| 0 | while coding | `JAX_ENABLE_X64=<1,0> uv run --group test pytest -n 6 <touched test files>`, both modes, no marker filter |
+| 1 | before `REVIEW.md` and the review; the reviewer each round | `scripts/check.sh --fast --through A<N>` |
+| 2 | before merge (maintainer), CI on `main` and PRs (Linux, macOS) | `scripts/check.sh --through A<N>` |
+
+`--fast` deselects the tests listed in `tests/slow_tests.txt` (marker `slow`,
+about 10% of the tests and over 70% of the time). Tier 0 runs the touched files
+in full, so slow tests of the code you change still run. When you add a test
+that takes over a second, run `scripts/update_slow_tests.sh` and commit the new
+list with the test. Both scripts share a persistent JAX compilation cache
+under the repository's git directory; `SURVJAX_JAX_CACHE=off` disables it.
+
 ## Testing conventions
 
 **Two dtype modes, separate processes.** JAX's 64-bit mode cannot be toggled
