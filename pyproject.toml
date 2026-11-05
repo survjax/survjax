@@ -20,6 +20,7 @@ examples = [
     "equinox==0.13.8",
     "optax==0.2.8",
     "numpyro==0.22.0",
+    "pandas==3.1.0",
 ]
 test = [
     "pytest>=9.1.1",
