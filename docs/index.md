@@ -23,6 +23,8 @@ boundary gradients and checking that a fitting loss is finite.
 censoring, including tied observations, score draws and cohort diagnostics.
 [Restricted mean survival time](rmst.md) summarizes expected time before a
 finite cutoff, with explicit cutoff axes and staged derivative limits.
+[Bayesian survival and posterior RMST](use-cases/bayesian-rmst.md) fits a
+synthetic trial with NumPyro and checks posterior treatment effects and predictions.
 The [SurvivalData guide](survival-data.md) walks a synthetic cohort through
 both constructors, diagnostics and R input conventions.
 [Exponential and Weibull](builtin-families.md) introduces the built-in
@@ -48,6 +50,7 @@ survival-data
 builtin-families
 proportional-hazards
 rmst
+use-cases/bayesian-rmst
 likelihood
 numerical-behaviour
 slice-a-verification
@@ -62,7 +65,8 @@ api
 From the repository root, run `scripts/build_docs.sh` to build the site and
 execute its notebook separately with JAX float32 and float64. The generated
 pages are in `docs/_build/html-x32/` and `docs/_build/html-x64/`. The build
-fails on warnings and notebook errors. The examples need no network access,
+fails on warnings and notebook errors. It selects the locked `docs` and
+`examples` dependency groups for the executable Bayesian demo. The examples need no network access,
 R installation or external data; dependency installation uses the lockfile.
 
 To view the rendered site on macOS, run `open

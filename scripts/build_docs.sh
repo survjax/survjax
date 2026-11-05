@@ -11,6 +11,6 @@ for mode in 0 1; do
     output=docs/_build/html-x32
   fi
   echo "Building documentation with JAX_ENABLE_X64=$mode"
-  JAX_ENABLE_X64="$mode" uv run --locked --group docs sphinx-build \
+  JAX_ENABLE_X64="$mode" uv run --locked --group docs --group examples sphinx-build \
     -b html -E -n -W --keep-going docs "$output"
 done

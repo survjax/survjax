@@ -1,3 +1,115 @@
+# BAYES.d1 revision — Compact delivery and page order (2026-11-05)
+
+Maintainer accepts compact storage and explicitly forbids the 19MB archives;
+requests F-002 table placement and takeaways. Keep the recommended PNG previews
+and regenerate SVG/derived data, recording that accepted format choice as open.
+F-001: retain only synthetic trial, chain-grouped log parameters, divergence
+flags and grids in a compact NPZ, plus existing metadata/five PNGs. Remove all
+archive parts and derived prior/predictive arrays. Validate compact bytes against
+original source arrays and regenerate through existing posterior_draws; no new
+module/numerical code/dependency. README recipe must produce renderer-ready
+metadata.json/arrays.npz in a new temporary output directory.
+
+F-002: move full table next to figures, after routes A/B; add takeaways.
+N-002: replace route-A hand copy with literalinclude. Update manifests/docs,
+keep v2 user draft untouched, run both docs builds and regeneration/size/hash
+checks and staged hooks. About 300 authored docs lines excluding records/assets.
+
+History: latest docs commit086bfc4 is local-only (only release-bayes contains
+it; no published tracking/tag refs). Replace that docs commit rather than add
+a deletion commit retaining 19MB in branch history, as required by the user's
+explicit no-archive decision. Parent stays b45f511, original base b1291a8.
+No rebase/merge/force-push/tag action or global GC. Original review round1
+remains in reviewer-owned file; request round2 on the compact replacement.
+
+Revision checks: documented materialization passes exact source comparisons and
+1e-12 derived-curve comparisons; five-figure check passes on reconstructed source.
+Docs both modes exit0, own page19.79s/11.87s. HTML table/route order, final
+takeaways, five figures verified. Staged hooks pass, all compact hashes pass,
+results total822073 bytes with94330-byte posterior. Only approved source changes
+will replace the local docs commit; user v2 draft remains untracked/untouched.
+
+---
+
+# BAYES.d1 — Executable page and full-run delivery (2026-11-02)
+
+Start clean b45f511; original worktree base b1291a8. Maintainer requests next
+bit after BAYES.5 review merge. One documentation/delivery topic, target about
+280–300 authored page/integration lines excluding plan/review and generated
+numerical assets. No numerical library/API/dependency/spec edits.
+
+Own docs/use-cases/bayesian-rmst.md: executable MyST page in design order,
+synthetic data, exact model source/plate note/factor check, prior predictive,
+smoke sampling, full diagnostics/truth table, route A/B shape recipe and
+agreement, five full figures, predictive interpretation, reproducibility and
+remaining limitation. Live smoke and factor-check subprocesses explicitly
+use float64 and set devices before backend initialization; parent x32/x64 docs
+kernels never toggle mode. Clearly distinguish live smoke from committed full
+results. Retain maintainer's Normal(0,5) priors, disclose broad/degenerate prior
+curves and open D-033 without marking it resolved or editing spec.
+
+Deliver examples/bayesian_rmst/results/: copied full metadata/arrays and five
+PNG figures plus prior/predictive arrays/figure metadata; binary scientific
+assets avoid huge generated SVG text in the review diff. Existing renderer
+reproduces both SVG and PNG when desired. Verify bytes/hashes and full audit,
+chain/draw dimensions and seed/settings. This is committed synthetic full
+output, not hand-generated fixture expectations or new sampling.
+
+Shared integration requested asynchronously: docs/index.md toctree/link and
+scripts/build_docs.sh select existing --group examples (no new dependency or
+lock edit), reserved by release handoff for maintainer coordination. Await
+explicit approval before these two edits. Page/assets can be prepared first;
+no page publication or remote action.
+
+Execute scripts/build_docs.sh directly after approval; clean x32/x64 Sphinx
+builds and inspect rendered HTML/screenshots. Check live subprocess timeout
+and full-vs-smoke labels/links/images. Run Ruff/whitespace for edits; no repeat
+core gate for docs/asset-only delivery. Commit, independent-review BAYES.d1
+round 1/3, then stop. Remaining: formal D-033 disposition and final release
+integration/evidence audit (maintainer); no further computational demo feature.
+
+Prepared page/delivery substep: 270-line page +16-line results note +4-line
+parent README update (~290 authored docs lines; generated numerical records
+and ~19MB scientific binary assets separate). Full manifest hashes and array
+shapes verified. Existing build script runs page successfully in this provisioned
+environment, both dtype modes, with float64 child checks. Current final build
+uses approved escalation for Jupyter subprocess cleanup; sandbox attempt was
+interrupted at exit130 after psutil permission errors. Initial Markdown table
+rendered as text; changed to data-driven HTML table, now structurally verified
+in both outputs (5 data rows and 5 valid image paths). Ruff/whitespace pass.
+Browser host unavailable, so HTML visual inspection is not claimed. Shared
+index/group-selection edits remain untouched, awaiting the explicit requested
+coordination approval; page is temporarily orphan-marked. Do not claim fresh
+docs-only environment integration, commit/review or final release completion.
+
+Maintainer approves both shared integration edits on 2026-11-05. Add page link
+and toctree entry, select existing examples group in build_docs.sh, and remove
+the temporary orphan flag. No dependency/lock change. Rebuild directly with
+approved escalation, verify fresh group availability and HTML navigation/data,
+retry browser visual QA, then commit and run BAYES.d1 round1 review.
+
+Delivery packaging update (2026-11-05): existing check-added-large-files rejects
+large single archives. Store their exact bytes as ordered <=480000-byte parts;
+delivery.json names ordered parts, original size/hash and every delivered-file
+hash. Results README reassembles into a new /tmp directory using stdlib only.
+Verified reconstructed original hashes and NPZ dimensions with the locked uv
+runtime, all individual files <500KiB. No hook bypass/config edit/LFS dependency.
+Authored docs/integration remain about 300 lines; numerical records and binary
+assets are generated data, not added implementation. Final approved build and
+pre-commit checks follow before commit/review.
+
+Final Nov5 checks: standard integrated docs build exits0, both modes, Bayesian
+page 15.23s/15.04s. Index navigation, live factor/smoke, full table and five
+image paths verified in both HTMLs. Fresh isolated locked offline docs/examples
+environment resolves required packages. All applicable staged pre-commit hooks
+pass (including file size); all archive/file hashes and array dimensions pass.
+313 authored docs/integration lines excluding generated records and binaries.
+Unrelated untracked user bayesian-rmst-v2.md appeared during QA; preserve and
+exclude it. Root global formatting flags that draft; committed SHA review is
+of this step only. Browser host remains unavailable; no layout screenshot claim.
+
+---
+
 # BAYES.5 — Posterior predictive trial/KM check (2026-11-02)
 
 Start clean 1472f52; original worktree base b1291a8. Maintainer requests next

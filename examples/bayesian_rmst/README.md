@@ -52,4 +52,6 @@ Run the explicit optional checks with the same examples environment:
 
 The three log parameters currently have the maintainer's Normal(0,5) priors.
 Their often extreme prior curves are retained for assessment; D-033 remains
-open. Committed full artifacts and the executable docs page are still pending.
+open. Recorded full artifacts are in `results/`; the executable page is
+`docs/use-cases/bayesian-rmst.md`. The page labels live smoke separately from
+the recorded full tables and figures.

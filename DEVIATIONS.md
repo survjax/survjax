@@ -1,5 +1,16 @@
 # Deviations and spec questions
 
+## D-034 Committed Bayesian figure format
+- Step: BAYES.d1 review S-001
+- Spec: 11.3 delegates to 02-bayesian-survival-details, Files and commands,
+  which illustrates committed fig*.svg files.
+- Did / propose: retain five PNG previews in compact results; existing renderer
+  regenerates SVG as well. Maintainer accepts the recommended compact-data/PNG
+  delivery and forbids the 19MB archives on 2026-11-05. No numerical/figure
+  values change; source design remains read-only.
+- Status: open.
+
+
 Bayesian merge ID reconciliation (2026-11-01): Bayesian prior-choice D-028
 is now D-033; PH retains D-028. Historical Bayesian plans/reviews citing
 D-028 mean D-033 here. Entry bodies and statuses are preserved.
