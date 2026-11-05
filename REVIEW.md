@@ -1,6 +1,10 @@
 # MNIST.19 — Simplify the example support code
 
-Independent review: round 1/3 (pending).
+Independent review: round 1/3, verdict merge (2026-11-05), in
+review/slices/MNIST.19.md. Nits left open for the maintainer: N-1
+(`fit_intercept` follows the data's dtype; float32 in practice), N-2 (two jit
+wrappers of `concordance_index`; `data` parameter shadows the module in
+`run._concordance_seconds`), N-3 (notebook-only ruff exception, see below).
 
 ## Read first
 
