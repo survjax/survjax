@@ -36,3 +36,18 @@ Maintainer explicitly approved the protected version check update in this
 conversation. No other protected file changes. The branch guard cannot pass
 on patch-wheel-test because it allows protected tests only on spectests-*;
 run it honestly, then run the remaining gate components directly if blocked.
+
+# RELEASE.A2 — Authorized release completion
+
+Start/previous step: 61b7dcc; original worktree base: 8794005.
+Maintainer explicitly authorizes guard exception, continuing past review stop,
+merging to main, tagging/pushing v0.0.1a2 and GitHub prerelease publication.
+Files: scripts/check.sh (narrow branch exception for itself and approved A9
+version test), docs/releasing.md, CITING.md, CITATION.cff, CHANGELOG.md,
+RELEASE-A2-LOG.md, PLAN.md, REVIEW.md. No dependency/API/spec changes.
+Combine bounded release metadata/docs under this explicit release override.
+Run full A10 gate on exact built artifact, direct docs build, inspect changed
+rendered topic, commit, independent review. Stop on check failures. Verify
+main worktree clean before fast-forward integration; never replace old tags.
+Record commands, results, commits, hosted CI and publishing/public-install
+outcomes. Use actual release date only at publication, no invented DOI.

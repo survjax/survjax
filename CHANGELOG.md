@@ -1,10 +1,18 @@
 # Changelog
 
-## Unreleased — initial alpha
+## Unreleased — 0.0.1a2
 
-Draft notes for the proposed first public release, `0.0.1a1`.
-The preparation baseline is `0.0.1.dev0`; no release date or published tag
-is recorded here. Version, tag and publication follow the
+- Fix installed-version checks to follow project metadata after version bumps.
+- Prepare alpha 2 with matching package, lockfile and citation versions.
+- Keep the published GitHub prerelease `v0.0.1a1` unchanged. Its publishing
+  build failed before the PyPI upload job ran.
+
+## 0.0.1a1 — 2026-11-06 (GitHub prerelease)
+
+
+The first GitHub alpha prerelease was published, but its PyPI publishing
+workflow failed checks before upload. The preparation baseline was
+`0.0.1.dev0`. Version, tag and publication follow the
 [operator handoff](docs/releasing.md).
 Documentation links below follow the source checkout or built docs version.
 

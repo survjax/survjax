@@ -50,6 +50,8 @@ branch="$(git rev-parse --abbrev-ref HEAD)"
 allowed=""
 case "$branch" in
   spectests-*) allowed='^tests/spec/' ;;
+  # Maintainer-approved alpha-2 repair; other protected paths remain blocked.
+  patch-wheel-test) allowed='^(tests/spec/test_a9_package\.py|scripts/check\.sh)$' ;;
   meta-*)      allowed='^(CLAUDE\.md$|AGENTS\.md$|scripts/check\.sh$|scripts/sync_spec_tests\.sh$|\.agents/|\.workmux\.yaml$)' ;;
 esac
 protected='^(tests/spec/|spec$|spec/|CLAUDE\.md$|AGENTS\.md$|scripts/check\.sh$|scripts/sync_spec_tests\.sh$|\.agents/|\.workmux\.yaml$)'

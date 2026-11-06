@@ -38,7 +38,8 @@ Before publishing, confirm the agreed author list and canonical repository
 URL. Update `CITATION.cff` with the actual released version and release date
 when assigned, consistently with the package and release notes. DOI and ORCID
 fields are currently omitted; add identifiers only when assigned and verified.
-A proposed version such as `0.0.1a1` is not a published release or a DOI.
+The next candidate is `0.0.1a2`. A candidate version is not evidence of
+PyPI publication or an assigned DOI.
 
 The [operator handoff](docs/releasing.md)
 records publisher setup, documentation hosting and remaining launch
