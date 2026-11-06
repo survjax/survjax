@@ -49,3 +49,27 @@ Plan archive: 69a66df. Remaining separate docs step: release guide candidate
 and commands, changelog/citation status. Tag v0.0.1a2 must target the reviewed
 commit after integration, under maintainer release procedure. Existing tags
 remain untouched. Historical benchmark/example provenance must stay unchanged.
+
+## Round 1 outcome — maintainer
+
+Review file: ../review/slices/WHEEL.1.md. Verdict: maintainer. Stop per skill.
+B-1: reviewer requires spec-author/sync routing for the protected test and
+cannot inspect conversation approval. Maintainer's exact answer here was:
+"Yes, update that version check" in response to the explicit question naming
+tests/spec/test_a9_package.py and comparison with pyproject.toml. I implemented
+that authorization. Do not undo the user's requested edit merely to change a
+review verdict. The checked-in guard nevertheless has no conversation-approval
+override: postcommit scripts/check.sh --fast --through A10 exits 1 at the
+protected path. All test/static results above precede that commit and passed.
+Maintainer must decide integration routing; no guard edits or branch changes.
+S-1: D-048 remains open for maintainer resolution. Project metadata versus
+installed artifact metadata checks distinct sources, so a wrong-version wheel
+is detected; it intentionally does not impose the initial development version.
+N-1: wording cleanup is deferred to maintainer resolution as review requests.
+Reviewer could not run tests because its uv cache access and escalation were
+blocked. No independent runtime verification claim is made.
+
+Last implementation commit: 2e4971db20493123d1a3e4adb0c652a9d8930556.
+Previous step/original worktree base: 8794005; archive: 69a66df.
+Remaining: maintainer integration decision for B-1/S-1, separate docs step,
+then final integrated CI and maintainer tagging/publishing. No new tag created.
