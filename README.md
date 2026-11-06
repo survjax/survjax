@@ -1,6 +1,6 @@
 # survjax
 
-[![GPU CI on NVIDIA T4 / CUDA 12: latest manual run on main](https://github.com/vanAmsterdam/survjax/actions/workflows/gpu.yml/badge.svg?branch=main&event=workflow_dispatch)](https://github.com/vanAmsterdam/survjax/actions/workflows/gpu.yml)
+[![GPU CI on NVIDIA T4 / CUDA 12: latest manual run on main](https://github.com/survjax/survjax/actions/workflows/gpu.yml/badge.svg?branch=main&event=workflow_dispatch)](https://github.com/survjax/survjax/actions/workflows/gpu.yml)
 
 **Survival analysis in JAX**
 
@@ -31,7 +31,7 @@ Currently available:
   log density, log CDF, hazard, log hazard, and cumulative hazard, with grid
   methods for evaluation across times.
 - **Proportional hazards:** `ProportionalHazards` wraps a baseline with a
-  caller-computed log hazard ratio; see the [PH guide](docs/proportional-hazards.md)
+  caller-computed log hazard ratio; see the [PH guide](https://github.com/survjax/survjax/blob/main/docs/proportional-hazards.md)
   for broadcasting, likelihoods and derivative limits.
 - **Evaluation:** Harrell's concordance for exact and right-censored data
   without truncation.
@@ -40,7 +40,7 @@ Currently available:
   including an autodiff-based log density.
 
 Restricted mean survival time, `model.rmst(tau)`, is available for Exponential,
-Weibull and their PH wrappers; see the [RMST guide](docs/rmst.md) for cutoff
+Weibull and their PH wrappers; see the [RMST guide](https://github.com/survjax/survjax/blob/main/docs/rmst.md) for cutoff
 broadcasting, derivatives and numerical-failure limits. Unrestricted means,
 medians and quantiles remain planned.
 
@@ -108,9 +108,11 @@ higher scores indicate higher risk.
 
 ## Documentation
 
-The [documentation](https://survjax.readthedocs.io) contains the user guide,
-API reference, and examples, including data validation, numerical behavior,
-and custom distributions.
+The [documentation sources](https://github.com/survjax/survjax/tree/main/docs)
+contain the user guide, API reference and examples. Build the executable site
+locally with `scripts/build_docs.sh`. Read the Docs hosting is not set up yet;
+`https://survjax.readthedocs.io` is the intended Community address, subject to
+project-slug availability and a successful hosted build.
 
 ## Development
 

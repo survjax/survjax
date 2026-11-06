@@ -4,6 +4,13 @@
 kept here, moved verbatim (newest section first within each file). Read one
 only when a step needs it.
 
+Historical instructions and migration records (not current assignments):
+
+- [MNIST showcase instruction](mnist-showcase-instruction.md): original task brief,
+  formerly INSTRUCTION.md; retained verbatim for references in DEVIATIONS.md.
+- [Documentation migration](docs-migration.md): original restructure record,
+  formerly DOCS-MIGRATION.md; pending-work statements describe that snapshot.
+
 Prospective worktree handoffs: [first-release agents](release-agents/README.md).
 These are future assignments, not completed-step archives or implementation approval.
 
@@ -34,3 +41,5 @@ Imported verbatim; old status/next-step instructions are historical only.
 
 
 [Pre-restructure integrated plans](pre-docs-restructure.md): verbatim PLAN.md at 2093ca2, including completed MNIST work and historical records from other workstreams. Archival does not close unfinished work recorded there.
+
+[Pre-release preparation](pre-release-prepare.md): verbatim completed DOCS.1–6 records at 3cb4cd7; historical unfinished work remains owned by its original workstreams.

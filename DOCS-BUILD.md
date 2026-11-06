@@ -72,7 +72,7 @@ rendering therefore needs that CDN available, or a future locally supplied
 MathJax asset configured in this repository.
 
 Keep page paths after the worktree prefix when switching worktrees. Consult
-DOCS-MIGRATION.md for the old-to-new page map. If the target branch lacks a
+plans/docs-migration.md for the historical old-to-new page map. If the target branch lacks a
 page, the portal should fall back to its index rather than assume every branch
 has the same documentation. Fragment IDs may differ after editorial changes.
 

@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use survjax, please cite the software and the exact version or source commit used. See CITING.md for details."
+type: software
+title: "survjax: Survival analysis in JAX"
+authors:
+  - family-names: "van Amsterdam"
+    given-names: "Wouter A.C."
+repository-code: "https://github.com/survjax/survjax"
+license: Apache-2.0

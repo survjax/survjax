@@ -6,11 +6,21 @@ build-backend = "uv_build"
 name = "survjax"
 version = "0.0.1.dev0"
 description = "Survival analysis in JAX"
+readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{ name = "Wouter A.C. van Amsterdam" }]
 dependencies = ["jax>=0.11.2", "numpy>=2.5.3"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.urls]
+Repository = "https://github.com/survjax/survjax"
+Documentation = "https://survjax.readthedocs.io"
+Issues = "https://github.com/survjax/survjax/issues"
 
 [dependency-groups]
 examples = [
