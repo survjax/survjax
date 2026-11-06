@@ -1,3 +1,19 @@
+# Independent Codex review outcome
+
+Independent review: round 1/3, fresh gpt-6-astra session, reasoning low,
+explicitly requested by the maintainer. Reviewed commit 91a4503 over range
+23e8c3e..91a4503. Verdict: merge; no actionable findings and no fix-ups.
+Full independent report: ASTRA-REVIEW.md (unaltered by implementation author).
+Reviewer independently reran the fast gate successfully through A12 in both
+modes and checked docs/example AST equivalence. Its limits and exact results
+are in the report. Full Tier 2 remains the maintainer/CI gate.
+
+This completed independent review supersedes the earlier waiver for the
+alignment delta. The verification record below describes the state before
+this review. Starting/previous step: 91a4503; worktree starting point: 3cb4cd7.
+
+---
+
 # ALIGN.3 — Final alignment verification
 
 Independent review remains waived by the maintainer while reviewer tokens

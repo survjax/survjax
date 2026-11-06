@@ -1,3 +1,18 @@
+# ALIGN.REVIEW — Independent Codex Astra review (complete)
+
+Starting/previous step: 91a4503; worktree starting point: 3cb4cd7.
+Maintainer explicitly requests a fresh Codex Astra session, low reasoning,
+replacing the earlier reviewer waiver for this review. Spawned gpt-6-astra
+with reasoning low and no inherited conversation history. Round 1/3 reviewed
+23e8c3e..91a4503, including design cleanup and merged author corrections.
+Reviewer wrote ASTRA-REVIEW.md; author did not alter that report. Verdict:
+merge, no actionable findings. Reviewer independently passed the fast gate
+through A12 in both modes and audited 46 docs/example Python blocks across
+7 files. Full Tier 2/builds/release certification remain outside that review.
+No code changes or fix-ups. Record report and status only, then stop.
+
+---
+
 # ALIGN.3 — Final alignment verification (complete)
 
 Starting commit: 3b00d10 (maintainer's correction merge); previous completed
