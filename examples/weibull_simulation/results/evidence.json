@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "reducer_commit": "c08a14281e4aa42a72e3882e6f19445ada0eb401",
+  "reducer_path": "examples/weibull_simulation/_evidence.py",
+  "reducer_dirty": false,
+  "reducer_sha256": "3129516247b0c319c5ae89ff2b64a7ac2b25cd85315f3776b8c510f42916ca5c",
+  "source_sha256": {
+    "performance.csv": "33c9f420b5ecc80d3d75f8f097671569fbade13945cc4629f0205359760e175e",
+    "metadata.json": "475f578d9413bd3eed88aaa2b93abcd34fee3736394e87258f392f31dcba899f",
+    "replicates.csv": "58bc3ae48a263f0f4ea9ab522bbdff0cf02627301bcbd0477e370e7785fbc7a4"
+  },
+  "output_sha256": {
+    "performance.csv": "33c9f420b5ecc80d3d75f8f097671569fbade13945cc4629f0205359760e175e",
+    "metadata.json": "475f578d9413bd3eed88aaa2b93abcd34fee3736394e87258f392f31dcba899f",
+    "failures.csv": "4d5f88797895c3bab74b46a72bfc74f4f023fb2d5c958b8216842e3a2b01ab58",
+    "illustration.csv": "cbd4194776c73c9a24b41e77b2b21db6203a926780c21d16d3d799268444c64c",
+    "sampling_histograms.json": "2156f2921e8255edc5abdfc104019e80f2d59d16eee689f94c187a78ea5d2756"
+  },
+  "accepted_ids": "complement of failures within each summary's 0..attempted-1 IDs",
+  "histogram": "common .025 HR bins; [left,right), final bin includes right edge; every accepted fit included",
+  "raw_diagnostics": "local only; regenerate with run.py using recorded source/environment/seed; cross-platform bitwise equality is not promised"
+}

@@ -242,3 +242,54 @@ def test_histogram_lattice_rounding_never_excludes_extrema(tmp_path, low, high):
     assert histogram["edges"][0] <= np.exp(np.log(low))
     assert histogram["edges"][-1] >= np.exp(np.log(high))
     assert all(sum(s["counts"]) == 2 for s in histogram["series"])
+
+
+def test_committed_full_bundle_counts_histograms_and_coverage():
+    """D-035 / 01 acceptance: failed-ID complement and complete accepted histograms."""
+    from examples.weibull_simulation._evidence import _read_csv
+
+    root = ROOT / "examples/weibull_simulation/results"
+    summaries, failures = (
+        _read_csv(root / "performance.csv"),
+        _read_csv(root / "failures.csv"),
+    )
+    histogram = json.loads((root / "sampling_histograms.json").read_text())
+
+    def identity(r):
+        return int(r["scenario"]), r["model"]
+
+    failed_ids = {(identity(r), int(r["replicate"])) for r in failures}
+    assert len(failed_ids) == len(failures) == sum(int(r["failed"]) for r in summaries)
+    assert all(r["failed"] == "1" for r in failures)
+    assert {identity(r) for r in summaries} == {
+        (s, m) for s in range(6) for m in ("weibull", "exponential")
+    }
+    assert len(summaries) == len(histogram["series"]) == 12
+    # Inspect committed host records; this never loops over numerical fits.
+    for row in summaries:
+        cohort = [r for r in failures if identity(r) == identity(row)]
+        assert len(cohort) == int(row["failed"])
+        assert all(0 <= int(r["replicate"]) < 1000 for r in cohort)
+        assert int(row["attempted"]) == int(row["accepted"]) + len(cohort) == 1000
+        for reason in "failed solver nonfinite gradient hessian unestimable".split():
+            assert sum(int(r[reason]) for r in cohort) == int(row[reason])
+        series = next(
+            s
+            for s in histogram["series"]
+            if (s["scenario"], s["model"]) == identity(row)
+        )
+        assert len(series["counts"]) == len(histogram["edges"]) - 1
+        assert all(type(c) is int and c >= 0 for c in series["counts"])
+        assert sum(series["counts"]) == series["accepted"] == int(row["accepted"])
+        if row["n"] == "1000" and row["model"] == "weibull":
+            assert abs(float(row["coverage"]) - 0.95) <= 3 * float(row["coverage_mcse"])
+    illustration = _read_csv(root / "illustration.csv")
+    assert len(illustration) == 2 and {r["model"] for r in illustration} == {
+        "weibull",
+        "exponential",
+    }
+    assert len({(r["scenario"], r["replicate"]) for r in illustration}) == 1
+    assert all(
+        r["scenario"] == "3" and (identity(r), int(r["replicate"])) not in failed_ids
+        for r in illustration
+    )

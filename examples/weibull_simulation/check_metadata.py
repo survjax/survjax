@@ -235,3 +235,30 @@ def test_reducer_provenance_tracks_its_own_source_file(tmp_path, monkeypatch, di
     assert manifest["reducer_path"] == expected_path
     assert manifest["reducer_dirty"] is dirty
     assert seen == [expected_path]
+
+
+def test_committed_full_bundle_hashes_and_source_provenance():
+    """D-035: bind every compact payload to original clean full-run provenance."""
+    root = ROOT / "examples/weibull_simulation/results"
+    manifest = json.loads((root / "evidence.json").read_text())
+    assert set(manifest["output_sha256"]) == {
+        "metadata.json",
+        "performance.csv",
+        "failures.csv",
+        "illustration.csv",
+        "sampling_histograms.json",
+    }
+    # These loops read/hash committed files only, never run the simulation.
+    for name, digest in manifest["output_sha256"].items():
+        assert hashlib.sha256((root / name).read_bytes()).hexdigest() == digest
+    for name in ("metadata.json", "performance.csv"):
+        assert manifest["source_sha256"][name] == manifest["output_sha256"][name]
+    assert len(manifest["source_sha256"]["replicates.csv"]) == 64
+    assert manifest["reducer_dirty"] is False
+    assert (
+        len(manifest["reducer_commit"]) == 40 and len(manifest["reducer_sha256"]) == 64
+    )
+    metadata = json.loads((root / "metadata.json").read_text())
+    assert metadata["configuration"] == "full" and metadata["runtime"]["x64_enabled"]
+    assert metadata["source"]["worktree_dirty_at_start"] is False
+    assert metadata["seeds"]["root"] == 20261025

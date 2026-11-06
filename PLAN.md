@@ -1,3 +1,31 @@
+# SIM.8c.2 — Commit compact full-run evidence and checks (2026-11-06)
+
+Previous final: c08a14281e4aa42a72e3882e6f19445ada0eb401 (SIM.8c.1 round 2,
+merge). Continue the explicitly approved compact-evidence and figure work.
+Original base 8757c0fda78e34e6e818249adedd2a144a33c33d; integration base
+ d2469e0a7e719dbcb276277e6fd80a447626ad4e. Preserve unfinished history below.
+
+About 270 implementation/artifact/check lines: add results/failures.csv,
+sampling_histograms.json, illustration.csv and evidence.json from the audited
+raw a3792a7 run using clean reviewed reducer c08a142, plus results/README.md
+with meaning/regeneration instructions. Keep original metadata/performance
+unchanged; do not copy/stage raw CSV. No new module/dependency/API/spec/docs
+or protected path. D-035's committed-output replacement remains in force.
+
+Add independent compact-bundle count/coverage checks to check_results.py:
+complete six-scenario/model grid, unique in-range failed IDs, separate reason
+totals, accepted-ID complement, every accepted HR included in integer bins,
+common accepted illustration ID and both n=1000 three-MCSE coverage gates.
+Add hash/source checks to check_metadata.py: all five payloads bound to the
+manifest, original provenance preserved, clean producer and documented seed.
+Host file inspection only; no regeneration or simulation in these tests.
+Run focused optional checks, Ruff/mypy and manual source-object/hash audit;
+no repeat of unchanged core gate or full numerical fitting. REVIEW.md then
+independent review. Next authorized step: three SVG figures; executable docs
+remain separate. Generator and all numerical acceptance policies unchanged.
+
+---
+
 # SIM.8c.1 round 2 — Approved module layout and provenance checks (2026-11-06)
 
 Maintainer "ok approved" accepts the recommended _evidence.py reducer and
