@@ -1,3 +1,30 @@
+# ALIGN.3 — Final alignment verification (complete)
+
+Starting commit: 3b00d10 (maintainer's correction merge); previous completed
+substep: 97d473f (ALIGN.2c); worktree starting point: 3cb4cd7.
+D-043/D-044 acceptance corrections are now integrated. .spec-seen equals main
+and design HEAD 213cfb0 (revision 47, fixed simulation censoring limits),
+which includes the approved D-042 example cleanup. No implementation change
+is proposed. Run scripts/check.sh --fast --through A12 in both modes through
+the normal runner, inspect any failure, record exact evidence in REVIEW.md
+and update handoff status notes. Prior touched-file and docs-build evidence
+remains valid; no redundant rebuilds. No new API, dependency, code, test,
+spec or protected-path changes. Independent review remains waived by the
+maintainer while reviewer tokens are unavailable. Tier 2 remains the
+maintainer/CI merge gate. Stop after this verification-only step.
+
+Completed: scripts/check.sh --fast --through A12 exits 0 and reports all
+gates passed. Implementation tests: x64 1059 passed/8 skipped; x32 1064
+passed/3 skipped. Source doctests: 4 passed per mode. Acceptance: x64 3397
+passed/32 skipped; x32 3391 passed/38 skipped, with two existing NumPy
+reference warnings per mode. Static checks pass. D-043/D-044 integration
+evidence recorded without changing formal deviation statuses. REVIEW.md holds
+commands/timings and limits. All alignment substeps complete; no further
+implementation/docs corrections identified. Full Tier 2 and broader release
+obligations remain separate; independent review remains waived as requested.
+
+---
+
 # ALIGN.2c — Approved D-044 author handoff (complete)
 
 Starting/previous step: 3a6d013; worktree starting point: 3cb4cd7.

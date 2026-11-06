@@ -19,6 +19,9 @@
   to the active dtype's specified normal-survival range, preserving full-grid
   shape/direct-grid agreement and existing tolerances. Author instructions
   saved in SPEC-TEST-D044.txt; protected tests remain unchanged here.
+- Integration evidence, 2026-11-06: independent-author correction merged in
+  3b00d10. The affected files pass both dtype modes (x64 102 passed; x32
+  99 passed, 3 skipped). Formal status remains unchanged by the implementer.
 - Status: open.
 
 ## D-043 A11 nested custom condition expected mask conflicts with its predicate
@@ -41,6 +44,9 @@
 - Maintainer approval, 2026-11-06: preserve the declared predicate and correct
   the expected condition mask to [False,True,True]. Author instructions saved
   in SPEC-TEST-D043.txt; protected acceptance tests remain unchanged here.
+- Integration evidence, 2026-11-06: independent-author correction merged in
+  3b00d10. The affected files pass both dtype modes (x64 102 passed; x32
+  99 passed, 3 skipped). Formal status remains unchanged by the implementer.
 - Status: open.
 
 ## D-042 Positional PH snippets remain after keyword-only clarification

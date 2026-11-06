@@ -1,55 +1,58 @@
-# ALIGN.2a — Approved D-042 spec example cleanup
+# ALIGN.3 — Final alignment verification
 
-Independent review remains waived by maintainer while reviewer tokens are
-unavailable. Starting/previous step: a4c8b42; worktree starting point: 3cb4cd7.
-Read PLAN.md ALIGN.2a, then the design-repo diff for spec/SPECIFICATION.md
-and the four affected use-case design notes. Only PH example spelling changes;
-revision 46 and all requirements remain fixed. Constructor behavior and
-executable guides were already migrated in ALIGN.1/ALIGN.d1.
+Independent review remains waived by the maintainer while reviewer tokens
+are unavailable. Starting commit: 3b00d10; previous completed substep:
+97d473f; original worktree starting point: 3cb4cd7.
 
-Validation complete below. No tests/spec edits. D-043/D-044 still await separate
-maintainer decisions. Preserve deviation statuses; record the D-042 approval
-without independently marking entries resolved.
+Read first: PLAN.md ALIGN.3, incoming corrections in merge 3b00d10 and the
+.spec-seen alignment. D-043 preserves all declared condition violations;
+D-044 uses independent reference survival to limit upper-tail accuracy
+checks to the active dtype's normal range, while preserving full-grid
+shape/direct-grid agreement. Protected tests were supplied by their author,
+not edited here. .spec-seen matches main and design HEAD 213cfb0 exactly.
 
-## Validation and outcome
+No library changes in this step. Verify the full fast gate through A12;
+record all outputs. Before the merge commit, the two affected spec files
+passed x64 102 tests / x32 99 tests with 3 skips, plus 2 NumPy reference
+warnings per mode. Prior implementation, touched-file, Bayesian and docs
+build evidence remains in e8e9a51:REVIEW.md and a4c8b42:REVIEW.md.
 
-- Design commit: 54bbc62e3880dbbe5544cf913fb95291e78904f9; five spec files,
-  14 insertions and 14 deletions. Example spelling only; revision remains 46.
-- Inspected the complete design diff. `git -C spec diff --check` passed.
-- Scanned PH call snippets across SPECIFICATION.md and all use-case notes:
-  all 12 remaining call examples use baseline=. Replaced a type-only shorthand
-  with prose (PH with a Weibull baseline) to avoid an apparent positional call.
-- Both Python sketches in 02-bayesian-survival-details retain identical ASTs
-  after keyword normalization. Model/prior/route mathematics unchanged.
-- `../scripts/spec-since.sh rmsttest --mark`: reports
-  rmsttest/.spec-seen -> 54bbc62. Used the current worktree directory argument;
-  no mutation of the separate dev checkout.
-- D-042 approval and implementation recorded; statuses remain untouched.
-- Implementation, tests, docs pages, dependency declarations and lockfile
-  unchanged. No numerical tests/docs build repeated for spec example spelling.
-- `git diff --check`: passes. Design working tree clean after its commit.
+Validation complete: scripts/check.sh --fast --through A12 exits 0. Tier 2, release
+publication and a new independent review are outside this verification step.
+This work closes the spec/acceptance alignment only, not all release demos.
 
-Independent review remains waived. D-043 and D-044 await separate decisions;
-ALIGN.3 verification remains pending. Present D-043 now and wait.
+## Final gate evidence
 
-## ALIGN.2b author handoff
+Ran `scripts/check.sh --fast --through A12` after the maintainer committed
+merge 3b00d10. Output ends:
+`check: all gates passed through A12 (fast: slow tests skipped)`.
 
-Maintainer approved the D-043 expected mask [False,True,True]. Saved the
-requested short instruction in SPEC-TEST-D043.txt. Checked it against the
-read-only failing test, CappedRate predicate and spec 4.7. This is a planning/
-handoff record, not an acceptance-test edit; no numerical tests rerun.
-Starting/previous step: 3580ff2; worktree starting point: 3cb4cd7. D-044 still
-requires its own decision. `git diff --check` passes before commit.
+- Protected-path guard: ok (spectests-rmst).
+- Ruff format: 173 files already formatted; Ruff lint: All checks passed!
+- Mypy: Success: no issues found in 22 source files.
+- Implementation tests, x64: 1059 passed, 8 skipped in 14.36s.
+- Implementation tests, x32: 1064 passed, 3 skipped in 15.46s.
+- Source doctests, x64: 4 passed in 0.70s; x32: 4 passed in 0.45s.
+- Spec acceptance through A12, x64: 3397 passed, 32 skipped, 2 warnings
+  in 53.45s.
+- Spec acceptance through A12, x32: 3391 passed, 38 skipped, 2 warnings
+  in 37.76s.
+- The warnings come from the independent NumPy hazard reference at t=0
+  (log(0) and its zero product), not from a failed assertion.
+- Gate builds one wheel for the installation and spec-wheel tests. Both
+  dtype test runs use that wheel through the normal runner setup.
+- Full log: /tmp/align3-fast-gate.log. `git diff --check` passes.
 
-## ALIGN.2c author handoff
+No code, tests, spec, docs pages or dependency changes in this verification
+step. The final gate used the merged author corrections without skips,
+xfails or tolerance edits by the implementer. The fast gate intentionally
+omits existing slow-listed cases; full touched files were checked in ALIGN.1
+and the two author-corrected files were checked in full in both modes during
+conflict resolution. Full Tier 2 is not run here, per the tier convention.
+Docs builds last passed both modes in ALIGN.d1; no executable doc/library
+changes since then justify another build.
 
-Maintainer approved D-044's reference-domain correction. Saved
-SPEC-TEST-D044.txt and updated SPEC-TEST-D043.txt to refer to it. Checked
-against spec 4.1/4.2 and the read-only A11 grid test: restrict only the
-upper-tail analytical reference comparison using independent reference
-survival and the active dtype, preserve full-grid shape/agreement and
-lower-tail checks, and leave tolerances/implementation unchanged.
-No tests rerun for the instruction-only change. Starting/previous step:
-3a6d013; worktree starting point: 3cb4cd7. `git diff --check` passes.
-All three decisions have confirmation. Independent-author corrections and
-ALIGN.3 verification after synchronization remain outstanding.
+All planned alignment work is complete. Broader release demos, Tier 2 and
+publication are not claimed complete. Independent review remains waived
+as requested; no new reviewer invocation. Formal deviation statuses remain
+for the maintainer, with merged correction evidence recorded in DEVIATIONS.md.
