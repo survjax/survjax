@@ -40,8 +40,13 @@ Last commit of the clean-up: add507a (user commit). Previous Bayesian step:
 
 - Merged tree: `uv run ruff format --check .`, `uv run ruff check .`,
   `uv run mypy src`: clean; `uv lock --check`: consistent.
-- Gate and optional suites: running at the merge commit; results are recorded
-  in a follow-up commit.
+- Tier 2 at merge commit 9a2d723, `scripts/check.sh --through A10`: all gates
+  passed (own 1292 passed/8 skipped and 1297 passed/3 skipped; doctests 4+4;
+  spec 2333 passed/27 skipped and 2324 passed/36 skipped).
+- `scripts/build_docs.sh`: both builds succeeded.
+- Optional suites with the docs and examples groups, `check_bayesian_run.py`,
+  `check_bayesian_notebook.py` and `check_mnist_*.py`: 24 passed (x64),
+  24 passed (float32).
 
 ## Unsure about
 
