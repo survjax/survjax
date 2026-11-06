@@ -57,8 +57,8 @@ outputs and the worktree's `.venv` are also ignored by the repository.
 
 The uv download cache and immutable, hash-checked MNIST input cache may be
 shared; neither contains a rendered worktree build. `SURVJAX_EXAMPLES_DATA`
-selects the MNIST cache when needed. Jupyter runtime files remain managed by
-Jupyter with per-kernel identifiers. Outputs and execution caches should not
+selects the MNIST cache when needed. `JUPYTER_RUNTIME_DIR` is set to
+`DIR/.cache/jupyter-runtime`, with per-kernel identifiers. Outputs and execution caches should not
 be committed or used as shared mutable state between worktrees.
 
 ## Serving under a prefix
@@ -83,3 +83,18 @@ The portal owns worktree discovery, route mapping and build-status collection.
 It must also handle spaces in filesystem paths, quote subprocess arguments,
 choose one dtype output, and avoid exposing partial builds or build caches.
 Do not infer successful status from a directory's existence.
+
+## Successful-build identity and inspection
+
+Read `DIR/build-identity.txt` (default `docs/_build/build-identity.txt`). The
+last `state:` must be `success`, with the intended absolute checkout, commit,
+dirty status, dtype pair and UTC completion time. A new attempt invalidates
+old success before dependency setup when the record exists; failures leave
+`building` or `failed`. Old HTML may remain but is uncertified. Do not edit
+sources or run concurrent builds during verification. Dirty status is not a
+snapshot; untracked content edits and edits after completion require a rebuild.
+The record covers both dtype outputs, regardless of which one a portal serves.
+
+For agent browser/screenshots and sandbox troubleshooting, see
+[contributor inspection guidance](CONTRIBUTING_DOCS.md). Structural HTML checks
+and actual screenshot/layout inspection supply different evidence.

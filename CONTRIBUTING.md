@@ -81,3 +81,10 @@ changes and type annotations/docstrings for public APIs. Keep documentation work
 separate from code changes where practical and coordinate changes to navigation.
 Preserve license notices and provenance for reused material; the project uses
 Apache-2.0. Maintainers review changes before merging or publishing.
+
+<!-- agent-docs-inspection -->
+
+## Agent documentation inspection
+
+For documentation layout checks and agent inspection, see
+[the contributor inspection workflow](CONTRIBUTING_DOCS.md).

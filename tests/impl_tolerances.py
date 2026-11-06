@@ -41,3 +41,8 @@ RMST_CUTOFF_ATOL = {True: 2e-13, False: 5e-6}
 
 # Six binomial/delta-method MCSEs allow this fixed-seed family of empirical checks.
 SIMULATION_SIGMAS = 6
+
+# At the two-arm exponential MLE, H^-1=[[.5,-.5],[-.5,1]]. The specified
+# score bound 1e-5 implies <=1.5e-5 log-parameter error locally; 2e-5 allows
+# the O(score**2) remainder. This is solver accuracy, not value/AD accuracy.
+SIMULATION_FIT_ATOL = 2e-5

@@ -16,6 +16,7 @@ These are future assignments, not completed-step archives or implementation appr
 
 | File | Contents |
 | --- | --- |
+| `docs-through-docs6.md` | Completed documentation restructuring and integration, DOCS.1–DOCS.6; archived verbatim before revision-46 gap planning |
 | `GPU.1.md` | Modal GPU runner and safe source-archive follow-up |
 | `A10.md` | A10 concordance records through A10.d2, including A10.4/d1; unfinished, retained while A9 is current |
 | `A9.md` | A9 transformations, installation, CPU baseline and verification docs; complete, with closure note and retained gate map (2026-11-04) |
@@ -42,3 +43,6 @@ Imported verbatim; old status/next-step instructions are historical only.
 [Pre-restructure integrated plans](pre-docs-restructure.md): verbatim PLAN.md at 2093ca2, including completed MNIST work and historical records from other workstreams. Archival does not close unfinished work recorded there.
 
 [Pre-release preparation](pre-release-prepare.md): verbatim completed DOCS.1–6 records at 3cb4cd7; historical unfinished work remains owned by its original workstreams.
+
+- `pre-docs-workflow.md`: verbatim incoming plans at e6b3f9e.
+- `incoming-main-docs-workflow.md`: verbatim incoming main PLAN.md at d9832ba, retained during docs-workflow merge resolution.

@@ -117,7 +117,7 @@ import survjax
 
 both_arms = jnp.array([0.0, 1.0])  # control, treatment
 truth = survjax.ProportionalHazards(
-    survjax.Weibull(shape=1.38, scale=11.42), log_hazard_ratio=jnp.log(0.7) * both_arms
+    baseline=survjax.Weibull(shape=1.38, scale=11.42), log_hazard_ratio=jnp.log(0.7) * both_arms
 )
 times = jnp.linspace(0, 20, 201)
 curves = truth.survival_grid(times)  # grid shape: (time, arm)
@@ -154,7 +154,7 @@ def model(data, arm):
     gamma = numpyro.sample("gamma", distributions.Normal(0, 5))
 
     base = survjax.Weibull.from_log(log_shape=log_k, log_scale=log_b0)
-    survival = survjax.ProportionalHazards(base, log_hazard_ratio=gamma * arm)
+    survival = survjax.ProportionalHazards(baseline=base, log_hazard_ratio=gamma * arm)
     with numpyro.plate("observations", len(data)):
         numpyro.factor("survival", survival.log_likelihood(data))
 ```
@@ -202,7 +202,7 @@ base = survjax.Weibull.from_log(
     log_shape=samples["log_k"][:, None], log_scale=samples["log_b0"][:, None]
 )
 posterior = survjax.ProportionalHazards(
-    base, log_hazard_ratio=samples["gamma"][:, None] * jnp.array([0.0, 1.0])
+    baseline=base, log_hazard_ratio=samples["gamma"][:, None] * jnp.array([0.0, 1.0])
 )
 rmst5 = posterior.rmst(5.0)          # (S, 2)
 delta5 = rmst5[:, 1] - rmst5[:, 0]   # paired within each draw, (S,)
@@ -226,7 +226,7 @@ def model(data, arm, compute_rmst=False, tau=5.0, tau_grid=None):
     ...  # priors and likelihood factor as above
     if compute_rmst:
         per_arm = survjax.ProportionalHazards(
-            base, log_hazard_ratio=gamma * jnp.array([0.0, 1.0])
+            baseline=base, log_hazard_ratio=gamma * jnp.array([0.0, 1.0])
         )
         numpyro.deterministic("rmst_tau", per_arm.rmst(tau))  # (2,)
         numpyro.deterministic("rmst_curve", per_arm.rmst(tau_grid[:, None]))  # (m, 2)

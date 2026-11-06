@@ -1,11 +1,22 @@
-"""Shared demo generation; no fitting or public survjax sampling API."""
+"""Shared demo generation and single-replicate PH fitting; no library API."""
 
-from typing import NamedTuple
+from typing import Literal, NamedTuple
 
 import jax
 import jax.numpy as jnp
 import numpy as np
 from jax.typing import ArrayLike
+
+import survjax
+
+# Fixed use-case settings shared by execution and provenance (not library API).
+DGP_SHAPE: float = 1.38
+DGP_SCALE: float = 11.42
+BFGS_RTOL: float = 1e-8
+BFGS_ATOL: float = 1e-8
+BFGS_MAX_STEPS: int = 1000
+BFGS_THROW: bool = False
+GRADIENT_TOLERANCE: float = 1e-5
 
 
 class GeneratedData(NamedTuple):
@@ -109,6 +120,7 @@ def calibrate_censoring(
         raise ValueError("effective PH scales must be positive and finite")
 
     rules = {}
+    # Host-only calibration checks two quadrature orders once before JAX batching.
     for order in (64, 128):
         nodes, weights = np.polynomial.legendre.leggauss(order)
         rules[order] = ((nodes + 1) / 2, weights / 2)
@@ -122,6 +134,7 @@ def calibrate_censoring(
         return float(np.dot(weights * 8 * nodes**7, survival.mean(axis=1)))
 
     low, high = 0.0, float(np.median(b))
+    # Host bracketing converges before the compiled simulation is started.
     for _ in range(128):
         if fraction(high, 128) < target:
             break
@@ -130,6 +143,7 @@ def calibrate_censoring(
             raise RuntimeError("censoring calibration bracket overflowed")
     else:
         raise RuntimeError("censoring calibration could not bracket target")
+    # Host bisection is calibration work, never a loop over simulated replicates.
     for _ in range(100):
         c = low + (high - low) / 2
         value = fraction(c, 128)
@@ -142,3 +156,150 @@ def calibrate_censoring(
         else:
             high = c
     raise RuntimeError("censoring calibration did not converge")
+
+
+class FitResult(NamedTuple):
+    """One fit: raw diagnostics, acceptance flags and accepted-fit Wald inference."""
+
+    theta: jax.Array
+    objective: jax.Array
+    gradient: jax.Array
+    hessian: jax.Array
+    log_hr_se: jax.Array
+    hr_interval: jax.Array
+    solver_success: jax.Array
+    hessian_ok: jax.Array
+    estimable: jax.Array
+    accepted: jax.Array
+
+
+def _assess_fit(
+    theta: jax.Array,
+    value: jax.Array,
+    gradient: jax.Array,
+    hessian: jax.Array,
+    solver_success: jax.Array,
+) -> FitResult:
+    """Assess an estimable optimizer result, retaining diagnostics on rejection."""
+    identity = jnp.eye(theta.size, dtype=theta.dtype)
+    finite_hessian = jnp.all(jnp.isfinite(hessian))
+    chol = jnp.linalg.cholesky(jnp.where(finite_hessian, hessian, identity))
+    hessian_ok = finite_hessian & jnp.all(jnp.isfinite(chol))
+    finite = jnp.all(jnp.isfinite(theta)) & jnp.isfinite(value)
+    accepted = (
+        solver_success
+        & finite
+        & (jnp.max(jnp.abs(gradient)) < GRADIENT_TOLERANCE)
+        & hessian_ok
+    )
+    # 01-details: [H^-1]_gamma,gamma = ||L^-1 e_gamma||^2 for H=L L^T.
+    safe_chol = jnp.where(hessian_ok, chol, identity)
+    column = jax.scipy.linalg.solve_triangular(safe_chol, identity[:, -1], lower=True)
+    se = jnp.sqrt(jnp.sum(column**2))
+    safe_gamma = jnp.where(accepted, theta[-1], 0.0)
+    safe_se = jnp.where(accepted, se, 1.0)
+    interval = jnp.exp(safe_gamma + jnp.array([-1.96, 1.96]) * safe_se)
+    return FitResult(
+        theta,
+        value,
+        gradient,
+        hessian,
+        jnp.where(accepted, se, jnp.nan),
+        jnp.where(accepted, interval, jnp.nan),
+        solver_success,
+        hessian_ok,
+        jnp.asarray(True),
+        accepted,
+    )
+
+
+def negative_log_likelihood(
+    theta: jax.Array,
+    data: survjax.SurvivalData,
+    arm: jax.Array,
+    *,
+    model: Literal["weibull", "exponential"],
+) -> jax.Array:
+    """Summed negative log likelihood for a validated (N,) cohort.
+
+    Theta is (log k, log b0, gamma) for Weibull or (log rate0, gamma) for
+    Exponential. Arm is the matching (N,) binary predictor.
+    """
+    if model == "weibull":
+        base = survjax.Weibull.from_log(log_shape=theta[0], log_scale=theta[1])
+    elif model == "exponential":
+        base = survjax.Exponential.from_log(log_rate=theta[0])
+    else:
+        raise ValueError("model must be 'weibull' or 'exponential'")
+    lp = theta[-1] * arm
+    dist = survjax.ProportionalHazards(baseline=base, log_hazard_ratio=lp)
+    return -dist.log_likelihood(data).sum()
+
+
+def fit_replicate(
+    data: survjax.SurvivalData,
+    arm: jax.Array,
+    *,
+    model: Literal["weibull", "exponential"],
+) -> FitResult:
+    """Fit one (N,) cohort, returning estimates, uncertainty and failure flags.
+
+    Use float64 and validate data before batching. Models are 'weibull' or
+    'exponential'; no-event arms are unestimable. Rejected fits retain their
+    diagnostics but have NaN inference. Supports jit/vmap.
+    """
+    import optimistix as optx
+
+    if data.lower.dtype != jnp.float64:
+        raise ValueError("simulation fitting requires float64 (JAX_ENABLE_X64=1)")
+    if model not in ("weibull", "exponential"):
+        raise ValueError("model must be 'weibull' or 'exponential'")
+    size = 3 if model == "weibull" else 2
+    estimable = jnp.any(data.exact & (arm == 0)) & jnp.any(data.exact & (arm == 1))
+
+    def solve(_: None) -> FitResult:
+        log_mean = jnp.log(jnp.mean(data.lower))
+        start = (
+            jnp.array([0.0, log_mean, 0.0])
+            if model == "weibull"
+            else jnp.array([-log_mean, 0.0])
+        )
+
+        def objective(theta: jax.Array, _: None = None) -> jax.Array:
+            return negative_log_likelihood(theta, data, arm, model=model)
+
+        solution = optx.minimise(
+            objective,
+            optx.BFGS(rtol=BFGS_RTOL, atol=BFGS_ATOL),
+            start,
+            max_steps=BFGS_MAX_STEPS,
+            throw=BFGS_THROW,
+        )
+        theta = solution.value
+        value, gradient = jax.value_and_grad(objective)(theta)
+        hessian = jax.hessian(objective)(theta)
+        return _assess_fit(
+            theta,
+            value,
+            gradient,
+            hessian,
+            solution.result == optx.RESULTS.successful,
+        )
+
+    def unestimable(_: None) -> FitResult:
+        missing = jnp.full((size,), jnp.nan, dtype=data.lower.dtype)
+        false = jnp.asarray(False)
+        return FitResult(
+            missing,
+            jnp.asarray(jnp.nan, dtype=data.lower.dtype),
+            missing,
+            jnp.full((size, size), jnp.nan, dtype=data.lower.dtype),
+            jnp.asarray(jnp.nan, dtype=data.lower.dtype),
+            jnp.full((2,), jnp.nan, dtype=data.lower.dtype),
+            false,
+            false,
+            false,
+            false,
+        )
+
+    return jax.lax.cond(estimable, solve, unestimable, None)

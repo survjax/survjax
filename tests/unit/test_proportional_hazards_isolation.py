@@ -64,7 +64,7 @@ def _distribution(p, kind):
         baseline, eta = survjax.Weibull(shape=p[3], scale=p[4]), p[:3]
     else:
         baseline, eta = GapBaseline(lower=p[:3], upper=p[3]), p[4]
-    return ProportionalHazards(baseline, log_hazard_ratio=eta)
+    return ProportionalHazards(baseline=baseline, log_hazard_ratio=eta)
 
 
 def _formula(p, kind, time=TIME, event=EVENT, indices=KEEP):

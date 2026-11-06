@@ -197,6 +197,40 @@ subdirectories are still `html-x32` and `html-x64`. See the
 {download}`build interface and portal compatibility notes <../../DOCS-BUILD.md>`
 for path handling, dependencies, caches, exit behavior and serving under a prefix.
 
+The runner keeps Jupyter runtime files, IPython state and Matplotlib
+configuration/cache under the selected build root's ignored `.cache/`, using
+`JUPYTER_RUNTIME_DIR`, `IPYTHONDIR` and `MPLCONFIGDIR`. It sets these for the
+build without changing `HOME` or global settings. It preserves the MNIST cache
+choice to avoid downloading it in every worktree. For a cold cache, set
+`SURVJAX_EXAMPLES_DATA` to a writable location (for example an absolute path
+under `docs/_build/mnist`) before invoking the script directly. An explicit
+value is never replaced. The first download needs network; warm-cache success
+does not establish cold-cache portability.
+
+The script prints absolute HTML paths and `DIR/build-identity.txt`
+(`docs/_build/build-identity.txt` by default).
+Before inspection, read that record: its **last** `state:` must be `success`,
+with the intended absolute checkout, commit, dtype pair and UTC completion
+time. Compare with `git rev-parse HEAD` and `git status --short`. A dirty tree
+is labelled with its status; this is provenance, not a reproducible snapshot
+of uncommitted or untracked file contents. Do not edit sources or run builds
+concurrently during verification. Tracked edits during the build are detected;
+untracked content edits and changes after completion require a fresh build.
+A new attempt invalidates the old success before setup. Errors/signals leave
+a failed record; setup failure or abrupt termination may leave `building`. Neither certifies
+old HTML that remains on disk. Only completion of both dtype builds certifies
+the pair. The record is external to HTML; an already open tab can be stale.
+
+To view the rendered site on macOS, run `open
+docs/_build/html-x64/index.html` (or use `html-x32` for float32). On other
+systems, open that `index.html` file in a browser. Use the absolute printed
+path to avoid a different worktree's site, and reload after building. Local
+`file:///absolute/path/.../index.html` is sufficient for routine checks; no
+preview server or Quarto command is needed for this Sphinx/MyST-NB site.
+
+MathJax currently loads from a CDN, so offline HTML does not guarantee
+rendered equations.
+
 The MNIST use case executes its smoke example in float32 and downloads
 hash-checked images on first use. A warm cache at `SURVJAX_EXAMPLES_DATA`
 (default `~/.cache/survjax-examples/mnist`) avoids later downloads.

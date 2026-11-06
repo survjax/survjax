@@ -22,7 +22,11 @@ from survjax.distributions.wrappers import ProportionalHazards
 def _value(q, wrapped):
     k, b, eta, tau = q
     baseline = Weibull(shape=k, scale=b)
-    dist = ProportionalHazards(baseline, log_hazard_ratio=eta) if wrapped else baseline
+    dist = (
+        ProportionalHazards(baseline=baseline, log_hazard_ratio=eta)
+        if wrapped
+        else baseline
+    )
     return dist.rmst(tau)
 
 

@@ -44,7 +44,7 @@ def _value(q, family):
         if family == "exponential"
         else Weibull(shape=q[0], scale=q[1])
     )
-    return ProportionalHazards(base, log_hazard_ratio=q[-2]).rmst(q[-1])
+    return ProportionalHazards(baseline=base, log_hazard_ratio=q[-2]).rmst(q[-1])
 
 
 @pytest.fixture(scope="module", params=["exponential", "weibull"])
@@ -137,7 +137,9 @@ def test_broadcast_closure_identity_in_every_first_derivative(family, x64_enable
                 if family == "exponential"
                 else Weibull(shape=q[0], scale=q[1])
             )
-            return ProportionalHazards(base, log_hazard_ratio=q[-1]).rmst(cutoff)
+            return ProportionalHazards(baseline=base, log_hazard_ratio=q[-1]).rmst(
+                cutoff
+            )
 
         def equivalent(q, cutoff=cutoff):
             # Analytical laws r_PH=r*exp(eta), b_PH=b*exp(-eta/k).
@@ -187,7 +189,7 @@ def _supported(q, k, family):
         if family == "exponential"
         else Weibull(shape=k, scale=q[0])
     )
-    return ProportionalHazards(base, log_hazard_ratio=q[1]).rmst(q[2])
+    return ProportionalHazards(baseline=base, log_hazard_ratio=q[1]).rmst(q[2])
 
 
 @pytest.mark.parametrize("family", ["exponential", "weibull"])

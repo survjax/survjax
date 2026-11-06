@@ -34,6 +34,10 @@ cd "$repo_dir"
 # Use this worktree even when invoked by a portal in another environment.
 export UV_PROJECT_ENVIRONMENT="$repo_dir/.venv"
 export PYTHONPATH="$repo_dir/src:$repo_dir"
+# Invalidate an existing certificate before dependency/path setup can fail.
+if [ -f "$output_root/build-identity.txt" ]; then
+  printf 'state: building\n' > "$output_root/build-identity.txt"
+fi
 output_root="$(uv run --project "$repo_dir" --locked --group docs --group examples python -c \
   'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve())' "$output_root")"
 case "$output_root" in
@@ -48,11 +52,43 @@ esac
 mkdir -p "$output_root"
 # A caller-selected build root must stay untracked even inside this repository.
 printf '*\n' > "$output_root/.gitignore"
+identity="$output_root/build-identity.txt"
+# Invalidate old success before any setup or execution can fail.
+printf 'state: building\ncheckout: %s\n' "$repo_dir" > "$identity"
+finish() {
+  result=$?
+  if [ "$result" -ne 0 ]; then
+    printf 'state: failed\nexit: %s\n' "$result" >> "$identity"
+  fi
+}
+trap finish EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+commit=$(git rev-parse HEAD)
+status=$(git status --porcelain --untracked-files=normal)
+# Track source edits during execution; dirty builds are allowed but labelled.
+fingerprint=$(git diff HEAD --binary | git hash-object --stdin)
+started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+printf 'commit: %s\nstarted_utc: %s\ndtypes: x32 x64\n' "$commit" "$started" >> "$identity"
+if [ -n "$status" ]; then
+  printf 'tree: dirty\n%s\n' "$status" >> "$identity"
+else
+  printf 'tree: clean\n' >> "$identity"
+fi
+
 export JAX_COMPILATION_CACHE_DIR="$output_root/.cache/jax"
 export MPLCONFIGDIR="$output_root/.cache/matplotlib"
 export IPYTHONDIR="$output_root/.cache/ipython"
+export JUPYTER_RUNTIME_DIR="$output_root/.cache/jupyter-runtime"
+mkdir -p "$JUPYTER_RUNTIME_DIR" "$IPYTHONDIR" "$MPLCONFIGDIR"
 export JUPYTER_PATH="$repo_dir/.venv/share/jupyter"
 export JUPYTER_PREFER_ENV_PATH=1
+
+# Retain the shared hash-checked MNIST cache and any explicit override.
+# A cold cache needs network and a writable SURVJAX_EXAMPLES_DATA location.
+echo "MNIST cache: ${SURVJAX_EXAMPLES_DATA-~/.cache/survjax-examples/mnist}"
+echo "Build identity: $identity"
 
 for mode in 0 1; do
   if [ "$mode" = 1 ]; then
@@ -64,3 +100,13 @@ for mode in 0 1; do
   JAX_ENABLE_X64="$mode" uv run --project "$repo_dir" --locked --group docs --group examples python -m sphinx \
     -b html -E -n -W --keep-going docs "$output"
 done
+
+if [ "$commit" != "$(git rev-parse HEAD)" ] ||
+   [ "$status" != "$(git status --porcelain --untracked-files=normal)" ] ||
+   [ "$fingerprint" != "$(git diff HEAD --binary | git hash-object --stdin)" ]; then
+  echo "Checkout changed during build; rerun before inspecting." >&2
+  exit 1
+fi
+printf 'completed_utc: %s\nstate: success\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$identity"
+echo "Verified both dtypes. Identity: $identity"
+printf 'HTML: %s/index.html\n' "$output_root/html-x32" "$output_root/html-x64"
