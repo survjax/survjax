@@ -1,4 +1,4 @@
-"""Sphinx configuration for the local survjax documentation (spec 10.5)."""
+"""Sphinx configuration for the local survjax documentation."""
 
 project = "survjax"
 # autodoc and napoleon (Google-style sections) ship with Sphinx: no new dependency.

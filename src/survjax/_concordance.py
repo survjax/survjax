@@ -1,4 +1,4 @@
-"""Private exact pair counts for validated cohorts (spec 9.1–9.2)."""
+"""Private exact pair counts for validated cohorts."""
 
 import jax
 import jax.numpy as jnp

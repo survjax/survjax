@@ -1,4 +1,4 @@
-"""Private observation-input classification and static flags (spec 3.2, 6.2)."""
+"""Private observation-input classification and static flags."""
 
 import jax
 import jax.numpy as jnp

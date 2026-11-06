@@ -1,4 +1,4 @@
-"""Harrell concordance for exact/right observations (spec 6, 9.1–9.2)."""
+"""Harrell concordance for exact/right observations."""
 
 from dataclasses import dataclass
 from math import prod

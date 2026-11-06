@@ -1,3 +1,30 @@
+# DOCS.4 — Remove internal contract citations from documentation
+
+Starting/previous step: 300c368; original worktree base: 2093ca2.
+Maintainer asks to purge specification/decision-log references from docs,
+docstrings and appendices while retaining the technical text. Scope: package
+module/class/function docstrings, docs/conf.py docstring, simulation guide,
+verification note, PH appendix Markdown/PDF; PLAN.md and REVIEW.md records.
+Rendered audit also found source comments in a SurvivalData expected-error
+traceback: print its TypeError/message instead, preserving the demonstrated
+error while removing internal implementation details from the page.
+Keep internal implementation comments and historical records unchanged.
+Preserve the maintainer's existing callout-title edit without staging it.
+No public API, dependency, algorithm, numerical formula or spec changes.
+
+Use AST ranges to edit only docstrings; compare Python ASTs with docstrings
+removed before/after to prove executable structure unchanged. Re-scan all
+package docstrings and docs/appendix prose for citations, including PDF text.
+Build the changed appendix with its documented Pandoc/XeLaTeX command; render
+and inspect its pages. Run both dtype docs builds, Ruff, mypy and whitespace
+checks. No numerical regression suite for documentation-only changes.
+Independent review remains waived for this documentation cleanup.
+Completed: 46 docstrings cleaned; docs/appendix sources and both PDF texts
+clean; both dtype builds and rendered text/link audits pass. Executable ASTs
+and internal comments unchanged. PDF pages visually checked. No remaining work.
+
+---
+
 # DOCS.3 — Link the circle of survival teaching article
 
 Starting/previous step: c95fdca; original worktree base: 2093ca2.

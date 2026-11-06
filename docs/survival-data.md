@@ -129,9 +129,10 @@ At most one flag may be true on a row. Combining `event` with flags in one
 call is a mistake in the call itself. It raises at once:
 
 ```{code-cell} ipython3
-:tags: [raises-exception]
-
-survjax.SurvivalData([4.0], [1], left_censored=[False])
+try:
+    survjax.SurvivalData([4.0], [1], left_censored=[False])
+except TypeError as error:
+    print(f"TypeError: {error}")
 ```
 
 ### The same cohort as endpoints

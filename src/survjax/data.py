@@ -1,4 +1,4 @@
-"""Normalized survival observations (spec 3.1–3.3)."""
+"""Normalized survival observations."""
 
 from contextlib import nullcontext
 from dataclasses import dataclass
@@ -40,7 +40,7 @@ def _window_text(left_trunc: float, right_trunc: float) -> str:
 
 @dataclass(frozen=True, eq=False, init=False, repr=False)
 class SurvivalData:
-    """Exact and censored observations stored as aligned arrays (spec 3.2).
+    """Exact and censored observations stored as aligned arrays.
 
     The five public fields are ``exact``, ``lower``, ``upper``, ``left_trunc``,
     and ``right_trunc``. Each has the shape of the first time argument. A
@@ -72,7 +72,7 @@ class SurvivalData:
         right_trunc: ArrayLike | None = None,
         dtype: DTypeLike | None = None,
     ) -> None:
-        """Build observations from event status or censoring flags (spec 3.1).
+        """Build observations from event status or censoring flags.
 
         ``SurvivalData(time, event)`` uses 1/True for an exact event and
         0/False for right censoring. With no status or flags, every row is
@@ -140,7 +140,7 @@ class SurvivalData:
         right_trunc: ArrayLike | None = None,
         dtype: DTypeLike | None = None,
     ) -> "SurvivalData":
-        """Build observation sets from endpoints (spec 3.1–3.2).
+        """Build observation sets from endpoints.
 
         A censored row represents ``lower < T <= upper``. Use ``upper=+inf``
         for right censoring and ``lower=0`` for left censoring. Mark exact
@@ -237,7 +237,7 @@ class SurvivalData:
 
     @property
     def shape(self) -> tuple[int, ...]:
-        """Return the observation shape as Python ints (spec 3.2).
+        """Return the observation shape as Python ints.
 
         Read from the stored lower-bound array, so the shape is static under
         jit and describes each example inside vmap. Scalar data have shape ().
@@ -245,7 +245,7 @@ class SurvivalData:
         return self.lower.shape
 
     def __len__(self) -> int:
-        """Return the leading observation-axis length (spec 3.2).
+        """Return the leading observation-axis length.
 
         Returns:
             A Python int, including 0 for shape (0,). For multidimensional
@@ -259,7 +259,7 @@ class SurvivalData:
         return self.shape[0]
 
     def __bool__(self) -> bool:
-        """Reject truth testing for every observation shape (spec 3.2).
+        """Reject truth testing for every observation shape.
 
         Raises:
             TypeError: Always; the truth value of SurvivalData is undefined.
@@ -268,7 +268,7 @@ class SurvivalData:
         raise TypeError("the truth value of SurvivalData is undefined")
 
     def __getitem__(self, idx: object) -> "SurvivalData":
-        """Index observation axes, preserving issue bits and parent flags (spec 3.2).
+        """Index observation axes, preserving issue bits and parent flags.
 
         All six leaves take the same index and resulting shape. JAX array
         indexing restrictions apply, including fixed output shapes under jit.
@@ -279,7 +279,7 @@ class SurvivalData:
 
     @property
     def issues(self) -> DataIssues:
-        """Decode per-row issue masks and scalar validity without host checks (spec 6.2)."""
+        """Decode per-row issue masks and scalar validity without host checks."""
         return DataIssues._from_bits(
             self.exact,
             self.lower,
@@ -292,7 +292,7 @@ class SurvivalData:
     def __repr__(self) -> str:
         """One line per observation; traced data print only shape and dtype.
 
-        Private fields stay out of the repr (spec 3.2); a footer points to
+        Private fields stay out of the repr; a footer points to
         ``data.issues`` when any row is invalid or uninformative.
         """
         if any(isinstance(leaf, jax.core.Tracer) for leaf in self.tree_flatten()[0]):
@@ -364,7 +364,7 @@ class SurvivalData:
         object.__setattr__(self, "_may_contain", may_contain)
 
     def tree_flatten(self) -> tuple[tuple[jax.Array, ...], tuple[bool, ...]]:
-        """Keep the issue bitfield as an array leaf (spec 3.2)."""
+        """Keep the issue bitfield as an array leaf."""
         return (
             (
                 self.exact,
@@ -381,7 +381,7 @@ class SurvivalData:
     def tree_unflatten(
         cls, may_contain: tuple[bool, ...], children: tuple[jax.Array, ...]
     ) -> "SurvivalData":
-        """Rebuild from leaves without applying public normalization (spec 3.2)."""
+        """Rebuild from leaves without applying public normalization."""
         result = object.__new__(cls)
         result._assign(
             children[0],

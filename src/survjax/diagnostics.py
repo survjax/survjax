@@ -1,4 +1,4 @@
-"""Diagnostic containers for data and parameters (spec 4.7, 6.2–6.3)."""
+"""Diagnostic containers for data and parameters."""
 
 from dataclasses import dataclass
 
@@ -10,11 +10,11 @@ from survjax._data_validation import ISSUE_NAMES
 
 
 class InvalidDataError(ValueError):
-    """An explicit host checkpoint found invalid observation values (spec 6.2)."""
+    """An explicit host checkpoint found invalid observation values."""
 
 
 class InvalidParameterError(ValueError):
-    """An explicit host checkpoint found parameter violations (spec 4.7)."""
+    """An explicit host checkpoint found parameter violations."""
 
 
 def _plural(count: int, noun: str) -> str:
@@ -171,7 +171,7 @@ class DataIssues:
     def tree_unflatten(
         cls, _aux: None, children: tuple[jax.Array, ...]
     ) -> "DataIssues":
-        """Rebuild from leaves without a host checkpoint (spec 6.3)."""
+        """Rebuild from leaves without a host checkpoint."""
         return cls(
             children[0],
             children[1],
@@ -213,7 +213,7 @@ class ParameterIssues:
     ok: jax.Array
 
     def raise_if_invalid(self) -> None:
-        """Check concrete masks at an explicit host checkpoint (spec 4.7).
+        """Check concrete masks at an explicit host checkpoint.
 
         Returns:
             None when no field or condition reports a violation.
@@ -254,7 +254,7 @@ class ParameterIssues:
         keys: tuple[tuple[str, ...], tuple[str, ...]],
         children: tuple[jax.Array, ...],
     ) -> "ParameterIssues":
-        """Rebuild without calculations, including vmap placeholders (spec 6.3)."""
+        """Rebuild without calculations, including vmap placeholders."""
         field_names, condition_names = keys
         split = len(field_names)
         fields = dict(zip(field_names, children[:split], strict=True))

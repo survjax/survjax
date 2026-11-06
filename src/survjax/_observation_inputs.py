@@ -1,4 +1,4 @@
-"""Shared observation input forms for likelihoods and metrics (spec 6.1)."""
+"""Shared observation input forms for likelihoods and metrics."""
 
 from jax.typing import ArrayLike
 
@@ -8,7 +8,7 @@ from survjax.data import SurvivalData
 def _resolve_data(
     data: SurvivalData | None, time: ArrayLike | None, event: ArrayLike | None
 ) -> SurvivalData:
-    """Resolve the two input forms without inspecting runtime values (spec 6.1)."""
+    """Resolve the two input forms without inspecting runtime values."""
     if data is not None:
         if not isinstance(data, SurvivalData):
             raise TypeError("data must be SurvivalData; use time=... and event=...")

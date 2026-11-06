@@ -1,4 +1,4 @@
-"""Guarded log arithmetic, without clipping or value validation (spec 7.2)."""
+"""Guarded log arithmetic, without clipping or value validation."""
 
 import jax
 import jax.numpy as jnp

@@ -1,4 +1,4 @@
-"""Compose declared parameter diagnostics without host inspection (spec 4.7)."""
+"""Compose declared parameter diagnostics without host inspection."""
 
 from collections.abc import Mapping
 from dataclasses import fields
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 def parameter_issues(self: "SurvivalDistribution") -> ParameterIssues:
-    """Return declared parameter violations as an ordered PyTree (spec 4.7).
+    """Return declared parameter violations as an ordered PyTree.
 
     Returns:
         ParameterIssues with boolean masks of ``batch_shape``: own constrained

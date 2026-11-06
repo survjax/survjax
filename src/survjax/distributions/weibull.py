@@ -1,4 +1,4 @@
-"""Weibull family in natural shape and scale parameters (spec 4.1)."""
+"""Weibull family in natural shape and scale parameters."""
 
 from dataclasses import dataclass
 from typing import Self

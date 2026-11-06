@@ -287,7 +287,7 @@ doubles; Python did not generate expected numerical values.
 
 The directory also holds the same R outputs in the acceptance-test schema
 (`bc_synthetic_weibull.json`); ordinary regeneration never writes to
-`tests/spec/`.
+the independent acceptance-test directory.
 
 ## Concordance reference evidence
 

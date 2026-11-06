@@ -1,4 +1,4 @@
-"""Frozen-family registration and construction (spec 4.1–4.2)."""
+"""Frozen-family registration and construction."""
 
 import functools
 import inspect
@@ -385,7 +385,7 @@ def register_family[Family: SurvivalDistribution](cls: type[Family]) -> type[Fam
     Registration raises TypeError for invalid class or field declarations.
     Declared constraints must be callable and reduce no more than the field's
     component axes. ``parameter_constraints`` is their read-only mapping in
-    declaration order, excluding nested distributions (spec 4.7).
+    declaration order, excluding nested distributions.
     Construction raises TypeError for nonreal parameters, insufficient axes,
     incompatible batch shapes, unregistered nested distributions or unhashable
     static configuration. JAX tree

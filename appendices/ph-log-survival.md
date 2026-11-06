@@ -159,4 +159,4 @@ mean true zero survival or prior overflow of a finite baseline cumulative hazard
 The helper preserves that infinity; it cannot reconstruct a hidden finite
 magnitude even if negative $\eta$ would make the true PH result representable.
 These guards are not a proof of arbitrary tail Hessians or a repair for
-inaccurate custom primitives. Relevant contracts are spec 3.3, 4.4--4.5 and 7.1--7.3.
+inaccurate custom primitives.
