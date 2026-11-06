@@ -14,12 +14,12 @@ dependencies = ["jax>=0.11.2", "numpy>=2.5.3"]
 
 [dependency-groups]
 examples = [
-    "arviz==0.23.0",
     "optimistix==0.1.0",
     "matplotlib==3.11.2",
     "equinox==0.13.8",
     "optax==0.2.8",
     "numpyro==0.22.0",
+    "pandas==3.1.0",
 ]
 test = [
     "pytest>=9.1.1",
@@ -50,6 +50,25 @@ extend-exclude = ["spec"]
 select = ["E", "W", "F", "I", "B", "C4", "UP"]
 ignore = ["E501"]
 
+# The tutorial notebooks keep their reader-facing layout: their setup cells
+# configure the environment and make the example package importable before
+# importing it, and their lines are not rewrapped.
+[tool.ruff.lint.per-file-ignores]
+"examples/survival_mnist/survival-mnist.ipynb" = ["E402"]
+"examples/bayesian_rmst/bayesian-rmst.ipynb" = ["E402"]
+
+[tool.ruff.format]
+exclude = [
+    "examples/survival_mnist/survival-mnist.ipynb",
+    "examples/bayesian_rmst/bayesian-rmst.ipynb",
+]
+
 [tool.mypy]
 files = ["src"]
 check_untyped_defs = true
+
+[tool.pytest.ini_options]
+markers = [
+    "gpu: test applies to an optional JAX GPU backend verification run",
+    "slow: listed in tests/slow_tests.txt; skipped by the fast gate (-m 'not slow')",
+]

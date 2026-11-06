@@ -1,4 +1,4 @@
-"""Exponential family in natural rate parameters (spec 4.1)."""
+"""Exponential family in natural rate parameters."""
 
 from dataclasses import dataclass
 from typing import Self

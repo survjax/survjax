@@ -432,3 +432,49 @@ def harrell_reference(time, event, scores):
             else:
                 tied += 1
     return conc, disc, tied, conc + disc + tied
+
+
+# ------------------------------------------------- ProportionalHazards (A11, rev 41)
+
+
+def ph(baseline, log_hazard_ratio):
+    """``survjax.ProportionalHazards`` with its keyword-only fields ``baseline`` and ``log_hazard_ratio`` (spec 4.4, rev 42; Q-050 resolved)."""
+    return survjax.ProportionalHazards(
+        baseline=baseline, log_hazard_ratio=log_hazard_ratio
+    )
+
+
+# ------------------------------------------------------- staged RMST (A12, rev 41)
+
+
+def rounded(*values):
+    """Inputs rounded to the active dtype, as floats: references are evaluated at what survjax receives."""
+    return [float(np.asarray(v, dtype=FLOAT)) for v in values]
+
+
+def rmst_rtol():
+    """Spec 12.1 (rev 44): the factor on every staged RMST derivative scale is the ordinary ``rtol`` (Q-052 resolved)."""
+    from tolerances import TOLERANCES
+
+    return TOLERANCES[FLOAT]["rtol"]
+
+
+def assert_log_parameter_derivative(actual, expected, param, rmst, err_msg=""):
+    """Spec 12.1 (rev 44): the error in ``theta * d rmst/d theta`` within ``rtol * |rmst|``.
+
+    Equivalently the natural derivative is within ``rtol * |rmst| / |theta|``.
+    Used for ``k``, ``b`` (``b0``) and ``r``; for ``eta`` pass ``param=1``
+    (12.1: "errors in `d rmst/d eta` have scale `|rmst|`").
+    """
+    actual = np.asarray(actual, dtype=np.float64)
+    assert np.isfinite(actual).all(), f"{err_msg}: non-finite derivative {actual!r}"
+    err = np.abs(np.asarray(param, dtype=np.float64) * (actual - np.asarray(expected, dtype=np.float64)))
+    bound = rmst_rtol() * np.abs(np.asarray(rmst, dtype=np.float64))
+    assert np.all(err <= bound), f"{err_msg}: error {err!r} exceeds {bound!r}"
+
+
+def assert_cutoff_derivative(actual, expected, err_msg=""):
+    """Spec 12.1 (rev 44): "The `tau` derivative uses absolute scale 1"; tolerance ``rtol * 1``."""
+    actual = np.asarray(actual, dtype=np.float64)
+    assert np.isfinite(actual).all(), f"{err_msg}: non-finite derivative {actual!r}"
+    np.testing.assert_allclose(actual, np.asarray(expected, dtype=np.float64), rtol=0.0, atol=rmst_rtol(), err_msg=err_msg)

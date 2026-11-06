@@ -1,4 +1,4 @@
-"""Time-first adapters for registered direct methods (spec 5)."""
+"""Time-first adapters for registered direct methods."""
 
 from typing import TYPE_CHECKING
 

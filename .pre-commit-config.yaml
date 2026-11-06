@@ -10,7 +10,9 @@ repos:
     rev: v5.0.0
     hooks:
       - id: end-of-file-fixer
+        exclude: ^examples/survival_mnist/results/.*\.svg$
       - id: trailing-whitespace
+        exclude: ^examples/survival_mnist/results/.*\.svg$
       - id: check-yaml
       - id: check-toml
       - id: check-case-conflict

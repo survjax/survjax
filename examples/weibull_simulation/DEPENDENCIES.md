@@ -9,7 +9,6 @@ The maintainer approved these exact pins; they now form the `examples` group:
 | Equinox | 0.13.8 | MNIST model; Optimistix also needs it |
 | Optax | 0.2.8 | MNIST training |
 | NumPyro | 0.22.0 | Bayesian inference and built-in diagnostics |
-| ArviZ | 0.23.0 | Bayesian tail ESS |
 
 Tested on CPU: Python 3.12.9, locked JAX/jaxlib 0.11.2/NumPy 2.5.3; transitive Lineax 0.1.1.
 Compiled vmapped BFGS, Equinox/Optax update, short NUTS and Agg SVG export pass.
@@ -21,6 +20,8 @@ not convergence evidence for the Bayesian demo. Probe source and exact
 invocation are preserved in REVIEW.md at commit `afc266a` (SIM.3 N-2).
 ArviZ 0.23.0 writes a daily import
 warning stamp under ~/arviz_data; the probe required sandbox escalation.
+ArviZ 0.23.0 was part of the original group for the Bayesian tail ESS and was
+removed in the Bayesian clean-up (D-041); NumPyro's split R-hat and ESS remain.
 No loader dependency is required for the standard-library IDX reader.
 
 Install with `uv sync --locked --group examples`; use `uv sync --locked --group docs --group examples` for future demo docs builds.

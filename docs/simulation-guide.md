@@ -4,13 +4,12 @@ This illustrative guide shows one way to compose survjax construction,
 diagnostics and likelihoods in a simulation study. It is non-normative and adds
 no acceptance requirements. The example has not been validated as an executable
 recipe; its solver, tolerances, pilot size and loop are choices to evaluate.
-The [specification](../spec/SPECIFICATION.md) defines the library contract.
 
 ## Study design and checkpoints
 
 Keep invalid observations, valid data without an estimable target, and failed
 optimizer attempts distinct. For the exponential model below, all-censored
-observations can be valid while having no finite log-rate MLE (spec section 11.4).
+observations can be valid while having no finite log-rate MLE.
 
 1. Pilot every scenario with a few replicates at the intended dataset size,
    precision, optimizer and settings. Sixteen replicates is only an example.
@@ -33,7 +32,7 @@ Optimistix is an optional external dependency, outside the survjax core.
 `grad(nll)` using its Jacobian, the objective Hessian. This illustrates second
 parameter derivatives; [BFGS](https://docs.kidger.site/optimistix/api/minimise/)
 instead updates an approximation from gradients. Neither choice promises
-that differentiating through the solver is supported (spec section 7.3).
+that differentiating through the solver is supported.
 
 ```python
 import jax

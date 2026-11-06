@@ -1,4 +1,4 @@
-"""Proportional-hazards composition (spec 4.4)."""
+"""Proportional-hazards composition."""
 
 from collections.abc import Callable
 from dataclasses import dataclass

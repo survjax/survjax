@@ -1,6 +1,6 @@
 # Test map
 
-Spec: revision 37 (see `.spec-seen`). Unchanged requirements keep their
+Spec: revision 46 (see `.spec-seen`). Unchanged requirements keep their
 earlier revision tags. Tests from the revision 10 decision (sections 6.2, 10.2,
 13) are tagged `rev 10`. Tests from the performance amendment (section 7.2),
 accepted in revision 11, are tagged `rev 11`. A4 tests derive from revision 11 and
@@ -103,7 +103,24 @@ Revision 37 (decision 0050: first-public-release milestone with
 1, 4.2, 4.4, 4.5, 8.1, 8.4, 8.7, 10.4, 11.2, 11.3, 12.1, 12.2, 13) changes no
 requirement that an existing test asserts: no test used PH wrappers or
 summaries, and the A10 sections 9.1–9.2 are unchanged. Its new requirements
-are not yet tested (see "Not covered" below and Q-049). The mpmath references
+are not yet tested (see "Not covered" below and Q-049). Revisions 38 and 39 (8.7, 12.1: staged RMST boundary
+guarantees narrowed, NaN-entry tangents deferred, Weibull `tau=0`
+guarantee first-order only, parameter-derivative tolerances in
+log-parameter units) change only staged RMST, which no test covers yet. Revision 40
+(decision 0052; 4.4, 7.3, 12.1, 12.2: extreme-scaling PH parameter
+derivatives outside the initial-release guarantee) changes only
+`ProportionalHazards`, which no test covers yet; the built-in-family
+derivative tests of A5–A9 are unaffected. Revision 41 (11.2 neural demo
+float32 and censoring) changes no tested requirement. A11 (`ProportionalHazards`
+without RMST) and A12 (staged RMST and PH–RMST) follow the maintainer's
+2026-11-06 schedule (Q-049) and are written against revision 41, tagged
+`rev 41`. Revisions 42–46 (decisions 0053–0057) resolve Q-050–Q-054: keyword-only
+wrappers with field `baseline` (rev 42, one new test, two retags), wrapper
+`log_hazard` overrides carrying baseline limits (rev 43, four new tests),
+RMST derivative tolerance factors (rev 44: the A12 derivative tests and
+helpers are retagged; no assertion changed), shape Hessians raise or are
+correct (rev 45, retags), and absent APIs plus `tau` shape and dtype rules
+(rev 46, four new tests; the absence test now expects `AttributeError`). The mpmath references
 need `mpmath`, and the A10 property tests `hypothesis`, in the test environment. Tests are static acceptance tests and have never
 been executed against survjax. Test names below are relative to `tests/spec/`.
 
@@ -1670,24 +1687,179 @@ load time by design.
 - **Kaplan–Meier, Brier, IBS, AUC, distribution-versus-array prediction
   inputs, `G=0`, delayed entry**: Slice E.
 
-## Revision 37 (first public release): not yet tested
+## A11: `ProportionalHazards` without RMST (spec 3.3, 4.1, 4.2, 4.4, 4.5, 4.7, 5, 6.1, 7.1, 7.3, 12.1, 12.2; rev 41)
 
-Revision 37 adds requirements that no step in the role file's schedule covers
-(Q-049). Nothing is tested yet for:
+Construction goes through `helpers.ph` (keyword-only fields `baseline`, `log_hazard_ratio`; rev 42). Hand references
+use `H = exp(eta) H0`; derivative references are hand-derived (algebra in
+the module docstrings). PH identity tests compare with
+`Weibull(shape=k, scale=b0*exp(-eta/k))` and `Exponential(rate=r*exp(eta))`
+written as functions of `(k, b0, eta)` / `(r, eta)`. Every derivative case
+is ordinary range (7.3 exception).
 
-- **`ProportionalHazards` with the PH closure (4.4; 12.1 "PH closure" row):**
-  construction, parameter issues, direct methods and grids, likelihood, the
-  PH-Weibull and PH-Exponential identities in values and first derivatives,
-  the `(S, 1)` x `(S, 2)` broadcasting case, `rmst` on a PH wrapper of a
-  custom baseline raising `NotImplementedError`.
-- **Staged RMST (8.7; 4.5 `tau` rows; 12.1 "Staged RMST" row):** mpmath
-  quadrature values and first derivatives over `k` in [0.2, 50] and `tau/b`
-  in [1e-2, 1e5] with both tails, `tau=0`, invalid `tau` and parameter issues
-  giving NaN with isolated derivatives, `tau` broadcasting, eager/`jit`/`vmap`,
-  `NotImplementedError` from Weibull Hessians in `k`, finite Hessians
-  elsewhere, `NotImplementedError` from `mean`, `median`, `quantile` and from
-  `rmst` on a custom family. The 12.1 derivative tolerance factors are an
-  implementation measurement (13); tests would need those factors or a
-  justified scale of their own.
+### `test_a11_ph_construction.py`
+
+| Spec | Requirement | Tests |
+| --- | --- | --- |
+| 10.2 | wrappers re-exported at top level | `test_proportional_hazards_is_exported_at_top_level` |
+| 4.2/4.4 | the wrapper is a registered distribution | `test_proportional_hazards_is_a_survival_distribution` |
+| 4.1/4.2 | natural parameters stored under constructor names; nested leaves are outer leaves; PyTree round trip | `test_baseline_and_linear_predictor_are_stored_under_constructor_names`, `test_leaves_are_the_baseline_parameters_and_the_linear_predictor`, `test_flatten_unflatten_round_trip`, `test_tree_map_keeps_wrapper_and_baseline_types` |
+| 4.4/5 | batch is the broadcast of baseline batch and predictor shape, both broadcast at construction; `(S, 1)` x `(S, 2)`; "baseline `()`, linear predictor `(D,N)`" | `test_scalar_baseline_with_matrix_predictor_has_the_predictor_batch`, `test_vector_baseline_with_scalar_predictor_has_the_baseline_batch`, `test_draw_baseline_broadcasts_against_draw_by_arm_predictor` |
+| 4.4 | keyword-only: a positional baseline raises `TypeError` (rev 42) | `test_positional_baseline_is_rejected` |
+| 4.1 | incompatible batches raise `TypeError`; no `.shape` attribute | `test_incompatible_baseline_and_predictor_batches_are_rejected`, `test_wrapper_has_no_shape_attribute` |
+| 4.1 | constructors never check values; traced construction under `jit`/`vmap` | `test_constructor_does_not_check_parameter_values`, `test_construction_with_traced_parameters_under_jit`, `test_construction_under_vmap_over_the_predictor` |
+| 3.3 | dtype policy for the wrapper's own leaf: integer/scalar default float, bool and complex `TypeError`, no `dtype` keyword, float64 under 32-bit converts with one warning; nested baseline keeps its dtype, calculations promote | `test_integer_predictor_uses_the_default_float_dtype`, `test_python_scalar_predictor_uses_the_default_float_dtype`, `test_boolean_predictor_is_rejected`, `test_complex_predictor_is_rejected`, `test_constructor_takes_no_dtype_keyword`, `test_float64_predictor_in_32_bit_mode_converts_with_one_warning`, `test_nested_baseline_keeps_its_own_dtype` |
+| 4.2 | a non-distribution `distribution()` field raises `TypeError` naming it | `test_non_distribution_baseline_is_rejected_naming_the_field` |
+| 4.1/4.2 | indexing, tree-map slicing, `vmap`, `jit` with nested leaves | `test_indexing_selects_baseline_and_predictor_entries`, `test_tree_map_slicing_applies_to_nested_leaves`, `test_vmap_over_the_wrapper`, `test_wrapper_passes_through_jit_as_an_argument` |
+
+### `test_a11_ph_parameter_issues.py`
+
+| Spec | Requirement | Tests |
+| --- | --- | --- |
+| 4.4/4.7 | "The linear predictor declares `real`"; `parameter_constraints` has own fields only | `test_wrapper_declares_only_the_linear_predictor`, `test_linear_predictor_constraint_is_real` |
+| 4.4/4.7 | baseline issues under the `baseline.` prefix, own keys first; masks, union, `ok` | `test_exponential_baseline_keys_are_prefixed`, `test_weibull_baseline_keys_are_prefixed`, `test_valid_wrapper_reports_no_issue` |
+| 4.7 | nested masks broadcast to the outer batch, incl. `(S, 1)` x `(S, 2)` | `test_shared_baseline_mask_is_broadcast_to_the_outer_batch`, `test_draw_baseline_masks_broadcast_against_draw_by_arm_predictor` |
+| 4.7 | nested conditions with dotted keys (custom baseline) | `test_custom_baseline_condition_appears_with_the_prefix` |
+| 4.7/6.3 | `jit`/`vmap` agreement, indexing equality | `test_parameter_issues_agree_under_jit`, `test_parameter_issues_agree_under_vmap`, `test_indexed_wrapper_issues_equal_indexed_masks` |
+| 4.7 | `raise_if_invalid()` names violated fields; returns when valid | `test_raise_if_invalid_names_the_prefixed_baseline_field`, `test_raise_if_invalid_names_the_linear_predictor`, `test_raise_if_invalid_returns_for_valid_wrapper` |
+| 4.5/4.7 | declarations do not change direct-method values | `test_declared_violation_does_not_change_finite_direct_values` |
+
+### `test_a11_ph_direct_methods.py`
+
+| Spec | Requirement | Tests |
+| --- | --- | --- |
+| 4.4/8.1 | all seven direct methods, PH-Weibull, PH-Exponential and a custom baseline with generic defaults, against hand values | `test_ph_weibull_method_is_hand_derived`, `test_ph_exponential_method_is_hand_derived`, `test_ph_custom_baseline_method_is_hand_derived`, `test_zero_predictor_leaves_the_baseline_law` |
+| 4.4 | "`eta>0` means higher hazard under PH" | `test_positive_predictor_means_higher_hazard` |
+| 4.5 | `t<0` rows, NaN `t`, base-supplied `t=0` and `t=+inf` values, `log f(0)` limits (k=1, k>1, k<1), zero gradients of base-supplied values in baseline parameters and `eta` | `test_negative_time_policy_values`, `test_nan_time_gives_nan`, `test_base_supplied_values_at_zero`, `test_base_supplied_values_at_infinity`, `test_density_limit_at_zero_for_weibull_baseline`, `test_base_supplied_values_have_zero_parameter_gradients` |
+| 4.4/4.5 | `log_hazard` row `log h0(t) + eta` carries the baseline's limits at `t=0` and `t=+inf` (Weibull `k<1`, `k=1`, `k>1`; Exponential), equal to the equivalent Weibull (rev 43) | `test_ph_weibull_log_hazard_limits_carry_through`, `test_ph_weibull_hazard_limits_carry_through`, `test_ph_weibull_hazard_limits_equal_equivalent_weibull`, `test_ph_exponential_hazard_at_the_boundaries` |
+| 7.3/12.1 | values stay accurate at the 7.3 extreme-scaling examples (Weibull `eta=±720`; Exponential `rate=1e-200`, `eta=500`), float64, against mpmath | `test_extreme_scaling_weibull_values_stay_accurate`, `test_extreme_scaling_exponential_values_stay_accurate` |
+| 5 | scalar, paired and explicit time-first shapes against `(S, 2)`; non-broadcasting time `TypeError` | `test_scalar_time_against_draw_by_arm_batch`, `test_paired_time_vector_against_arms`, `test_explicit_time_first_axis`, `test_time_that_does_not_broadcast_is_rejected` |
+| 5 | every `_grid` twin equals `m(t[:, None, None])` with shape `(K, S, 2)`, unsorted/repeated `t`, `K=N`, non-1-D `t` `TypeError`, grid from `t=0` | `test_grid_twin_equals_time_first_direct_method`, `test_grid_with_as_many_times_as_entries_is_not_paired`, `test_grid_rejects_time_that_is_not_one_dimensional`, `test_grid_from_zero_includes_base_supplied_values` |
+| 12.1 | eager/`jit`/`vmap` agreement for every method; result dtype | `test_methods_agree_under_jit`, `test_methods_agree_under_vmap`, `test_result_dtype_is_the_parameter_dtype` |
+
+### `test_a11_ph_identities.py`
+
+| Spec | Requirement | Tests |
+| --- | --- | --- |
+| 4.4/12.1 | every direct method equals the equivalent Weibull/Exponential in values, incl. grids with `(S, 1)` x `(S, 2)` | `test_ph_weibull_values_equal_equivalent_weibull`, `test_ph_exponential_values_equal_equivalent_exponential`, `test_ph_weibull_grids_equal_equivalent_weibull_with_draw_by_arm_broadcasting`, `test_ph_exponential_grid_equals_equivalent_with_draw_by_arm_broadcasting` |
+| 4.4 | the likelihood identity, incl. `(S, 1)` x `(S, 2)` | `test_ph_weibull_likelihood_equals_equivalent_weibull`, `test_ph_exponential_likelihood_equals_equivalent_exponential`, `test_likelihood_identity_with_draw_by_arm_broadcasting` |
+| 4.4/7.3 | first derivatives in `eta` and the baseline parameters, forward and reverse, direct methods and likelihood, with broadcasting | `test_ph_weibull_first_derivatives_equal_equivalent_weibull`, `test_ph_exponential_first_derivatives_equal_equivalent_exponential`, `test_likelihood_first_derivatives_equal_equivalent_weibull`, `test_likelihood_first_derivatives_equal_equivalent_exponential`, `test_first_derivatives_with_draw_by_arm_broadcasting` |
+
+### `test_a11_ph_derivatives.py`
+
+| Spec | Requirement | Tests |
+| --- | --- | --- |
+| 7.3/12.1 | ordinary-range gradients and full Hessians incl. mixed baseline/`eta` terms, all four mode compositions, `log_prob` and `log_survival` | `test_ph_weibull_gradient_is_hand_derived`, `test_ph_weibull_hessian_with_mixed_terms_is_hand_derived`, `test_ph_exponential_gradient_is_hand_derived`, `test_ph_exponential_hessian_with_mixed_terms_is_hand_derived` |
+| 7.3 | likelihood gradients and Hessians (shared and per-row `eta`) | `test_ph_weibull_likelihood_hessian_is_hand_derived`, `test_ph_weibull_likelihood_gradient_is_hand_derived`, `test_ph_exponential_likelihood_hessian_is_hand_derived`, `test_per_row_predictor_hessian_is_diagonal` |
+| 7.3 | composed with `jit` and `vmap`; `(S, 1)` x `(S, 2)` gradient | `test_hessian_under_jit_matches_hand_value`, `test_hessian_under_vmap_over_parameter_draws`, `test_gradient_under_jit_of_vmap_over_predictor`, `test_gradient_with_draw_by_arm_broadcasting_is_hand_derived` |
+| 12.1 | `check_grads(order=2, modes=("fwd","rev"))` for wrappers (float64) | `test_check_grads_order_two_ph_weibull`, `test_check_grads_order_two_ph_exponential`, `test_check_grads_order_two_ph_weibull_likelihood`, `test_check_grads_order_two_ph_exponential_likelihood` |
+
+### `test_a11_ph_likelihood.py`
+
+| Spec | Requirement | Tests |
+| --- | --- | --- |
+| 4.4/7.1 | exact and right-censored contributions keep the PH formulas (Weibull, Exponential, custom baseline); per-row `eta` | `test_ph_weibull_mixed_rows_are_hand_derived`, `test_ph_exponential_mixed_rows_are_hand_derived`, `test_per_row_predictor_pairs_with_rows`, `test_custom_baseline_likelihood_is_hand_derived` |
+| 2/7.1 | right-censored at `c=L=0` is exactly zero; overflowing valid contribution is `-inf` | `test_right_censored_at_zero_contributes_exactly_zero`, `test_overflowing_contribution_is_minus_infinity` |
+| 5 | `(N,)`, `(D,1)` x `(N,)`, `(S, 2)` x `(2,)`; mismatch `TypeError` | `test_scalar_wrapper_against_observations`, `test_draw_column_against_observations`, `test_draw_by_arm_batch_against_paired_arms`, `test_mismatched_batch_and_data_lengths_are_rejected` |
+| 6.1/12.1 | raw form equals data form in values, gradients, Hessians; `jit`, `vmap`, traced construction | `test_raw_form_equals_data_form_in_values_and_derivatives`, `test_likelihood_agrees_under_jit`, `test_likelihood_agrees_under_vmap_over_predictor_draws`, `test_traced_construction_and_likelihood_inside_jit` |
+| 7.1 | NaN rows for invalid data, non-finite `eta`, invalid baseline, nested custom condition; triage attributes them | `test_invalid_data_rows_are_nan_and_others_kept`, `test_non_finite_predictor_row_is_nan`, `test_invalid_baseline_row_is_nan`, `test_custom_baseline_condition_row_is_nan` |
+| 7.1/12.2 | unsupported modes (left, interval, left/right truncation) NaN eagerly and under `jit`, supported rows keep values and derivatives, no issue added | `test_unsupported_mode_row_is_nan_and_supported_row_kept`, `test_unsupported_row_leaves_supported_row_derivatives` |
+
+### `test_a11_ph_isolation.py`
+
+| Spec | Requirement | Tests |
+| --- | --- | --- |
+| 7.1/7.3/12.1 | rows without issues keep values and first/second derivatives (forward and reverse, `jit`) for non-finite `eta`, zero/negative/NaN/`±inf` baseline parameters (shared and per-row), a nested custom condition | `test_case_reports_the_issue_on_the_bad_row`, `test_rows_without_issues_keep_values`, `test_rows_without_issues_keep_derivatives`, `test_rows_without_issues_keep_derivatives_under_jit` |
+| 7.1 | hand anchors: shared `eta` with a NaN baseline row; shared baseline with an infinite `eta` row | `test_shared_predictor_derivatives_are_hand_derived`, `test_shared_baseline_derivatives_with_infinite_predictor_row` |
+
+### A11: deliberately not tested
+
+- **Derivatives in the 7.3 extreme-scaling regime** (the three quoted
+  examples and float32 stress cases): outside the initial-release guarantee;
+  only their values are asserted. The quoted correct gradients are not
+  required.
+- **Float32 analogues of the extreme-value checks**: no PH-specific
+  tail-precision statement exists beyond 7.3's float64 examples; ordinary
+  float32 values are covered.
+- **`log_hazard`/`hazard` boundaries for a custom baseline**: rev 43 says it
+  carries through the generic default's boundary behaviour, which itself has
+  no value guarantee at `t=0`.
+- **Delegated summaries in the identity** (`rmst`): A12. `mean`, `median`,
+  `quantile`, `inverse_cumulative_hazard`, `sample`: not in the first
+  release (8.7), see A12.
+- **AFT wrapper, PH over log-normal/log-logistic baselines**: Slice D.
+- **Derivatives of a PH wrapper over a custom baseline**: 7.3 guarantees
+  wrappers over built-in baselines only; custom baselines are covered for
+  values, issues and isolation.
+- **Exact warning text, repr**: unspecified.
+
+## A12: staged RMST and PH–RMST (spec 4.4, 4.5, 5, 8.1, 8.4, 8.7, 10.2, 12.1; rev 41)
+
+References: `rmst_reference.py`, mpmath quadrature (40 digits) of the
+physical law `S(t)` and of `dS/dtheta`, split at cumulative-hazard levels and
+cut at `H = 2000`; higher orders by mpmath `diff` of the closed forms (60
+digits). Inputs are rounded to the active dtype before the reference is
+evaluated. Values: 12.1 `rtol`, zero absolute tolerance. Derivatives: the
+12.1 RMST scales with factor 12.1 `rtol`, `eta` at `|rmst|`, higher orders
+in log units (rev 44).
+
+### `test_a12_rmst_reference.py` (no survjax calls)
+
+| Spec | Requirement | Tests |
+| --- | --- | --- |
+| 8.1/8.7/12.1 | the reference integration itself: equals the closed form, its derivatives and a refined quadrature over the full grid; no mass missed on `k=0.2`, `tau/b=1e5`; `k=1` and PH-law identities | `test_quadrature_value_equals_closed_form`, `test_quadrature_derivatives_equal_closed_form_derivatives`, `test_refined_breakpoints_do_not_change_the_reference`, `test_very_large_interval_with_heavy_tail_keeps_its_mass`, `test_weibull_shape_one_reference_equals_exponential_identity`, `test_ph_law_reference_equals_effective_scale_closed_form`, `test_exponential_reference_derivative_equals_numerical_derivative` |
+
+### `test_a12_rmst_values.py`
+
+| Spec | Requirement | Tests |
+| --- | --- | --- |
+| 8.7 | Exponential `-expm1(-r*tau)/r` | `test_exponential_rmst_matches_reference`, `test_exponential_rmst_is_vectorized_over_rates` |
+| 8.7/12.1 | Weibull over `k` in [0.2, 50], `tau/b` in [1e-2, 1e5], both dtypes; underflow (RMST about `tau`) and overflow (about the mean) tails | `test_weibull_rmst_matches_quadrature`, `test_weibull_rmst_where_the_power_underflows_is_about_tau`, `test_weibull_rmst_where_the_power_overflows_is_about_the_mean`, `test_weibull_rmst_is_vectorized_over_shapes` |
+| 12.1 | Exponential special case (`k=1`); scale changes | `test_weibull_shape_one_equals_exponential`, `test_weibull_scale_change` |
+| 4.4/8.7 | PH-Weibull against the physical law and the equivalent Weibull; PH-Exponential hand value; `(S, 1)` x `(S, 2)`; both power tails through PH | `test_ph_weibull_rmst_matches_physical_law_quadrature`, `test_ph_weibull_rmst_equals_equivalent_weibull`, `test_ph_exponential_rmst_is_hand_derived`, `test_ph_rmst_with_draw_by_arm_broadcasting`, `test_ph_weibull_rmst_tail_cases` |
+| 3.3 | result dtype | `test_rmst_result_dtype_is_the_parameter_dtype` |
+
+### `test_a12_rmst_derivatives.py`
+
+| Spec | Requirement | Tests |
+| --- | --- | --- |
+| 8.7/12.1 | first derivatives in `k`, `b`, `tau` over the full grid, forward and reverse, both dtypes; finite and correct in the power tails | `test_weibull_first_derivatives_match_quadrature`, `test_weibull_first_derivatives_are_finite_in_the_power_tails` |
+| 8.7 | `d rmst/d tau = S(tau)` | `test_cutoff_derivative_is_the_survival_at_the_cutoff` |
+| 8.7 | Exponential, PH-Weibull (`k`, `b0`, `eta`, `tau`, physical law), PH-Exponential first derivatives; PH identity in derivatives | `test_exponential_first_derivatives_match_reference`, `test_ph_weibull_first_derivatives_match_physical_law_quadrature`, `test_ph_exponential_first_derivatives_are_hand_derived`, `test_ph_weibull_first_derivatives_equal_equivalent_weibull` |
+| 4.5/8.7 | `tau=0`: value 0, parameter derivatives 0, `tau` derivative 1 | `test_rmst_at_zero_is_zero`, `test_first_derivatives_at_zero_cutoff` |
+| 8.7/12.1 | Exponential all orders: Hessians (four compositions), third derivatives, `check_grads(order=2)`, PH-Exponential | `test_exponential_hessian_in_rate_and_cutoff`, `test_ph_exponential_hessian_in_rate_predictor_and_cutoff`, `test_exponential_third_derivatives`, `test_check_grads_order_two_exponential_rmst`, `test_check_grads_order_two_ph_exponential_rmst` |
+| 8.7/12.1 | Weibull and PH-Weibull derivatives not involving `k` on interior `tau>0`: Hessians in `b`/`b0`, `eta`, `tau`; third `tau` derivative; `check_grads` without the shape direction | `test_weibull_hessian_in_scale_and_cutoff`, `test_ph_weibull_hessian_in_scale_predictor_and_cutoff`, `test_weibull_third_cutoff_derivative`, `test_check_grads_order_two_weibull_rmst_without_shape`, `test_check_grads_order_two_ph_weibull_rmst_without_shape` |
+| 8.7/12.1 | shape higher derivatives raise `NotImplementedError` or are correct, never wrong; alone and through PH (rev 45) | `test_weibull_shape_hessian_raises_or_is_correct`, `test_weibull_full_hessian_raises_or_is_correct`, `test_ph_weibull_shape_hessian_raises_or_is_correct` |
+
+### `test_a12_rmst_policy.py`
+
+| Spec | Requirement | Tests |
+| --- | --- | --- |
+| 4.5/8.7 | NaN for negative, NaN, `±inf` `tau`, eager and `jit`; valid entries kept | `test_invalid_cutoff_gives_nan`, `test_invalid_cutoff_entries_leave_valid_entries` |
+| 8.7 | NaN wherever `parameter_issues()` reports a violation (baseline, `eta`) | `test_parameter_issue_entries_are_nan`, `test_parameter_issue_nan_under_jit` |
+| 8.7 | valid entries keep values and first derivatives beside NaN entries, incl. shared parameters, forward/reverse, `jit`; Exponential Hessian isolation; hand-checked shared-scale gradient | `test_valid_entries_keep_values_beside_nan_entries`, `test_valid_entries_keep_first_derivatives_beside_nan_entries`, `test_valid_entries_keep_first_derivatives_under_jit`, `test_exponential_shared_rate_hessian_is_isolated`, `test_shared_scale_gradient_beside_invalid_cutoff_is_hand_checked` |
+| 8.7 | `rmst(5.0)` `(S, 2)`; `rmst(tau_grid[:, None, None])` `(m, S, 2)`; trailing pairing; native grid; no `rmst_grid`; non-broadcasting `tau` `TypeError` (rev 46) | `test_scalar_cutoff_against_draws_by_arms`, `test_explicit_cutoff_grid_against_draws_by_arms`, `test_cutoff_vector_pairs_with_the_trailing_arm_axis`, `test_cutoff_grid_for_native_weibull_batch`, `test_there_is_no_rmst_grid`, `test_cutoff_that_does_not_broadcast_is_rejected` |
+| 4.5/8.7 | `tau` dtype rules: boolean, complex, string, object `TypeError` (eager and traced); float64 under 32-bit mode converts without warning (rev 46) | `test_cutoff_with_a_non_numeric_dtype_is_rejected`, `test_boolean_cutoff_is_rejected_during_tracing`, `test_float64_cutoff_converts_without_warning_in_32_bit_mode` |
+| 12.1 | eager/`jit`/`vmap` agreement | `test_rmst_agrees_under_jit`, `test_rmst_agrees_under_vmap_over_distribution_and_cutoff`, `test_rmst_gradient_agrees_under_vmap_and_jit` |
+| 8.7/12.1 | `rmst` raises on a custom family (type, not values; call and trace) and on PH of a custom baseline; `mean`/`median`/`quantile` raise everywhere; no `options`; absent APIs raise `AttributeError` and are not exported (rev 46) | `test_rmst_on_a_custom_family_raises`, `test_rmst_check_depends_on_the_type_not_values`, `test_rmst_on_a_ph_wrapper_of_a_custom_baseline_raises`, `test_other_summaries_raise_on_every_family`, `test_rmst_takes_no_options_argument`, `test_absent_first_release_methods`, `test_summary_configuration_types_are_not_provided` |
+
+### A12: deliberately not tested
+
+- **Weibull/PH-Weibull higher derivatives at `tau=0`** and **the tangent of a
+  NaN entry itself**: outside the staged guarantee (8.7).
+- **A required raise from some shape Hessian**: not required (12.1, rev 45).
+- **Second-order isolation for Weibull families**: shape Hessians are
+  restricted; Exponential second-order isolation is tested.
+- **`tau` outside `[1e-2, 1e5] * b`, `k` outside [0.2, 50]**: no accuracy
+  requirement.
+- **Section 8.4 quadrature tangent, `SummaryInfo` statuses, generic RMST,
+  `mean`/`median`/`quantile` values, sampling**: Slice D.
+- **Executable documentation of the derivative limitation**: a
+  documentation gate, not a test.
+
+## Revision 37 (first public release): remaining items
+
+Revision 37's `ProportionalHazards` and staged RMST requirements are covered
+by A11 and A12 (Q-049). Nothing is tested for:
+
 - **Release demos (11.2, 11.3) and the simulation study:** end-to-end
   evidence owned by the use-case design notes, not spec tests.

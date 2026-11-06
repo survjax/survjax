@@ -149,7 +149,7 @@ def _compact_fixture(tmp_path):
 def test_compact_evidence_preserves_all_failures_histogram_and_shared_replicate(
     tmp_path,
 ):
-    """D-035: complete histogram and failed-ID complement, not a fit subsample."""
+    """D-044: complete histogram and failed-ID complement, not a fit subsample."""
     from examples.weibull_simulation._evidence import _read_csv, write_evidence
 
     _compact_fixture(tmp_path)
@@ -182,7 +182,7 @@ def test_compact_evidence_preserves_all_failures_histogram_and_shared_replicate(
     ["duplicate", "missing", "reason", "accepted", "swap_accepted", "move_reasons"],
 )
 def test_inconsistent_raw_evidence_is_rejected_before_output(tmp_path, corruption):
-    """D-035: compact artifacts cannot certify incomplete/inconsistent raw records."""
+    """D-044: compact artifacts cannot certify incomplete/inconsistent raw records."""
     from examples.weibull_simulation._evidence import _csv, write_evidence
 
     raw, _ = _compact_fixture(tmp_path)
@@ -209,7 +209,7 @@ def test_inconsistent_raw_evidence_is_rejected_before_output(tmp_path, corruptio
 
 
 def test_no_accepted_estimates_produces_empty_histogram_and_illustration(tmp_path):
-    """D-035: no accepted fits is represented explicitly, with every failure kept."""
+    """D-044: no accepted fits is represented explicitly, with every failure kept."""
     from examples.weibull_simulation._evidence import _csv, _read_csv, write_evidence
 
     raw, summaries = _compact_fixture(tmp_path)
@@ -245,7 +245,7 @@ def test_histogram_lattice_rounding_never_excludes_extrema(tmp_path, low, high):
 
 
 def test_committed_full_bundle_counts_histograms_and_coverage():
-    """D-035 / 01 acceptance: failed-ID complement and complete accepted histograms."""
+    """D-044 / 01 acceptance: failed-ID complement and complete accepted histograms."""
     from examples.weibull_simulation._evidence import _read_csv
 
     root = ROOT / "examples/weibull_simulation/results"

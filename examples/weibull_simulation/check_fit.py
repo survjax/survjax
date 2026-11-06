@@ -294,7 +294,7 @@ def test_figures_show_analytical_curves_density_and_one_mcse(
 
 
 def test_tampered_evidence_is_refused_before_figure_output(tmp_path):
-    """D-035: never render stale/tampered inputs as the audited full study."""
+    """D-044: never render stale/tampered inputs as the audited full study."""
     _plot_fixture(tmp_path)
     (tmp_path / "performance.csv").write_text("changed")
     with pytest.raises(ValueError, match="evidence hash mismatch"):

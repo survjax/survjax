@@ -64,6 +64,70 @@ The wrapper also provides `log_survival`, `log_cdf`, `log_prob`,
 policy as the [built-in families](builtin-families.md). In particular, direct
 survival at zero is 1; an **exact observation** at zero is still invalid.
 
+## A piecewise-constant baseline
+
+Proportional hazards does not require a constant baseline hazard. Suppose the
+baseline hazard is 0.08 per month for months 0–6, 0.05 for months 6–12, then
+0.02. The hazard ratio still multiplies every interval's hazard by the same
+factor. This is a parametric PH model with chosen cut points, not a Cox fit.
+
+The [custom-distribution guide](distributions.md#fixed-settings-and-vector-parameters-a-piecewise-constant-hazard)
+explains the baseline below, including its static cut points and vector of rates.
+We repeat the definition so this page runs independently.
+
+```{code-cell} ipython3
+from dataclasses import dataclass
+
+@survjax.register_family
+@dataclass(frozen=True)
+class PiecewiseHazard(survjax.SurvivalDistribution):
+    starts: tuple = survjax.static()  # interval start times, first is 0
+    rates: jax.Array = survjax.param(component_ndim=1)  # one rate per interval
+
+    def log_survival(self, t):
+        starts = jnp.asarray(self.starts)
+        ends = jnp.append(starts[1:], jnp.inf)
+        t = jnp.asarray(t)[..., None]  # trailing axis lines up with the intervals
+        # Time spent in each interval by time t; a later interval wins at a
+        # cut point, so the hazard is right-continuous.
+        exposure = jnp.where(
+            t < starts, 0.0, jnp.where(t < ends, t - starts, ends - starts)
+        )
+        return -jnp.sum(self.rates * exposure, axis=-1)
+
+    def reference_time(self):
+        # Middle of the first interval, one reference per batch entry.
+        return jnp.full(self.batch_shape, self.starts[1] / 2, dtype=self.rates.dtype)
+
+
+relapse = PiecewiseHazard(starts=(0.0, 6.0, 12.0), rates=jnp.array([0.08, 0.05, 0.02]))
+```
+
+Use the same built-in wrapper as in the exponential example:
+
+```{code-cell} ipython3
+patients = survjax.ProportionalHazards(
+    relapse, log_hazard_ratio=jnp.log(jnp.array([1.0, 0.7, 1.5]))
+)
+# At month 12, baseline cumulative hazard is 6*0.08 + 6*0.05 = 0.78.
+assert jnp.allclose(patients.survival(12.0), jnp.exp(-0.78 * jnp.array([1.0, 0.7, 1.5])))
+fig, axes = plt.subplots(1, 2, figsize=(8, 3), layout="constrained")
+times = jnp.linspace(0.0, 24.0, 241)
+labels = ["HR 1", "HR 0.7", "HR 1.5"]
+axes[0].plot(times, patients.hazard_grid(times), label=labels)
+axes[1].plot(times, patients.survival_grid(times), label=labels)
+axes[0].set(xlabel="Months", ylabel="Hazard per month")
+axes[1].set(xlabel="Months", ylabel="Survival probability", ylim=(0, 1))
+axes[1].legend()
+plt.show()
+```
+
+The baseline hazard changes at the cut points while each patient's hazard
+ratio stays constant. For regression, compute `log_hazard_ratio = X @ beta`;
+survjax handles the distribution and likelihood, while you choose and fit
+`beta`. RMST is currently supported only for Exponential and Weibull baselines,
+not this custom piecewise family.
+
 ## Batches of draws and arms
 
 The baseline and predictor broadcast at construction. Here three hypothetical
@@ -91,41 +155,7 @@ to every draw and arm. The `_grid` methods instead add a leading time axis:
 Indexing `draws[0]` selects the first draw and retains its two arms. See
 [Survival curves and time grids](grids.md) for the pointwise/grid distinction.
 
-## Exact events, right censoring and derivatives
-
-Use `log_likelihood` for per-observation contributions. The current likelihood
-subset is exact events and right censoring without truncation; representing
-other observation kinds in `SurvivalData` does not make their likelihoods
-available. Unsupported likelihood rows yield NaN. See
-[Log likelihoods](likelihood.md).
-
-For one exact event at month 1 and censoring at month 2, with baseline rate 1,
-the negative sum of contributions is $L(\eta)=3e^\eta-\eta$.
-At zero its value, first derivative and second derivative are 3, 2 and 3.
-
-```{code-cell} ipython3
-data = survjax.SurvivalData(
-    jnp.array([1.0, 2.0]), event=jnp.array([True, False])
-)
-
-
-def loss(eta):
-    model = survjax.ProportionalHazards(
-        survjax.Exponential(rate=1.0), log_hazard_ratio=eta
-    )
-    return -model.log_likelihood(data).sum()
-
-value, gradient = jax.jit(jax.value_and_grad(loss))(0.0)
-curvature = jax.jit(jax.grad(jax.grad(loss)))(0.0)
-assert jnp.all(jnp.isfinite(jnp.array([value, gradient, curvature])))
-value, gradient, curvature
-```
-
-With the built-in baselines, ordinary finite, valid, smooth interior parameter
-derivatives of direct methods and likelihoods support `jit`, `vmap`, forward
-and reverse AD to second order. Covariate design, objective reduction and
-optimization remain with the caller.
-
+```{note}
 **Initial-release extreme-scaling limit:** first and second parameter
 derivatives of PH direct methods and likelihoods can be inaccurate, zero or
 nonfinite even when values and mathematical derivatives are finite. This
@@ -137,25 +167,4 @@ does not ensure an accurate gradient. There is no fully mapped safe boundary
 or blanket exemption for all tails. Stabilization is post-initial-release
 work; ordinary derivatives, value/boundary policies and supported valid-entry
 isolation remain required.
-
-## Diagnostics
-
-Construction stores parameter values without automatically raising on numerical
-violations. Inspect `parameter_issues()`; nested fields use the `baseline.`
-prefix. Malformed types or incompatible shapes still raise `TypeError`.
-
-```{code-cell} ipython3
-bad = survjax.ProportionalHazards(
-    survjax.Weibull(shape=2.0, scale=jnp.array([2.0, -2.0])),
-    log_hazard_ratio=0.0,
-)
-issues = bad.parameter_issues()
-assert issues.invalid_entries.tolist() == [False, True]
-assert "baseline.scale" in issues.fields
-values = bad.survival(1.0)
-assert jnp.isfinite(values[0]) and jnp.isnan(values[1])
-issues.fields, values
 ```
-
-Use `issues.raise_if_invalid()` at a concrete host checkpoint when you want an
-exception.

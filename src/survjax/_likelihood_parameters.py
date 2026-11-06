@@ -1,4 +1,4 @@
-"""Prepare declared-invalid parameter entries for likelihood AD (spec 7.1)."""
+"""Prepare declared-invalid parameter entries for likelihood AD."""
 
 from dataclasses import fields
 

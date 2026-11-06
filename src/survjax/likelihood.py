@@ -1,4 +1,4 @@
-"""Exact and right-censored likelihood contributions (spec 6.1/7.1–7.3)."""
+"""Exact and right-censored likelihood contributions."""
 
 import jax
 import jax.numpy as jnp
@@ -11,7 +11,7 @@ from survjax.distributions.base import SurvivalDistribution
 
 
 def _unusable_data_rows(data: SurvivalData, shape: tuple[int, ...]) -> jax.Array:
-    """Combine construction evidence with current-field checks (spec 7.1)."""
+    """Combine construction evidence with current-field checks."""
     current_bits = current_field_issues(
         data.exact, data.lower, data.upper, data.left_trunc, data.right_trunc
     )
@@ -19,7 +19,7 @@ def _unusable_data_rows(data: SurvivalData, shape: tuple[int, ...]) -> jax.Array
 
 
 def _supported_rows(data: SurvivalData, shape: tuple[int, ...]) -> jax.Array:
-    """Read current mode support, independent of diagnostics/metadata (spec 7.1)."""
+    """Read current mode support, independent of diagnostics/metadata."""
     supported = (
         (data.left_trunc == 0)
         & jnp.isposinf(data.right_trunc)
@@ -34,7 +34,7 @@ def _evaluate(
     bad: jax.Array,
     common: DTypeLike,
 ) -> jax.Array:
-    """Evaluate exact/right pieces with safe inactive operands (spec 7.2)."""
+    """Evaluate exact/right pieces with safe inactive operands."""
     exact_rows = jnp.broadcast_to(data.exact, bad.shape)
     # spec 3.3: stored times may be narrower than the promoted parameters.
     time = jnp.asarray(data.lower, dtype=common)

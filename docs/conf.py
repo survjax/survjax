@@ -1,13 +1,13 @@
-"""Sphinx configuration for the local survjax documentation (spec 10.5)."""
+"""Sphinx configuration for the local survjax documentation."""
 
 project = "survjax"
 # autodoc and napoleon (Google-style sections) ship with Sphinx: no new dependency.
 extensions = ["myst_nb", "sphinx.ext.autodoc", "sphinx.ext.napoleon"]
 # The distributions guide writes formulas as $...$ and $$...$$.
 myst_enable_extensions = ["dollarmath"]
-# Pages link to sections, as in builtin-families.md#precision-in-both-tails.
+# Pages link to sections, including guides and technical notes.
 myst_heading_anchors = 3
-# The existing simulation guide describes unimplemented likelihood workflows.
+# The simulation guide is tentative and awaits maintainer revision.
 exclude_patterns = ["_build", ".ipynb_checkpoints", "simulation-guide.md"]
 # Furo: page navigation on the left, the current page's sections and API
 # objects on the right.

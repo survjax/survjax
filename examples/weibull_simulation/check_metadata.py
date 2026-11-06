@@ -238,7 +238,7 @@ def test_reducer_provenance_tracks_its_own_source_file(tmp_path, monkeypatch, di
 
 
 def test_committed_full_bundle_hashes_and_source_provenance():
-    """D-035: bind every compact payload to original clean full-run provenance."""
+    """D-044: bind every compact payload to original clean full-run provenance."""
     root = ROOT / "examples/weibull_simulation/results"
     manifest = json.loads((root / "evidence.json").read_text())
     assert set(manifest["output_sha256"]) == {

@@ -112,7 +112,7 @@ def test_compiled_batch_agrees_with_single_replicate_fits(model):
 
 @pytest.mark.parametrize("score", [2e-5, 1e-5, np.nan])
 def test_failure_reasons_overlap_but_failed_total_is_unique(score):
-    """D-033: one rejected attempt can fail four gates; totals count it once."""
+    """D-042: one rejected attempt can fail four gates; totals count it once."""
     p, good_h = jnp.zeros(2), jnp.array([[4.0, 2.0], [2.0, 2.0]])
     good = _assess_fit(p, jnp.array(1.0), p, good_h, jnp.array(True))
     bad = _assess_fit(
@@ -160,7 +160,7 @@ def test_real_optimizer_failure_is_counted():
 
 @pytest.mark.parametrize("reason", ["solver", "nonfinite", "gradient", "hessian"])
 def test_each_failure_gate_has_its_own_column(reason):
-    """D-033: isolate each rejection gate so swapped reason labels fail."""
+    """D-042: isolate each rejection gate so swapped reason labels fail."""
     p = jnp.zeros(2)
     objective = jnp.array(jnp.nan if reason == "nonfinite" else 1.0)
     gradient = jnp.array([2e-5 if reason == "gradient" else 0.0, 0.0])
