@@ -15,7 +15,7 @@ the repository or documentation URLs.
 ## Complete the release prerequisites
 
 Before publishing, finish and review the initial changelog/release notes,
-citation guidance and contribution guidance (planned as RELEASE.5a–5c).
+citation metadata and contribution guidance (planned as RELEASE.5a–5c).
 Confirm license/notices, fixture provenance, package-name availability and the
 actually tested Python/JAX configurations. The simulation demonstration,
 documentation cleanup and independent A11/A12 acceptance integration have
@@ -30,6 +30,31 @@ commit; do not infer accelerator support from CPU checks. Record outstanding
 limitations in the release notes. Proceed only after these prerequisites and
 the hosting checks below have evidence.
 
+## Complete the planned GitHub organization transfer
+
+The maintainer has created the GitHub organization `survjax`. The intended
+repository destination is **`https://github.com/survjax/survjax`**, keeping the
+name `survjax`. The transfer is still an operator action, not a completed result
+of local preparation. Confirm permissions to transfer/create in the receiving
+organization and that the destination name is available before proceeding.
+
+After the authorized transfer, confirm the canonical URL and coordinate the
+local identity update (RELEASE.5d): package repository/issues URLs, README GPU
+badge/links, `CITATION.cff`, release workflow repository guard and metadata-test
+expectations. The prepared files still bind `vanAmsterdam/survjax`; the guard
+would skip the release build under the new owner until updated. Complete and
+review this update before tagging/building release artifacts.
+
+Recheck organization access, `pypi` environment protections, Actions permissions,
+and RTD GitHub App/webhook access for the transferred repository. Configure the
+PyPI publisher with the actual new owner; GitHub URL redirects do not substitute
+for the publisher's repository-owner identity. The table below names the
+intended post-transfer publisher, not an account configuration already made.
+Update authorized local clones' remotes through the operator procedure.
+[GitHub's transfer guide](https://docs.github.com/en/repositories/creating-and-managing-repositories/transferring-a-repository)
+describes redirects and organization permissions. No transfer or remote change
+is performed by these instructions themselves.
+
 ## Connect Read the Docs
 
 An authorized operator must confirm who controls the intended project slug
@@ -39,7 +64,7 @@ before building release artifacts. An HTTP error alone does not identify the
 owner or account settings.
 
 In the RTD dashboard, add or inspect the project connected to
-`https://github.com/vanAmsterdam/survjax`. Confirm the repository and default
+`https://github.com/survjax/survjax` after transfer. Confirm the repository and default
 branch `main`; install/authorize the Read the Docs GitHub App for this repository
 and verify its integration/webhook. Use the root `.readthedocs.yaml`.
 [Adding a project](https://docs.readthedocs.com/platform/stable/intro/add-project.html)
@@ -95,7 +120,7 @@ Register a pending GitHub publisher with these exact fields:
 | Field | Value |
 | --- | --- |
 | PyPI project name | `survjax` |
-| GitHub owner | `vanAmsterdam` |
+| GitHub owner | `survjax` |
 | GitHub repository | `survjax` |
 | Workflow filename | `release.yml` |
 | GitHub environment | `pypi` |

@@ -1,3 +1,48 @@
+# RELEASE.5b — Add citation guidance and record the planned organization move
+
+Start / previous step: 1494cd18d2d192c7070513c376c08c17aa00262c.
+Original worktree base: 3cb4cd7fbba3313f00dfabed0028ee6f404384df.
+Files: CITATION.cff, CITING.md, docs/citing.md (orphan include),
+docs/releasing.md (planned identity transfer), CHANGELOG.md (remaining gates),
+PLAN.md, REVIEW.md. One citation topic plus the maintainer's explicit transfer
+note; below 300 implementation lines. No API, dependency, runtime/configuration,
+version, lockfile, protected path or spec edits. Spec revision 47: 10.1/10.5/13.
+
+Reuse the explicit package-author metadata Wouter A.C. van Amsterdam; split
+CFF given/family names without inventing authors, ORCID, DOI, publication date
+or a released version. Minimal CFF 1.2.0 software citation plus prose explaining
+exact installed version/source SHA and dependency/data citations. Keep the
+current repository-code URL until the planned repository transfer is completed
+and a coordinated identity update is reviewed. Add the guide as a standalone
+include/search page without changing another agent's navigation.
+
+Maintainer created the GitHub organization survjax and plans to transfer this
+repository there (intended target survjax/survjax, keeping the repository name).
+Record this as a launch prerequisite in handoff/changelog, not a completed
+transfer. Handoff must distinguish current old-owner bindings from future
+publisher fields (owner survjax; repo survjax; release.yml; pypi), and require
+GitHub App/webhook/environment/permission checks after transfer. No remote,
+account, organization, credentials, visibility, git remote or transfer action.
+
+Add RELEASE.5d as the coordinated local identity-update step: pyproject URLs,
+README badge links, citation repository URL, release workflow repository guard,
+metadata test expectations and final handoff synchronization after confirming
+the canonical identity. No active binding changes in this docs/citation step;
+the old guard would skip publishing after transfer until 5d is complete.
+
+Verify official CFF/GitHub/PyPI interfaces; validate CFF against the official
+1.2.0 schema using existing docs-environment YAML/jsonschema (no dependency
+added), and compare author/title/repository/license with pyproject metadata.
+Run scripts/build_docs.sh directly in both modes, inspect rendered citation /
+changelog/handoff text and local links/assets/downloads; required fast A10 gate;
+git diff --check. No new unit tests for metadata/prose. Independent Astra/low
+review after commit, max three rounds with fix-ups; stop/report.
+
+Remaining: RELEASE.5c contribution guidance; RELEASE.5d identity update; actual
+operator transfer/account setup and all separately owned launch gates.
+
+---
+
 # RELEASE.5a — Draft the initial changelog
 
 Start / previous step: b0090b6b49c3d59dca6636a4f8d3893699352f96.

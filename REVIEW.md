@@ -1,87 +1,112 @@
 Independent review: round 1/3
 
-# RELEASE.5a — Initial changelog
+# RELEASE.5b — Citation guidance and planned organization identity
 
-Independent reviewer: Astra, low reasoning, as authorized for this workstream.
-No Claude invocation or protected skill edits.
+Independent reviewer: Astra, low reasoning, authorized substitute for Claude.
 
 ## Read first
 
-1. PLAN.md RELEASE.5a: unreleased notes for one bounded docs topic.
-2. CHANGELOG.md: single prose source for the draft initial-alpha entry.
-3. docs/changelog.md: standalone orphan include, no navigation/config changes.
-4. README.md, src/survjax/__init__.py, docs/proportional-hazards.md,
-   docs/rmst.md and the two use-case pages (unchanged): source for capabilities
-   and limitations; docs/releasing.md: pending launch procedure.
-5. Current spec revision 46, sections 10.5, 12.2 and 13. No numerical changes.
+1. PLAN.md RELEASE.5b: citation topic and maintainer's new organization note.
+2. CITATION.cff / CITING.md / docs/citing.md: metadata and single prose source.
+3. docs/releasing.md diff: intended organization transfer and future publisher
+   fields, distinguished from the currently prepared old-owner bindings.
+4. CHANGELOG.md status update; pyproject.toml author/title/license/URLs and
+   .github/workflows/release.yml repository guard (both unchanged).
+5. Current spec revision 47: 10.1/10.5 and 13 citation/release requirements.
 
-## Invariants and claims
+## Invariants / decisions
 
-- No released version, date or published tag is invented. Heading is
-  Unreleased; 0.0.1a1 remains a proposal, 0.0.1.dev0 a preparation baseline.
-- Notes describe merged/current public exports and executable docs, not code
-  on other worktrees. No simulation implementation or docs cleanup imported.
-- Distinguish the data representation from supported exact/right likelihoods
-  without truncation. Unsupported/invalid rows give NaN; diagnostics matter.
-- PH extreme-scaling derivative limits and Weibull/PH-Weibull RMST higher-shape
-  and zero-cutoff limitations stay explicit. No generic RMST or later-slice
-  distribution/summary/metric/sampling capability is advertised as available.
-- Runtime remains JAX/NumPy only. Recorded CPU baseline is Python 3.12,
-  JAX 0.11.2, NumPy 2.5.3; no broader tested matrix or GPU certification added.
-- Bayesian trial and MNIST tutorials are present in this checkout. Notes claim
-  runnable notebooks/examples, not a new fit or independently reproduced full
-  neural training/posterior run during this prose step.
-- RTD/PyPI infrastructure is locally prepared. Hosting, publication, public
-  access, separate demo/docs/acceptance completion and citation/contribution
-  guidance are still prerequisites. Through A10 is not A11/A12 evidence.
-- Single CHANGELOG.md prose source included at changelog.html; links use moving
-  latest docs explicitly. No toctree or other-agent page changes.
-- No API, implementation, dependencies, configuration, lockfile, version,
-  protected path, spec or remote/account/publication changes.
+- Maintainer says GitHub organization survjax exists and repository will move
+  there. Intended target survjax/survjax keeps its current repository name.
+  No transfer, organization/account/remote/visibility action is performed.
+- Existing package URLs, release guard and installed metadata test still use
+  vanAmsterdam/survjax. New CFF repository-code matches that actual prepared
+  metadata. Do not present an uncompleted transfer as current canonical state.
+- Handoff's future publisher owner is survjax, repository survjax, workflow
+  release.yml, environment pypi. Text explicitly labels these post-transfer
+  targets and blocks launch until coordinated identity update RELEASE.5d.
+  The old workflow guard would skip under the new owner until updated.
+- Planned 5d covers package repository/issues URLs, README badge links, CFF
+  URL, release guard, metadata test expectations and final handoff consistency.
+  It does not grant remote transfer/publication authority. Operator must
+  recheck org permissions, Actions/environment protection, RTD App/webhook,
+  publisher owner and authorized clones' remotes for the transferred repo.
+- CFF author comes directly from pyproject.toml: Wouter A.C. van Amsterdam,
+  with given/family names split accordingly. Title combines existing project
+  name/description. Existing Apache-2.0 expression reused, no ownership claims
+  inferred from organization creation. Confirm final agreed credit at release.
+- No DOI, ORCID, release date, released version, article or archive invented.
+  Cite actual installed version and/or full source SHA, including local edits
+  in the reproducibility record. CFF omits optional unassigned fields.
+- Guide uses a labeled text template and a read-only installed-version command;
+  none of its placeholders is stored as a real identifier in CFF. No new tool
+  dependency, citation service/account connection or global installation.
+- Orphan include adds citing.html/search without modifying navigation. Root
+  guide is the single prose source. No public API, runtime, dependency,
+  configuration, lockfile, version, protected path or specification change.
+
+## Official sources checked (2026-11-06)
+
+- https://citation-file-format.github.io/ and
+  https://raw.githubusercontent.com/citation-file-format/citation-file-format/1.2.0/schema.json:
+  CFF software metadata and official 1.2.0 JSON Schema.
+- https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-citation-files:
+  root CITATION.cff/default branch integration and software citation formats.
+- https://docs.github.com/en/repositories/creating-and-managing-repositories/transferring-a-repository:
+  transfer permissions, target name, redirects and organization policy.
+- https://docs.pypi.org/trusted-publishers/adding-a-publisher/:
+  publisher identifies GitHub owner/repo/workflow/environment; a repository URL
+  redirect is not a replacement for configuring the actual publisher identity.
 
 ## Verification
 
-- scripts/check.sh --fast --through A10: exit 0, all gates passed.
-  Ruff: 178 files already formatted / all checks passed. mypy: 22 files clean.
-  Implementer float64: 1066 passed / 8 skipped; float32: 1071 / 3.
-  Source doctests: 4 passed each. Spec float64: 2149 passed / 27 skipped;
-  float32: 2156 / 20. Fast gate deselects slow cases; no new tests for prose,
-  no redundant full numerical/install-suite run.
-- scripts/build_docs.sh directly, with approved escalation for notebook-kernel
-  process inspection (known earlier sandbox restriction): both dtype processes,
-  forced execution retained, no execution/configuration weakening. Final build
-  and rendered include/link evidence recorded below before commit/review.
-- First direct docs build: exit 0, both modes succeeded. Clarified the
-  risk-score sentence afterwards; reran scripts/build_docs.sh directly on the
-  final wording: exit 0, both modes report build succeeded. Existing notebook
-  execution remains force/on-error-fatal with both use-case pages executed.
-- uv run --locked --group docs python /tmp/survjax-changelog-audit.py:
-  both rendered pages' complete normalized prose matches Markdown rendered
-  from root CHANGELOG.md; heading/bullet structure, wrapper source-copy bytes
-  and search entry pass. No browser visual-layout claim; Furo unchanged.
+- Official CFF 1.2.0 schema downloaded read-only into /tmp with curl -L --fail.
+  Existing docs environment PyYAML/jsonschema Draft7Validator + FormatChecker:
+  schema checked, CITATION.cff validated; exit 0. Author/title/repository/license
+  match pyproject metadata; DOI/version/date/identifier/preferred-citation fields
+  and author ORCID are absent. No cffconvert/new dependency installed.
+- scripts/check.sh --fast --through A10: exit 0, all gates passed. Ruff:
+  180 files already formatted / all checks passed; mypy: 22 source files clean.
+  Both dtype modes ran. Captured output includes implementer float64
+  1066 passed / 8 skipped and spec float32 2156 passed / 20 skipped;
+  intermediate count lines were truncated in the capture, so are not inferred.
+  Fast gate excludes slow cases; no new tests or full install/numerical rerun
+  for metadata/prose. No A11/A12 acceptance claim.
+- scripts/build_docs.sh directly with approved escalation: exit 0; float32
+  and float64 both report build succeeded, forced notebook execution retained.
+  Existing Bayesian and MNIST pages execute; no static-output substitution.
 - uv run --locked --group docs python /tmp/survjax-release-audit.py:
-  each site has 25 HTML pages, 1,623 local links/fragments/assets, 14 downloads,
-  zero failures; existing downloadable notebooks byte-match sources, use-case
-  images/navigation present. Shared sequential execution tree has 18 notebooks
-  / 153 code cells; logs confirm fresh execution separately in both modes.
+  each site has 26 HTML pages, 1,663 local links/fragments/assets, 14 downloads,
+  zero failures. Existing downloadable notebooks byte-match source; use-case
+  images/navigation present. Shared sequential execution tree: 18 notebooks /
+  153 code cells; logs separately show both dtype executions.
+- Existing changelog include audit rerun: complete included prose, headings,
+  bullets, wrapper source and search entry match root CHANGELOG.md, both modes.
+- Citation include audit: complete normalized prose matches root CITING.md;
+  wrapper source bytes and search entry pass, both modes. Handoff source copy
+  matches; rendered table owner is survjax and prose explicitly includes the
+  planned new/current old identities, pending RELEASE.5d and guard-skip effect.
+  Citation shell block passes bash -n; no future operator actions executed.
+  Programmatic HTML/content inspection only, no browser visual-layout claim.
 - git diff --check: passed.
 
-## Limits and remaining work
+## Limits and remaining steps
 
-No hosted Linux/RTD run, account/public access, PyPI rendering/upload, OIDC or
-public clean-install check. Existing docs builds use warm MNIST cache and
-recorded Bayesian draws with their live calculations; no new full demo run.
-No overall release-readiness or A11/A12 acceptance claim. Publication remains
-separate and gated by the operator handoff and other owners' completion work.
+No actual repository transfer or canonical URL/organization permission check,
+GitHub citation UI rendering, account setup, OIDC, upload, hosted Linux/RTD,
+public docs or public clean install verified. No tags, remote edits or pushes.
+Current CFF URL and active bindings remain old-owner values intentionally;
+this step alone is not ready for publication under the new organization.
 
-Next docs steps are RELEASE.5b citation and RELEASE.5c contribution guidance.
-The changelog is a draft: reconcile it with the final merged release, complete
-remaining prerequisites, then record the selected version/date. Standalone
-changelog page has no navigation entry; that decision remains with docs owner.
+Remaining local docs: RELEASE.5c contribution guidance. RELEASE.5d coordinates
+identity-dependent code/metadata once the canonical destination is confirmed.
+Operator transfer and other owners' completion gates remain prerequisites.
+Changelog now records citation guidance prepared and transfer/identity update
+pending, without closing simulation/docs/acceptance ownership.
 
 ## Commit trace
 
 Previous completed step / clean start:
-b0090b6b49c3d59dca6636a4f8d3893699352f96 (RELEASE.4).
+1494cd18d2d192c7070513c376c08c17aa00262c (RELEASE.5a).
 Original worktree base: 3cb4cd7fbba3313f00dfabed0028ee6f404384df.
 Commit the bounded step, independent Astra review, then stop.
