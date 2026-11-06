@@ -1,3 +1,30 @@
+# ALIGN.d1 — Keyword-only PH examples in executable docs (complete)
+
+Starting/previous step commit: e8e9a51 (ALIGN.1); worktree starting point:
+3cb4cd7. ALIGN.2's owner decisions are pending; this independent docs work
+can proceed. One topic across four pages: correct PH constructor argument
+spelling in docs/proportional-hazards.md, docs/rmst.md,
+docs/technical-notes/rmst.md and docs/use-cases/bayesian-rmst.md. Replace the
+obsolete positional-baseline promise. No public API, formulas, dependencies,
+parameters, posterior data or docstring changes. Spec 4.4, 8.7, 10.5, 11.3.
+No new tests for these source edits. Validate code-cell AST equivalence after
+normalizing argument spelling; scripts/build_docs.sh directly for both dtype
+modes; rendered-page checks; Ruff/whitespace. Under 300 changed lines.
+Independent review remains waived by the maintainer while reviewer tokens
+are unavailable. Stop after this documentation step and report.
+
+Completed: 15 constructor calls across four pages and one obsolete prose
+promise corrected (32 changed docs lines). All 33 Python/code-cell blocks
+retain identical ASTs after keyword normalization. scripts/build_docs.sh
+succeeded directly in both dtype modes; each rendered site has 23 HTML pages,
+1844 valid local links/assets and all 15 calls/prose verified. Ruff and
+whitespace checks pass. No implementation/test/spec/dependency changes.
+Independent review waived as above. Stop here; only ALIGN.2 owner decisions
+and ALIGN.3 verification after those decisions remain. There are no remaining
+constructor/doc migrations found by the source audit.
+
+---
+
 # ALIGN.1 — Keyword-only PH construction (complete)
 
 Starting commit: fc484d3; previous completed substep: fc484d3 (ALIGN.0).
