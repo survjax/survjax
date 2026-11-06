@@ -1,113 +1,87 @@
 Independent review: round 1/3
 
-# RELEASE.4 — Release operator handoff
+# RELEASE.5a — Initial changelog
 
-Independent reviewer: Astra, low reasoning, as explicitly requested by the
-maintainer for this workstream; no Claude invocation or protected skill edit.
+Independent reviewer: Astra, low reasoning, as authorized for this workstream.
+No Claude invocation or protected skill edits.
 
 ## Read first
 
-1. PLAN.md RELEASE.4: one documentation topic, no navigation/other-agent edits.
-2. docs/releasing.md: account actions, prerequisites and release sequence.
-3. .readthedocs.yaml, .github/workflows/release.yml and
-   scripts/validate_release.py (unchanged): verify the handoff matches reality.
-4. Current spec revision 46, 10.1/10.3/10.5, 12.2 and 13. The shared design
-   source advanced during this workstream; previous review revision labels
-   are historical and have not been rewritten. No numerical scope here.
+1. PLAN.md RELEASE.5a: unreleased notes for one bounded docs topic.
+2. CHANGELOG.md: single prose source for the draft initial-alpha entry.
+3. docs/changelog.md: standalone orphan include, no navigation/config changes.
+4. README.md, src/survjax/__init__.py, docs/proportional-hazards.md,
+   docs/rmst.md and the two use-case pages (unchanged): source for capabilities
+   and limitations; docs/releasing.md: pending launch procedure.
+5. Current spec revision 46, sections 10.5, 12.2 and 13. No numerical changes.
 
-## Invariants and choices
+## Invariants and claims
 
-- Only docs/releasing.md and plan/review records change. No API, dependency,
-  runtime/config/version/lockfile, navigation, protected path or spec changes.
-- Page is a standalone MyST orphan document, releasing.html, searchable but
-  outside the existing toctree. This preserves the docs agent's navigation.
-- Candidate 0.0.1a1, tag v0.0.1a1, expected RTD slug v0.0.1a1; operator must
-  confirm both selected version and actual RTD slug. Preparation baseline
-  0.0.1.dev0 remains unchanged. Version/lock/install-assertion updates occur
-  together in the eventual reviewed release commit.
-- Initial-alpha README links deliberately remain moving /en/latest/ links;
-  release documentation can be cited through its checked version-specific URL.
-- Exact pending publisher fields match workflow release.yml / environment
-  pypi / repository vanAmsterdam/survjax / project survjax. PyPI account owner
-  and RTD project owner are not inferred from these identifiers or URLs.
-- Record private-source hosting requirements, active/default/privacy settings,
-  fresh Linux build requirement, MNIST cold network/cache, timeout/resource
-  budget, both dtype execution and complete-site output/download checks.
-- Explicitly require changelog, citation and contribution guidance, provenance,
-  license, tested configurations, other agents' demo/docs/acceptance evidence,
-  public package/docs checks and coordinated version commit before launch.
-  A10 is the current prepared gate, not evidence for A11/A12; independent
-  acceptance owner must integrate the appropriate release gate.
-- Publishing a GitHub Release is the workflow trigger. Before pypi environment
-  approval inspect the exact run's tested artifacts/hashes; local rehearsal
-  files are not claimed as workflow upload files. No accounts, tags, release,
-  push/upload, visibility change or public-install command is executed here.
-
-## Current official interfaces checked (2026-11-06)
-
-- RTD project connection/import:
-  https://docs.readthedocs.com/platform/stable/intro/add-project.html and
-  https://docs.readthedocs.com/platform/stable/reference/git-integration.html.
-- RTD active/hidden/public/default and prerelease behavior:
-  https://docs.readthedocs.com/platform/stable/versions.html and
-  https://docs.readthedocs.com/platform/stable/commercial/privacy-level.html.
-  Hidden is not private; Business project and version privacy differ.
-- RTD documented budget:
-  https://docs.readthedocs.com/platform/stable/builds.html#build-resources.
-- PyPI pending publisher:
-  https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/.
-  Pending publisher does not reserve the project name.
-- GitHub environment protections and account-plan/visibility availability:
-  https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments.
+- No released version, date or published tag is invented. Heading is
+  Unreleased; 0.0.1a1 remains a proposal, 0.0.1.dev0 a preparation baseline.
+- Notes describe merged/current public exports and executable docs, not code
+  on other worktrees. No simulation implementation or docs cleanup imported.
+- Distinguish the data representation from supported exact/right likelihoods
+  without truncation. Unsupported/invalid rows give NaN; diagnostics matter.
+- PH extreme-scaling derivative limits and Weibull/PH-Weibull RMST higher-shape
+  and zero-cutoff limitations stay explicit. No generic RMST or later-slice
+  distribution/summary/metric/sampling capability is advertised as available.
+- Runtime remains JAX/NumPy only. Recorded CPU baseline is Python 3.12,
+  JAX 0.11.2, NumPy 2.5.3; no broader tested matrix or GPU certification added.
+- Bayesian trial and MNIST tutorials are present in this checkout. Notes claim
+  runnable notebooks/examples, not a new fit or independently reproduced full
+  neural training/posterior run during this prose step.
+- RTD/PyPI infrastructure is locally prepared. Hosting, publication, public
+  access, separate demo/docs/acceptance completion and citation/contribution
+  guidance are still prerequisites. Through A10 is not A11/A12 evidence.
+- Single CHANGELOG.md prose source included at changelog.html; links use moving
+  latest docs explicitly. No toctree or other-agent page changes.
+- No API, implementation, dependencies, configuration, lockfile, version,
+  protected path, spec or remote/account/publication changes.
 
 ## Verification
 
 - scripts/check.sh --fast --through A10: exit 0, all gates passed.
-  Ruff: 176 files already formatted / all checks passed; mypy: 22 files clean.
+  Ruff: 178 files already formatted / all checks passed. mypy: 22 files clean.
   Implementer float64: 1066 passed / 8 skipped; float32: 1071 / 3.
   Source doctests: 4 passed each. Spec float64: 2149 passed / 27 skipped;
-  float32: 2156 / 20. Slow tests intentionally deselected. No new unit tests
-  for prose, and no redundant full numerical suite or install-suite rerun.
-- First direct scripts/build_docs.sh run: exit 0; both Sphinx builds succeeded
-  with fresh existing notebook execution. Kernel shutdown logged sandbox-denied
-  psutil process inspection (sysctl PermissionError); this was outside notebook
-  calculations. Rerun directly using approved escalation to verify the final
-  text without that sandbox limitation; final evidence follows below.
-- Both future shell blocks parsed using bash -n; embedded Python parsed with
-  ast.parse; no {code-cell} directives in the new page. Passed. The release
-  rehearsal and public-index install examples were not executed by this check.
-- Escalated scripts/build_docs.sh rerun: exit 0; float32 and float64 each
-  report build succeeded, with forced execution retained. No earlier psutil
-  PermissionError tracebacks observed in the escalated run. Existing kernel
-  local-TCP notices remain tool output, not Sphinx warnings or execution errors.
+  float32: 2156 / 20. Fast gate deselects slow cases; no new tests for prose,
+  no redundant full numerical/install-suite run.
+- scripts/build_docs.sh directly, with approved escalation for notebook-kernel
+  process inspection (known earlier sandbox restriction): both dtype processes,
+  forced execution retained, no execution/configuration weakening. Final build
+  and rendered include/link evidence recorded below before commit/review.
+- First direct docs build: exit 0, both modes succeeded. Clarified the
+  risk-score sentence afterwards; reran scripts/build_docs.sh directly on the
+  final wording: exit 0, both modes report build succeeded. Existing notebook
+  execution remains force/on-error-fatal with both use-case pages executed.
+- uv run --locked --group docs python /tmp/survjax-changelog-audit.py:
+  both rendered pages' complete normalized prose matches Markdown rendered
+  from root CHANGELOG.md; heading/bullet structure, wrapper source-copy bytes
+  and search entry pass. No browser visual-layout claim; Furo unchanged.
 - uv run --locked --group docs python /tmp/survjax-release-audit.py:
-  each site has 24 HTML pages, 1,579 local links/fragments/assets, 14 downloads,
-  zero failures. Existing notebook downloads byte-match sources; use-case
-  images and navigation present. 18 notebooks / 153 code cells in the shared
-  sequential execution tree; build logs confirm both dtype executions.
-- Rendered handoff inspection in both sites: title, five sections, exact five
-  publisher fields, two shell blocks, source-copy byte identity, search index
-  entry and existing sidebar all passed. No visual browser/layout claim;
-  standard Furo styling/configuration remains unchanged.
+  each site has 25 HTML pages, 1,623 local links/fragments/assets, 14 downloads,
+  zero failures; existing downloadable notebooks byte-match sources, use-case
+  images/navigation present. Shared sequential execution tree has 18 notebooks
+  / 153 code cells; logs confirm fresh execution separately in both modes.
 - git diff --check: passed.
 
-## Limitations and remaining work
+## Limits and remaining work
 
-No hosted Linux/RTD execution, account ownership/configuration, GitHub artifact
-service/OIDC, PyPI upload/rendering, public clean-install or signed-out public
-access verified. The new page describes these pending operator actions rather
-than reporting them complete. Both docs builds use the existing warm MNIST
-cache; RELEASE.1 separately recorded a cold-cache fetch, not hosted evidence.
-No tag/version change or publication authorization is inferred from this page.
+No hosted Linux/RTD run, account/public access, PyPI rendering/upload, OIDC or
+public clean-install check. Existing docs builds use warm MNIST cache and
+recorded Bayesian draws with their live calculations; no new full demo run.
+No overall release-readiness or A11/A12 acceptance claim. Publication remains
+separate and gated by the operator handoff and other owners' completion work.
 
-Remaining docs steps: RELEASE.5a changelog, 5b citation, 5c contribution guidance.
-Remaining release gates belong to their existing owners. Keep the public launch
-blocked until the handoff's prerequisites are evidenced. The new orphan page
-has no sidebar entry; a later navigation decision remains with the docs owner.
+Next docs steps are RELEASE.5b citation and RELEASE.5c contribution guidance.
+The changelog is a draft: reconcile it with the final merged release, complete
+remaining prerequisites, then record the selected version/date. Standalone
+changelog page has no navigation entry; that decision remains with docs owner.
 
 ## Commit trace
 
 Previous completed step / clean start:
-035f4e001f46d999a36e035b9db91f0bd6f2bc95 (RELEASE.3).
+b0090b6b49c3d59dca6636a4f8d3893699352f96 (RELEASE.4).
 Original worktree base: 3cb4cd7fbba3313f00dfabed0028ee6f404384df.
-Commit the bounded docs step, independent Astra review, then stop.
+Commit the bounded step, independent Astra review, then stop.

@@ -1,3 +1,36 @@
+# RELEASE.5a — Draft the initial changelog
+
+Start / previous step: b0090b6b49c3d59dca6636a4f8d3893699352f96.
+Original worktree base: 3cb4cd7fbba3313f00dfabed0028ee6f404384df.
+Files: CHANGELOG.md, docs/changelog.md (standalone orphan include), PLAN.md,
+REVIEW.md. One docs topic under 300 implementation lines, no navigation or
+other-agent edits. No API, dependency, runtime, configuration, version,
+lockfile, protected path or spec changes. Spec revision 46: 10.5, 12.2, 13.
+
+Write an Unreleased initial-alpha entry, with no release date or published tag.
+Candidate remains 0.0.1a1; preparation baseline remains 0.0.1.dev0. Describe
+only merged/current capabilities: SurvivalData and diagnostics, exact/right
+likelihood subset, direct/grid methods, Exponential/Weibull/PH, concordance,
+staged RMST, extension support, Bayesian/MNIST examples, executable docs and
+local release infrastructure. State important likelihood and derivative limits,
+unavailable later-slice APIs and minimal runtime/tested baseline. Clearly mark
+publication, hosting, simulation/docs/acceptance completion and citation /
+contribution guidance as remaining gates. Do not import unfinished work or
+turn local/A10 checks into a broader release claim. Link to existing guides
+and operator handoff without touching their pages.
+
+Keep CHANGELOG.md as the single prose source; docs/changelog.md includes it
+for rendering/search at changelog.html, with no toctree change. Run
+scripts/build_docs.sh directly in both dtypes, inspect included text/source,
+links and rendered headings, existing-site asset/download audit; required fast
+A10 gate; git diff --check. No new unit tests for prose. Independent Astra/low
+review after commit, max three rounds with fix-ups as needed; stop/report.
+
+Remaining docs: RELEASE.5b citation and RELEASE.5c contribution guidance.
+External release and other agents' unfinished completion gates remain open.
+
+---
+
 # RELEASE.4 — Write the release operator handoff
 
 Start / previous step: 035f4e001f46d999a36e035b9db91f0bd6f2bc95.
