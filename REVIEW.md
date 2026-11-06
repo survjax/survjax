@@ -31,3 +31,12 @@ without independently marking entries resolved.
 
 Independent review remains waived. D-043 and D-044 await separate decisions;
 ALIGN.3 verification remains pending. Present D-043 now and wait.
+
+## ALIGN.2b author handoff
+
+Maintainer approved the D-043 expected mask [False,True,True]. Saved the
+requested short instruction in SPEC-TEST-D043.txt. Checked it against the
+read-only failing test, CappedRate predicate and spec 4.7. This is a planning/
+handoff record, not an acceptance-test edit; no numerical tests rerun.
+Starting/previous step: 3580ff2; worktree starting point: 3cb4cd7. D-044 still
+requires its own decision. `git diff --check` passes before commit.

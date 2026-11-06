@@ -34,6 +34,9 @@
 - Propose: ask the maintainer/spec-test author to reconcile the expected mask
   with the declared predicate. Do not suppress diagnostics to satisfy this
   assertion and do not edit the protected test.
+- Maintainer approval, 2026-11-06: preserve the declared predicate and correct
+  the expected condition mask to [False,True,True]. Author instructions saved
+  in SPEC-TEST-D043.txt; protected acceptance tests remain unchanged here.
 - Status: open.
 
 ## D-042 Positional PH snippets remain after keyword-only clarification

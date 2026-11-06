@@ -1,3 +1,15 @@
+# ALIGN.2b — Approved D-043 author handoff (complete)
+
+Starting/previous step: 3580ff2; worktree starting point: 3cb4cd7.
+Maintainer confirms the expected condition mask is [False,True,True] and asks
+for a short instruction note. Saved SPEC-TEST-D043.txt for the independent
+author; no acceptance tests, spec or implementation changed. Checked note
+against the failing test, custom predicate and spec 4.7. No tests rerun for
+this planning/handoff-only step. D-043 approval recorded; formal status stays
+with the maintainer. D-044 is the next decision; final gate remains pending.
+
+---
+
 # ALIGN.2a — Approved D-042 spec example cleanup (complete)
 
 Starting/previous step: a4c8b42; worktree starting point: 3cb4cd7.
