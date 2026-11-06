@@ -1,3 +1,42 @@
+# RELEASE.5c — Write contribution guidance
+
+Start / previous step: 67fb851d517a919fbb0d0e6e2f88e56912b609c7.
+Original worktree base: 3cb4cd7fbba3313f00dfabed0028ee6f404384df.
+Maintainer authorizes completing the next bits up until actual transfer:
+continue after each independent review through local RELEASE.5d/5e, then stop
+before transfer/account/remote/publication actions. Keep separate commits and
+reviews per step; this instruction overrides the usual intervening stop.
+
+Files: CONTRIBUTING.md, docs/contributing.md (standalone include),
+CHANGELOG.md, PLAN.md, REVIEW.md. One docs topic below 300 implementation lines;
+no navigation, public API, dependency, protected path, spec or config edits.
+Spec revision 47: 10.1/10.3/10.5/13. Preserve unfinished owners' records.
+
+Describe issues/PRs, small reproducible synthetic cases, Python/uv locked CPU
+setup, cheap touched-test checks in both dtypes, current fast/full gate scope,
+executable docs and contribution expectations matching existing tools. Distinct
+A10 vs unfinished A11/A12 ownership; protect independent acceptance tests,
+fixture provenance, centralized tolerances, runtime isolation and data policy.
+Use the intended organization links with an explicit transfer-pending qualifier.
+No new governance/license agreement, contributor identity or support promise.
+
+Validate shell blocks using bash -n, existing paths/flags against scripts and
+config; direct scripts/build_docs.sh both dtypes, include/source/search and
+site-link/download audit, fast A10 gate and whitespace check. No new tests for
+prose. Independent Astra/low review after commit, max three rounds with fixes.
+
+Remaining local sequence authorized this turn:
+- RELEASE.5d code/metadata step: prepare new organization URLs, README badge,
+  CFF URL, release guard and artifact metadata tests; no docs/ edits. Keep
+  version dev0, no new dependencies, unchanged shared CI.
+- RELEASE.5e docs step: synchronize citation/contribution/transfer handoff and
+  changelog to the now-prepared organization identity, still explicitly pending
+  actual transfer. This split obeys code/docs separation. Review both steps.
+- Stop before the actual transfer, any git remote/account/visibility changes,
+  push/tag/release, hosting publication or PyPI upload. Other launch gates remain.
+
+---
+
 # RELEASE.5b — Add citation guidance and record the planned organization move
 
 Start / previous step: 1494cd18d2d192c7070513c376c08c17aa00262c.

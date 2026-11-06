@@ -1,0 +1,85 @@
+# Contributing to survjax
+
+Bug reports, focused improvements and co-maintenance are welcome. The intended
+repository is [survjax/survjax](https://github.com/survjax/survjax); its transfer
+from `vanAmsterdam/survjax` is pending during release preparation. Use the
+repository's current verified location until that transfer is complete.
+
+Open an issue before a substantial API change, new dependency or large feature.
+Describe the problem and a small proposed scope. For bugs, include a minimal
+synthetic example, shapes, dtype mode, Python/JAX/NumPy versions, expected
+behavior and actual output. Keep patient records and patient-derived row-level
+outputs out of issues, tests and commits.
+
+## Set up the locked environment
+
+Use Python 3.12 and the project's uv 0.11.19 baseline in your own checkout.
+From its root, install development dependencies into its own `.venv`:
+
+```sh
+uv sync --locked --group dev
+```
+
+Runtime dependencies are JAX and NumPy only. Example, inference and plotting
+packages stay in optional development groups. Discuss dependency changes first;
+keep `pyproject.toml` and `uv.lock` consistent. Never enable JAX float64 globally
+in library code: runners choose the mode in separate processes.
+
+## Check a change
+
+While editing tests or code, run the touched test files in both dtype modes,
+without a slow-test filter. For example, replace the path below with your files:
+
+```sh
+JAX_ENABLE_X64=1 uv run --group test pytest -n 6 tests/unit/test_data_boundaries.py
+JAX_ENABLE_X64=0 uv run --group test pytest -n 6 tests/unit/test_data_boundaries.py
+```
+
+The step check runs formatting, lint, typing, tests and source doctests:
+
+```sh
+scripts/check.sh --fast --through A10
+```
+
+Before a PR is ready, run the full gate or obtain its CI result for that commit:
+
+```sh
+scripts/check.sh --through A10
+```
+
+The committed gate currently selects independent acceptance through A10.
+It does not establish forthcoming A11/A12 acceptance or overall release
+readiness; maintainers integrate those separately. The fast gate excludes listed
+slow cases; CI runs the full gate. `scripts/run_tests.sh` runs the implementation
+suite in both dtypes and excludes the independently authored `tests/spec/`.
+Coordinate acceptance/contract changes with the maintainer; do not edit, skip,
+xfail or weaken independent tests or protected gates to make a change pass.
+
+Keep tests deterministic. Explain expected values using hand derivation,
+analytical identities, high-precision calculations or committed reference
+fixtures. Tolerances live in `tests/impl_tolerances.py`; report numerical failures
+instead of loosening them. Numerical changes need the relevant boundary,
+parameter-derivative and JAX transformation checks. Reference fixture READMEs
+record provenance and pinned regeneration tools; ordinary tests need no R or
+network. Use synthetic data, and do not fabricate reference outputs.
+
+## Documentation and review
+
+For documentation or examples, use the locked optional groups:
+
+```sh
+uv sync --locked --group dev --group docs --group examples
+scripts/build_docs.sh
+```
+
+This executes runnable pages in separate dtype processes and fails on notebook
+errors or Sphinx warnings. MNIST needs a hash-checked download on a cold cache;
+see [verification and reproducibility](https://survjax.readthedocs.io/en/latest/technical-notes/verification.html).
+Inspect rendered pages, figures and downloads; retain live execution.
+
+Keep each PR focused and reviewable. Explain the problem, resulting behavior,
+checks run with their outcomes, and material limits. Add tests with behavior
+changes and type annotations/docstrings for public APIs. Keep documentation work
+separate from code changes where practical and coordinate changes to navigation.
+Preserve license notices and provenance for reused material; the project uses
+Apache-2.0. Maintainers review changes before merging or publishing.
