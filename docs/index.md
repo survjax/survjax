@@ -54,6 +54,7 @@ slice-a-verification
 concordance
 grids
 distributions
+use-cases/weibull-simulation
 api
 ```
 

@@ -1,5 +1,4 @@
 ---
-orphan: true
 jupytext:
   text_representation:
     format_name: myst
@@ -145,7 +144,7 @@ print(f"Wald 95% HR interval: [{fit.hr_interval[0]:.4f}, {fit.hr_interval[1]:.4f
 
 Everything in this section is loaded from the committed full run, generated
 from clean source `a3792a7703ed539db777472d876bd00ac2d1568e`. It is separate
-from the live smoke. File hashes are checked before displaying the results.
+from the live smoke. Hashes of the data files are checked before displaying the results.
 
 ```{code-cell} ipython3
 :tags: [hide-input]

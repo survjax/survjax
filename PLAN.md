@@ -1,3 +1,34 @@
+# SIM.11 — Navigation integration and rendered inspection (2026-11-06)
+
+Start / previous final e7660a728a9fd00c2612fb28c6055d7a8d21e4ac (SIM.10
+round 2 merge). Original base 8757c0fda78e34e6e818249adedd2a144a33c33d;
+integration base d2469e0a7e719dbcb276277e6fd80a447626ad4e. Work only on
+release-simulation; preserve all unfinished PLAN history.
+
+The maintainer explicitly requests navigation integration and inspection,
+plus N-3, and reserves prose/formatting/dependency changes for other work.
+This authorizes the previously shared docs/index.md edit. Add the existing
+use-cases/weibull-simulation page to its toctree; remove the page's orphan
+flag. Resolve N-3 by stating that the checked hashes cover data files.
+No new SVG hashing scheme, dependencies, public API, numerical/generator,
+results, shared config, scripts or unrelated prose/formatting changes.
+
+Spec 10.5 rendered-doc evaluation and use-cases/00-common deliverable shape /
+01 live-smoke acceptance apply. Run scripts/build_docs.sh directly in both
+modes, check home/sidebar navigation and page links/tables/math/figures and
+live outputs. Inspect browser layout at desktop/narrow widths when computer
+use is available. Current cua.getState returned no browser/app and "The
+browser access host is unavailable"; requested restoration while proceeding
+with independent work. Structural HTML checks are not a visual-inspection
+substitute. Record any remaining access limitation honestly.
+
+No new implementation-mirroring tests for these three small docs edits.
+Run Ruff and diff checks; record exact build/inspection evidence in REVIEW.md,
+commit, invoke independent-review round 1 for SIM.11, and stop/report.
+N-1/N-2/N-4 remain deliberately out of scope under the maintainer's direction.
+
+---
+
 # SIM.10 round 2 — Approved docs build environment (2026-11-06)
 
 Start / previous final ae94e658ca5dc9775831c072953b1f505cc14768.
