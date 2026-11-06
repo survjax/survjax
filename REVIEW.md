@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # SIM.9b — CLI figure delivery and committed SVGs
 
@@ -9,6 +9,17 @@ aec234d255c65c3ad3e18b442a02b4c48bcb55de (SIM.9a round 2 merge, F-1 fixed).
 Original base 8757c0fda78e34e6e818249adedd2a144a33c33d; integration base
 d2469e0a7e719dbcb276277e6fd80a447626ad4e. User explicitly approved compact
 evidence then figure implementation/delivery; this completes that scope.
+
+## Round 1 F-1 fix
+
+The six-scenario check now asserts visible coverage tick labels from the
+performance records in scenario order, plus x positions arange(6) +/- .08
+for each model. Existing density/title and coverage-y checks remain. This
+catches reversed labels or shifted model points. Only the test changes;
+CLI, SVGs and numerical implementation stay byte-identical. Targeted full-
+panel check: 1 passed / 8 deselected in 19.29 s. Ruff format/check and mypy
+src passed after the test fix. The 72-example full run below precedes this
+test-only addition; no full example rerun was needed.
 
 ## Invariants and scope
 
@@ -63,11 +74,16 @@ bars are legible. Separate manual XML audit compared the serializer input
 SVG with output: every geometry attribute/path token and non-whitespace text
 was preserved (169/769/217 nodes). This is not a browser SVG inspection.
 
-Fresh scripts/check_wheel.sh --through A10 is running for final regression
-and wheel-only core-import evidence; its final result will be recorded in a
-verification-only follow-up. The earlier wheel-supplying gate passed both
-modes. Reviewer raw gates lack SURVJAX_WHEEL and get five wheel-setup errors;
-distinguish that environment limitation from the wheel-supplying command.
+Fresh scripts/check_wheel.sh --through A10 exited 0: all gates passed.
+Implementer suites: x64 1282 passed / 8 skipped (187.31 s); float32 1287
+passed / 3 skipped (220.07 s). Source doctests: 4 passed in each mode.
+Acceptance: x64 2333 passed / 27 skipped (125.07 s); float32 2324 passed /
+36 skipped (85.09 s). This includes installed-wheel tests without demo deps.
+Built wheel retained at /var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/
+survjax-wheel.OyilMr/survjax-0.0.1.dev0-py3-none-any.whl.
+Reviewer raw gates lack SURVJAX_WHEEL and get five wheel-setup errors;
+distinguish that environment limitation from this passing wheel-supplying
+command. No code changed after the gate; the fix only adds display assertions.
 No full numerical simulation rerun: numerical implementation is unchanged.
 
 Remaining after this reviewed delivery: executable MyST docs page with live

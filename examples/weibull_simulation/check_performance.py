@@ -272,10 +272,21 @@ def test_full_figure_panels_map_to_each_scenario_and_model(tmp_path, monkeypatch
             np.testing.assert_allclose(
                 patch.get_data().values, expected, atol=ATOL, rtol=RTOL
             )
-    containers = saved["fig3_coverage.svg"].axes[0].containers
+    coverage = saved["fig3_coverage.svg"].axes[0]
+    labels = [
+        f"n={r['n']}\n{float(r['target_censoring']):.0%} target censoring"
+        for r in summary
+        if r["model"] == "weibull"
+    ]
+    assert [label.get_text() for label in coverage.get_xticklabels()] == labels
+    containers = coverage.containers
     assert len(containers) == 2
     for container in containers:
         model = container.get_label().lower()
+        offset = -0.08 if model == "weibull" else 0.08
+        np.testing.assert_array_equal(
+            container.lines[0].get_xdata(), np.arange(6) + offset
+        )
         expected = [
             float(
                 next(

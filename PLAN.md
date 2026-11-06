@@ -1,3 +1,12 @@
+# SIM.9b round 2 — Coverage tick/point association (2026-11-06)
+
+Round-1 fix-first F-1 is test-only: tie Figure 3's visible tick labels to the
+six scenario records, and assert each model's x positions at scenario index
++/- .08. Existing y checks remain. No SVG/runtime/numerical change. Focused
+full-panel check and Ruff/mypy, fix-up commit, independent review round 2.
+
+---
+
 # SIM.9b — Deliver CLI figures and compact SVG assets (2026-11-06)
 
 Previous final aec234d255c65c3ad3e18b442a02b4c48bcb55de (SIM.9a round 2
