@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "survjax"
-version = "0.0.1.dev0"
+version = "0.0.1a1"
 description = "Survival analysis in JAX"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -13,8 +13,8 @@ license-files = ["LICENSE"]
 authors = [{ name = "Wouter A.C. van Amsterdam" }]
 dependencies = ["jax>=0.11.2", "numpy>=2.5.3"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Programming Language :: Python :: 3.12",
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3.12",
 ]
 
 [project.urls]
@@ -24,32 +24,32 @@ Issues = "https://github.com/survjax/survjax/issues"
 
 [dependency-groups]
 examples = [
-    "optimistix==0.1.0",
-    "matplotlib==3.11.2",
-    "equinox==0.13.8",
-    "optax==0.2.8",
-    "numpyro==0.22.0",
-    "pandas==3.1.0",
+  "optimistix==0.1.0",
+  "matplotlib==3.11.2",
+  "equinox==0.13.8",
+  "optax==0.2.8",
+  "numpyro==0.22.0",
+  "pandas==3.1.0",
 ]
 test = [
-    "pytest>=9.1.1",
-    "mpmath>=1.4.1",
-    "hypothesis>=6.168.1",
-    "pytest-xdist>=3.8.0",
+  "pytest>=9.1.1",
+  "mpmath>=1.4.1",
+  "hypothesis>=6.168.1",
+  "pytest-xdist>=3.8.0",
 ]
 dev = [
-    { include-group = "test" },
-    "ruff>=0.16.9",
-    "mypy>=2.3.1",
-    "pre-commit>=4.6.2",
+  { include-group = "test" },
+  "ruff>=0.16.9",
+  "mypy>=2.3.1",
+  "pre-commit>=4.6.2",
 ]
 docs = [
-    "furo>=2025.12.19",
-    "ipykernel>=7.4.0",
-    "jupyterlab>=4.6.4",
-    "matplotlib>=3.11.2",
-    "myst-nb>=1.4.0",
-    "sphinx>=9.1.0",
+  "furo>=2025.12.19",
+  "ipykernel>=7.4.0",
+  "jupyterlab>=4.6.4",
+  "matplotlib>=3.11.2",
+  "myst-nb>=1.4.0",
+  "sphinx>=9.1.0",
 ]
 
 [tool.ruff]
@@ -70,9 +70,9 @@ ignore = ["E501"]
 
 [tool.ruff.format]
 exclude = [
-    "examples/survival_mnist/survival-mnist.ipynb",
-    "examples/bayesian_rmst/bayesian-rmst.ipynb",
-    "examples/weibull_simulation/weibull-simulation.ipynb",
+  "examples/survival_mnist/survival-mnist.ipynb",
+  "examples/bayesian_rmst/bayesian-rmst.ipynb",
+  "examples/weibull_simulation/weibull-simulation.ipynb",
 ]
 
 [tool.mypy]
@@ -81,6 +81,6 @@ check_untyped_defs = true
 
 [tool.pytest.ini_options]
 markers = [
-    "gpu: test applies to an optional JAX GPU backend verification run",
-    "slow: listed in tests/slow_tests.txt; skipped by the fast gate (-m 'not slow')",
+  "gpu: test applies to an optional JAX GPU backend verification run",
+  "slow: listed in tests/slow_tests.txt; skipped by the fast gate (-m 'not slow')",
 ]
