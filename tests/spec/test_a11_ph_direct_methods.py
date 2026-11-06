@@ -416,7 +416,24 @@ def test_grid_twin_equals_time_first_direct_method(grid):
     method = GRID_METHODS[grid]
     assert np.shape(out) == (5, 3, 2)
     _compare(method, out, getattr(d, method)(f(t)[:, None, None]))
-    _compare(method, out, ph_weibull_reference(method, k, b0, eta, t[:, None, None]))
+    expected = ph_weibull_reference(method, k, b0, eta, t[:, None, None])
+    if method != "log_cdf":
+        _compare(method, out, expected)
+        return
+    # 4.2: upper-tail `log F` keeps relative precision "wherever `S` is a normal
+    # floating-point number". The reference S reaches ~3.2e-43 and ~1.0e-170,
+    # below float32's smallest normal, so the relative check is limited to
+    # entries whose reference S is normal in the active dtype (all of them in
+    # float64). Outside that range only a finite, nonpositive value is required;
+    # a backend may keep subnormals or flush to zero.
+    s_ref = ph_weibull_reference("survival", k, b0, eta, t[:, None, None])
+    normal = s_ref >= np.finfo(FLOAT).tiny
+    if X64:
+        assert normal.all()
+    actual = np.asarray(out).astype(np.float64)
+    assert_rel_close(actual[normal], expected[normal], err_msg=method)
+    assert np.isfinite(actual[~normal]).all()
+    assert (actual[~normal] <= 0.0).all()
 
 
 @pytest.mark.step("A11")
