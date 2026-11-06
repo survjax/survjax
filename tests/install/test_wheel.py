@@ -200,10 +200,10 @@ def test_installed_core_uses_wheel_without_demo_dependencies(installed, x64_enab
         rows = survjax.Exponential(rate=jnp.asarray(0.5)).log_likelihood(data)
         assert survjax.ProportionalHazards is survjax.distributions.ProportionalHazards
         ph = survjax.ProportionalHazards(
-            survjax.Exponential(rate=0.5), log_hazard_ratio=jnp.log(2.0)
+            baseline=survjax.Exponential(rate=0.5), log_hazard_ratio=jnp.log(2.0)
         )
         ph_jit = jax.jit(lambda eta: survjax.ProportionalHazards(
-            survjax.Exponential(rate=0.5), log_hazard_ratio=eta
+            baseline=survjax.Exponential(rate=0.5), log_hazard_ratio=eta
         ).rmst(2.0))(jnp.log(2.0))
         print(json.dumps({"rows": rows.tolist(), "dtype": str(rows.dtype),
                           "ph_rmst": [float(ph.rmst(2.0)), float(ph_jit)],

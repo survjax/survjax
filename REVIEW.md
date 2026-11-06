@@ -1,3 +1,46 @@
+# Merge resolution - Main wheel-test patch
+
+Only PLAN.md and REVIEW.md required conflict resolution. Both parent review
+records are preserved verbatim below; their evidence applies to those parent
+states. Incoming historical plans already match the existing plan archive.
+All other initially staged merge entries are retained unchanged.
+No new implementation, numerical tests, docs build or independent review is
+part of this record-only resolution. The maintainer owns the merge commit.
+
+## Incoming main review (verbatim)
+
+Independent review: round 1/3
+
+# KWPATCH.1 — Installed-wheel keyword-only PH calls
+
+Read PLAN.md KWPATCH.1, spec 4.4 constructor policy, then the two-line
+change in tests/install/test_wheel.py.
+
+Invariant: registered wrapper constructors require keyword arguments.
+Both eager and jitted installed-wheel probes must pass baseline= explicitly.
+Runtime code, expected analytic RMST values, isolation and dependency checks
+are unchanged. No uncertainty or deviation identified.
+
+Verification:
+- Full tests/install/test_wheel.py with pytest -n 6: float64 4 passed
+  in 47.78s; float32 4 passed in 47.96s. These exercise installed exports,
+  wheel isolation/typing and eager/JIT PH RMST (spec 4.4, 10.3).
+- Fast gate through A12: formatting 188 files, lint and mypy (22 files) clean;
+  implementation float64 1066 passed / 8 skipped, float32 1071 / 3;
+  source doctests 4 passed per mode.
+- Independent acceptance float64: 3396 passed / 33 skipped, 2 NumPy reference
+  warnings at zero (log and multiply). Float32: 3389 passed / 40 skipped, same 2 warnings.
+  Gate exited 0: all gates passed through A12 (fast: slow tests skipped).
+- git diff --check: passed. Full Tier 2 and docs build not run for this test-only
+  correction; the touched file ran in full in both modes.
+
+Start, previous step and worktree base: d9832baaa19559b7d49eb0e52279695c27efde34.
+No remaining patch substeps after review.
+
+---
+
+## Docs-workflow parent review (verbatim)
+
 # DOCS-WORKFLOW.1 — Merge resolution (uncommitted)
 
 HEAD d89f2ba, incoming main d9832ba, original worktree base e6b3f9e.

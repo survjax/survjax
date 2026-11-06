@@ -19,10 +19,22 @@ at the top of REVIEW.md; it is the round count across sessions.
 1. Run exactly this as one command (no `cd`, `&&`, `$(...)` or variables), with
    workdir = the review checkout, timeout 60 minutes. Fill in the step ID and the
    full commit hash literally. Keep the arguments in this order: a Codex rule
-   pre-approves exactly this prefix. Do not add arguments, context, summaries or
-   instructions:
+   pre-approves exactly this prefix. Except for the explicit escalation below,
+   do not add arguments. Do not add context, summaries or instructions.
+   Routine reviews use Sonnet/medium from the settings file;
+   only the maintainer may explicitly request Opus/high escalation:
 
    claude --settings /Users/wamster3/dev/survjax/roles/reviewer-settings.json --permission-mode dontAsk -p "Automated review request. Step <STEP>, commit <SHA>. Follow the reviewer role."
+
+   For round 2 or 3, use the same command prefix and this exact prompt instead:
+
+   "Automated review request. Step <STEP>, commit <SHA>. Previous reviewed commit <PREVIOUS_SHA>. Finding IDs: <IDS>. Follow the reviewer role."
+
+   Copy the previous full commit hash from the latest saved round marker and
+   list its finding IDs literally (use `none` if there are none). Add no
+   commentary. If the maintainer explicitly requests Opus/high, insert
+   `--model opus --effort high` before `-p`; this may require command approval.
+   Never escalate automatically.
 
 2. Read the newest round in the review file (the text after the last `<!-- round` marker).
    Claude's chat output is not the review. If no new round was written, retry once, then stop
