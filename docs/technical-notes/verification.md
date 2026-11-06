@@ -304,4 +304,3 @@ The pinned reference uses R 4.4.2 and survival 3.7-0, with
 `tied.y` and `tied.xy` are excluded. These fixtures agree with the pair rules
 in the [concordance guide](../concordance.md), including event/censor time ties. The comparisons establish evidence
 for these cases, rather than every possible dataset.
-

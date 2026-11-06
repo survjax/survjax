@@ -66,3 +66,8 @@ The maintainer's untracked docsstructure.md remains untouched and unstaged.
 An optional output-free notebook assertion failed: the existing MNIST notebook
 contains saved outputs. Its bytes match 2093ca2 exactly; these are pre-existing
 and untouched. No notebook cleanup or result regeneration was performed.
+
+Final staged diff check caught extra EOF blank lines in two newly tracked notes
+that the unstaged check had not included. Removed in a whitespace-only follow-up
+to cbd2f02; no executable cells or rendered content changed, so no build repeat.
+The exact-source audit above precedes this trailing-whitespace cleanup.

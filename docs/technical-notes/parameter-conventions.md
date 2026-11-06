@@ -122,4 +122,3 @@ NumPyro's `Weibull(scale, concentration)` is the same distribution, with
 `concentration` $= k$. Its `batch_shape` means the same as survjax's;
 survjax distributions additionally carry survival-specific methods such as
 `log_cdf`, `cumulative_hazard` and the time-first grids.
-
