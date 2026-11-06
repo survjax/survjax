@@ -21,6 +21,10 @@ the same analysis to a batch of datasets.
 This is useful whenever one fit
 becomes many: a simulation study or a bootstrap.
 
+The same tutorial is available as a
+{download}`runnable Jupyter notebook <../../examples/weibull_simulation/weibull-simulation.ipynb>`.
+The notebook runs the study itself; see [Reproduce](#reproduce-weibull).
+
 ```{code-cell} ipython3
 :tags: [remove-input]
 import json
@@ -64,6 +68,8 @@ censoring times drawn uniformly between 0 and 20 years.
 
 We draw event times by inverting the Weibull survival function,
 $T=b_0[-\log(U)/e^{\gamma x}]^{1/k}$, where $U$ is uniform on $(0,1)$.
+Future versions of survjax distributions will provide a `sample` method to
+draw from the distribution directly.
 The observed time is the earlier of the event and censoring times; `event`
 records whether the event was observed.
 
@@ -290,7 +296,17 @@ print(metadata["runtime"]["cpu_model"])
 print("JAX", metadata["runtime"]["packages"]["jax"], "— CPU, float64")
 ```
 
+(reproduce-weibull)=
 ## Reproduce
+
+To work through the analysis interactively, open the notebook from the
+repository root and **Restart Kernel and Run All Cells** in a fresh Python 3
+kernel. Set `CONFIG = "smoke"` for a quick run, or `"full"` for the complete study:
+
+```bash
+uv run --group docs --group examples jupyter lab examples/weibull_simulation/weibull-simulation.ipynb
+```
+
 
 This page executes the single fit and a small batch in float64. It also runs
 the study's smoke configuration (20 trials at each censoring level, both

@@ -56,11 +56,13 @@ ignore = ["E501"]
 [tool.ruff.lint.per-file-ignores]
 "examples/survival_mnist/survival-mnist.ipynb" = ["E402"]
 "examples/bayesian_rmst/bayesian-rmst.ipynb" = ["E402"]
+"examples/weibull_simulation/weibull-simulation.ipynb" = ["E402"]
 
 [tool.ruff.format]
 exclude = [
     "examples/survival_mnist/survival-mnist.ipynb",
     "examples/bayesian_rmst/bayesian-rmst.ipynb",
+    "examples/weibull_simulation/weibull-simulation.ipynb",
 ]
 
 [tool.mypy]

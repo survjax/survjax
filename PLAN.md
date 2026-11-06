@@ -20,6 +20,10 @@ full run against saved summaries, restart/run the notebook, and build both docs
 modes. No full suites or independent reviewer (existing waiver). No spec change
 is needed: the implementation loses audit infrastructure, not study outputs.
 
+Completed: cleanup b757e88; full runner reproduces saved summaries. Fresh
+full/smoke notebook executions, both docs builds, two focused checks and Ruff
+pass. Notebook/docs delivery completes this task; no substeps remain.
+
 ---
 
 # SIM.docs-generation — Expose simulated observations

@@ -32,3 +32,26 @@ Validation so far:
 Remaining authorized delivery: execute the full notebook in a fresh kernel,
 execute smoke via both docs builds, finish README/download links and record
 final validation. No independent reviewer or full suites will run.
+
+## Notebook delivery and final validation
+
+Support cleanup is committed as b757e88. The 23-cell notebook follows the
+accepted prose, preserves the maintainer's sample-method addition, computes
+its own single-trial curves and study figures, and exposes CONFIG=full/smoke.
+The README and docs link to it. Notebook formatting configuration matches the
+other two use cases; checkpoint directories are ignored throughout the repo.
+
+Both full and smoke notebook variants executed successfully in fresh Python 3
+kernels via nbclient (300/180-second per-cell limits). Each produced three
+figure outputs and an HTML results table with no error outputs. Source has
+no execution counts or outputs. Executed review copies are in
+/tmp/weibull-notebook-executed.ipynb and /tmp/weibull-notebook-smoke.ipynb.
+A final prose-only fix removed the docs self-download paragraph from the
+notebook; no code changed after execution.
+
+scripts/build_docs.sh exited 0: both dtype builds passed with the simplified
+smoke runner and notebook download. After the prose-only fix, both downloadable
+notebook assets were refreshed and verified byte-for-byte against source.
+Ruff check, Ruff format check (6 files) and git diff --check pass. No full test
+suite or independent reviewer ran. No browser visual inspection is claimed.
+All requested work is complete; no substeps remain.
