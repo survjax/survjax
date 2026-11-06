@@ -31,3 +31,5 @@ Imported verbatim; old status/next-step instructions are historical only.
 
 # Incoming main plans (preserved integration history)
 
+
+- `pre-docs-workflow.md`: verbatim incoming integrated plans at e6b3f9e; historical status is retained, not a completion claim.
