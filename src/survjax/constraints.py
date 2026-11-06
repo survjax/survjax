@@ -1,4 +1,4 @@
-"""Parameter domains for diagnostics, never transforms (spec 4.7).
+"""Parameter domains for diagnostics, never transforms.
 
 Call a constraint on an array to get a boolean array: True means inside the
 domain. Scalar constraints preserve the input shape; ordered/simplex reduce

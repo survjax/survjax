@@ -1,4 +1,4 @@
-"""Private input normalization and observation checks (spec 3.1, 3.3, 6.2)."""
+"""Private input normalization and observation checks."""
 
 import jax
 import jax.numpy as jnp
@@ -101,8 +101,7 @@ def row_issues(
 ) -> jax.Array:
     """Add interval, truncation, and window checks; pack ten bits per row.
 
-    Both constructors call this with stored fields and raw-input fault masks
-    (spec 6.2).
+    Both constructors call this with stored fields and raw-input fault masks.
     """
     # spec 6.2: only order endpoints after their presence and domains pass.
     valid_endpoints = ~(invalid_time | missing_time2 | invalid_time2)
@@ -160,7 +159,7 @@ def current_field_issues(
     left_trunc: jax.Array,
     right_trunc: jax.Array,
 ) -> jax.Array:
-    """Recheck normalized fields after tree operations (spec 6.2/7.1/12.1).
+    """Recheck normalized fields after tree operations.
 
     Reconstruction bypasses constructors, so current fields can violate rules
     even when the stored construction bits are zero. These bits describe only
@@ -203,7 +202,7 @@ def flag_fields(
     """Normalize flag inputs and compute issue bits without a host checkpoint.
 
     Build the five stored fields and input-fault masks, then pass them to
-    ``row_issues`` (spec 6.2).
+    ``row_issues``.
     """
     if event is not None and any(
         flag is not None for flag in (right_censored, left_censored, interval_censored)

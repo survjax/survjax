@@ -12,8 +12,7 @@ kernelspec:
 This page explains how survjax computes log likelihoods for survival data:
 which quantity each observation contributes, and how to call the likelihood
 with prepared `SurvivalData` or with plain time and event arrays. To show the
-contributions at work, we use them to fit [exponential and
-Weibull](builtin-families.md) models to a small synthetic cohort by maximum
+contributions at work, we use them to fit an [exponential](builtin-families.md) model to a small synthetic cohort by maximum
 likelihood. survjax supplies the contributions; the fitting loop is ordinary
 JAX code that you write yourself.
 
@@ -197,6 +196,9 @@ for _ in range(6):
 jnp.exp(log_rate)
 ```
 
+This fixed six-step loop illustrates the derivatives; it is not a general
+optimizer and has no line search, convergence test or failure reporting.
+
 Newton lands on $6/103$. The curvature at the maximum also gives a standard
 error: the observed information is $-\ell''(\hat\eta) = \hat\lambda \sum_i
 t_i = D$, so $\operatorname{se}(\hat\eta) = 1/\sqrt{D} = 1/\sqrt 6 \approx
@@ -205,62 +207,6 @@ t_i = D$, so $\operatorname{se}(\hat\eta) = 1/\sqrt{D} = 1/\sqrt 6 \approx
 ```{code-cell} ipython3
 1 / jnp.sqrt(hessian(log_rate))
 ```
-
-## A Weibull fit
-
-The Weibull with shape $k$ and scale $b$ has
-
-$$
-\log f(t) = \log\frac{k}{b} + (k - 1)\log\frac{t}{b} - \left(\frac{t}{b}\right)^{k},
-\qquad
-\log S(t) = -\left(\frac{t}{b}\right)^{k}.
-$$
-
-Setting both partial derivatives of $\ell(k, b)$ to zero has no closed-form
-solution, but the numerical recipe is the same with two parameters, $(\log k,
-\log b)$. With a parameter vector $\theta$, the Newton step multiplies the
-gradient by the inverse Hessian matrix instead of dividing by a scalar
-second derivative,
-$\theta \leftarrow \theta - \left[\nabla^2 \ell(\theta)\right]^{-1} \nabla \ell(\theta)$,
-which the code computes by solving the 2×2 linear system with
-`jnp.linalg.solve` rather than forming the inverse. We start at the
-exponential fit, which is the Weibull with $k = 1$ and $b = 1/\hat\lambda$:
-
-```{code-cell} ipython3
-def weibull_nll(log_params):
-    model = survjax.Weibull.from_log(log_shape=log_params[0], log_scale=log_params[1])
-    return -model.log_likelihood(cohort).sum()
-
-
-gradient = jax.jit(jax.grad(weibull_nll))
-hessian = jax.jit(jax.hessian(weibull_nll))
-
-log_params = jnp.array([0.0, -log_rate])
-for _ in range(6):
-    log_params = log_params - jnp.linalg.solve(hessian(log_params), gradient(log_params))
-
-jnp.exp(log_params)
-```
-
-Because JAX supplies exact gradients and Hessians of the likelihood, a
-hand-written Newton method like this takes only a few lines. It has no
-safeguards, though: no line search, convergence test or failure reporting.
-Dedicated optimizers handle these, and a later version of these guides
-shows fits with JAX-based optimizer libraries such as
-[Optimistix](https://docs.kidger.site/optimistix/).
-
-The fitted shape is about 1.29, a hazard that rises slowly with time, and
-the scale is about 16 months. Is the extra parameter worth it? The
-exponential is the Weibull with $k = 1$, so the likelihood-ratio statistic
-$2(\ell_{\text{Weibull}} - \ell_{\text{exp}})$ is approximately
-$\chi^2_1$ distributed under the exponential:
-
-```{code-cell} ipython3
-2 * (exponential_nll(log_rate) - weibull_nll(log_params))
-```
-
-A statistic of about 0.47 is far below the 5% critical value of 3.84, so
-this sample provides little evidence against a constant hazard.
 
 ## When a contribution is NaN
 
@@ -301,52 +247,4 @@ is not implemented yet, such as interval censoring, left censoring or any
 truncation. An unsupported mode is not bad data, so it adds no data or
 parameter issue.
 
-### Telling the causes apart
-
-A real batch can mix all of these. Take a valid event at month 4, an exact
-time of $-1$ (invalid: event times must be positive), patient 5 from the
-[data guide](survival-data.md), who progressed between scans at months 6 and
-9 (interval censored), and a patient censored at month 12:
-
-```{code-cell} ipython3
-nan = jnp.nan
-mixed = survjax.SurvivalData(
-    [4.0, -1.0, 6.0, 12.0],
-    right_censored=[False, False, False, True],
-    interval_censored=[False, False, True, False],
-    time2=[nan, nan, 9.0, nan],
-)
-ll = model.log_likelihood(mixed)
-ll
-```
-
-Two rows are NaN, for different reasons. To explain each NaN, first remove
-those flagged by the data and parameter diagnostics. Then check which of
-the rest use a mode that the current version supports: exact or right
-censored ($\text{upper} = \infty$), with no truncation. The diagnostic masks
-are broadcast to the shape of the result, since a batch of distributions
-can enlarge it:
-
-```{code-cell} ipython3
-bad_data = jnp.broadcast_to(mixed.issues.invalid_rows, ll.shape)
-bad_params = jnp.broadcast_to(model.parameter_issues().invalid_entries, ll.shape)
-supported_mode = (
-    (mixed.left_trunc == 0)
-    & jnp.isposinf(mixed.right_trunc)
-    & (mixed.exact | jnp.isposinf(mixed.upper))
-)
-unsupported = jnp.broadcast_to(~supported_mode, ll.shape)
-unexplained = jnp.isnan(ll) & ~bad_data & ~bad_params
-unsupported_nan = unexplained & unsupported
-other = unexplained & ~unsupported  # zero normalization or numerical failure
-bad_data, unsupported_nan, other
-```
-
-The second row is bad data, the third an unsupported mode, and nothing is
-left over. A NaN in `other` would point to a numerical problem worth
-investigating. This recipe is for data as constructed; it does not cover
-`SurvivalData` whose fields were edited afterwards. For raw `time`/`event` input, build
-`SurvivalData(time, event)` to read its `issues`. As later versions
-implement more modes, `supported_mode` grows.
-
-See the [API reference](api.md) for the full signatures.
+For a mixed-batch triage recipe, see [Diagnosing likelihood NaNs](technical-notes/likelihood-diagnostics.md).

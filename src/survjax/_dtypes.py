@@ -1,4 +1,4 @@
-"""Shared floating-input policy (spec 3.3)."""
+"""Shared floating-input policy."""
 
 import warnings
 from collections.abc import Mapping
@@ -85,7 +85,7 @@ def normalize_parameters(
     """Cast one family's own leaves, preserving batch and component shapes.
 
     Nested distributions are excluded by the caller and keep their own dtypes.
-    This checks input kinds only, never parameter domains (spec 3.3, 4.1).
+    This checks input kinds only, never parameter domains.
     """
     for name, value in values.items():
         # spec 4.2: required parameter leaves cannot mean an omitted input.

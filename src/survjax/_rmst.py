@@ -1,4 +1,4 @@
-"""Private numerical expressions for staged RMST (spec 8.7, 10.2)."""
+"""Private numerical expressions for staged RMST."""
 
 import jax
 import jax.numpy as jnp

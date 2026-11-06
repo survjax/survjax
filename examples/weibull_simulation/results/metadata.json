@@ -1,0 +1,188 @@
+{
+  "schema_version": 2,
+  "configuration": "full",
+  "source": {
+    "commit": "ac0fa01337ff37c05505292b3c7584e3f2f11cb1",
+    "worktree_dirty_at_start": false,
+    "lock_sha256": "060305c3d661f12f68c97674f56c6411f680c5b631facd83a67afe9ba7615ff5",
+    "spec_seen": "213cfb0b7167b9b833e7fae8898de50ae2e83321"
+  },
+  "invocation": {
+    "python_argv": [
+      "/Users/wamster3/dev/survjax/dev-release-simulation/.venv/bin/python3",
+      "examples/weibull_simulation/run.py",
+      "--config",
+      "full",
+      "--out",
+      "/tmp/survjax-weibull-fixed-limits"
+    ],
+    "cwd": "/Users/wamster3/dev/survjax/dev-release-simulation",
+    "entry_point": "run_config"
+  },
+  "runtime": {
+    "python": "3.12.9",
+    "packages": {
+      "survjax": "0.0.1.dev0",
+      "jax": "0.11.2",
+      "jaxlib": "0.11.2",
+      "numpy": "2.5.3",
+      "optimistix": "0.1.0",
+      "matplotlib": "3.11.2"
+    },
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "machine": "arm64",
+    "cpu_model": "Apple M4 Max",
+    "logical_cpu_count": 16,
+    "backend": "cpu",
+    "devices": [
+      "cpu:0"
+    ],
+    "x64_enabled": true,
+    "prng_impl": "threefry2x32",
+    "thread_environment": {
+      "XLA_FLAGS": null,
+      "OMP_NUM_THREADS": null,
+      "OPENBLAS_NUM_THREADS": null,
+      "MKL_NUM_THREADS": null,
+      "TF_NUM_INTRAOP_THREADS": null,
+      "TF_NUM_INTEROP_THREADS": null,
+      "JAX_NUM_CPU_DEVICES": null
+    },
+    "effective_worker_count": "not measured"
+  },
+  "seeds": {
+    "root": 20261025,
+    "scheme": "key(root) -> fold_in(scenario_index) -> split(R) -> split(U,C)"
+  },
+  "dgp": {
+    "shape": 1.38,
+    "baseline_scale": 11.42,
+    "log_hr": -0.35667494393873245,
+    "allocation": "fixed n/2 per arm",
+    "censoring": "independent Uniform(0,c)"
+  },
+  "parameters": {
+    "weibull": [
+      "log_shape",
+      "log_scale",
+      "log_hr"
+    ],
+    "exponential": [
+      "log_rate",
+      "log_hr"
+    ]
+  },
+  "fitting": {
+    "solver": "optimistix.BFGS",
+    "rtol": 1e-08,
+    "atol": 1e-08,
+    "max_steps": 1000,
+    "throw": false,
+    "starts": "Weibull (0,log(mean(Y)),0); Exponential (-log(mean(Y)),0)",
+    "gradient_tolerance": 1e-05,
+    "acceptance": "solver success; finite theta/objective; strict max|gradient|<gradient_tolerance; finite positive-definite Hessian via Cholesky",
+    "unestimable": "at least one arm has no observed event",
+    "inference": "inverse exact Hessian; HR interval exp(log_hr +/-1.96 SE)"
+  },
+  "timing_policy": {
+    "scope": "all censoring levels at fixed n, per model (D-034)",
+    "first_call_seconds": "synchronized first call; includes compilation if uncached",
+    "warm_seconds": "median of three subsequent synchronized calls",
+    "fits_per_second": "timed_scenarios * replicates_per_scenario / warm_seconds"
+  },
+  "csv_conventions": "unused parameters blank; raw nan/inf/-inf retained; flags/reasons 0/1; reasons overlap; failed unique",
+  "output_directory": "/private/tmp/survjax-weibull-fixed-limits",
+  "censoring_limits": [
+    50.0,
+    20.0
+  ],
+  "batches": [
+    {
+      "n": 100,
+      "replicates_per_scenario": 1000,
+      "timed_scenarios": 2,
+      "scenarios": [
+        {
+          "index": 0,
+          "censor_limit": 50.0,
+          "realized_censoring": 0.23938
+        },
+        {
+          "index": 1,
+          "censor_limit": 20.0,
+          "realized_censoring": 0.53668
+        }
+      ],
+      "models": {
+        "exponential": {
+          "first_call_seconds": 1.8769988338463008,
+          "warm_seconds": 0.42590754199773073,
+          "fits_per_second": 4695.854857650434
+        },
+        "weibull": {
+          "first_call_seconds": 3.05701491702348,
+          "warm_seconds": 0.6532224998809397,
+          "fits_per_second": 3061.7438933357807
+        }
+      }
+    },
+    {
+      "n": 300,
+      "replicates_per_scenario": 1000,
+      "timed_scenarios": 2,
+      "scenarios": [
+        {
+          "index": 2,
+          "censor_limit": 50.0,
+          "realized_censoring": 0.24019
+        },
+        {
+          "index": 3,
+          "censor_limit": 20.0,
+          "realized_censoring": 0.5336466666666667
+        }
+      ],
+      "models": {
+        "exponential": {
+          "first_call_seconds": 2.1487395423464477,
+          "warm_seconds": 0.5968302078545094,
+          "fits_per_second": 3351.036816969466
+        },
+        "weibull": {
+          "first_call_seconds": 3.8761712918058038,
+          "warm_seconds": 1.9126950409263372,
+          "fits_per_second": 1045.6449968267707
+        }
+      }
+    },
+    {
+      "n": 1000,
+      "replicates_per_scenario": 1000,
+      "timed_scenarios": 2,
+      "scenarios": [
+        {
+          "index": 4,
+          "censor_limit": 50.0,
+          "realized_censoring": 0.238873
+        },
+        {
+          "index": 5,
+          "censor_limit": 20.0,
+          "realized_censoring": 0.533992
+        }
+      ],
+      "models": {
+        "exponential": {
+          "first_call_seconds": 5.063507207669318,
+          "warm_seconds": 3.4311452922411263,
+          "fits_per_second": 582.8957475285627
+        },
+        "weibull": {
+          "first_call_seconds": 8.879095250274986,
+          "warm_seconds": 7.022413333877921,
+          "fits_per_second": 284.80237560946284
+        }
+      }
+    }
+  ]
+}

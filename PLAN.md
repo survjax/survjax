@@ -1,3 +1,44 @@
+# DOCS-WORKFLOW.1 — Main merge resolution
+
+Maintainer started a merge and requests conflict resolution. HEAD d89f2ba;
+incoming main d9832ba; original worktree/previous-step base e6b3f9e.
+Resolve/stage only; the maintainer owns the merge commit. Review round 2
+confirmed F-1/F-2/N-1 fixed, B-1 required this integration. Round 3 must review
+the committed merge; independent review cannot check uncommitted resolutions.
+
+Files and intent, before implementation (spec 10.5; no public API/dependencies):
+- scripts/build_docs.sh: preserve incoming --output-dir, worktree environment,
+  cache and kernel isolation; put identity and Jupyter runtime in output_root.
+  Keep this branch's two-dtype certification/traps/source-change detection.
+- docs/index.md: incoming reorganized page. Move retained public cache/identity/
+  viewing guidance into docs/technical-notes/verification.md's build section.
+  DOCS-BUILD.md and CONTRIBUTING_DOCS.md: align root/runtime descriptions and
+  contributor links; CONTRIBUTING.md links contributor inspection instructions.
+  docs/contributing.md excludes that agent-only section from its public include.
+- tests/tooling/test_build_docs.py: teach stub about incoming path resolver and
+  .cache layout. tests/unit/test_docs_build_script.py: temporary real Git repo
+  for identity checks; assert selected-root identity/runtime. Existing dtype/
+  output assertions cover round-2 N-2, no new runner mode or weakened test.
+- PLAN.md: keep current topic below, preserve incoming plan verbatim in
+  plans/incoming-main-docs-workflow.md; combine plans/README.md links.
+  REVIEW.md: current merge evidence then both parent reviews verbatim.
+
+Validate both focused suites in both dtypes, Ruff/mypy/bash/whitespace and
+strict direct scripts/build_docs.sh. Check no unresolved entries/markers and
+all other stage-0 entries remain byte-identical to the initial merge index.
+No unrelated numerical reruns, protected paths or main-checkout changes.
+Keep integration changes near 300 authored implementation lines. No commit,
+merge, rebase or review invocation until the maintainer completes the merge.
+
+Resolution complete and staged, no merge commit by agent. Thirteen focused tests
+pass per dtype; static checks pass. Direct both-dtype docs build passes using
+the approved escalation after a reproduced psutil restriction and corrected
+include-boundary/link errors. REVIEW.md records exact evidence and incoming
+whitespace limitations. Round 3 awaits the maintainer's merge commit; visual
+inspection awaits working native/browser tools. No next implementation step.
+
+---
+
 # DOCS-WORKFLOW.1 — Reliable local build and inspection (2026-11-06)
 
 Start/previous step/worktree base: e6b3f9e on maintainer-created docs-workflow.

@@ -21,7 +21,9 @@ def _distribution(p, family, eta=None):
         if family == "exponential"
         else Weibull(shape=p[0], scale=p[1])
     )
-    return ProportionalHazards(baseline, log_hazard_ratio=p[-1] if eta is None else eta)
+    return ProportionalHazards(
+        baseline=baseline, log_hazard_ratio=p[-1] if eta is None else eta
+    )
 
 
 def _inputs(family, x64):

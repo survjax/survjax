@@ -3,6 +3,7 @@
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -27,11 +28,17 @@ def checkout(tmp_path):
     subprocess.run(["git", "commit", "-qm", "fixture"], cwd=repo, check=True)
     (repo / "bin").mkdir()
     uv = repo / "bin/uv"
-    uv.write_text("""#!/usr/bin/env bash
+    uv.write_text(
+        """#!/usr/bin/env bash
 set -eu
+if [[ " $* " == *" python -c "* ]]; then
+  while [ "$1" != python ]; do shift; done
+  shift
+  exec "PYTHON_EXECUTABLE" "$@"
+fi
 for name in JUPYTER_RUNTIME_DIR IPYTHONDIR MPLCONFIGDIR; do
   test -d "${!name}"
-  case "${!name}" in "$PWD"/docs/_build/*) ;; *) exit 7 ;; esac
+  case "${!name}" in "$PWD"/docs/_build/.cache/*) ;; *) exit 7 ;; esac
 done
 test "$SURVJAX_EXAMPLES_DATA" = /explicit/mnist
 echo "$JAX_ENABLE_X64" >> bin/dtype-calls
@@ -42,7 +49,8 @@ if [ "$JAX_ENABLE_X64" = 1 ]; then
     edit) echo changed >> .gitignore ;;
   esac
 fi
-""")
+""".replace("PYTHON_EXECUTABLE", sys.executable)
+    )
     uv.chmod(0o755)
     return repo
 

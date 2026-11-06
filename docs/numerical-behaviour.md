@@ -7,7 +7,7 @@ kernelspec:
   name: python3
 ---
 
-# Likelihoods in the tails
+# Numerical behaviour
 
 An extremely unlikely observation can have a useful log likelihood even when
 its density or survival probability is too small to store. This page shows how to read those
@@ -81,7 +81,7 @@ model.survival(early), model.log_likelihood(time=early, event=False)
 The small negative log contribution carries information that would disappear
 if it were rounded to zero. survjax does not add an epsilon or floor a
 likelihood. See
-[precision in both tails](builtin-families.md#precision-in-both-tails) for
+[precision in both tails](#precision-in-both-tails) for
 the direct methods, including `log_cdf`.
 
 ## When the log contribution also overflows
@@ -219,6 +219,40 @@ inside `from_log`, is outside its reach. If that step overflows, reverse
 derivatives for shared upstream parameters can still become NaN. Keep those
 transformations in a representable range when fitting.
 
-For NaN contributions, follow the [likelihood guide's diagnostic recipe](likelihood.md#telling-the-causes-apart).
+For NaN contributions, follow the [likelihood guide's diagnostic recipe](technical-notes/likelihood-diagnostics.md).
 Its exact attribution applies to data as constructed; edited normalized
 fields can introduce invalidity beyond the stored issue bits.
+
+## Precision in both tails
+
+The probability of progression by time $t$, $F(t) = 1 - S(t)$, is needed
+for left- and interval-censored data, and it is easy to lose. survjax
+computes $\log F$ from $\log H$, which keeps relative precision at both
+ends of the time axis, within the limits of floating point: in the lower tail
+wherever $\log H$ itself is representable, even when $H$ and $F$ underflow,
+and in the upper tail wherever $S = e^{-H}$ is a normal floating-point number
+(down to about $10^{-38}$ in float32 and $10^{-308}$ in float64). Beyond
+that, $S$ underflows and $\log F \approx -S$ rounds to 0; for example,
+`Exponential(rate=1.0).log_cdf(1000.0)` is $-0.0$ in both modes, although
+the exact value $-e^{-1000} \approx -10^{-434}$ is negative.
+
+**Very early.** With $k = 2$ and $b = 10$, at $t = 10^{-30}$ months
+$H = 10^{-62}$, which is too small even to store in float32. The naive
+$\log(1 - S)$ is $-\infty$, while $\log F \approx \log H = 2\log(10^{-31})
+\approx -142.8$:
+
+```{code-cell} ipython3
+wearout = survjax.Weibull(shape=2.0, scale=10.0)
+early = 1e-30
+jnp.log(1.0 - wearout.survival(early)), wearout.log_cdf(early)
+```
+
+**Very late.** At $t = 60$ months, $H = 36$ and $S = e^{-36} \approx 2.3
+\times 10^{-16}$. Then $\log F = \log(1 - S) \approx -S$, a tiny negative
+number. Forming $1 - S$ first rounds it away (to exactly 0 in float32, and
+to the wrong value in float64); `log_cdf` keeps it:
+
+```{code-cell} ipython3
+late = 60.0
+jnp.log(1.0 - wearout.survival(late)), wearout.log_cdf(late), -wearout.survival(late)
+```

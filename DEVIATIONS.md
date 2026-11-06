@@ -1,5 +1,164 @@
 # Deviations and spec questions
 
+Merge reconciliation (d1825f0): main's alignment entries retain D-042 to
+D-044. Simulation failure accounting moves D-042 -> D-045, shared timings
+D-043 -> D-046, compact evidence D-044 -> D-047. In older simulation records
+these were originally D-033/D-034/D-035, respectively. Historical plans,
+reviews and saved metadata retain their original identifiers; decisions and
+formal statuses are unchanged.
+
+## D-045 Simulation failure reasons when multiple acceptance gates fail
+
+- Step: SIM.5 planning (compiled scenarios and failure accounting).
+- Spec: use-cases/01-weibull-simulation-details.md, Models and fitting / Fit
+  acceptance and Performance measures; SPECIFICATION.md 12.2 release item 4.
+- Spec says: record solver, nonfinite, gradient, hessian or unestimable per
+  replicate, and report attempted/accepted/failed-by-reason counts. It does
+  not specify precedence or whether reason counts may overlap when several
+  acceptance conditions fail. The reviewed fitter retains independent gates.
+- Did/propose: no classifier implemented. Propose one mutually exclusive
+  reason using priority unestimable -> solver -> nonfinite -> gradient ->
+  hessian, preserving the spec's listed acceptance-gate order after the
+  no-events check. Then accepted plus category counts equals total replicates.
+  Alternative: retain all failed gates and explicitly report overlapping
+  reason counts alongside the unique total failed. Await maintainer choice.
+- Maintainer decision (2026-11-02): "record every separately and add one
+  overall 'failed' column that determines the sum". Implement independent
+  overlapping reason columns; overall failed is the unique rejected-fit mask.
+  Unestimable rows are not solver attempts, so placeholder diagnostics do not
+  create solver/nonfinite/gradient/hessian reports for those rows.
+- Status: open (formal disposition remains maintainer-owned).
+
+## D-046 Full-study timing labels when scenarios reuse compilation
+
+- Step: SIM.6 independent review round 1, S-1 (nonblocking for SIM.6).
+- Spec: use-cases/01-weibull-simulation-details.md, Timing; SPECIFICATION.md
+  12.2 release item 4 and 12.3.
+- Spec says: per scenario/model, compile time is the first jitted-vmap call
+  including synchronization. Warm time is the median of three later calls.
+- Observed: the module-level fitter can reuse compiled code for the second
+  censoring level at the same (R,n,model), so that scenario's first call need
+  not include compilation. This follows from the signature; no cache-behavior
+  experiment claimed. A future column labelled compile time could mislead.
+- Did/propose: retain the honest first_call_seconds field and synchronization
+  unchanged in SIM.6. Asked the maintainer how the later full-run table should
+  label it: first-call time with cache reuse explained; compilation once per
+  (n,model); or cleared caches per scenario. No output-label/cache policy
+  change before the decision. This does not affect the current summary fix.
+- SIM.7a.batch review F-1 (2026-11-04): the maintainer directed batching
+  same-size censoring scenarios in JAX. The implementation measures the
+  resulting C*R-fit call, repeats its shared first/warm times per CSV row,
+  labels timed_scenarios=C and reports C*R/warm throughput. This differs
+  from the use case's per-scenario timing and R/warm definition. The change
+  should have been logged here before implementation; no timing-policy
+  approval is claimed from the batching instruction alone.
+- Proposed decision: retain those explicitly shared batch measurements.
+  Alternative: add separate per-scenario timing runs alongside the batched
+  fits. Ask the maintainer before treating either as the full-study policy;
+  do not invent per-scenario time allocations by dividing measured times.
+- Maintainer decision (2026-11-04): "ok agreed; on to next bit" accepts the
+  recommended explicitly shared batch timings and C*R/warm throughput.
+  Retain first_call_seconds, median-of-three warm_seconds, timed_scenarios=C
+  and repeated shared times per row. Do not add separate per-scenario timing
+  runs or invent allocated per-scenario times. The spec remains read-only;
+  formal entry disposition remains maintainer-owned.
+- Status: open.
+
+## D-047 Compact committed simulation evidence instead of bulk diagnostics
+
+- Step: SIM.8a storage proposal (2026-11-05).
+- Spec: use-cases/00-common.md Deliverable shape; use-cases/
+  01-weibull-simulation-details.md Files and commands; SPECIFICATION.md
+  12.2 release item 4.
+- Spec says: commit full-run results including replicates.parquet|csv,
+  performance, metadata and figures; record individual fit failure reasons.
+- Maintainer rejected committing the 4.6 MiB raw CSV because of permanent
+  Git history cost. No bulk artifact has been staged or committed.
+- Propose: retain complete raw outputs locally and regenerate using recorded
+  code/environment/keys. Commit the measured 22,243-byte evidence bundle:
+  original performance/metadata, all 127 failure IDs with separate reason
+  flags/max-gradient/log-HR, exact histogram counts spanning all 11,873
+  accepted fits, and both illustration-fit parameter vectors. A manifest
+  records raw source checksums and reduction conventions. Accepted IDs are
+  the complement of failed IDs within the fixed six x 1000 x two design.
+  This intentionally does not retain every successful fit's raw diagnostics
+  in Git; plotting inputs and the full-run audit remain reproducible.
+- Maintainer decision (2026-11-05): "approved; do it and implement the next
+  step" approves the 22 KiB compact evidence replacement and continuation to
+  figures. Keep raw diagnostics local and source/environment/seed reproducible.
+  No spec edit, external hosting, compression workaround or new dependency.
+- Module-layout decision (2026-11-06, SIM.8c.1 F-1): maintainer approved
+  _evidence.py for compact reduction and _plots.py for figures; check_*.py
+  stays independent checks. Move the producer out of check_full.py.
+- Status: open.
+
+## D-044 A11 float32 log-CDF grid reference outside the normal tail guarantee
+
+- Step: revision-46 / A11–A12 gap inspection (2026-11-06).
+- Spec sections: 4.1, 4.2 and 12.1, revision 46.
+- Spec says: upper-tail log-CDF relative accuracy is guaranteed wherever
+  survival is a normal floating-point number (4.1/4.2).
+- Observed: `test_a11_ph_direct_methods.py::test_grid_twin_equals_time_first_direct_method[log_cdf_grid]`
+  passes the grid/direct comparison but fails its float64-reference comparison
+  in float32: actual -0 versus -3.1677234465149046e-43 and
+  -1.0069062497931706e-170. The first is subnormal in float32, the second
+  unrepresentable; both are below float32's normal minimum, about 1.175e-38.
+  The test demands rtol=1e-4, atol=0 against both nonzero references.
+- Propose: ask the maintainer/spec-test author to reconcile this assertion
+  with the normal-tail guarantee and float32 representability. Preserve the
+  test and implementation; do not widen tolerances or change the dtype.
+- Maintainer approval, 2026-11-06: restrict the upper-tail reference comparison
+  to the active dtype's specified normal-survival range, preserving full-grid
+  shape/direct-grid agreement and existing tolerances. Author instructions
+  saved in SPEC-TEST-D044.txt; protected tests remain unchanged here.
+- Integration evidence, 2026-11-06: independent-author correction merged in
+  3b00d10. The affected files pass both dtype modes (x64 102 passed; x32
+  99 passed, 3 skipped). Formal status remains unchanged by the implementer.
+- Status: open.
+
+## D-043 A11 nested custom condition expected mask conflicts with its predicate
+
+- Step: revision-46 / A11–A12 gap inspection (2026-11-06).
+- Spec section: 4.7, revision 46.
+- Spec says: conditions contain the masks returned by `parameter_conditions`,
+  including nested masks with dotted prefixes; invalid_entries is their union
+  with field violations. It does not prescribe suppressing conditions on
+  invalid fields.
+- Observed: `test_a11_ph_parameter_issues.py::test_custom_baseline_condition_appears_with_the_prefix`
+  expects baseline.rate_above_cap=[False,True,False] for rate=[1,3,1],
+  cap=[2,2,-1]. Its custom family in `tests/spec/spec_families.py` returns
+  rate > cap, i.e. [False,True,True]. The implementation preserves that mask
+  and independently reports the invalid negative cap. Failure occurs in both
+  dtype modes; the invalid_entries union still matches the test.
+- Propose: ask the maintainer/spec-test author to reconcile the expected mask
+  with the declared predicate. Do not suppress diagnostics to satisfy this
+  assertion and do not edit the protected test.
+- Maintainer approval, 2026-11-06: preserve the declared predicate and correct
+  the expected condition mask to [False,True,True]. Author instructions saved
+  in SPEC-TEST-D043.txt; protected acceptance tests remain unchanged here.
+- Integration evidence, 2026-11-06: independent-author correction merged in
+  3b00d10. The affected files pass both dtype modes (x64 102 passed; x32
+  99 passed, 3 skipped). Formal status remains unchanged by the implementer.
+- Status: open.
+
+## D-042 Positional PH snippets remain after keyword-only clarification
+
+- Step: revision-46 / A11–A12 gap inspection (2026-11-06).
+- Spec sections: 4.4 and 11.3, revision 46.
+- Spec says: 4.4 explicitly rejects positional baselines (revision 42), but
+  its closure prose and the 11.3 Bayesian model snippet retain positional PH
+  construction. D-028 also records an older maintainer choice permitting it.
+- Propose: follow the explicit revision-42 keyword-only requirement in the
+  planned constructor migration; ask the maintainer to authorize or perform
+  cleanup of the remaining snippets. No spec edit or implementation change
+  is made in this inspection. Do not mark D-028 resolved on the maintainer's
+  behalf. The explicit constructor rule itself is settled.
+- Maintainer approval, 2026-11-06: retain keyword-only construction and clean
+  up the remaining spec/use-case snippets. Implemented as design commit
+  54bbc62, with no requirement or revision change. This worktree's .spec-seen
+  is aligned to that commit. Formal deviation status remains the maintainer's.
+- Status: open.
+
 MNIST merge ID reconciliation (2026-11-05): main already uses D-028 to D-033.
 The MNIST entries are renumbered: D-028 preparation placement is now D-034,
 D-029 reference BFGS roundoff D-035, D-030 CNN initialization D-036, D-031

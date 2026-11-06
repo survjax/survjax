@@ -58,7 +58,32 @@ data.upper
 Two more fields, `left_trunc` and `right_trunc`, are covered in the
 truncation section below.
 
-## The event happened between two visits
+## Check and select observations
+
+Construction records numerical problems in `data.issues`; it does not raise
+on bad values. Inspect the row mask, then request an exception at a concrete
+checkpoint if needed:
+
+```{code-cell} ipython3
+data.issues.invalid_rows
+data.issues.raise_if_invalid()
+first_two = data[:2]
+first_two
+```
+
+Slices select observations and retain their data fields and diagnostics.
+Exact event times must be positive; right censoring at zero is allowed.
+Event indicators must be booleans or 0/1, so an R-style 1/2 status needs
+conversion. See [Finding bad rows](#finding-bad-rows) for detailed diagnostics.
+
+## Other observation encodings
+
+The remaining examples explain bounds, left/interval censoring and truncation.
+These can be represented and validated, but their likelihoods are not currently
+implemented. For fitting exact/right-censored data, continue to
+[Log likelihoods](likelihood.md).
+
+### The event happened between two visits
 
 Patient 5 had a clear scan at month 6 and showed progression at month 9.
 Progression happened sometime after month 6 and no later than month 9: the
@@ -83,7 +108,7 @@ data.lower, data.upper
 The interval row stores `lower=6`, `upper=9`. Like R, survjax treats the
 interval as open on the left and closed on the right, `(6, 9]`.
 
-## Known only to have occurred before the first visit
+### Known only to have occurred before the first visit
 
 Patient 6 already showed progression at the first scan at month 3. All we
 know is that progression happened at or before month 3: the observation is
@@ -104,12 +129,13 @@ At most one flag may be true on a row. Combining `event` with flags in one
 call is a mistake in the call itself. It raises at once:
 
 ```{code-cell} ipython3
-:tags: [raises-exception]
-
-survjax.SurvivalData([4.0], [1], left_censored=[False])
+try:
+    survjax.SurvivalData([4.0], [1], left_censored=[False])
+except TypeError as error:
+    print(f"TypeError: {error}")
 ```
 
-## The same cohort as endpoints
+### The same cohort as endpoints
 
 If your data already have lower and upper endpoints for each patient,
 `SurvivalData.from_bounds` takes them directly. A censored row means
@@ -132,7 +158,7 @@ Equal endpoints alone never mean an exact event. Without `exact=True` they
 are flagged as an invalid interval, as shown in the section on finding bad
 rows.
 
-## Patients who entered late (truncation)
+### Patients who entered late (truncation)
 
 Patients 5 and 6 were diagnosed elsewhere and joined the study two months
 after diagnosis. Had they progressed before month 2, we would never have met
@@ -270,7 +296,7 @@ converts to float32 with a warning attributed to the caller; ordinary warning
 filtering shows it once per call site. Python scalars and lists do not warn.
 
 Distribution parameters follow the same policy; see the
-[distributions guide](distributions.md), under "Details".
+[distribution dtype details](technical-notes/custom-distributions.md#details).
 
 ## Comparison with R's `survival::Surv`
 
@@ -278,7 +304,7 @@ The R calls below follow the official
 [`Surv` help page](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/Surv.html).
 They compare how the input is written. Numerical agreement with R is checked
 only for exact and right-censored rows without truncation; see
-[Comparisons with R](builtin-families.md#comparisons-with-r).
+[Comparisons with R](technical-notes/verification.md#comparisons-with-r).
 
 | Situation | R | survjax | Notes |
 | --- | --- | --- | --- |

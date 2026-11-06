@@ -3,12 +3,14 @@
 Run `scripts/build_docs.sh` directly from this checkout without redirects,
 environment assignments or shell wrappers. The strict build executes notebooks
 afresh in both dtype modes. Use the printed absolute HTML paths and read
-`docs/_build/build-identity.txt` before inspection. Its last `state:` must be
+`DIR/build-identity.txt` (`docs/_build/build-identity.txt` by default)
+before inspection. DIR is the selected `--output-dir` build root. Its last `state:` must be
 `success`; check the checkout, commit, dirty status and UTC completion time.
 Compare with `git rev-parse HEAD` and `git status --short`. Edits after the build
 require a fresh build; an already open browser tab can be stale. Reload the
 intended checkout's local HTML. Do not run concurrent builds or edit sources
-during verification. See the site's Local commands for cache/runtime details.
+during verification. See [the build interface](DOCS-BUILD.md) for cache/runtime
+details.
 
 For agent inspection, use the currently documented computer-use APIs. Discover
 available browser surfaces first. If discovery reports the browser access host
