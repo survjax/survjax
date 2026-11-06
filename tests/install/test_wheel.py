@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import textwrap
+import tomllib
 import zipfile
 from email.parser import BytesParser
 from pathlib import Path
@@ -186,7 +187,7 @@ def test_installed_core_uses_wheel_without_demo_dependencies(installed, x64_enab
         assert resources.files("survjax").joinpath("py.typed").is_file()
         meta = metadata.metadata("survjax")
         assert meta["Name"] == "survjax"
-        assert meta["Version"] == "0.0.1.dev0"
+        assert meta["Version"] == sys.argv[1], (meta["Version"], sys.argv[1])
         assert meta["Requires-Python"] == ">=3.12"
         assert meta["License-Expression"] == "Apache-2.0"
         assert {re.match("[A-Za-z0-9_.-]+", req).group(0)
@@ -210,7 +211,12 @@ def test_installed_core_uses_wheel_without_demo_dependencies(installed, x64_enab
                           "python": sys.version.split()[0], "jax": jax.__version__,
                           "numpy": np.__version__, "package": survjax.__file__}))
     """)
-    report = json.loads(_run([python, "-I", "-c", script], cwd=directory, env=env))
+    expected_version = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"][
+        "version"
+    ]
+    report = json.loads(
+        _run([python, "-I", "-c", script, expected_version], cwd=directory, env=env)
+    )
     print(report)
     # Exact log(r)-r*t at t=1 and right log S=-r*t at t=2, r=0.5.
     np.testing.assert_allclose(

@@ -1105,3 +1105,18 @@ Entries are added by the implementer and resolved by the maintainer.
   raises Python's `TypeError`. The maintainer will update the spec before a
   change to this behavior (conversation, 2026-09-29).
 - Status: resolved by maintainer, 2026-10-22; superseded by specification revision 9.
+
+## D-048 Release version conflicts with initial-version acceptance test
+- Step: WHEEL.1
+- Spec: 10.2 (initial version), 10.3 (installed artifact verification).
+- Spec says: initial version is `0.0.1.dev0`; the independent A9 acceptance
+  test requires this literal even after the release commit.
+- Did / propose: project metadata already declares `0.0.1a1` at starting
+  commit 8794005. Updated only the implementation-owned wheel test to compare
+  the installed version against project metadata. The fast A10 gate fails at
+  tests/spec/test_a9_package.py::test_distribution_version_is_initial_development_version.
+  Propose maintainer clarification of the post-release acceptance requirement;
+  The maintainer subsequently explicitly authorized updating this protected
+  version check to compare installed and project metadata. Implemented that
+  change; no spec edit. Entry remains open for formal maintainer resolution.
+- Status: open
