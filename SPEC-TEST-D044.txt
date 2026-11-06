@@ -1,0 +1,26 @@
+D-044: Bound the upper-tail log-CDF reference check to the specified range
+
+Maintainer approved this correction on 2026-11-06.
+
+In tests/spec/test_a11_ph_direct_methods.py, adjust the log_cdf_grid case of
+  test_grid_twin_equals_time_first_direct_method.
+Its float32 reference comparison currently requires relative accuracy at
+approximately -3.17e-43 and -1.01e-170. Both are below float32's normal range;
+the second cannot be represented in float32. Spec 4.1/4.2 guarantees upper-tail
+log-CDF relative accuracy wherever reference survival S is a normal number.
+
+For the analytical upper-tail reference comparison, select the guaranteed
+range using the active output dtype's smallest normal value and the independent
+reference survival (or its log). Do not select entries from implementation
+outputs. Keep the existing relative tolerance and zero absolute tolerance.
+
+Preserve the shape assertion and grid-versus-direct comparison over the entire
+grid, including underflow entries. Preserve lower-tail accuracy checks and
+all other methods' reference comparisons. Keep float64 coverage wherever its
+normal-number guarantee applies. Do not require zero specifically outside
+the guaranteed range; a backend may retain subnormals.
+
+No implementation, spec or global tolerance change is needed. Do not skip or
+xfail the test. Rerun the affected file in separate processes with
+JAX_ENABLE_X64=1 and 0. Commit in the independent spec-test repo and hand back
+through the normal synchronization workflow. D-043 has its own instruction.

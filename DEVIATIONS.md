@@ -15,6 +15,10 @@
 - Propose: ask the maintainer/spec-test author to reconcile this assertion
   with the normal-tail guarantee and float32 representability. Preserve the
   test and implementation; do not widen tolerances or change the dtype.
+- Maintainer approval, 2026-11-06: restrict the upper-tail reference comparison
+  to the active dtype's specified normal-survival range, preserving full-grid
+  shape/direct-grid agreement and existing tolerances. Author instructions
+  saved in SPEC-TEST-D044.txt; protected tests remain unchanged here.
 - Status: open.
 
 ## D-043 A11 nested custom condition expected mask conflicts with its predicate

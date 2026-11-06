@@ -1,3 +1,18 @@
+# ALIGN.2c — Approved D-044 author handoff (complete)
+
+Starting/previous step: 3a6d013; worktree starting point: 3cb4cd7.
+Maintainer approves restricting upper-tail relative comparisons to the spec's
+normal-survival range while preserving shape/full-grid agreement and existing
+tolerances. Saved SPEC-TEST-D044.txt; refreshed the D-043 note's cross-reference.
+Checked the instruction against spec 4.1/4.2 and the affected A11 grid test.
+No spec, implementation, acceptance-test or dependency change; no tests rerun
+for this handoff-only step. Approval recorded without changing deviation
+statuses. All three decisions now have maintainer confirmation; acceptance
+corrections still belong to the independent author. ALIGN.3 final verification
+awaits their normal synchronization. No additional decision pending here.
+
+---
+
 # ALIGN.2b — Approved D-043 author handoff (complete)
 
 Starting/previous step: 3580ff2; worktree starting point: 3cb4cd7.

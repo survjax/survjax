@@ -40,3 +40,16 @@ read-only failing test, CappedRate predicate and spec 4.7. This is a planning/
 handoff record, not an acceptance-test edit; no numerical tests rerun.
 Starting/previous step: 3580ff2; worktree starting point: 3cb4cd7. D-044 still
 requires its own decision. `git diff --check` passes before commit.
+
+## ALIGN.2c author handoff
+
+Maintainer approved D-044's reference-domain correction. Saved
+SPEC-TEST-D044.txt and updated SPEC-TEST-D043.txt to refer to it. Checked
+against spec 4.1/4.2 and the read-only A11 grid test: restrict only the
+upper-tail analytical reference comparison using independent reference
+survival and the active dtype, preserve full-grid shape/agreement and
+lower-tail checks, and leave tolerances/implementation unchanged.
+No tests rerun for the instruction-only change. Starting/previous step:
+3a6d013; worktree starting point: 3cb4cd7. `git diff --check` passes.
+All three decisions have confirmation. Independent-author corrections and
+ALIGN.3 verification after synchronization remain outstanding.

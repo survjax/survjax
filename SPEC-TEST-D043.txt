@@ -17,4 +17,4 @@ Rerun the affected test in separate processes with JAX_ENABLE_X64=1 and 0.
 Commit the correction in the independent spec-test repo and hand it back
 through the normal spec-test synchronization workflow.
 
-This instruction covers D-043 only; D-044 remains undecided.
+This instruction covers D-043 only; see SPEC-TEST-D044.txt for D-044.
