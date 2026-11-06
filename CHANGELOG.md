@@ -60,9 +60,10 @@ The documentation links below track moving `latest` sources.
 The simulation demonstration, documentation cleanup and independent A11/A12
 acceptance integration retain separate ownership and completion gates.
 Recorded local checks through A10 do not certify those steps or the whole
-initial release. Citation and contribution guidance are prepared. The planned
-transfer to the `survjax` GitHub organization and coordinated
-repository/publisher identity updates remain to be completed.
+initial release. Citation and contribution guidance are prepared. Local package
+URLs, citation metadata, badge links and the publishing guard target
+`survjax/survjax`. The actual GitHub transfer and post-transfer integration /
+publisher checks remain pending.
 
 Fresh Linux/RTD hosting, public documentation/download access, account
 connections, publisher/environment protection and public package installation

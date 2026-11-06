@@ -14,9 +14,9 @@ the repository or documentation URLs.
 
 ## Complete the release prerequisites
 
-Before publishing, finish and review the initial changelog/release notes,
-citation metadata and contribution guidance (planned as RELEASE.5a–5c).
-Confirm license/notices, fixture provenance, package-name availability and the
+The draft changelog, citation metadata and contribution guidance are prepared.
+Before publishing, reconcile them with the final release commit and agreed
+credits. Confirm license/notices, fixture provenance, package-name availability and the
 actually tested Python/JAX configurations. The simulation demonstration,
 documentation cleanup and independent A11/A12 acceptance integration have
 separate owners: obtain their merged completion evidence without importing
@@ -38,12 +38,13 @@ name `survjax`. The transfer is still an operator action, not a completed result
 of local preparation. Confirm permissions to transfer/create in the receiving
 organization and that the destination name is available before proceeding.
 
-After the authorized transfer, confirm the canonical URL and coordinate the
-local identity update (RELEASE.5d): package repository/issues URLs, README GPU
-badge/links, `CITATION.cff`, release workflow repository guard and metadata-test
-expectations. The prepared files still bind `vanAmsterdam/survjax`; the guard
-would skip the release build under the new owner until updated. Complete and
-review this update before tagging/building release artifacts.
+The local identity update is prepared: package repository/issues URLs, README
+GPU badge/links, `CITATION.cff`, release workflow repository guard and artifact
+metadata tests now target `survjax/survjax`. The guard accepts only the new
+namespace, so a release build under `vanAmsterdam/survjax` is blocked. These
+local edits do not perform the transfer or prove live destination access.
+After the separately authorized transfer, confirm the canonical URL and check
+all integrations below before tagging/building release artifacts.
 
 Recheck organization access, `pypi` environment protections, Actions permissions,
 and RTD GitHub App/webhook access for the transferred repository. Configure the
@@ -143,7 +144,8 @@ Account setup and environment protection remain manual operator actions.
 1. Complete the prerequisites above. In a reviewed release commit, change
    `pyproject.toml` to the selected version, run `uv lock`, and update the
    installed-version assertion in `tests/install/test_wheel.py` together.
-   Update release notes and any version-specific instructions consistently.
+   Update `CITATION.cff` with the actual released version and release date
+   when assigned, and reconcile release notes/version-specific instructions.
    The RTD tag selects the docs source; there is no separate Sphinx release
    version currently configured. Do not change an already published version.
 2. From that clean commit, run local packaging and full checks on the exact

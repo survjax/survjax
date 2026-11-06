@@ -30,12 +30,12 @@ according to their own guidance as well.
 
 ## Repository location and release metadata
 
-The preparation checkout records `https://github.com/vanAmsterdam/survjax`.
-The maintainer has created the GitHub organization `survjax` and plans to
-transfer the repository to **`https://github.com/survjax/survjax`**. The transfer
-has not been performed by this preparation step. Use the canonical repository
-URL verified for the source you used, together with its version/commit.
-Hosting ownership and software author attribution are separate metadata.
+Local package and citation metadata are prepared for the intended organization
+destination **`https://github.com/survjax/survjax`**. The actual transfer from
+`vanAmsterdam/survjax` remains pending; these local edits do not verify a live
+canonical URL or organization access. Use the repository URL verified for the
+source you used, together with its version/commit. Hosting ownership and
+software author attribution are separate metadata.
 
 Before publishing, confirm the agreed author list and canonical repository
 URL. Update `CITATION.cff` with the actual released version and release date

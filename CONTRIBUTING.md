@@ -2,8 +2,9 @@
 
 Bug reports, focused improvements and co-maintenance are welcome. The intended
 repository is [survjax/survjax](https://github.com/survjax/survjax); its transfer
-from `vanAmsterdam/survjax` is pending during release preparation. Use the
-repository's current verified location until that transfer is complete.
+from `vanAmsterdam/survjax` is pending during release preparation. Local metadata
+and the publishing guard already target the organization. Use the repository's
+current verified location until the actual transfer is complete.
 
 Open an issue before a substantial API change, new dependency or large feature.
 Describe the problem and a small proposed scope. For bugs, include a minimal

@@ -1,3 +1,39 @@
+# RELEASE.5e — Synchronize the prepared organization identity in docs
+
+Start / previous step: f301172d482e4159f8bb75be85dd6fbf7e83dca5.
+Original worktree base: 3cb4cd7fbba3313f00dfabed0028ee6f404384df.
+5d review round 1: merge, no required findings. Maintainer authorizes completing
+reviewed local work up until actual transfer. This is the last local step in
+that sequence; stop after review before any transfer/remote/account action.
+
+Files: CITING.md, CONTRIBUTING.md, docs/releasing.md, CHANGELOG.md, PLAN.md,
+REVIEW.md. One documentation topic: prepared identity vs pending live transfer.
+No API, dependency, code/config, version/lockfile, navigation, protected path
+or spec changes. Spec revision 47: 10.1/10.5/13. Under 300 implementation lines.
+
+Replace the now-stale old-binding descriptions with the reviewed 5d state:
+package/citation URLs, README badge links, workflow guard and artifact tests
+locally target survjax/survjax. Actual transfer from vanAmsterdam/survjax,
+canonical live URL/permissions and post-transfer integrations are unverified.
+The new guard blocks old-namespace publication; no temporary dual-owner allow.
+Keep author credit and dev0 version unchanged; initial alpha still a proposal.
+
+Keep exact post-transfer publisher fields and remaining operator checks. Record
+contribution/citation guides and draft changelog prepared, not broad release
+completion. Eventual release commit must coordinate package/lock/test version,
+actual citation release version/date and final notes. Other agents' demo/docs /
+acceptance work, Linux/RTD/account/public checks remain launch prerequisites.
+No actual transfer, git remote, account, namespace availability, visibility,
+push/tag/release, hosting or upload actions; do not imply any occurred.
+
+Direct docs build both dtypes, complete include/source/search comparisons,
+rendered publisher/identity/prose checks, current-link/download audit, command
+syntax, required fast A10 gate and whitespace. No tests added for prose or
+redundant full numerical/install runs. Independent Astra/low review after
+commit, max three rounds with fixes as needed; stop at actual transfer boundary.
+
+---
+
 # RELEASE.5d — Prepare organization identity in metadata and publishing guard
 
 Start / previous step: 9bffb535df46cff93511afc9578200ced49788e1.
