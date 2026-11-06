@@ -52,7 +52,7 @@ def test_complete_csv_roundtrip_preserves_every_fit_diagnostic_and_failure(tmp_p
     )
     (tmp_path / "metadata.json").write_text("stale")
     (tmp_path / "evidence.json").write_text("stale")
-    write_results(tmp_path, {0.25: 40.0, 0.55: 20.0}, [(np.array([4, 5]), 6, batch)])
+    write_results(tmp_path, (40.0, 20.0), [(np.array([4, 5]), 6, batch)])
     assert not (tmp_path / "metadata.json").exists()
     assert not (tmp_path / "evidence.json").exists()
     with (tmp_path / "performance.csv").open(newline="") as handle:
@@ -62,11 +62,11 @@ def test_complete_csv_roundtrip_preserves_every_fit_diagnostic_and_failure(tmp_p
     assert len(summaries) == 4 and len(raw) == 12
     assert len({(r["scenario"], r["model"], r["replicate"]) for r in raw}) == 12
     assert (
-        list(summaries[0])[6:14]
+        list(summaries[0])[5:13]
         == "attempted accepted failed solver nonfinite gradient hessian unestimable".split()
     )
     assert (
-        list(summaries[0])[14:23]
+        list(summaries[0])[13:22]
         == "bias bias_mcse empirical_se empirical_se_mcse model_se coverage coverage_mcse power power_mcse".split()
     )
     # Host round-trip assertions compare CSV values directly with the input records.
@@ -134,9 +134,9 @@ def _compact_fixture(tmp_path):
 3,exponential,1,2,0,0,1,1,1,0,0,0,0,0,,1e-5,2e-5,
 3,exponential,2,2,0.6931471805599453,1,0,0,0,0,0,0,0,0.6931471805599453,,0,0,
 """
-    summary = """scenario,n,target_censoring,model,attempted,accepted,failed,solver,gradient,nonfinite,hessian,unestimable
-3,300,0.55,weibull,3,2,1,1,1,0,0,0
-3,300,0.55,exponential,3,2,1,1,1,0,0,0
+    summary = """scenario,n,censor_limit,model,attempted,accepted,failed,solver,gradient,nonfinite,hessian,unestimable
+3,300,20.0,weibull,3,2,1,1,1,0,0,0
+3,300,20.0,exponential,3,2,1,1,1,0,0,0
 """
     (tmp_path / "replicates.csv").write_text(raw)
     (tmp_path / "performance.csv").write_text(summary)

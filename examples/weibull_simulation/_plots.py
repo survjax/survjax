@@ -119,7 +119,7 @@ def write_figures(results: Path, out: Path) -> None:
             xlabel="Time (years)",
             ylabel="Survival probability",
             ylim=(0, 1),
-            title=f"Survival illustration: n={setting['n']}, target censoring {float(setting['target_censoring']):.0%}, replicate {illustration[0]['replicate']}"
+            title=f"Survival illustration: n={setting['n']}, censoring limit {float(setting['censor_limit']):g} years, replicate {illustration[0]['replicate']}"
             if setting
             else "True survival; fitted illustration unavailable",
         )
@@ -148,7 +148,7 @@ def write_figures(results: Path, out: Path) -> None:
                 np.exp(dgp["log_hr"]), color="black", linestyle="--", label="True HR"
             )
             axis.set(
-                title=f"n={rows[0]['n']}, target censoring {float(rows[0]['target_censoring']):.0%}",
+                title=f"n={rows[0]['n']}, censoring limit {float(rows[0]['censor_limit']):g} years",
                 xlabel="Estimated HR",
                 ylabel="Density (accepted fits)",
             )
@@ -177,7 +177,7 @@ def write_figures(results: Path, out: Path) -> None:
             )
         labels = [
             next(
-                f"n={r['n']}\n{float(r['target_censoring']):.0%} target censoring"
+                f"n={r['n']}\ncensoring limit {float(r['censor_limit']):g} years"
                 for r in summary
                 if int(r["scenario"]) == s
             )

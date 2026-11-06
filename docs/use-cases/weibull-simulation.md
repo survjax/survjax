@@ -37,7 +37,7 @@ import survjax
 
 ROOT = next(p for p in (Path.cwd(), *Path.cwd().parents) if (p / "pyproject.toml").is_file())
 sys.path.insert(0, str(ROOT))
-from examples.weibull_simulation import run as runner, study
+from examples.weibull_simulation import run as runner
 RESULTS = ROOT / "examples/weibull_simulation/results"
 metadata = json.loads((RESULTS / "metadata.json").read_text())
 ```
@@ -60,22 +60,29 @@ hazard by 30% at every time.
 Some patients remain event-free when follow-up ends. We observe the earlier
 of their event and censoring times, together with an indicator of whether
 the event occurred. Censoring is independent of event time, with a uniform
-follow-up limit chosen to censor about 55% of patients.
+censoring times drawn uniformly between 0 and 20 years.
 
-The example's simulation helper prepares these observations. For your own
-study, you would supply your observed times, event indicators and covariates.
+We draw event times by inverting the Weibull survival function,
+$T=b_0[-\log(U)/e^{\gamma x}]^{1/k}$, where $U$ is uniform on $(0,1)$.
+The observed time is the earlier of the event and censoring times; `event`
+records whether the event was observed.
 
 ```{code-cell} ipython3
 n_patients = 300
 arm = jnp.repeat(jnp.array([0., 1.]), n_patients // 2)
-censor_limit = 19.17253543619806  # years; about 55% censoring
+censor_limit = 20.0  # years
+shape, scale, log_hr = 1.38, 11.42, jnp.log(0.7)
 
 def simulate_trial(key):
-    draws = study.generate_weibull(
-        key, shape=1.38, scale=11.42, censor_limit=censor_limit,
-        log_hazard_ratio=jnp.log(0.7) * arm,
+    event_key, censor_key = jax.random.split(key)
+    u = jax.random.uniform(event_key, shape=(n_patients,))
+    event_time = scale * (-jnp.log(u) / jnp.exp(log_hr * arm)) ** (1 / shape)
+    censor_time = jax.random.uniform(
+        censor_key, shape=(n_patients,), maxval=censor_limit
     )
-    return survjax.SurvivalData(draws.time, event=draws.event)
+    time = jnp.minimum(event_time, censor_time)
+    event = event_time <= censor_time
+    return survjax.SurvivalData(time, event=event)
 
 data = simulate_trial(jax.random.key(20261025))
 data.issues.raise_if_invalid()
@@ -171,12 +178,13 @@ them, we check convergence, a small gradient and positive likelihood curvature.
 A successful optimizer status alone does not establish that the fit is usable.
 
 The fitted survival curves translate the model into probabilities over time.
-The saved example below shows another trial from the same setting,
+The saved example below shows another trial with the same model and
+20-year censoring limit,
 including an Exponential regression, which assumes a constant
 baseline hazard. The Weibull model allows the increasing hazard that was actually used to
 generate these data.
 
-![True and fitted survival curves by treatment arm for a saved trial with 300 patients and 55% target censoring.](../../examples/weibull_simulation/results/fig1_survival.svg)
+![True and fitted survival curves by treatment arm for a saved trial with 300 patients and a 20-year censoring limit.](../../examples/weibull_simulation/results/fig1_survival.svg)
 
 These curves illustrate the fitted distributions; they have no confidence
 bands. One trial cannot tell us whether our confidence interval procedure
@@ -220,10 +228,9 @@ compute bootstrap intervals in this example.
 ### Compare sample size, censoring and model choice
 
 The full study uses 1,000 trials at each combination of 100, 300 and 1,000
-patients and 25% or 55% expected censoring. The helper
-`study.calibrate_censoring` chooses a uniform censoring limit for each target
-(about 47.79 and 19.17 years). Reusing these limits across sample sizes keeps
-the expected censoring fractions comparable; realized fractions vary between
+patients and two prespecified censoring limits: 50 and 20 years. Reusing
+these limits across sample sizes keeps the expected censoring fractions
+comparable; realized fractions vary between
 trials. Each trial is fitted with both models using `study.fit_replicate`,
 which extends the displayed fitter with standard errors, intervals and
 individual failure flags, and skips fitting when an arm has no events. Coverage is the proportion of accepted intervals containing the true
@@ -235,7 +242,8 @@ number of simulated trials.
 :tags: [remove-input]
 full = pd.read_csv(RESULTS / "performance.csv")
 table = pd.DataFrame({
-    "Patients": full.n, "Censored (target)": full.target_censoring.map(lambda x: f"{x:.0%}"),
+    "Patients": full.n, "Censoring limit (years)": full.censor_limit.astype(int),
+    "Censored": full.realized_censoring.map(lambda x: f"{x:.0%}"),
     "Model": full.model.str.capitalize(), "Accepted": full.accepted, "Failed": full.failed,
     "Bias": full.bias.round(3), "Empirical SE": full.empirical_se.round(3),
     "Model SE (RMS)": full.model_se.round(3),
@@ -257,25 +265,24 @@ assuming the wrong baseline hazard.
 
 ![Coverage of nominal 95% intervals, with one Monte Carlo standard error bars.](../../examples/weibull_simulation/results/fig3_coverage.svg)
 
-At 1,000 patients and 25% censoring, Exponential coverage is about 90%, compared
-with 94% for Weibull. At 55% censoring the difference is smaller: approximately
-94% and 93%. Misspecification affects both the estimates and their reported
+At 1,000 patients, compare coverage between the two models at each censoring
+limit. Misspecification affects both the estimates and their reported
 uncertainty, so coverage alone does not describe its consequences.
 
-All summaries use accepted fits. Of 12,000 attempted fits, 127 were rejected
-because their maximum absolute gradient exceeded the prespecified $10^{-5}$
-threshold, despite successful solver status. The table retains these failures
-alongside the results; coverage therefore describes the accepted fits.
+All summaries use accepted fits. The table retains failed fits alongside the
+results; coverage therefore describes the accepted fits.
 
 ### How long does repeated fitting take?
 
-On the recorded CPU run, fitting 2,000 Weibull models with 300 patients each
-(together with their Hessians and diagnostics) took about 2.96 seconds after
-compilation; the first call took 5.95 seconds. These timings exclude data
-generation and result summaries.
+The recorded timings below cover 2,000 Weibull fits with 300 patients each,
+including their Hessians and diagnostics. The first call includes compilation;
+the warm time is the median of three subsequent calls. Data generation and
+result summaries are excluded.
 
 ```{code-cell} ipython3
 :tags: [remove-input]
+timing = full[(full.n == 300) & (full.model == "weibull")].iloc[0]
+print(f"First call: {timing.first_call_seconds:.2f} s; warm: {timing.warm_seconds:.2f} s")
 print(metadata["runtime"]["cpu_model"])
 print("JAX", metadata["runtime"]["packages"]["jax"], "— CPU, float64")
 ```
@@ -304,5 +311,5 @@ uv run --locked --group examples python examples/weibull_simulation/run.py \
 
 The saved [performance table](../../examples/weibull_simulation/results/performance.csv) includes bias, precision,
 coverage and power with Monte Carlo errors. The [run metadata](../../examples/weibull_simulation/results/metadata.json)
-records seeds, censoring calibration, versions and timings; the
+records seeds, censoring limits, versions and timings; the
 [failure ledger](../../examples/weibull_simulation/results/failures.csv) retains rejected fits. All data are synthetic.

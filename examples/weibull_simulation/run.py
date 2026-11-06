@@ -17,13 +17,13 @@ if __package__:
     from ._evidence import write_evidence
     from ._plots import write_figures
     from ._results import capture_metadata, write_metadata, write_results
-    from .study import FitResult, calibrate_censoring, fit_replicate, generate_weibull
+    from .study import FitResult, fit_replicate, generate_weibull
 else:
     import study
     from _evidence import write_evidence
     from _plots import write_figures
     from _results import capture_metadata, write_metadata, write_results
-    from study import FitResult, calibrate_censoring, fit_replicate, generate_weibull
+    from study import FitResult, fit_replicate, generate_weibull
 
 ROOT_SEED = 20261025
 TRUE_LOG_HR = float(np.log(0.7))
@@ -35,10 +35,10 @@ def prepare_scenario(
     """Generate and host-validate scalar or same-size (C,R,N) scenarios.
 
     Args:
-        scenario_index: Nonnegative integer index or (C,) indices in n/target order.
+        scenario_index: Nonnegative integer index or (C,) indices in n/limit order.
         n: Positive even cohort size, half per arm.
         replicates: Positive number R of independently split replicate keys.
-        censor_limit: Positive finite c or matching (C,) limits, calibrated once.
+        censor_limit: Positive finite c or matching (C,) limits, prespecified.
     Returns:
         Validated (R,N) or (C,R,N) exact/right data and shared (N,) arm.
     Raises:
@@ -203,7 +203,7 @@ class ModelRun(NamedTuple):
 
 
 class ScenarioRun(NamedTuple):
-    """One scenario's calibrated/realized censoring and both models."""
+    """One scenario's prespecified/realized censoring and both models."""
 
     censor_limit: ArrayLike
     realized_censoring: jax.Array
@@ -234,7 +234,7 @@ def run_scenario(
         scenario_index: Nonnegative scalar or (C,) prescribed scenario indices.
         n: Positive even cohort size N.
         replicates: Positive R per scenario; throughput numerator is C*R (or R).
-        censor_limit: Scalar or (C,) positive limits calibrated once per target.
+        censor_limit: Scalar or (C,) positive limits prespecified for each scenario.
     Returns:
         Censoring/model records with (R,...) or (C,R,...) raw fit fields.
         First-call seconds include compilation if not already cached; warm time
@@ -264,7 +264,7 @@ def run_config(config: Literal["smoke", "full"], out: Path) -> None:
         out: Output directory; CSVs, metadata, compact evidence and SVGs are replaced.
     Raises:
         ValueError: Unknown configuration or float64 disabled.
-        OSError: Output cannot be written. Calibration/validation errors propagate.
+        OSError: Output cannot be written. Validation errors propagate.
     """
     if config not in ("smoke", "full"):
         raise ValueError("config must be smoke or full")
@@ -273,22 +273,13 @@ def run_config(config: Literal["smoke", "full"], out: Path) -> None:
     out.mkdir(parents=True, exist_ok=True)
     snapshot = capture_metadata(config, ROOT_SEED, TRUE_LOG_HR)
     sizes, replicates = ((100,), 20) if config == "smoke" else ((100, 300, 1000), 1000)
-    # Host-only root finding runs once per target before compiled generation/fitting.
-    limits = {
-        target: calibrate_censoring(
-            study.DGP_SHAPE,
-            study.DGP_SCALE,
-            target,
-            log_hazard_ratio=np.array([0.0, TRUE_LOG_HR]),
-        )
-        for target in (0.25, 0.55)
-    }
+    limits = (50.0, 20.0)
     batches = []
     # Changing n changes array shapes and requires a separate compiled batch.
     for group, n in enumerate(sizes):
         indices = np.arange(group * len(limits), (group + 1) * len(limits))
         scenario = jax.device_get(
-            run_scenario(indices, n, replicates, np.array(list(limits.values())))
+            run_scenario(indices, n, replicates, np.array(limits))
         )
         batches.append((indices, n, scenario))
     write_results(out, limits, batches)

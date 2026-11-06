@@ -1,3 +1,19 @@
+# SIM.docs-generation — Expose simulated observations
+
+Start/previous final: e33d4b5; original worktree base: 8757c0f.
+Edit only the Weibull docs page and editorial records. Show event and censor
+sampling explicitly with JAX and construct SurvivalData from observed times
+and indicators; use the requested 20-year censoring limit. Rebuild executable
+docs, with test suites and independent review still waived. The maintainer authorized updating the design and regenerating the full study.
+Commit the spec separately, then the fixed-limit runner/export/figure changes
+with their focused checks, then regenerate and commit compact evidence and
+updated prose. Replace target-censoring labels with actual limits throughout.
+This separates source provenance from generated results. No full test suite
+or independent review is requested; run only changed example checks and docs.
+No public API or dependencies change.
+
+---
+
 # SIM.docs-rewrite — Incorporate maintainer edits
 
 Replace docs/use-cases/weibull-simulation.md with the edited example draft;

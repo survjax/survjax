@@ -54,13 +54,10 @@ def test_metadata_roundtrip_keeps_each_batch_and_rejects_nonfinite_values(tmp_pa
         )
         batches.append((np.array([2 * group, 2 * group + 1]), n, scenario))
     snapshot = {"configuration": "fixture", "source": {"commit": "before"}}
-    output.write_metadata(tmp_path, snapshot, {0.25: 40.0, 0.55: 20.0}, batches)
+    output.write_metadata(tmp_path, snapshot, (40.0, 20.0), batches)
     data = json.loads((tmp_path / "metadata.json").read_text())
     assert data["source"] == snapshot["source"] and "batches" not in snapshot
-    assert data["calibration"] == [
-        {"target_censoring": 0.25, "censor_limit": 40.0},
-        {"target_censoring": 0.55, "censor_limit": 20.0},
-    ]
+    assert data["censoring_limits"] == [40.0, 20.0]
     for group, (indices, n, batch) in zip(data["batches"], batches, strict=True):
         assert (
             group["n"] == n
@@ -71,7 +68,6 @@ def test_metadata_roundtrip_keeps_each_batch_and_rejects_nonfinite_values(tmp_pa
         for level, entry in enumerate(group["scenarios"]):
             assert entry == {
                 "index": int(indices[level]),
-                "target_censoring": [0.25, 0.55][level],
                 "censor_limit": float(batch.censor_limit[level]),
                 "realized_censoring": float(batch.realized_censoring[level]),
             }
@@ -82,7 +78,7 @@ def test_metadata_roundtrip_keeps_each_batch_and_rejects_nonfinite_values(tmp_pa
             }
     batches[0][2].realized_censoring[0] = np.nan
     with pytest.raises(ValueError, match="JSON compliant"):
-        output.write_metadata(tmp_path, snapshot, {0.25: 40.0, 0.55: 20.0}, batches)
+        output.write_metadata(tmp_path, snapshot, (40.0, 20.0), batches)
 
 
 def assert_smoke_metadata(out: Path, rows: list[dict[str, str]]) -> None:
@@ -110,7 +106,7 @@ def assert_smoke_metadata(out: Path, rows: list[dict[str, str]]) -> None:
     assert group["timed_scenarios"] == 2
     for row in rows:
         scenario = group["scenarios"][int(row["scenario"])]
-        for key in ("target_censoring", "censor_limit", "realized_censoring"):
+        for key in ("censor_limit", "realized_censoring"):
             assert scenario[key] == float(row[key])
         for key in ("first_call_seconds", "warm_seconds", "fits_per_second"):
             assert group["models"][row["model"]][key] == float(row[key])

@@ -24,7 +24,7 @@ else:
 if TYPE_CHECKING:
     from .run import ScenarioRun
 
-_BASE = "scenario n target_censoring censor_limit realized_censoring model".split()
+_BASE = "scenario n censor_limit realized_censoring model".split()
 _COUNTS = (
     "attempted accepted failed solver nonfinite gradient hessian unestimable".split()
 )
@@ -51,14 +51,14 @@ _RAW = (
 
 def write_results(
     out: Path,
-    limits: dict[float, float],
+    limits: tuple[float, ...],
     batches: list[tuple[np.ndarray, int, ScenarioRun]],
 ) -> None:
     """Write performance.csv and every replicate, including rejected fits.
 
     Args:
         out: Existing output directory; both CSVs are replaced.
-        limits: Ordered target-to-limit mapping shared by the batches.
+        limits: Ordered censoring limits shared by the batches.
         batches: (indices, n, ScenarioRun) records already transferred to NumPy.
     Raises:
         OSError: Output cannot be written. No fitting/reductions happen here.
@@ -78,7 +78,7 @@ def write_results(
         raw_writer.writeheader()
         # These loops only serialize computed host records; no numerical work is dispatched.
         for indices, n, scenario in batches:
-            for level, target in enumerate(limits):
+            for level, _ in enumerate(limits):
                 for model in ("weibull", "exponential"):
                     record = scenario.models[model]
                     base = dict(
@@ -87,7 +87,6 @@ def write_results(
                             (
                                 int(indices[level]),
                                 n,
-                                target,
                                 scenario.censor_limit[level],
                                 scenario.realized_censoring[level],
                                 model,
@@ -184,7 +183,7 @@ def capture_metadata(config: str, root_seed: int, log_hr: float) -> dict[str, ob
         for name in "XLA_FLAGS OMP_NUM_THREADS OPENBLAS_NUM_THREADS MKL_NUM_THREADS TF_NUM_INTRAOP_THREADS TF_NUM_INTEROP_THREADS JAX_NUM_CPU_DEVICES".split()
     }
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "configuration": config,
         "source": {
             "commit": subprocess.check_output(
@@ -257,7 +256,7 @@ def capture_metadata(config: str, root_seed: int, log_hr: float) -> dict[str, ob
 def write_metadata(
     out: Path,
     snapshot: dict[str, object],
-    limits: dict[float, float],
+    limits: tuple[float, ...],
     batches: list[tuple[np.ndarray, int, ScenarioRun]],
 ) -> None:
     """Write strict metadata.json after successful CSV export.
@@ -282,11 +281,10 @@ def write_metadata(
                 "scenarios": [
                     {
                         "index": int(indices[level]),
-                        "target_censoring": target,
                         "censor_limit": float(scenario.censor_limit[level]),
                         "realized_censoring": float(scenario.realized_censoring[level]),
                     }
-                    for level, target in enumerate(limits)
+                    for level, _ in enumerate(limits)
                 ],
                 "models": {
                     model: {
@@ -301,10 +299,7 @@ def write_metadata(
     metadata = {
         **snapshot,
         "output_directory": str(out.resolve()),
-        "calibration": [
-            {"target_censoring": target, "censor_limit": c}
-            for target, c in limits.items()
-        ],
+        "censoring_limits": list(limits),
         "batches": groups,
     }
     payload = json.dumps(metadata, indent=2, allow_nan=False) + "\n"

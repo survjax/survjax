@@ -127,9 +127,7 @@ def write_evidence(source: Path, out: Path) -> None:
     illustration = []
     target_n = "300" if any(r["n"] == "300" for r in summaries) else "100"
     selected = [
-        r
-        for r in summaries
-        if r["n"] == target_n and float(r["target_censoring"]) == 0.55
+        r for r in summaries if r["n"] == target_n and float(r["censor_limit"]) == 20.0
     ]
     if len(selected) == 2:
         cohorts = [groups[key(r)] for r in selected]

@@ -30,9 +30,9 @@ ATOL, RTOL = tol.ATOL[True], tol.RTOL[True]
 
 
 @pytest.mark.parametrize("config", ["smoke", "full"])
-def test_configuration_grid_calibration_and_csv_fields(config, tmp_path, monkeypatch):
-    """01 DGP/seeds/files: calibrate twice, n-then-target order, lossless table."""
-    calibrated, calls = [], []
+def test_configuration_grid_fixed_limits_and_csv_fields(config, tmp_path, monkeypatch):
+    """01 DGP/seeds/files: prespecified limits, n-then-limit order, lossless table."""
+    calls = []
     metrics = {
         "bias": 0.1,
         "bias_mcse": 0.02,
@@ -44,10 +44,6 @@ def test_configuration_grid_calibration_and_csv_fields(config, tmp_path, monkeyp
         "power": 0.8,
         "power_mcse": 0.09,
     }
-
-    def calibrate(k, b, target, *, log_hazard_ratio):
-        calibrated.append((k, b, target, log_hazard_ratio))
-        return {0.25: 47.0, 0.55: 19.0}[target]
 
     def scenario(indices, n, r, c):
         calls.append((indices.tolist(), n, r, c.tolist()))
@@ -102,13 +98,12 @@ def test_configuration_grid_calibration_and_csv_fields(config, tmp_path, monkeyp
             c, 0.3 + 0.01 * indices, {"weibull": record, "exponential": record}
         )
 
-    monkeypatch.setattr(runner, "calibrate_censoring", calibrate)
     monkeypatch.setattr(runner, "run_scenario", scenario)
     out = tmp_path / "nested" / config
     capture = runner.capture_metadata
 
     def before_work(*args):
-        assert not calls and not calibrated and out.is_dir()
+        assert not calls and out.is_dir()
         return capture(*args)
 
     monkeypatch.setattr(runner, "capture_metadata", before_work)
@@ -116,17 +111,11 @@ def test_configuration_grid_calibration_and_csv_fields(config, tmp_path, monkeyp
     sizes, r = ([100], 20) if config == "smoke" else ([100, 300, 1000], 1000)
     expected = [
         (i, n, r, c)
-        for i, (n, c) in enumerate((n, c) for n in sizes for c in [47.0, 19.0])
+        for i, (n, c) in enumerate((n, c) for n in sizes for c in [50.0, 20.0])
     ]
     assert calls == [
-        ([2 * i, 2 * i + 1], n, r, [47.0, 19.0]) for i, n in enumerate(sizes)
+        ([2 * i, 2 * i + 1], n, r, [50.0, 20.0]) for i, n in enumerate(sizes)
     ]
-    assert [(k, b, target) for k, b, target, _ in calibrated] == [
-        (1.38, 11.42, 0.25),
-        (1.38, 11.42, 0.55),
-    ]
-    for _, _, _, lp in calibrated:
-        np.testing.assert_allclose(lp, [0.0, np.log(0.7)], atol=ATOL, rtol=RTOL)
     with (out / "performance.csv").open(newline="") as handle:
         rows = list(csv.DictReader(handle))
     assert len(rows) == 2 * len(expected)
@@ -134,7 +123,6 @@ def test_configuration_grid_calibration_and_csv_fields(config, tmp_path, monkeyp
         rows, [x for x in expected for _ in range(2)], strict=True
     ):
         assert int(row["scenario"]) == index and int(row["n"]) == n
-        assert float(row["target_censoring"]) == (0.25 if c == 47.0 else 0.55)
         assert float(row["censor_limit"]) == c
         assert float(row["realized_censoring"]) == 0.3 + 0.01 * index
         counts = {
@@ -159,7 +147,6 @@ def test_configuration_grid_calibration_and_csv_fields(config, tmp_path, monkeyp
         assert set(row) == {
             "scenario",
             "n",
-            "target_censoring",
             "censor_limit",
             "realized_censoring",
             "model",
@@ -174,12 +161,12 @@ def test_configuration_grid_calibration_and_csv_fields(config, tmp_path, monkeyp
 
 
 def test_unknown_configuration_does_not_start_work(tmp_path, monkeypatch):
-    """01 configurations: invalid requests must fail before calibration/output."""
+    """01 configurations: invalid requests must fail before generation/output."""
 
     def unexpected(*args, **kwargs):
         pytest.fail("invalid configuration started work")
 
-    monkeypatch.setattr(runner, "calibrate_censoring", unexpected)
+    monkeypatch.setattr(runner, "run_scenario", unexpected)
     with pytest.raises(ValueError, match="config must be"):
         runner.run_config("unknown", tmp_path / "absent")
     assert not (tmp_path / "absent").exists()
@@ -236,11 +223,11 @@ def test_direct_script_smoke_writes_four_complete_summary_rows(tmp_path):
     with (tmp_path / "performance.csv").open(newline="") as handle:
         rows = list(csv.DictReader(handle))
     assert [
-        (int(x["scenario"]), int(x["n"]), float(x["target_censoring"]), x["model"])
+        (int(x["scenario"]), int(x["n"]), float(x["censor_limit"]), x["model"])
         for x in rows
     ] == [
         (i, 100, p, m)
-        for i, p in enumerate([0.25, 0.55])
+        for i, p in enumerate([50.0, 20.0])
         for m in ["weibull", "exponential"]
     ]
     assert float(rows[0]["censor_limit"]) > float(rows[2]["censor_limit"]) > 0

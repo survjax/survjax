@@ -256,7 +256,7 @@ def test_full_figure_panels_map_to_each_scenario_and_model(tmp_path, monkeypatch
         record = next(r for r in summary if int(r["scenario"]) == scenario)
         assert (
             axis.get_title()
-            == f"n={record['n']}, target censoring {float(record['target_censoring']):.0%}"
+            == f"n={record['n']}, censoring limit {float(record['censor_limit']):g} years"
         )
         assert len(axis.patches) == 2
         for patch in axis.patches:
@@ -274,7 +274,7 @@ def test_full_figure_panels_map_to_each_scenario_and_model(tmp_path, monkeypatch
             )
     coverage = saved["fig3_coverage.svg"].axes[0]
     labels = [
-        f"n={r['n']}\n{float(r['target_censoring']):.0%} target censoring"
+        f"n={r['n']}\ncensoring limit {float(r['censor_limit']):g} years"
         for r in summary
         if r["model"] == "weibull"
     ]

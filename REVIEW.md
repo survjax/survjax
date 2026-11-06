@@ -1,34 +1,29 @@
-# SIM.docs-rewrite — Maintainer's editorial revision
+# SIM.fixed-limits — Explicit generation and prespecified censoring
 
-Read docs/use-cases/weibull-simulation.md, then the newest PLAN.md section.
-This is a writing task; the maintainer explicitly waived tests and independent
-review. No reviewer was invoked. No numerical/library files were changed.
+Read the latest PLAN section, the Weibull docs page, run.py, then the
+_results/_evidence/_plots changes and their focused checks. The maintainer
+explicitly authorized updating the use-case design and regenerating results.
+Independent review and full test suites remain waived.
 
-The page incorporates the edited draft and resolves all WA comments: one trial
-first, named patient count and fixed censoring limit, a visible fitting function
-reused in vmap, explicit (20, 300) batch shape, and calibration introduced only
-for the full study. The overlapping study-design example was removed. The
-untracked draft was moved into the actual page, with links and root discovery
-adjusted for docs. The saved curve figure is explicitly a different trial.
+Design commit: 213cfb0 (spec revision 47); .spec-seen records it. Starting and
+previous step final: e33d4b5. Original worktree base: 8757c0f.
 
-Invariants: the visible fit uses the summed likelihood, logs for positive
-parameters, full Hessian covariance and exponentiated log-HR Wald endpoints.
-The teaching fitter returns estimates/Hessian/acceptance; the full-run helper
-also records individual failure reasons and skips no-event-arm optimization.
-Full-study results, accepted-fit denominators and failure counts are unchanged.
+The example now shows independent JAX uniforms, inverse Weibull survival,
+observed times and event indicators, with a 20-year censoring limit. The full
+runner uses limits (50, 20), without calibration. Exports drop target fractions;
+metadata schema 2 records prespecified censoring_limits. Figure labels and the
+illustration selector now use actual limits. No likelihood, solver, acceptance
+threshold or random-key scheme changed. The calibration utility remains unused
+by the runner; deleting that separately tested utility is not needed here.
 
-Validation: scripts/build_docs.sh runs executable pages in both dtype modes.
-The first sandboxed attempt was interrupted after kernel-shutdown permission
-errors; the direct approved escalated retry is the validation run. The x32
-build executed the revised page: HR 0.682, interval [0.472, 0.985], 20/20
-accepted batch fits, and 80 smoke fits. Final build status recorded below.
-No test suites or independent review ran. Browser visual inspection is not
-claimed (browser host unavailable in the preceding draft task).
+Validation so far: Ruff check and format check passed (13 example files).
+The three changed CLI/metadata/result check files passed: 25 tests in 12.79 s.
+Earlier attempts exposed stale CSV column indices (fixed) and a sandbox-denied
+sysctl query; the passing run used escalation. The figure-label check and full
+regeneration follow. The earlier docs build passed with explicit generation;
+final docs will be rebuilt after regenerating results.
 
-Starting commit and previous step final: b7a1a65.
-Original worktree base: 8757c0f. This completes the requested editorial step;
-no editorial substeps remain once the build passes.
-
-Final result: scripts/build_docs.sh exited 0; both x32 and x64 builds succeeded
-with warnings treated as errors. Weibull execution took 14.32 s and 14.11 s,
-respectively. The study explicitly selects float64 in both builds.
+Source changes are committed before the full run so provenance can identify
+clean source. Remaining authorized work: regenerate the 12,000-fit bundle,
+check its coverage and bookkeeping, update result prose, rebuild docs and
+commit the compact evidence. Raw per-fit diagnostics remain local.
