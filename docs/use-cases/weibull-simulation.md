@@ -7,272 +7,302 @@ kernelspec:
   name: python3
 ---
 
-# Weibull simulation: coverage under model misspecification
+# From survival regression to a simulation study
 
-A two-arm synthetic trial illustrates how to combine a survjax likelihood,
-Optimistix BFGS and an exact JAX Hessian. We estimate a constant hazard ratio
-with a correctly specified Weibull model and a misspecified Exponential model.
-All times are in years; the hazard ratio is dimensionless.
+How does a treatment change the risk of an event, and how precisely can we
+estimate that change? In this tutorial we fit a Weibull survival regression
+to a simulated two-arm trial and obtain a hazard ratio with a confidence
+interval. We then repeat the analysis across many simulated trials to ask
+whether those intervals cover the true effect as often as they should.
 
-The control distribution has shape $k=1.38$ and scale $b_0=11.42$.
-With fixed equal allocation $x\in\{0,1\}$ and $\gamma=\log(0.7)$,
-
-$$
-H(t\mid x)=e^{\gamma x}(t/b_0)^k.
-$$
-
-Independent censoring is Uniform$(0,c)$, calibrated to pooled censoring
-fractions 25% and 55%. We observe $\min(T,C)$ and whether $T\le C$.
-Only exact events and right censoring without truncation are used.
-The full design is $n\in\{100,300,1000\}$, 1000 replicates per scenario/model.
-
-## True and fitted curves — committed full run
-
-This illustration uses the first replicate accepted by **both** models at
-$n=300$, target censoring 55% (scenario 3, replicate 0). These are committed
-full-run curves; the live smoke below uses $n=100$. Survival curves are
-illustrative, without confidence bands or inference on the curves.
-
-![True and fitted survival by arm, committed n=300 example.](../../examples/weibull_simulation/results/fig1_survival.svg)
-
-## The model and fitting code
-
-The linear predictor is computed by the caller. The demo's actual objective
-is shown here: $\theta=(\log k,\log b_0,\gamma)$ for Weibull and
-$(\log\lambda_0,\gamma)$ for Exponential.
-
-```{literalinclude} ../../examples/weibull_simulation/study.py
-:language: python
-:start-at:     if model == "weibull":
-:end-at:     return -dist.log_likelihood(data).sum()
-:dedent: 4
-```
-
-The fitter starts at shape 1, baseline scale equal to mean observed time
-(or its reciprocal rate), and $\gamma=0$. BFGS uses `rtol=atol=1e-8`,
-`max_steps=1000`, `throw=False`; derivatives are of the summed objective.
-This is the corresponding code inside the reviewed single-replicate helper:
-
-```{literalinclude} ../../examples/weibull_simulation/study.py
-:language: python
-:start-at:         solution = optx.minimise(
-:end-at:         hessian = jax.hessian(objective)(theta)
-:dedent: 8
-```
-
-Acceptance requires solver success, finite parameters/objective, strict
-$\max|\nabla L|<10^{-5}$ and a finite positive-definite Hessian. An arm with
-no events is unestimable. Accepted fits use
-$\mathrm{se}(\hat\gamma)=\sqrt{[H^{-1}]_{\gamma\gamma}}$ and the Wald interval
-$\exp(\hat\gamma\pm1.96\,\mathrm{se})$. Failure reasons are separate flags;
-`failed` counts each rejected replicate once even if reasons overlap.
-
-## Live smoke: 20 replicates, both censoring levels
-
-The smoke checks execution; coverage evidence comes from the 1000-replicate
-full run below. This study explicitly selects **float64**, including when the
-site is built in float32 mode. Its notebook has its own kernel.
+survjax supplies the survival likelihood. JAX differentiates it to obtain
+the derivatives and Hessian needed for fitting and standard errors, and lets us apply
+the same analysis to a batch of datasets.
+This is useful whenever one fit
+becomes many: a simulation study or a bootstrap.
 
 ```{code-cell} ipython3
-:tags: [hide-input]
-import csv
-import hashlib
+:tags: [remove-input]
 import json
 import sys
 from pathlib import Path
-from html import escape
 from tempfile import TemporaryDirectory
-from time import perf_counter
 
 import jax
 jax.config.update("jax_enable_x64", True)
+import jax.numpy as jnp
+import pandas as pd
+import optimistix as optx
+import survjax
 
-# Host path discovery/formatting only; simulation batches both levels and replicates.
-ROOT = next(p for p in (Path.cwd(), *Path.cwd().parents) if (p / "pyproject.toml").exists())
+ROOT = next(p for p in (Path.cwd(), *Path.cwd().parents) if (p / "pyproject.toml").is_file())
 sys.path.insert(0, str(ROOT))
-from IPython.display import HTML, display
 from examples.weibull_simulation import run as runner, study
-
-
-def show_table(columns, rows):
-    head = "".join(f"<th>{escape(str(value))}</th>" for value in columns)
-    body = "".join("<tr>" + "".join(f"<td>{escape(str(value))}</td>" for value in row) + "</tr>" for row in rows)
-    display(HTML(f'<div class="table-wrapper"><table class="docutils"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>'))
+RESULTS = ROOT / "examples/weibull_simulation/results"
+metadata = json.loads((RESULTS / "metadata.json").read_text())
 ```
+
+## One trial: estimate a treatment effect
+
+Our trial has 300 patients, allocated equally to control and treatment.
+We simulate event times from a Weibull proportional hazards model,
+
+$$
+S(t\mid x)=\exp\!\left[-(t/b_0)^k e^{\gamma x}\right],
+$$
+
+where $x=0$ denotes control and $x=1$ treatment. The baseline scale $b_0$
+is measured in years, the shape $k$ describes how the hazard changes over
+time, and $e^\gamma$ is the treatment-to-control hazard ratio.
+Here $k=1.38$, $b_0=11.42$ years and $e^\gamma=0.7$: treatment lowers the
+hazard by 30% at every time.
+
+Some patients remain event-free when follow-up ends. We observe the earlier
+of their event and censoring times, together with an indicator of whether
+the event occurred. Censoring is independent of event time, with a uniform
+follow-up limit chosen to censor about 55% of patients.
+
+The example's simulation helper prepares these observations. For your own
+study, you would supply your observed times, event indicators and covariates.
 
 ```{code-cell} ipython3
-start = perf_counter()
-with TemporaryDirectory(prefix="survjax-smoke-") as folder:
-    out = Path(folder)
-    runner.run_config("smoke", out)
-    with (out / "performance.csv").open(newline="") as handle:
-        smoke = list(csv.DictReader(handle))
-    smoke_metadata = json.loads((out / "metadata.json").read_text())
-assert len(smoke) == 4 and all(int(row["attempted"]) == 20 for row in smoke)
-assert smoke_metadata["runtime"]["x64_enabled"]
-print(f"Live smoke: n=100, R=20 per model/level; float64; {perf_counter()-start:.2f} s")
-# Host output formatting only; no scenario fitting loop.
-show_table(["Target censoring", "Model", "Accepted", "Failed", "Coverage"], [
-    [row["target_censoring"], row["model"], row["accepted"], row["failed"], row["coverage"]]
-    for row in smoke
-])
+n_patients = 300
+arm = jnp.repeat(jnp.array([0., 1.]), n_patients // 2)
+censor_limit = 19.17253543619806  # years; about 55% censoring
+
+def simulate_trial(key):
+    draws = study.generate_weibull(
+        key, shape=1.38, scale=11.42, censor_limit=censor_limit,
+        log_hazard_ratio=jnp.log(0.7) * arm,
+    )
+    return survjax.SurvivalData(draws.time, event=draws.event)
+
+data = simulate_trial(jax.random.key(20261025))
+data.issues.raise_if_invalid()
 ```
 
-The runner uses `jit` with nested `vmap` over censoring levels and replicates.
-A Python loop changes cohort size, because changing $n$ changes array shapes;
-the two models have different parameter dimensions and compiled graphs.
+### Obtain the survival likelihood
 
-### One live smoke-replicate fit
+An observed event contributes its density $f(t)$ to the likelihood; a
+censored observation contributes the probability of surviving beyond its
+last observed time, $S(t)$. Thus the log likelihood is
 
-`prepare_scenario` generates validated observations using the same explicit
-keys as the smoke. Here is a separate Weibull fit for scenario 1, replicate 0
-($n=100$, target censoring 55%). This executes the objective/solver code above.
+$$
+\ell(\theta)=\sum_i\left[\delta_i\log f(t_i\mid x_i)
+ +(1-\delta_i)\log S(t_i\mid x_i)\right].
+$$
+
+We estimate $\theta=(\log k,\log b_0,\gamma)$. Working on the log scale keeps
+the shape and scale positive without constraining the optimizer. The
+regression enters through the linear predictor `gamma * arm`:
 
 ```{code-cell} ipython3
-c55 = smoke_metadata["calibration"][1]["censor_limit"]
-data, arm = runner.prepare_scenario(1, 100, 20, c55)
-cohort = data[0]
-cohort.issues.raise_if_invalid()  # concrete host checkpoint, before JIT
-fit = jax.jit(lambda d: study.fit_replicate(d, arm, model="weibull"))(cohort)
-fit = jax.device_get(fit)
-assert fit.accepted
-print(f"Accepted: {bool(fit.accepted)}; HR={float(jax.numpy.exp(fit.theta[-1])):.4f}")
-print(f"Wald 95% HR interval: [{fit.hr_interval[0]:.4f}, {fit.hr_interval[1]:.4f}]")
+def negative_log_likelihood(theta, data, arm):
+    log_k, log_b0, gamma = theta
+    baseline = survjax.Weibull.from_log(log_shape=log_k, log_scale=log_b0)
+    linear_predictor = gamma * arm
+    distribution = survjax.ProportionalHazards(
+        baseline, log_hazard_ratio=linear_predictor
+    )
+    return -distribution.log_likelihood(data).sum()
 ```
 
-## Committed full results: 1000 replicates per model/scenario
+Each patient has their own predicted distribution. `log_likelihood` returns
+one contribution per patient, and summing them gives the objective to minimize.
+For a regression with several covariates, the same construction uses a design
+matrix and `linear_predictor = X @ beta`.
 
-Everything in this section is loaded from the committed full run, generated
-from clean source `a3792a7703ed539db777472d876bd00ac2d1568e`. It is separate
-from the live smoke. Hashes of the data files are checked before displaying the results.
+### Fit the model and obtain a confidence interval
+
+We minimize the negative log likelihood with BFGS, using Optimistix. JAX
+computes the derivatives of the likelihood automatically.
 
 ```{code-cell} ipython3
-:tags: [hide-input]
-results = ROOT / "examples/weibull_simulation/results"
-manifest = json.loads((results / "evidence.json").read_text())
-# Host file inspection only; the full simulation is not rerun during a docs build.
-for name, digest in manifest["output_sha256"].items():
-    assert hashlib.sha256((results / name).read_bytes()).hexdigest() == digest
-with (results / "performance.csv").open(newline="") as handle:
-    full = list(csv.DictReader(handle))
-metadata = json.loads((results / "metadata.json").read_text())
-assert len(full) == 12 and sum(int(r["failed"]) for r in full) == 127
-assert metadata["source"]["worktree_dirty_at_start"] is False
-assert metadata["source"]["commit"] == "a3792a7703ed539db777472d876bd00ac2d1568e"
-assert all(int(r["gradient"]) == int(r["failed"]) for r in full)
-assert all(int(r[k]) == 0 for r in full for k in ("solver", "nonfinite", "hessian", "unestimable"))
-for row in full:  # Check the committed host summary, never refit the full study.
-    if row["n"] == "1000" and row["model"] == "weibull":
-        assert abs(float(row["coverage"]) - .95) <= 3 * float(row["coverage_mcse"])
+def fit_one(data):
+    def objective(theta, args=None):
+        return negative_log_likelihood(theta, data, arm)
+
+    start = jnp.array([0., jnp.log(data.lower.mean()), 0.])
+    solution = optx.minimise(
+        objective, optx.BFGS(rtol=1e-8, atol=1e-8), start,
+        max_steps=1000, throw=False,
+    )
+    theta = solution.value
+    value, gradient = jax.value_and_grad(objective)(theta)
+    hessian = jax.hessian(objective)(theta)
+    # Retain failed fits in the results, but do not interpret their intervals.
+    accepted = (
+        (solution.result == optx.RESULTS.successful)
+        & jnp.all(jnp.isfinite(theta)) & jnp.isfinite(value)
+        & (jnp.max(jnp.abs(gradient)) < 1e-5)
+        & jnp.all(jnp.isfinite(jnp.linalg.cholesky(hessian)))
+        & jnp.any(data.exact & (arm == 0))
+        & jnp.any(data.exact & (arm == 1))
+    )
+    return theta, hessian, accepted
+
+theta_hat, hessian, accepted = fit_one(data)
+assert accepted  # convergence, finite estimates, positive curvature, events in both arms
 ```
 
-### Censoring calibration
-
-Calibration solves $\tfrac12\sum_x c^{-1}\int_0^c S_x(t)\,dt$ for each target.
-The same calibrated limit applies at every cohort size; realized censoring
-averages all observations across the 1000 replicates.
+The curvature of the log likelihood tells us how precisely the parameters
+are estimated. Let $H$ be the Hessian of the **summed negative log likelihood**
+at the estimate. Its inverse estimates the covariance matrix of
+$(\log k,\log b_0,\gamma)$; the square roots of the diagonal entries are
+standard errors. Inverting the full matrix accounts for estimating the
+baseline parameters together with the treatment effect.
 
 ```{code-cell} ipython3
-:tags: [hide-input]
-show_table(["n", "Target %", "Limit c (years)", "Realized %"], [
-    [batch["n"], f"{s['target_censoring']*100:.0f}", f"{s['censor_limit']:.8f}", f"{s['realized_censoring']*100:.3f}"]
-    for batch in metadata["batches"] for s in batch["scenarios"]
-])
+covariance = jnp.linalg.solve(hessian, jnp.eye(3))
+standard_errors = jnp.sqrt(jnp.diag(covariance))
+gamma_hat = theta_hat[-1]
+se_gamma = standard_errors[-1]
+hr = jnp.exp(gamma_hat)
+interval = jnp.exp(gamma_hat + jnp.array([-1.96, 1.96]) * se_gamma)
+print(f"Hazard ratio: {hr:.3f}; 95% confidence interval: "
+      f"[{interval[0]:.3f}, {interval[1]:.3f}]")
+print(f"Log hazard ratio: {gamma_hat:.3f}; standard error: {se_gamma:.3f}")
 ```
 
-### Bias and coverage
+We form the Wald interval on the log hazard ratio scale and exponentiate its
+endpoints. These are approximate, model-based intervals: their justification
+relies on the model and a sufficiently informative sample. Before interpreting
+them, we check convergence, a small gradient and positive likelihood curvature.
+A successful optimizer status alone does not establish that the fit is usable.
 
-Bias and standard errors are on the **log-HR scale**. Parentheses contain
-Monte Carlo SEs; coverage and its MCSE are expressed in percent/percentage
-points. All performance denominators use accepted fits. Each row attempted
-1000 fits; the accepted and overall failed counts are shown together.
+The fitted survival curves translate the model into probabilities over time.
+The saved example below shows another trial from the same setting,
+including an Exponential regression, which assumes a constant
+baseline hazard. The Weibull model allows the increasing hazard that was actually used to
+generate these data.
+
+![True and fitted survival curves by treatment arm for a saved trial with 300 patients and 55% target censoring.](../../examples/weibull_simulation/results/fig1_survival.svg)
+
+These curves illustrate the fitted distributions; they have no confidence
+bands. One trial cannot tell us whether our confidence interval procedure
+works well across repeated samples. That is the next question.
+
+## Many trials: how reliable are the intervals?
+
+Suppose we repeated the trial 1,000 times. How variable would the treatment
+effect estimates be? Would approximately 95% of the intervals contain the
+true hazard ratio? Would a simpler, but incorrect, Exponential model give
+similar answers?
+
+We already have the ingredients for one analysis. The `fit_one` function above
+returns the estimates, Hessian and acceptance flag for one trial. `vmap` applies that function across datasets;
+`jit` compiles the resulting calculation for repeated use.
 
 ```{code-cell} ipython3
-:tags: [hide-input]
-show_table(["n / target", "Model", "Accepted / failed", "Bias (MCSE)", "Coverage % (MCSE pp)"], [
-    [f"{r['n']} / {float(r['target_censoring']):.0%}", r["model"], f"{r['accepted']} / {r['failed']}",
-     f"{float(r['bias']):.4f} ({float(r['bias_mcse']):.4f})", f"{100*float(r['coverage']):.2f} ({100*float(r['coverage_mcse']):.2f})"]
-    for r in full
-])
+n_trials = 20
+keys = jax.random.split(jax.random.key(20261026), n_trials)
+trials = jax.vmap(simulate_trial)(keys)  # shape: (20 trials, 300 patients)
+trials.issues.raise_if_invalid()
+
+fit_many = jax.jit(jax.vmap(fit_one))
+estimates, hessians, accepted = fit_many(trials)
+jax.block_until_ready(estimates)
+print(f"Accepted {int(accepted.sum())} of {n_trials} fits")
 ```
 
-All **127 failures** are gradient-only (Weibull 64, Exponential 63); solver,
-nonfinite, Hessian and unestimable reason counts are zero. Their maximum
-absolute gradients span $1.0008\times10^{-5}$ to $5.0971\times10^{-5}$ despite
-successful solver status and positive-definite Hessians. Relative solver
-stopping on a summed objective is a plausible cause;
-the strict acceptance threshold and rejected classifications are retained.
+Here `trials` has shape `(20, 300)`: one row per trial and one column per patient. Each trial
+gets its own parameter estimates and Hessian; `arm` is shared because all
+trials have the same allocation. The statistical analysis is unchanged by
+batching. The first call includes compilation; subsequent calls with the same
+array shapes can reuse it. For larger studies, process trials in batches that
+fit in memory. Changing the cohort size requires a new compilation.
 
-### Precision and power
+A bootstrap uses the same pattern: replace the simulated trials with
+resampled datasets, keeping each patient's outcome and covariates together.
+The intervals studied here remain Hessian-based Wald intervals; we do not
+compute bootstrap intervals in this example.
 
-Empirical SE is the sample SD of accepted log-HR estimates (`ddof=1`).
-Model SE is **RMS**, $\sqrt{\mathrm{mean}(\mathrm{se}^2)}$; its MCSE is not
-reported. Power is the fraction with $|\hat\gamma/\mathrm{se}|>1.96$.
+### Compare sample size, censoring and model choice
+
+The full study uses 1,000 trials at each combination of 100, 300 and 1,000
+patients and 25% or 55% expected censoring. The helper
+`study.calibrate_censoring` chooses a uniform censoring limit for each target
+(about 47.79 and 19.17 years). Reusing these limits across sample sizes keeps
+the expected censoring fractions comparable; realized fractions vary between
+trials. Each trial is fitted with both models using `study.fit_replicate`,
+which extends the displayed fitter with standard errors, intervals and
+individual failure flags, and skips fitting when an arm has no events. Coverage is the proportion of accepted intervals containing the true
+hazard ratio, 0.7. Bias and standard errors below are on the log hazard ratio
+scale. Monte Carlo standard errors describe uncertainty from using a finite
+number of simulated trials.
 
 ```{code-cell} ipython3
-:tags: [hide-input]
-show_table(["n / target", "Model", "Empirical SE (MCSE)", "RMS model SE", "Power % (MCSE pp)"], [
-    [f"{r['n']} / {float(r['target_censoring']):.0%}", r["model"],
-     f"{float(r['empirical_se']):.4f} ({float(r['empirical_se_mcse']):.4f})", f"{float(r['model_se']):.4f}",
-     f"{100*float(r['power']):.2f} ({100*float(r['power_mcse']):.2f})"] for r in full
-])
+:tags: [remove-input]
+full = pd.read_csv(RESULTS / "performance.csv")
+table = pd.DataFrame({
+    "Patients": full.n, "Censored (target)": full.target_censoring.map(lambda x: f"{x:.0%}"),
+    "Model": full.model.str.capitalize(), "Accepted": full.accepted, "Failed": full.failed,
+    "Bias": full.bias.round(3), "Empirical SE": full.empirical_se.round(3),
+    "Model SE (RMS)": full.model_se.round(3),
+    "Coverage (MCSE)": [f"{100*p:.1f}% ({100*s:.1f} pp)" for p, s in zip(full.coverage, full.coverage_mcse)],
+})
+table
 ```
 
-![Sampling distributions of accepted HR estimates, committed full run.](../../examples/weibull_simulation/results/fig2_sampling.svg)
+These are the committed full-run results, not estimates from the live batch.
+The empirical SE is the standard deviation of the estimates; the model SE
+is the root mean square of their reported standard errors.
 
-![Coverage with one-MCSE error bars, committed full run.](../../examples/weibull_simulation/results/fig3_coverage.svg)
+![Sampling distributions of estimated hazard ratios, with the true value marked.](../../examples/weibull_simulation/results/fig2_sampling.svg)
 
-At $n=1000$, Weibull coverage is **94.34% and 93.08%**, respectively 0.89 and
-2.36 observed MCSEs from 95%; both satisfy the three-MCSE check. Exponential
-log-HR bias is about 0.069 and 0.035, with coverage 89.61% and 94.47%.
-These results illustrate how misspecification and censoring affect inference.
-The HR is the study's familiar effect measure; this demo does not establish
-that it is the most useful treatment-effect measure for another question.
+The Weibull estimates concentrate around the true effect as sample size grows.
+The Exponential estimates remain shifted towards a hazard ratio of one.
+Larger samples reduce sampling variation, but do not remove the bias from
+assuming the wrong baseline hazard.
 
-### CPU timings — committed full run
+![Coverage of nominal 95% intervals, with one Monte Carlo standard error bars.](../../examples/weibull_simulation/results/fig3_coverage.svg)
 
-Each row below times **both censoring levels together**: 2000 fits, not an
-individual scenario. First-call time includes compilation if uncached; warm
-time is the median of three synchronized subsequent calls. Throughput is
-$2000/\text{warm seconds}$ and includes the fit diagnostics/inference.
-Generation, calibration, performance summaries and export are outside it.
+At 1,000 patients and 25% censoring, Exponential coverage is about 90%, compared
+with 94% for Weibull. At 55% censoring the difference is smaller: approximately
+94% and 93%. Misspecification affects both the estimates and their reported
+uncertainty, so coverage alone does not describe its consequences.
+
+All summaries use accepted fits. Of 12,000 attempted fits, 127 were rejected
+because their maximum absolute gradient exceeded the prespecified $10^{-5}$
+threshold, despite successful solver status. The table retains these failures
+alongside the results; coverage therefore describes the accepted fits.
+
+### How long does repeated fitting take?
+
+On the recorded CPU run, fitting 2,000 Weibull models with 300 patients each
+(together with their Hessians and diagnostics) took about 2.96 seconds after
+compilation; the first call took 5.95 seconds. These timings exclude data
+generation and result summaries.
 
 ```{code-cell} ipython3
-:tags: [hide-input]
-runtime = metadata["runtime"]
-print(f"{runtime['cpu_model']}; {runtime['backend']}; Python {runtime['python']}; JAX {runtime['packages']['jax']}; float64")
-show_table(["n", "Model", "First call (s)", "Warm (s)", "Fits/s"], [
-    [batch["n"], model, f"{timing['first_call_seconds']:.3f}", f"{timing['warm_seconds']:.3f}", f"{timing['fits_per_second']:.1f}"]
-    for batch in metadata["batches"] for model, timing in batch["models"].items()
-])
+:tags: [remove-input]
+print(metadata["runtime"]["cpu_model"])
+print("JAX", metadata["runtime"]["packages"]["jax"], "— CPU, float64")
 ```
 
-Thread-setting environment variables were unset; effective worker count and
-peak memory were not measured. These measurements describe this machine/run.
+## Reproduce
 
-## Reproduce and inspect the evidence
+This page executes the single fit and a small batch in float64. It also runs
+the study's smoke configuration (20 trials at each censoring level, both
+models) below. The figures and full table come from the saved 1,000-trial
+study; rebuilding the page does not rerun that study.
 
-From the repository root, build with the locked docs and examples groups:
+```{code-cell} ipython3
+:tags: [remove-input]
+with TemporaryDirectory(prefix="survjax-weibull-docs-") as folder:
+    runner.run_config("smoke", Path(folder))
+    smoke = pd.read_csv(Path(folder) / "performance.csv")
+print(f"Smoke run completed: {int(smoke.attempted.sum())} fits across both models and censoring levels.")
+```
+
+To repeat the full study from the repository root, writing into a new directory:
 
 ```bash
-scripts/build_docs.sh
+uv run --locked --group examples python examples/weibull_simulation/run.py \
+  --config full --out /tmp/survjax-weibull-full
 ```
 
-The page selects float64 in each build. For a new full run or smoke output:
-
-```bash
-uv run --locked --group examples python examples/weibull_simulation/run.py --config smoke --out /tmp/survjax-smoke
-uv run --locked --group examples python examples/weibull_simulation/run.py --config full --out /tmp/survjax-full
-```
-
-Root seed `20261025` uses `fold_in(scenario)`, then `split(R)`, then U/C keys.
-Scenario order is increasing $n$, then censoring target. Smoke and full have
-their own grids. Demo generation stays outside the public survjax API.
-
-The approved compact evidence keeps every failed ID/reason and exact accepted
-histogram counts in Git; full per-fit diagnostics stay local. Original
-invocation paths in metadata are historical. Download
-{download}`performance <../../examples/weibull_simulation/results/performance.csv>`,
-{download}`failure ledger <../../examples/weibull_simulation/results/failures.csv>`,
-{download}`metadata <../../examples/weibull_simulation/results/metadata.json>` and
-{download}`hash manifest <../../examples/weibull_simulation/results/evidence.json>`.
+The saved [performance table](../../examples/weibull_simulation/results/performance.csv) includes bias, precision,
+coverage and power with Monte Carlo errors. The [run metadata](../../examples/weibull_simulation/results/metadata.json)
+records seeds, censoring calibration, versions and timings; the
+[failure ledger](../../examples/weibull_simulation/results/failures.csv) retains rejected fits. All data are synthetic.

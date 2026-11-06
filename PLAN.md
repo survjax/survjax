@@ -1,3 +1,15 @@
+# SIM.docs-rewrite — Incorporate maintainer edits
+
+Replace docs/use-cases/weibull-simulation.md with the edited example draft;
+remove the draft after moving it. Preserve the maintainer's concise structure,
+resolve WA comments, expose a self-contained teaching fitter, and fix asset
+paths. No public API or dependencies change. Use-case 01 and its details govern
+the model, inference and study results. Validate by executing the docs build;
+no test suites or independent review, as requested. Start/previous step:
+b7a1a65; original worktree base: 8757c0f. This is one authorized page replacement.
+
+---
+
 # SIM.integration — Resolve maintainer-started main merge
 
 Start / previous simulation final: 61681c7c2f13d004eea3d248c4dac96a8c5cce89.
