@@ -1,6 +1,31 @@
-Independent review: round 1/3 requested; no written round (reviewer quota)
+Independent review: round 1/3; verdict maintainer (2026-11-06)
 
 # SIM.8c.1 — Full-run provenance and reducer placement
+
+## Resumed review (2026-11-06)
+
+The maintainer reported restored reviewer availability and authorized resuming
+review of 4e6c475. A first written round now exists at
+../review/slices/SIM.8c.1.md, verdict maintainer. It independently confirmed
+both artifacts are byte-identical and the reducer move preserves outputs.
+
+F-1 requires a maintainer module-layout decision. Recommended proposal:
+_evidence.py owns write_evidence/its CLI; _plots.py owns figure rendering;
+check_*.py remains independent checks. Both runtime helpers stay below about
+300 lines. The maintainer was explicitly asked to approve these names.
+Do not reinterpret the earlier audit-module proposal as producer approval.
+
+F-2 is an implementation test gap: reducer_path/reducer_dirty need controlled
+clean/dirty cases scoped to the actual reducer file, so forced-False and
+wrong-path mutations fail. Prepare that fix after the F-1 module decision.
+N-1 is nonblocking awareness of historical absolute invocation paths; these
+are intentionally original metadata bytes, and later result notes explain it.
+No code fix or dependent artifact/figure implementation proceeds while the
+maintainer decision is pending. Reviewer process completed: focused checks
+21 passed in 8.00 s; raw gate x64/x32 implementer suites 1282/1287 passed,
+doctests 4 each; x64 acceptance 2328 passed with five SURVJAX_WHEEL setup
+errors, so x32 acceptance was not reached. This is separate from the earlier
+passing wheel-supplying cumulative gate. Earlier quota history follows verbatim.
 
 ## Review availability (2026-11-05)
 

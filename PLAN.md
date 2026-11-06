@@ -1,3 +1,10 @@
+SIM.8c.1 resumed review (2026-11-06): first written round at 4e6c475,
+verdict maintainer. F-1 requests explicit runtime-module approval: recommend
+_evidence.py for reduction and _plots.py for figures, reserving check_*.py
+for independent checks. F-2 requires clean/dirty file-scoped provenance tests
+once the name is settled. Maintainer question sent; code work pauses pending
+the decision. Older quota notes below are historical, preserved verbatim.
+
 Review availability note (SIM.8c.1, 2026-11-05): both exact Claude attempts
 for 494abca returned the five-hour quota limit, reset 02:40 Europe/Amsterdam.
 No written review. Skill's one retry is spent. Await maintainer waiver to
