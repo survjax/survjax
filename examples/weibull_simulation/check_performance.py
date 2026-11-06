@@ -1,5 +1,6 @@
 """JAX_ENABLE_X64=1 uv run --locked --group examples pytest -q <this file>."""
 
+import json
 import sys
 from pathlib import Path
 
@@ -231,3 +232,58 @@ def test_grouped_summaries_reduce_replicates_without_pooling_scenarios():
         actual = fn(fits, 0.5)
         for name, value in expected.items():
             np.testing.assert_allclose(actual[name], value, atol=ATOL, rtol=RTOL)
+
+
+def test_full_figure_panels_map_to_each_scenario_and_model(tmp_path, monkeypatch):
+    """01 outputs: six-panel sampling and coverage retain the correct grouping."""
+    from examples.weibull_simulation import _plots
+    from examples.weibull_simulation._evidence import _read_csv
+
+    source = ROOT / "examples/weibull_simulation/results"
+    summary = _read_csv(source / "performance.csv")
+    histogram = json.loads((source / "sampling_histograms.json").read_text())
+    saved = {}
+
+    def capture(figure, target):
+        saved[target.name] = figure
+
+    monkeypatch.setattr(_plots, "_save_figure", capture)
+    _plots.write_figures(source, tmp_path)
+    axes = saved["fig2_sampling.svg"].axes
+    assert len(axes) == 6
+    # Inspect host artists only; the full-run fits are never recomputed.
+    for scenario, axis in enumerate(axes):
+        record = next(r for r in summary if int(r["scenario"]) == scenario)
+        assert (
+            axis.get_title()
+            == f"n={record['n']}, target censoring {float(record['target_censoring']):.0%}"
+        )
+        assert len(axis.patches) == 2
+        for patch in axis.patches:
+            model = patch.get_label().split()[0].lower()
+            series = next(
+                r
+                for r in histogram["series"]
+                if r["scenario"] == scenario and r["model"] == model
+            )
+            expected = np.array(series["counts"]) / (
+                series["accepted"] * np.diff(histogram["edges"])
+            )
+            np.testing.assert_allclose(
+                patch.get_data().values, expected, atol=ATOL, rtol=RTOL
+            )
+    containers = saved["fig3_coverage.svg"].axes[0].containers
+    assert len(containers) == 2
+    for container in containers:
+        model = container.get_label().lower()
+        expected = [
+            float(
+                next(
+                    r
+                    for r in summary
+                    if r["model"] == model and int(r["scenario"]) == s
+                )["coverage"]
+            )
+            for s in range(6)
+        ]
+        np.testing.assert_array_equal(container.lines[0].get_ydata(), expected)

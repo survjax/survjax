@@ -91,7 +91,7 @@ def write_figures(results: Path, out: Path) -> None:
             lp = gamma * arm
             dist = survjax.ProportionalHazards(base, log_hazard_ratio=lp)
             prediction = np.asarray(dist.survival_grid(time))
-            for a, color in enumerate(("#0072B2", "#D55E00")):
+            for a, color in enumerate(("#666666", "#009E73")):
                 ax.plot(
                     time,
                     prediction[:, a],

@@ -1,3 +1,31 @@
+# SIM.9b — Deliver CLI figures and compact SVG assets (2026-11-06)
+
+Previous final aec234d255c65c3ad3e18b442a02b4c48bcb55de (SIM.9a round 2
+merge; F-1 fixed). Continue the explicitly approved figure delivery, then
+stop/report. Original base 8757c0fda78e34e6e818249adedd2a144a33c33d;
+integration base d2469e0a7e719dbcb276277e6fd80a447626ad4e. Preserve history.
+
+Small delivery step: run.py calls write_figures after compact evidence;
+its docstring describes CSV/metadata/figures. Existing real direct-script
+smoke checks also require the three SVG paths. _plots.py's arm colours become
+gray/green (SIM.9a N-1), distinct from model blue/orange in the other figures.
+No numerical, key, fitting, acceptance, dependency or API change.
+
+Generate/commit results/fig1_survival.svg, fig2_sampling.svg,
+fig3_coverage.svg from the reviewed compact bundle, without refitting.
+Keep PNG previews external. Result README gains regeneration and figure links.
+Add one host-only full-panel check in check_performance.py: all six histogram
+panels and coverage values map to the correct scenario/model records. No
+simulation in this test. Run the complete optional example checks in x64,
+Ruff/mypy, SVG XML/hash/geometry checks and inspect full previews. The prior
+manual SVG audit preserved all original geometry/attributes/text (169/769/217
+nodes); repeated rendering checks deterministic bytes. Update REVIEW.md,
+commit and independent review, then stop. Optional N-2 helper extraction is
+left alone. Docs to-do: executable MyST page with live smoke and labelled
+committed full evidence is the remaining separate step. No publish/merge/push.
+
+---
+
 # SIM.9a round 2 — Discriminating true-DGP display fixture (2026-11-06)
 
 Round 1 fix-first F-1 is test-only. Use true k=3,b=2,HR=.25, distinct from

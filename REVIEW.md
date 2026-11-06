@@ -1,82 +1,75 @@
-Independent review: round 2/3
+Independent review: round 1/3
 
-# SIM.9a — Three-figure renderer and analytical checks
+# SIM.9b — CLI figure delivery and committed SVGs
 
-Read PLAN.md SIM.9a, _plots.py, then the new display fixtures/checks at the end
-of check_fit.py. Previous final fb7fb97e09cd31e6ed3241a70a88abf205128ed4
-(SIM.8c.2 round 1 merge). Original base
-8757c0fda78e34e6e818249adedd2a144a33c33d; integration base
-d2469e0a7e719dbcb276277e6fd80a447626ad4e. The maintainer explicitly approved
-_evidence.py/_plots.py and continuation through figures. No library API,
-generator contract, dependency, protected path or docs/ change.
+Read PLAN.md SIM.9b, run.py's post-evidence call, the extended real smoke
+assertions, full-panel check_performance.py check, then the three SVGs and
+results/README.md. Previous final
+aec234d255c65c3ad3e18b442a02b4c48bcb55de (SIM.9a round 2 merge, F-1 fixed).
+Original base 8757c0fda78e34e6e818249adedd2a144a33c33d; integration base
+d2469e0a7e719dbcb276277e6fd80a447626ad4e. User explicitly approved compact
+evidence then figure implementation/delivery; this completes that scope.
 
-## Round 1 F-1 fix
+## Invariants and scope
 
-The former true-DGP fixture k=b=1 and HR=1 was degenerate. Replace it with
-k=3,b=2,HR=.25, distinct from the fitted W(k=2,b=3),HR=.5 and Exp(.25),HR=.5.
-Check exp(-(t/2)^3) and exp(-.25*(t/2)^3), so losing treatment or swapping
-shape/scale is visible. Also assert the sampling true-HR line at .25.
-Only tests change; no full SVG/data changes or new fitting. Round-2 checks:
-18 passed in 26.85 s; Ruff format/check and mypy src passed. No repeat
-of the unchanged cumulative gate.
-N-1 arm colour distinction will be handled in SIM.9b before delivery;
-N-2 helper extraction is optional and is left as explicit sequential code.
+run.py --config {smoke,full} --out DIR now writes raw local diagnostics,
+compact evidence and all three SVGs, in that order. No refit is needed to
+regenerate committed figures: README gives the direct write_figures call.
+The input bundle is the reviewed clean-source a3792a7 run, not a new full run.
+Data payloads/manifest, all numerical fitting/keys/calibration/acceptance and
+the shared generator import contract are unchanged. No core/public API,
+dependency, protected path, spec or docs/ edits. Full raw CSV remains ignored
+and is not staged/tracked. Temporary PNG previews stay outside Git.
 
-## Invariants
+SIM.9a N-1 fixed: Figure 1 arm colours are gray/green, distinct from the
+blue/orange model colours in Figures 2/3. Legends disambiguate all line styles.
+N-2 (optional helper extraction) is left as explicit sequential figure code.
+All Python loops added here only inspect host artists/files, never fit.
 
-Read/hash every compact payload before any figure output directory is made.
-Plot only committed parameters/counts/performance; no refitting/simulation.
-Figure 1 uses public ProportionalHazards(...).survival_grid over a time-first
-0..40-year grid and both arms. Each different baseline family needs a graph;
-Python loops otherwise only construct host artists or serialize XML.
-True/fitted arms have explicit legend labels; curves are illustrative, with
-no confidence band or inference on survival curves.
-Figure 2 shows all six scenario/model distributions as counts/(accepted*width)
-using stored edges: 64 edges / 63 bins. Every accepted fit contributes.
-Figure 3 uses coverage +/- ONE MCSE, labelled, with the nominal .95 line.
-Accepted=0 stays explicit in legends; no shared fitted illustration is
-labelled unavailable, while true curves still render. No altered fit values,
-epsilons, clipping, changed acceptance rules or hidden dropped failures.
-
-SVG retains vector coordinates and text, removes only XML/path whitespace,
-and omits date/random IDs. There is no raster embedding or coordinate rounding.
-The SVG assets and run.py integration are the next budgeted SIM.9b split;
-this source/check diff is 300 lines including the trivial nit below.
+SVGs retain vector geometry/text; no raster or per-fit diagnostic payload.
+Assets total 127,300 bytes: survival 22,250, sampling 85,833, coverage 19,217.
+Committed numeric evidence is 23,633 bytes plus its explanatory README.
+There are 64 stored histogram edges and 63 bins; every accepted fit contributes.
 
 ## Validation
 
 ```bash
-JAX_ENABLE_X64=1 uv run --locked --group examples pytest -q examples/weibull_simulation/check_fit.py
-JAX_ENABLE_X64=1 uv run --locked --group examples pytest -q examples/weibull_simulation/check_metadata.py -k committed_full
+JAX_ENABLE_X64=1 uv run --locked --group examples pytest -q examples/weibull_simulation/check_*.py
 uv run ruff format --check .
 uv run ruff check .
 uv run mypy src
 ```
 
-18 passed in 23.76 s; committed provenance 1 passed/7 deselected in .33 s;
-Ruff/mypy pass (150 files / 22 source files). No tolerance change.
-Hand origins: true Weibull k=3,b=2,HR=.25; fitted Weibull k=2,b=3 and Exp(.25), both fitted
-HR=.5. Test all six time-grid curves against closed-form laws, including t=0;
-integrated density is one using accepted=2 rather than attempted=3; bar bounds
-are .5 +/-sqrt(1/8), from p=.5 and R_acc=2. Both ordinary and zero-accepted
-cases render valid SVG XML. Changed input hashes fail before figure output.
-Existing likelihood/fit/derivative checks in the same file still pass.
+72 passed in 48.40 s; Ruff/mypy pass (150 files / 22 source files).
+The real direct-script smoke now requires all three SVG paths; no extra
+smoke subprocess. Its existing metadata/precision/count checks still pass.
+The new full-bundle display check verifies all six histogram titles and each
+model's density against the recorded bin counts/accepted denominator, then
+all six coverage points by scenario/model. This addresses the earlier
+single-scenario fixture limitation. Analytical curve/marker, MCSE, empty-set,
+SVG XML and tamper-refusal checks from SIM.9a remain in the complete suite.
 
-Full previews generated by write_figures from the committed bundle into
-/private/tmp/survjax-sim-final-figure-preview, with temporary PNG copies of the
-same Figure objects for visual inspection. Inspected all three: labels,
-legends, six panels and one-MCSE bars are legible and correctly associated.
-SVG sizes 22,250 / 85,833 / 19,217 bytes. These are not committed in this split.
-PNG preview inspection is not claimed as a separate browser SVG rendering.
-Matplotlib fell back to a temporary font cache under sandbox restrictions.
+Generated figures from committed inputs via write_figures; parsed all three
+SVG XML roots and confirmed no <image raster payload. A second export was
+byte-identical to every asset. Sampling and coverage also match the earlier
+reviewed bytes exactly; only survival arm colours differ. Current hashes:
+- fig1: 0e5c4ae9ffb0ed52e81e98a0f7ba166d701016ee8e8b6bd16c7d80ac2851b82c
+- fig2: 1cd91aae5704bc70ea59c038daf97abb1e5aa8b94d94a245e04db576d8066bca
+- fig3: 83a94a85e6bf4847a18ea6c1e184d319f7d6851abd7c98279fa225e474cd2a72
 
-SIM.8c.2 N-1: the metadata check now hashes git show <producer>:<path> and
-compares its hash, catching both wrong valid commits and zeroed source hashes.
-It reads local Git history only; results/README states this. Prior REVIEW's
-N-2 typo is corrected above: 63 bins, not 63 edges. Data payloads unchanged.
+Inspected all full-study Figure-object PNG previews; rechecked the final
+survival preview after the colour change. Legends, all six panels and error
+bars are legible. Separate manual XML audit compared the serializer input
+SVG with output: every geometry attribute/path token and non-whitespace text
+was preserved (169/769/217 nodes). This is not a browser SVG inspection.
 
-No repeated full simulation or core gate for this optional presentation step.
-The prior wheel-supplying through-A10 gate passed both modes; reviewer raw
-gates have five SURVJAX_WHEEL setup errors and stop before x32 acceptance.
-Remaining authorized work: integrate run.py figure output and commit SVGs,
-then stop; executable docs are a subsequent step. No merge/push/publication.
+Fresh scripts/check_wheel.sh --through A10 is running for final regression
+and wheel-only core-import evidence; its final result will be recorded in a
+verification-only follow-up. The earlier wheel-supplying gate passed both
+modes. Reviewer raw gates lack SURVJAX_WHEEL and get five wheel-setup errors;
+distinguish that environment limitation from the wheel-supplying command.
+No full numerical simulation rerun: numerical implementation is unchanged.
+
+Remaining after this reviewed delivery: executable MyST docs page with live
+smoke and labelled committed full results/figures. No docs/nav/config or
+protected build script changes in this step. No merge/push/publication.

@@ -301,6 +301,9 @@ def test_direct_script_smoke_writes_four_complete_summary_rows(tmp_path):
         "failures.csv",
         "sampling_histograms.json",
         "illustration.csv",
+        "fig1_survival.svg",
+        "fig2_sampling.svg",
+        "fig3_coverage.svg",
     ):
         assert (tmp_path / name).is_file()
     manifest = json.loads((tmp_path / "evidence.json").read_text())

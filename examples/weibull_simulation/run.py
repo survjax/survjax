@@ -15,11 +15,13 @@ import survjax
 if __package__:
     from . import study
     from ._evidence import write_evidence
+    from ._plots import write_figures
     from ._results import capture_metadata, write_metadata, write_results
     from .study import FitResult, calibrate_censoring, fit_replicate, generate_weibull
 else:
     import study
     from _evidence import write_evidence
+    from _plots import write_figures
     from _results import capture_metadata, write_metadata, write_results
     from study import FitResult, calibrate_censoring, fit_replicate, generate_weibull
 
@@ -255,11 +257,11 @@ def run_scenario(
 
 
 def run_config(config: Literal["smoke", "full"], out: Path) -> None:
-    """Run the specified grid and write summary and complete replicate CSVs.
+    """Run the grid, retain raw diagnostics and write compact evidence/figures.
 
     Args:
         config: Smoke uses n=100,R=20; full uses n=100,300,1000,R=1000.
-        out: Output directory; CSVs and metadata.json are replaced.
+        out: Output directory; CSVs, metadata, compact evidence and SVGs are replaced.
     Raises:
         ValueError: Unknown configuration or float64 disabled.
         OSError: Output cannot be written. Calibration/validation errors propagate.
@@ -292,6 +294,7 @@ def run_config(config: Literal["smoke", "full"], out: Path) -> None:
     write_results(out, limits, batches)
     write_metadata(out, snapshot, limits, batches)
     write_evidence(out, out)
+    write_figures(out, out)
 
 
 def main(argv: list[str] | None = None) -> None:

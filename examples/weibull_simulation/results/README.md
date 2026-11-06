@@ -30,7 +30,12 @@ To produce a fresh run and compact bundle from the repository root:
 ```bash
 uv run --locked --group examples python examples/weibull_simulation/run.py --config full --out /tmp/survjax-weibull-full
 uv run --locked --group examples python examples/weibull_simulation/_evidence.py --results /tmp/survjax-weibull-full --out examples/weibull_simulation/results
+JAX_ENABLE_X64=1 uv run --locked --group examples python -c "from pathlib import Path; from examples.weibull_simulation._plots import write_figures; p = Path('examples/weibull_simulation/results'); write_figures(p, p)"
 ```
+
+Figures: [survival](fig1_survival.svg), [HR sampling](fig2_sampling.svg),
+[coverage](fig3_coverage.svg). Survival colours identify arms; other panels
+use colours for models, as their legends state.
 
 The provenance check reads the reducer commit from local Git history.
 Timings change on reruns. Bitwise equality across machines is not promised.
