@@ -1,3 +1,44 @@
+# RELEASE.2 — Prepare package release metadata
+
+Starting SHA / previous completed step: ac50796fc82ff087df3c8973724992a4ec2e2eb5.
+Original worktree base: 3cb4cd7fbba3313f00dfabed0028ee6f404384df.
+RELEASE.1 independent review: round 2, merge; hosted/Linux checks remain open.
+
+Files: pyproject.toml, README.md (two link targets only),
+tests/install/test_wheel.py, PLAN.md, REVIEW.md. Public API: none.
+Spec: 10.1–10.3 packaging/runtime isolation, 12.2 separate publication,
+13 release metadata. No dependency, protected path, docs page/navigation,
+license, numerical or spec edits. Remain within 300 changed implementation lines.
+
+Add README.md as Markdown package description, Repository/Documentation/Issues
+URLs and the Development Status :: 3 - Alpha classifier. Add only the tested
+Python 3.12 classifier, not an untested version/platform/GPU matrix. Preserve
+Apache-2.0 expression and JAX/NumPy-only runtime requirements. Replace the two
+README guide links with absolute intended hosted URLs so the PyPI description
+has no checkout-relative links; this is a link correction, not a prose rewrite.
+
+Proposed first release: 0.0.1a1, tag v0.0.1a1, RTD tag version v0.0.1a1.
+Keep the development version 0.0.1.dev0 in this preparation step. The release
+operator must change pyproject.toml, refresh uv.lock and update the installed
+version assertion together before building/tagging that release; no tag or
+version-specific docs URL points to a nonexistent release now. Final version
+choice and the exact operator sequence belong to RELEASE.4.
+
+Add a wheel-artifact test for Markdown description equal to README, public URLs,
+alpha/tested-Python classifiers and absence of relative Markdown links. Existing
+installed-wheel test continues verifying version/license and runtime deps.
+Validate touched install tests in both dtype processes, build wheel + sdist,
+inspect their metadata and README inclusion locally, uv lock --check,
+scripts/check.sh --fast --through A10 and git diff --check. No docs build:
+Sphinx sources/config/executable cells unchanged. No new tools/dependencies.
+Use independent-review after commit (RELEASE.2), then stop.
+
+Docs to-do: RELEASE.4 operator topic must carry the version/tag/docs-version
+sequence and pending RTD/PyPI account actions. RELEASE.3 workflow/artifact
+validation and RELEASE.4 remain; historical RELEASE.1 plan follows unchanged.
+
+---
+
 # RELEASE.1 — Prepare Read the Docs builds
 
 Clean starting SHA / original worktree base / previous completed step:

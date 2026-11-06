@@ -1,155 +1,94 @@
-Independent review: round 2/3
+Independent review: round 1/3
 
-# RELEASE.1 — Prepare Read the Docs builds
+# RELEASE.2 — Prepare package release metadata
 
 ## Read first
 
-1. PLAN.md: bounded step, release sequence and preserved workstream ownership.
-2. .readthedocs.yaml: Python/uv bootstrap, locked groups, both-dtype build,
-   then float64 site staging into READTHEDOCS_OUTPUT/html.
-3. scripts/build_docs.sh and DOCS-BUILD.md (unchanged): environment isolation,
-   output layout and failure behavior; docs/conf.py retains forced execution.
-4. tests/unit/test_docs_build_script.py (unchanged): environment/output selection
-   and stop-on-failure tests. Spec revision 41, sections 10.3–10.5 and 12.2.
+1. PLAN.md RELEASE.2: metadata scope, proposed version and remaining steps.
+2. pyproject.toml project fields: Markdown README, alpha/tested-Python
+   classifiers and repository/documentation/issues URLs.
+3. README.md diff: only the two guide link destinations change, making the
+   description portable to PyPI. No prose or scope claims changed.
+4. tests/install/test_wheel.py: new built-wheel metadata test and existing
+   out-of-tree runtime isolation/version/license checks.
 
-## Invariants and scope
+Spec revision 41: 10.1–10.3, 12.2 and 13. No protected path, dependency,
+API, numerical, docs page/navigation or specification changes.
 
-- Only local release preparation; no publishing, accounts, tags, remote changes,
-  runtime dependency, metadata/version or public API changes.
-- No Sphinx top-level RTD key: custom jobs own the environment and build;
-  no injected/unlocked RTD Sphinx packages. Bootstrap uv is pinned to 0.11.19.
-- Checkout-local .venv (Python 3.12.9 here), uv.lock, docs/examples groups.
-  JAX 0.11.2, NumPy 2.5.3, Sphinx 9.1.0. No shared agent environment.
-- Existing script runs float32 and float64 separately, fresh execution in both,
-  warnings/errors fatal. Stage only after the script succeeds in both modes.
-- Copy the contents of the complete float64 output, preserving nested assets,
-  notebook/example downloads, figures, relative links and search resources.
-  Execution caches outside that HTML tree are not staged.
-- Completed DOCS plan archived verbatim in its own commit. Historical unfinished
-  records retain their original ownership; docs pages/navigation are unchanged.
+## Invariants and decisions
 
-## Official interface verification (2026-11-06)
+- README is the package description; the backend infers text/markdown from
+  its .md extension. Built metadata must carry that exact text.
+- Project URLs use the supplied GitHub repository and existing intended docs
+  address. No ownership, public-access or hosted-build claim follows from URLs.
+- Alpha classifier matches the README's existing maturity statement; only
+  tested Python 3.12 is classified. No untested Python/platform/GPU matrix.
+- Runtime remains jax>=0.11.2 and numpy>=2.5.3; Apache-2.0 is unchanged.
+  Lockfile unchanged; no new build hooks or rendering dependencies.
+- Development version remains 0.0.1.dev0. Proposed release version 0.0.1a1,
+  Git tag v0.0.1a1, RTD tag version v0.0.1a1. Before release artifacts/tagging,
+  update project version, refresh lock and update installed-version assertion
+  together. No tags or version-specific URLs created by preparation.
+- Historical RELEASE.1 planning remains in PLAN.md, with hosted/Linux checks
+  still open. Prior review remains in git history and its independent file.
 
-- https://docs.readthedocs.com/platform/stable/config-file/v2.html:
-  Ubuntu 24.04 and Python 3.12 supported; custom build.jobs without a sphinx
-  key supported. Environment changes do not persist across job commands.
-- https://docs.readthedocs.com/platform/stable/build-customization.html:
-  custom HTML output goes in READTHEDOCS_OUTPUT/html; nonzero commands fail
-  the build; custom jobs avoid replacing the established executable pipeline.
-- https://docs.readthedocs.com/platform/stable/builds.html#build-resources:
-  Community budget 15 minutes / 7 GB; Business 30 minutes / 7 GB (upgradable).
-  Actual account tier/project limits remain unverified.
-- https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/:
-  pending publisher supports first upload, does not reserve the project name;
-  informs RELEASE.3/4 only. No publisher/account configured.
+## Sources checked (2026-11-06)
 
-## Checks and outcomes
+- https://packaging.python.org/en/latest/guides/writing-pyproject-toml/:
+  README description, classifiers and project URL tables.
+- https://pypi.org/classifiers/: Development Status :: 3 - Alpha and
+  Programming Language :: Python :: 3.12 are recognized classifiers.
+  Keep existing SPDX license expression; no deprecated license classifier.
 
-- uv sync --locked --group docs --group examples: exit 0, 166 packages resolved;
-  isolated .venv confirmed by sys.prefix. Lockfile unchanged.
-- YAML parsed using existing environment PyYAML; Python setting matches
-  .python-version, custom job structure checked. No added dependency.
-- Exact YAML mkdir/cp commands executed on nested/hidden fixture files and a
-  spaced output directory: byte-identical tree; exit 0.
-- uv run --group test pytest -q tests/unit/test_docs_build_script.py:
-  7 passed in 2.69s. Tests cover the existing contract used by the RTD job.
-- Cold-cache MNIST: existing load_mnist on an empty temporary cache downloaded
-  all four files from https://ossci-datasets.s3.amazonaws.com/mnist/ and verified
-  existing SHA256 hashes; 11,594,722 compressed bytes; 9.4 seconds;
-  pixel shape (70000, 1, 28, 28), labels (70000,). No data committed.
-- uv sync --locked --group docs --group examples --python-platform
-  x86_64-unknown-linux-gnu --dry-run: exit 0, 166 packages resolved, 27 Linux
-  package replacements selected. This is resolution, not Linux execution.
-- scripts/check.sh --fast --through A10: exit 0, all gates passed.
-  Ruff: 173 files already formatted, all checks passed; mypy: 22 source files.
-  Implementer float64: 1059 passed / 8 skipped; float32: 1064 / 3.
-  Source doctests: 4 passed each mode.
-  Spec through A10 float64: 2149 passed / 27 skipped; float32: 2156 / 20.
-  Slow tests intentionally deselected by the fast gate. No A11/A12 acceptance
-  claim and no spec-test inspection or edits.
+## Verification
 
-- scripts/build_docs.sh: exit 0; both builds report `build succeeded`, forced
-  execution retained. Log span approximately 15:15:39–15:18:25 UTC (~3 min),
-  excluding dependency install; local CPU concurrent with fast gate, warm data.
-  MNIST page: 8.66 / 10.43 seconds; Bayes: 5.94 / 8.81 (float32 / float64).
-- uv run --locked --group docs python /tmp/survjax-release-audit.py:
-  both sites checked for local links/fragments/assets, sidebar navigation,
-  use-case images and byte-identical downloadable source notebooks.
-  Each site: 23 HTML pages, 1,533 local links/assets, 14 downloads, zero
-  failures; 18 executed notebooks / 153 code cells (execution tree shared by
-  sequential builds; the build logs separately confirm both-mode execution).
-  Initial ad hoc audit assumed Furo uses a nav element and Bayes a figure
-  element; corrected selectors to actual sidebar links/images, no product edits.
-- Exact YAML staging commands on the executed float64 site: byte-identical,
-  119 files copied, including all downloads/assets.
-- git diff --check: exit 0. No new automated test for this low-impact config;
-  focused executable checks exercise the real build and staging commands.
+- uv lock --check: exit 0, 166 packages resolved; uv.lock unchanged.
+- uv build --out-dir /tmp/survjax-release2-dist: exit 0; source archive and
+  wheel built successfully, wheel built from source archive by uv.
+  Both filenames use 0.0.1.dev0.
+- Standard-library archive/email metadata audit: exit 0; README included
+  verbatim in sdist, both descriptions equal README bytes; Name/Version,
+  Requires-Python/Requires-Dist, URLs, classifiers, license and content type
+  match between wheel and source archive. Runtime requirements reported
+  ['jax>=0.11.2', 'numpy>=2.5.3'].
+- JAX_ENABLE_X64=1 uv run --group test pytest -n 6 -q tests/install/test_wheel.py:
+  4 passed in 42.62s.
+- JAX_ENABLE_X64=0 uv run --group test pytest -n 6 -q tests/install/test_wheel.py:
+  4 passed in 42.03s.
+  These include installation into fresh out-of-tree environments, core imports
+  without demo dependencies, parameter derivatives and external-family typing.
+  New artifact test covers exact description/content type, release URLs,
+  alpha/tested-Python classifiers and absolute Markdown link destinations.
+- First scripts/check.sh --fast --through A10 attempt stopped at Ruff I001
+  (new re import out of order). uv run ruff check --fix corrected only that
+  import; subsequent full fast-gate result recorded below.
 
-## Limitations / remaining checks
+- scripts/check.sh --fast --through A10 rerun: exit 0, all gates passed.
+  Ruff: 173 files already formatted, all checks passed. mypy: 22 files clean.
+  Implementer float64 1060 passed / 8 skipped; float32 1065 / 3.
+  Source doctests: 4 passed in each mode. Spec through A10: float64
+  2149 passed / 27 skipped; float32 2156 / 20. Slow tests deselected by fast
+  gate; touched install tests were separately run in full as required.
+- git diff --check: exit 0. No lockfile or runtime dependency changes.
 
-- Host is macOS arm64; docker, podman, orb, colima and limactl executables
-  unavailable. Fresh Linux execution and RTD integration/public access are
-  unverified; the Linux dependency dry run is not a hosted build.
-- Docs use the existing warm MNIST cache; cold fetching verified separately.
-  RTD must allow outbound HTTPS for all four files (60-second fetch timeout
-  each), plus initial locked package installation. Persistent dataset caching
-  is optional; execution must remain live even on a cold worker.
-- MyST cell timeout remains 120 seconds. No hosted peak-memory measurement;
-  confirm both execution and install fit the actual RTD project limits before
-  launch. MathJax still uses the existing external CDN.
-- RTD project slug/account ownership and GitHub integration are unverified;
-  the README URL alone establishes neither. An operator must connect the
-  intended vanAmsterdam/survjax repository with authorized access, select active
-  public versions/default version and validate a clean hosted tag build later.
-- Remaining steps: RELEASE.2 metadata/version choice (0.0.1a1 proposed),
-  RELEASE.3 Trusted Publishing workflow/artifact checks, RELEASE.4 operator docs.
-  No uploads or public clean-install claims in this step.
+## Limitations and remaining substeps
+
+No PyPI/TestPyPI upload, public clean-install, PyPI-rendered README inspection,
+account changes, tag, push, merge or release. No Twine dependency added just for
+rendering checks. README's intended RTD links are not yet verified publicly.
+No Sphinx build in this metadata step: source pages, cells and build config
+unchanged. RELEASE.1's macOS docs evidence and open Linux/hosting checks remain.
+No A11/A12 acceptance claim; their independent integration has separate ownership.
+
+Remaining RELEASE.3: narrowly scoped explicit-release Trusted Publishing
+workflow and local artifact validation. RELEASE.4: operator docs covering
+publisher/account fields and consistent version/tag/docs/public checks.
+Final release version change must accompany the operator's release commit;
+0.0.1a1 remains the proposal, not an existing release.
 
 ## Commit trace
 
-Previous completed step / clean starting SHA / original worktree base:
-3cb4cd7fbba3313f00dfabed0028ee6f404384df (DOCS.6).
-Plan-only archive / implementation parent: 2c991d0.
-This step is RELEASE.1; independent review follows this commit, then stop.
-
-## Round 1 response
-
-F-1: move locked synchronization into an explicit install job and run
-`asdf reshim python` immediately after pip installs pinned uv. This ensures
-the console executable can be resolved by subsequent shells and the unchanged
-build script. Hosting execution remains unverified.
-
-The lifecycle premise differs from the current official reference: without
-sphinx/mkdocs, jobs “will default to run nothing, giving you full control over
-the build process” (build-customization.html, Features and limitations).
-The explicit install override is still clearer and avoids that dependency on
-default behavior. The same page recommends custom jobs for advanced uv usage;
-we need --locked and our existing two-process script rather than native Sphinx.
-Its pixi example demonstrates the asdf tool/shim mechanism.
-
-N-1 addressed: git archive dd53e47 extracted into /tmp/survjax-release-standalone;
-confirmed spec is a symlink and its target does not exist. Ran
-`scripts/build_docs.sh` directly there: exit 0, both dtypes succeeded,
-including live Bayesian and MNIST pages, in a newly created separate .venv.
-The same link/download audit passed on both standalone sites: 23 pages,
-1,533 links/assets, 14 downloads, 18 notebooks / 153 cells, zero failures.
-No source, protected path or shared design checkout was modified.
-N-2: optional config-mirroring test omitted; real parsed YAML staging commands
-were exercised above. No regression test framework/dependency added.
-
-Shim reference: https://asdf-vm.com/manage/core.html#reshim documents recreation
-of shims for executables installed outside the plugin lifecycle. RTD's
-custom-build pixi example establishes asdf availability; `asdf reshim python`
-refreshes the Python tool's shims after pip installs uv. No local asdf runtime
-is available, so that hosting-specific command is documented, not executed.
-
-Round 1's "Not checked" says the implementer reported no cold MNIST fetch;
-the separate empty-cache fetch is recorded above. The docs builds themselves
-used the warm dataset, as stated.
-
-Round 2 checks: revised YAML bootstrap/install/build structure parsed and
-checked; git diff --check clean. `scripts/check.sh --fast --through A10`
-rerun after the lifecycle change: exit 0, all gates passed; Ruff 173 files
-formatted / checks passed; mypy 22 files clean; implementer 1059/8 (x64),
-1064/3 (x32) passed/skipped; doctests 4 each; spec 2149/27 and 2156/20.
-No additional numerical or full-suite runs.
+Previous completed step / clean starting SHA:
+ac50796fc82ff087df3c8973724992a4ec2e2eb5 (RELEASE.1 review fix).
+Original worktree base: 3cb4cd7fbba3313f00dfabed0028ee6f404384df.
+This commit completes RELEASE.2; independent review follows, then stop.

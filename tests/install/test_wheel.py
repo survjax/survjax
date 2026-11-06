@@ -2,11 +2,13 @@
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import textwrap
 import zipfile
+from email.parser import BytesParser
 from pathlib import Path
 
 import numpy as np
@@ -128,6 +130,31 @@ def test_wheel_contains_pure_python_package_and_type_marker(wheel):
     assert wheel.name.endswith("-py3-none-any.whl")
     with zipfile.ZipFile(wheel) as archive:
         assert {"survjax/__init__.py", "survjax/py.typed"} <= set(archive.namelist())
+
+
+def test_wheel_metadata_contains_readme_and_release_links(wheel):
+    """Spec 10.2/13: built metadata exposes the project description and status."""
+    with zipfile.ZipFile(wheel) as archive:
+        metadata_paths = [
+            name for name in archive.namelist() if name.endswith(".dist-info/METADATA")
+        ]
+        assert len(metadata_paths) == 1
+        metadata = BytesParser().parsebytes(archive.read(metadata_paths[0]))
+    assert metadata["Description-Content-Type"] == "text/markdown"
+    description = metadata.get_payload(decode=True).decode("utf-8")
+    assert description == (ROOT / "README.md").read_text()
+    assert set(metadata.get_all("Project-URL")) == {
+        "Repository, https://github.com/vanAmsterdam/survjax",
+        "Documentation, https://survjax.readthedocs.io",
+        "Issues, https://github.com/vanAmsterdam/survjax/issues",
+    }
+    assert set(metadata.get_all("Classifier")) == {
+        "Development Status :: 3 - Alpha",
+        "Programming Language :: Python :: 3.12",
+    }
+    # PyPI has no checkout root to resolve local Markdown link destinations.
+    for destination in re.findall(r"\]\(([^)]+)\)", description):
+        assert destination.startswith(("https://", "#")), destination
 
 
 def test_installed_core_uses_wheel_without_demo_dependencies(installed, x64_enabled):

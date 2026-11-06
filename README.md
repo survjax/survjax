@@ -31,7 +31,7 @@ Currently available:
   log density, log CDF, hazard, log hazard, and cumulative hazard, with grid
   methods for evaluation across times.
 - **Proportional hazards:** `ProportionalHazards` wraps a baseline with a
-  caller-computed log hazard ratio; see the [PH guide](docs/proportional-hazards.md)
+  caller-computed log hazard ratio; see the [PH guide](https://survjax.readthedocs.io/en/latest/proportional-hazards.html)
   for broadcasting, likelihoods and derivative limits.
 - **Evaluation:** Harrell's concordance for exact and right-censored data
   without truncation.
@@ -40,7 +40,7 @@ Currently available:
   including an autodiff-based log density.
 
 Restricted mean survival time, `model.rmst(tau)`, is available for Exponential,
-Weibull and their PH wrappers; see the [RMST guide](docs/rmst.md) for cutoff
+Weibull and their PH wrappers; see the [RMST guide](https://survjax.readthedocs.io/en/latest/rmst.html) for cutoff
 broadcasting, derivatives and numerical-failure limits. Unrestricted means,
 medians and quantiles remain planned.
 
