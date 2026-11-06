@@ -1,3 +1,18 @@
+# KWPATCH.1 — Align installed-wheel PH calls with keyword-only constructors
+
+Start / previous step / worktree base: d9832baaa19559b7d49eb0e52279695c27efde34.
+Files: tests/install/test_wheel.py, PLAN.md, REVIEW.md.
+Public API: unchanged. Spec 4.4 requires baseline= for ProportionalHazards;
+spec 10.3 requires the installed-wheel smoke test to exercise usable exports.
+Change the two stale positional baseline calls in the existing smoke test.
+No new tests: run the entire touched install file in both dtype modes,
+then scripts/check.sh --fast --through A12 and independent review.
+No dependency, docs, protected-path or spec edits. This is one bounded
+maintenance patch; inherited merged plan records remain below unchanged.
+Remaining substeps: none after validation and review.
+
+---
+
 # Merge resolution — Preserve both branch records
 
 Historical records from both parents are retained verbatim below. Their
