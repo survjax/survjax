@@ -39,6 +39,15 @@ The other familiar quantities are transformations of it:
 | density | $f(t) = h(t)\,S(t)$ | `log_prob(t)` (log density) |
 | CDF | $F(t) = 1 - S(t)$ | `log_cdf(t)` |
 
+```{admonition} The circle of survival — Wouter van Amsterdam
+:class: note
+
+For a visual introduction to how survival, cumulative incidence, density,
+hazard and cumulative hazard connect, read
+[The circle of survival](https://wvanamsterdam.com/posts/261029-survival-circle/index.html),
+an illustrated teaching article by Wouter van Amsterdam.
+```
+
 Built-in and custom families share this interface. `log_prob` means log density,
 not the likelihood of a censored observation: use `log_likelihood(data)` for that.
 

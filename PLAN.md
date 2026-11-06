@@ -1,3 +1,18 @@
+# DOCS.3 — Link the circle of survival teaching article
+
+Starting/previous step: c95fdca; original worktree base: 2093ca2.
+Add the approved, explicitly attributed callout after the method table in
+Working with distributions. Link the independent teaching article on the
+maintainer's personal website; no copied figure or API changes. Files:
+docs/working-with-distributions.md, PLAN.md, REVIEW.md. Spec 10.5.
+Validate with scripts/build_docs.sh (both dtype modes), rendered callout/link
+inspection and git diff --check. No new tests; executable cells unchanged.
+Independent review remains waived for this docs restructuring conversation.
+Completed: both dtype docs builds pass; rendered callout, attribution, URL
+and placement verified. Whitespace clean; no remaining substeps.
+
+---
+
 # DOCS.2 — Address the maintainer's documentation review
 
 Starting/previous step: cc5f106; original worktree base: 2093ca2.

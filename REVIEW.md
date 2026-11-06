@@ -1,32 +1,18 @@
-# DOCS.2 — Maintainer review follow-up
+# DOCS.3 — Attributed teaching link
 
-Read docreview.md, docs/index.md, docs/proportional-hazards.md, then the follow-up
-in DOCS-MIGRATION.md. All requested edits implemented and validated.
+Read docs/working-with-distributions.md after its method table. Added the
+approved callout naming Wouter van Amsterdam in its title and body, linking
+the independent Circle of survival article at the requested personal domain.
+No executable cells, API, dependencies or other pages changed.
 
-The landing page states the data-container, pytree and dependency roles. The
-likelihood guide follows the common distribution interface. PH keeps its
-composition/batching guidance and extreme-scaling limitation, removing generic
-likelihood/diagnostic material. No library, dependency, spec or example changes.
-No new tests; two-mode executable docs build and link/rendered-content audits
-verify this prose/navigation edit and removal of two example cells.
-Independent review remains waived for this maintainer docs review.
+Starting/previous step: c95fdca; original worktree base: 2093ca2.
+Independent review remains waived. Validation complete. No remaining substeps
+beyond verification and commit. User review/structure files remain untouched.
 
-Previous step/start: cc5f106. Original worktree base: 2093ca2.
-User-authored docreview.md and docsstructure.md remain untouched and unstaged.
-No remaining substeps after validation and commit.
-
-## Validation results
-
-- `scripts/build_docs.sh` (direct, escalated): exit 0; `build succeeded.` in
-  both float32 and float64. 17 executable pages, 145 cells per mode.
-- `python /tmp/audit_docreview.py`: both modes pass rendered landing-page text,
-  likelihood navigation order, retained PH note, removed sections and exact
-  rendered-source matching for both changed pages.
-- `python /tmp/audit_docs.py`: 22 HTML pages and 1,739 local links/assets in
-  each mode, zero missing targets or fragments.
-- `git diff --check`: clean. PH note compared verbatim with previous commit.
-- No library tests, R runs or independent reviewer invoked for this docs-only
-  follow-up. Rendered HTML content/structure inspected programmatically; no
-  additional browser visual inspection performed for these simple edits.
-
-All review items addressed; no remaining substeps.
+Validation: direct escalated `scripts/build_docs.sh` exited 0, with
+`build succeeded.` in float32 and float64. `/tmp/check_circle_link.py` verified
+both rendered outputs: author/title, exact external URL, placement after the
+methods table and before Constructing a model, and byte-identical rendered
+source. Executable cells match the previous commit. `git diff --check` clean.
+No new unit tests, numerical gate or browser visual inspection for this prose
+callout; rendered HTML structure checked programmatically. No remaining work.
