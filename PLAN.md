@@ -26,6 +26,8 @@ Checks: archive byte identity, notebook cell/source and non-warning output
 identity, reference searches, git diff --check, direct both-dtype docs build,
 scripts/check.sh --fast --through A10. No new tests for this prose cleanup.
 Independent-review after commit, up to three rounds, then stop/report.
+Round 1 F-1: remove the stale simulation-guide status sentence from
+docs/technical-notes/verification.md; rebuild docs and recheck references.
 Remaining: portable contributor/agent contract and external spec decision;
 actual hosting/publication and separately owned release acceptance gates.
 

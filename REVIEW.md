@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # RELEASE.7 — Public repository cleanup
 
@@ -28,7 +28,7 @@ portability are explicitly deferred; author emails/history remain intact.
 - Parsed notebook comparison passed: only cell 1 warning output removed;
   all cell sources, metadata and other outputs unchanged.
 - Searches found no private-visibility or old-owner narration in active public
-  guides, and no active reference to the removed simulation draft.
+  guides. The filename-only search missed a prose reference; see F-1 below.
 - git diff --check: passed. No new tests needed for prose/output cleanup.
 - scripts/build_docs.sh directly: exit 0; both float32 and float64 builds
   succeeded with forced notebook execution. No hosting/public-access claim.
@@ -42,3 +42,20 @@ portability are explicitly deferred; author emails/history remain intact.
 Previous step/start: dfa24b5. Original worktree base: 3cb4cd7.
 Remaining: portable agent/spec setup, hosted checks and release acceptance and
 publication. No independent completion claim for those workstreams.
+
+## Round 1 follow-up
+
+Reviewer verdict fix-first. F-1 addressed: remove the stale simulation-guide
+status sentence in docs/technical-notes/verification.md. Repeat the broader
+prose/filename search and executable docs build before requesting round 2.
+N-1 optional hosting alternatives retained: Business domain/privacy information
+remains useful if the operator chooses paid hosting; Community is the intended
+public path and signed-out access remains a prerequisite. N-2 retained as
+historical DEVIATIONS citations, with explicit archive mapping in plans/README.
+No numerical or test change; initial fast gate and reviewer repeat both passed.
+
+F-1 verification: broader simulation[ -]guide/tentative-simulation search in
+active docs returned no matches; git diff --check passed. Direct
+scripts/build_docs.sh rerun exited 0 in both modes. Artifact audit rerun
+passed for 27 pages / 2,069 links per mode, including absence of the stale
+sentence in rendered verification pages and notebook download identity.

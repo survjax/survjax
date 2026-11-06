@@ -200,8 +200,7 @@ for path handling, dependencies, caches, exit behavior and serving under a prefi
 The MNIST use case executes its smoke example in float32 and downloads
 hash-checked images on first use. A warm cache at `SURVJAX_EXAMPLES_DATA`
 (default `~/.cache/survjax-examples/mnist`) avoids later downloads.
-The tentative simulation guide is excluded from the published site pending
-maintainer revision. The Bayesian use case computes its results from committed
+The Bayesian use case computes its results from committed
 posterior draws; its notebook also demonstrates sampling the posterior.
 
 For interactive exploration with the locked environment:
