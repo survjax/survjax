@@ -1,63 +1,70 @@
 Independent review: round 1/3
 
-# SIM.8c.2 — Compact full-run evidence
+# SIM.9a — Three-figure renderer and analytical checks
 
-Read newest PLAN section and approved D-035, results/README.md, evidence.json,
-then the three small data payloads and new committed-bundle checks in
-check_results.py/check_metadata.py. Previous final:
-c08a14281e4aa42a72e3882e6f19445ada0eb401 (SIM.8c.1 round 2 merge,
-F-1/F-2 fixed). Original base 8757c0fda78e34e6e818249adedd2a144a33c33d;
-integration base d2469e0a7e719dbcb276277e6fd80a447626ad4e. User explicitly
-authorized compact evidence and then figures; this is the budgeted data split.
+Read PLAN.md SIM.9a, _plots.py, then the new display fixtures/checks at the end
+of check_fit.py. Previous final fb7fb97e09cd31e6ed3241a70a88abf205128ed4
+(SIM.8c.2 round 1 merge). Original base
+8757c0fda78e34e6e818249adedd2a144a33c33d; integration base
+d2469e0a7e719dbcb276277e6fd80a447626ad4e. The maintainer explicitly approved
+_evidence.py/_plots.py and continuation through figures. No library API,
+generator contract, dependency, protected path or docs/ change.
 
-## Provenance and invariants
+## Invariants
 
-All payloads derive from /private/tmp/survjax-sim-full-a3792a7, generated from
-clean a3792a7703ed539db777472d876bd00ac2d1568e. No refit. Reduction used clean
-reviewed c08a142, producer _evidence.py, reducer_dirty=false. Original metadata
-and performance bytes are unchanged. No raw CSV is copied/staged; the ignored
-raw file remains local. Core API/generator/dependencies/spec/protected paths
-are unchanged. All new test loops inspect committed host records only.
+Read/hash every compact payload before any figure output directory is made.
+Plot only committed parameters/counts/performance; no refitting/simulation.
+Figure 1 uses public ProportionalHazards(...).survival_grid over a time-first
+0..40-year grid and both arms. Each different baseline family needs a graph;
+Python loops otherwise only construct host artists or serialize XML.
+True/fitted arms have explicit legend labels; curves are illustrative, with
+no confidence band or inference on survival curves.
+Figure 2 shows all six scenario/model distributions as counts/(accepted*width)
+using stored edges: 64 edges / 63 bins. Every accepted fit contributes.
+Figure 3 uses coverage +/- ONE MCSE, labelled, with the nominal .95 line.
+Accepted=0 stays explicit in legends; no shared fitted illustration is
+labelled unavailable, while true curves still render. No altered fit values,
+epsilons, clipping, changed acceptance rules or hidden dropped failures.
 
-failures.csv retains all 127 rejected IDs and each reason flag; accepted IDs
-are the complement in each 0..999 group. Every rejection is gradient-only;
-solver success never overrides the strict max|gradient|<1e-5 policy.
-sampling_histograms.json retains exact counts of all 11,873 accepted HRs at
-63 common stored bin edges (about .025 wide), including the last right edge.
-illustration.csv contains the complete parameters for both models at the
-first mutually accepted n=300/.55 replicate (scenario 3, ID 0).
-evidence.json binds original raw checksums and all five compact payloads.
-The complete six-file bundle is about 23 KiB; no external hosting/compression.
-README explains original absolute paths, accepted denominators and regeneration.
+SVG retains vector coordinates and text, removes only XML/path whitespace,
+and omits date/random IDs. There is no raster embedding or coordinate rounding.
+The SVG assets and run.py integration are the next budgeted SIM.9b split;
+this source/check diff is 300 lines including the trivial nit below.
 
 ## Validation
 
 ```bash
-JAX_ENABLE_X64=1 uv run --locked --group examples pytest -q examples/weibull_simulation/check_results.py examples/weibull_simulation/check_cli.py examples/weibull_simulation/check_metadata.py
+JAX_ENABLE_X64=1 uv run --locked --group examples pytest -q examples/weibull_simulation/check_fit.py
+JAX_ENABLE_X64=1 uv run --locked --group examples pytest -q examples/weibull_simulation/check_metadata.py -k committed_full
 uv run ruff format --check .
 uv run ruff check .
 uv run mypy src
 ```
 
-25 passed in 10.40 s; Ruff/mypy pass (149 files / 22 source files).
-New checks demonstrate all 12 groups, unique in-range failed IDs, individual
-reason totals, attempted=accepted+failed, integer histogram totals including
-every accepted fit, a common accepted illustration ID, both n=1000 Weibull
-coverage gates, all output hashes and clean source/provenance/root seed.
-These optional checks need only committed files, not the raw CSV or network.
+18 passed in 23.76 s; committed provenance 1 passed/7 deselected in .33 s;
+Ruff/mypy pass (150 files / 22 source files). No tolerance change.
+Hand origins: true Exp(1), fitted Weibull k=2,b=3 and Exp(.25), both fitted
+HR=.5. Test all six time-grid curves against closed-form laws, including t=0;
+integrated density is one using accepted=2 rather than attempted=3; bar bounds
+are .5 +/-sqrt(1/8), from p=.5 and R_acc=2. Both ordinary and zero-accepted
+cases render valid SVG XML. Changed input hashes fail before figure output.
+Existing likelihood/fit/derivative checks in the same file still pass.
 
-Independent full-run reconstruction/analytical derivatives and the 40-digit
-calibration audit were recorded in SIM.8b REVIEW (ecb0bdc/61c5cc6). Reviewed
-reducer output was separately recounted by Claude in SIM.8b and SIM.8c.1;
-this step preserves those bytes. Manual audit verified the historical reducer
-Git object matches its source hash, and all output checksums match. No bitwise
-reproducibility of timings or across machines is claimed.
+Full previews generated by write_figures from the committed bundle into
+/private/tmp/survjax-sim-final-figure-preview, with temporary PNG copies of the
+same Figure objects for visual inspection. Inspected all three: labels,
+legends, six panels and one-MCSE bars are legible and correctly associated.
+SVG sizes 22,250 / 85,833 / 19,217 bytes. These are not committed in this split.
+PNG preview inspection is not claimed as a separate browser SVG rendering.
+Matplotlib fell back to a temporary font cache under sandbox restrictions.
 
-No repeated full simulation or core gate for this artifact/test-only step.
-The prior wheel-supplying through-A10 gate passed both modes: implementer
-1282/1287, doctests 4 each, acceptance 2333/2324, with expected skips.
-Reviewer raw gates lack SURVJAX_WHEEL (five wheel setup errors); distinguish
-that environment issue from the passing wheel-supplying gate.
+SIM.8c.2 N-1: the metadata check now hashes git show <producer>:<path> and
+compares its hash, catching both wrong valid commits and zeroed source hashes.
+It reads local Git history only; results/README states this. Prior REVIEW's
+N-2 typo is corrected above: 63 bins, not 63 edges. Data payloads unchanged.
 
-Remaining: three SVG figures (already authorized), then executable docs.
-No merge/push/publication. Shared generator import contract remains frozen.
+No repeated full simulation or core gate for this optional presentation step.
+The prior wheel-supplying through-A10 gate passed both modes; reviewer raw
+gates have five SURVJAX_WHEEL setup errors and stop before x32 acceptance.
+Remaining authorized work: integrate run.py figure output and commit SVGs,
+then stop; executable docs are a subsequent step. No merge/push/publication.

@@ -1,3 +1,38 @@
+# SIM.9a — Three-figure renderer and analytical display checks (2026-11-06)
+
+Previous final fb7fb97e09cd31e6ed3241a70a88abf205128ed4 (SIM.8c.2 round 1
+merge). Both figure implementation and delivery were explicitly approved.
+Preserve unfinished history. Original/integration bases unchanged.
+
+About 295 implementation/test lines: approved _plots.py renders the three
+specified figures from compact evidence, verifying every payload hash before
+creating output. Public PH.survival_grid evaluates both arms over a time-first
+grid; distinct baseline families require separate graph construction only.
+Histogram panels use exact counts / accepted / bin widths; coverage bars
+show +/- one MCSE, explicitly labelled. Empty accepted sets have zero-count
+histograms and an unavailable fitted illustration label. No fitter/generator
+calls. Python loops construct host plot objects, never dispatch scenario fits.
+SVG export retains text/vector geometry, omits date/random IDs and removes
+only XML/path whitespace; no numeric rounding or raster payload.
+
+Append display hand checks to check_fit.py (stays under ~300 lines): true
+Exp(1), fitted Weibull k=2/b=3 and Exp(.25), both fitted HR=.5; density integral
+one over accepted fits; exact +/-one-MCSE bar bounds; empty-accepted case,
+valid SVG XML and refusal of changed input hashes before creating figures.
+Use existing x64 tolerances. No public library API/dependency/spec/protected
+path/docs edits, and no change to the shared generator contract.
+Also close SIM.8c.2 N-1 trivially: the metadata check hashes the producer
+file at its recorded Git commit, so valid-but-wrong IDs or zero hashes fail.
+It uses local history only; add one sentence to results/README.md.
+Run optional focused checks and Ruff/mypy; render/inspect full PNG previews.
+Write REVIEW.md, commit, independent review. Artifact/entry-point integration
+is SIM.9b to keep this source/test diff at about 300 lines: run.py writes
+figures, smoke checks assert them, then commit the three compact SVGs.
+Docs to-do: live smoke and labelled committed full results/figures remain a
+separate executable-docs step. Do not merge/push/publish.
+
+---
+
 # SIM.8c.2 — Commit compact full-run evidence and checks (2026-11-06)
 
 Previous final: c08a14281e4aa42a72e3882e6f19445ada0eb401 (SIM.8c.1 round 2,

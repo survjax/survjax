@@ -1,7 +1,9 @@
 """Optional checks: JAX_ENABLE_X64=1 uv run --locked --group examples pytest -q <this file>."""
 
+import json
 import sys
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 import jax
 import jax.numpy as jnp
@@ -14,6 +16,9 @@ sys.path[:0] = [str(ROOT), str(ROOT / "tests")]
 import impl_tolerances as tol  # noqa: E402
 
 import survjax  # noqa: E402
+from examples.weibull_simulation import _plots as plots  # noqa: E402
+from examples.weibull_simulation._evidence import _csv, write_evidence  # noqa: E402
+from examples.weibull_simulation.check_results import _compact_fixture  # noqa: E402
 from examples.weibull_simulation.study import (  # noqa: E402
     _assess_fit,
     calibrate_censoring,
@@ -198,3 +203,92 @@ def test_estimable_fit_acceptance_gates_and_rejected_inference(failure):
             )
         else:
             assert np.isnan(result.log_hr_se) and np.isnan(result.hr_interval).all()
+
+
+def _plot_fixture(path, empty=False):
+    raw, summaries = _compact_fixture(path)
+    # Hand laws: true Exp(1); fitted W(k=2,b=3), Exp(.25), both fitted HR=.5.
+    for r in raw:
+        r["theta_0"] = np.log(2) if r["model"] == "weibull" else -np.log(4)
+        if r["model"] == "weibull":
+            r["theta_1"] = np.log(3)
+    for r in summaries:
+        r.update(
+            coverage="nan" if empty else 0.5,
+            coverage_mcse="nan" if empty else np.sqrt(1 / 8),
+        )
+    if empty:
+        for r in raw:
+            r.update(accepted=0, failed=1, solver=1, gradient=1)
+        for r in summaries:
+            r.update(accepted=0, failed=3, solver=3, gradient=3)
+    for name, rows in (("replicates.csv", raw), ("performance.csv", summaries)):
+        (path / name).write_text(_csv(rows, list(rows[0])))
+    (path / "metadata.json").write_text(
+        json.dumps({"dgp": {"shape": 1.0, "baseline_scale": 1.0, "log_hr": 0.0}})
+    )
+    write_evidence(path, path)
+
+
+@pytest.mark.parametrize("empty", [False, True])
+def test_figures_show_analytical_curves_density_and_one_mcse(
+    tmp_path, monkeypatch, empty
+):
+    """01 outputs: public PH curves, accepted-only density and +/- one MCSE."""
+    _plot_fixture(tmp_path, empty)
+    saved, original = {}, plots._save_figure
+
+    def save(figure, target):
+        saved[target.name] = figure
+        original(figure, target)
+
+    monkeypatch.setattr(plots, "_save_figure", save)
+    plots.write_figures(tmp_path, tmp_path)
+    curves = saved["fig1_survival.svg"].axes[0]
+    expected = [lambda t: np.exp(-t), lambda t: np.exp(-t)]
+    if not empty:
+        expected += [
+            lambda t: np.exp(-((t / 3) ** 2)),
+            lambda t: np.exp(-0.5 * (t / 3) ** 2),
+            lambda t: np.exp(-t / 4),
+            lambda t: np.exp(-t / 8),
+        ]
+    assert len(curves.lines) == len(expected)
+    # Inspect rendered host artists/files only; never simulate or fit in this loop.
+    for line, law in zip(curves.lines, expected, strict=True):
+        np.testing.assert_allclose(
+            line.get_ydata(),
+            law(line.get_xdata()),
+            atol=tol.ATOL[True],
+            rtol=tol.RTOL[True],
+        )
+    if empty:
+        assert "unavailable" in curves.get_title()
+    for patch in saved["fig2_sampling.svg"].axes[0].patches:
+        data = patch.get_data()
+        np.testing.assert_allclose(
+            np.sum(data.values * np.diff(data.edges)),
+            0 if empty else 1,
+            atol=tol.ATOL[True],
+            rtol=tol.RTOL[True],
+        )
+    if not empty:
+        for container in saved["fig3_coverage.svg"].axes[0].containers:
+            bounds = container.lines[2][0].get_segments()[0][:, 1]
+            np.testing.assert_allclose(
+                bounds,
+                [0.5 - np.sqrt(1 / 8), 0.5 + np.sqrt(1 / 8)],
+                atol=tol.ATOL[True],
+                rtol=tol.RTOL[True],
+            )
+    for name in saved:
+        assert ET.parse(tmp_path / name).getroot().tag.endswith("svg")
+
+
+def test_tampered_evidence_is_refused_before_figure_output(tmp_path):
+    """D-035: never render stale/tampered inputs as the audited full study."""
+    _plot_fixture(tmp_path)
+    (tmp_path / "performance.csv").write_text("changed")
+    with pytest.raises(ValueError, match="evidence hash mismatch"):
+        plots.write_figures(tmp_path, tmp_path / "absent")
+    assert not (tmp_path / "absent").exists()

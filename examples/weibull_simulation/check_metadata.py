@@ -255,6 +255,11 @@ def test_committed_full_bundle_hashes_and_source_provenance():
         assert manifest["source_sha256"][name] == manifest["output_sha256"][name]
     assert len(manifest["source_sha256"]["replicates.csv"]) == 64
     assert manifest["reducer_dirty"] is False
+    source = subprocess.check_output(
+        ["git", "show", f"{manifest['reducer_commit']}:{manifest['reducer_path']}"],
+        cwd=ROOT,
+    )
+    assert hashlib.sha256(source).hexdigest() == manifest["reducer_sha256"]
     assert (
         len(manifest["reducer_commit"]) == 40 and len(manifest["reducer_sha256"]) == 64
     )

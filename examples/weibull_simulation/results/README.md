@@ -32,5 +32,6 @@ uv run --locked --group examples python examples/weibull_simulation/run.py --con
 uv run --locked --group examples python examples/weibull_simulation/_evidence.py --results /tmp/survjax-weibull-full --out examples/weibull_simulation/results
 ```
 
+The provenance check reads the reducer commit from local Git history.
 Timings change on reruns. Bitwise equality across machines is not promised.
 All data are synthetic.
