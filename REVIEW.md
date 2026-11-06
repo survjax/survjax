@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 1/3 requested; pending (no round written)
 
 # DOCS-WORKFLOW.1 — Local build provenance and inspection
 
@@ -65,3 +65,16 @@ changes after the recorded build; rendered docs and runner remain identical.
 Remaining candidates (not started): single-dtype authoring preview, offline
 MathJax, docs CI/artifacts, browser-host repair. No further required sub-step
 in this first workflow topic once independent review is accepted. Stop then.
+
+## Independent-review invocation outcome
+
+Implementation commit df167c62599b7beb9b6acab5cdafad6bfec96064 was clean before
+invocation. Ran the exact skill command in ../review/code-docs-workflow;
+exit 1: "You've hit your 5-hour limit · resets 3pm (Europe/Amsterdam)".
+The expected ../review/slices/DOCS-WORKFLOW.1.md does not exist. The skill's
+single permitted no-round retry returned the same exit/error; a second file
+read again reported no such file. No reviewer verdict or findings exist.
+Stop here under the skill; do not claim this step reviewed or accepted.
+No reviewer configuration or global permission/settings changes were made.
+The implementation is validated and committed; independent review remains
+required when the maintainer resumes it after reviewer capacity is available.

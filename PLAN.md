@@ -26,3 +26,9 @@ paths or spec changes. About 300 implementation/test/docs lines maximum.
 Remaining candidates, each needing its own decision/step: single-dtype authoring
 preview, offline MathJax, docs CI/artifacts, browser-host repair. No caching,
 global config/permissions or main-checkout changes are authorized here.
+
+Implementation committed as df167c6. Both docs builds and focused checks pass;
+REVIEW.md records exact evidence. Independent review invocation and its one
+permitted no-round retry both hit the reviewer five-hour limit; no round file
+or verdict exists. Stop with independent review pending; do not start another
+implementation step. Metadata-only handoff records this external limitation.
