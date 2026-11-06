@@ -1,6 +1,5 @@
 """Proportional-hazards composition."""
 
-from collections.abc import Callable
 from dataclasses import dataclass
 
 import jax
@@ -8,7 +7,6 @@ import jax.numpy as jnp
 from jax.typing import ArrayLike
 
 from survjax import constraints
-from survjax._dtypes import normalize_parameters
 from survjax._rmst import _rmst_cutoff
 from survjax.distributions.base import (
     SurvivalDistribution,
@@ -31,7 +29,7 @@ class ProportionalHazards(SurvivalDistribution):
     equivalent rate is r*exp(eta); eta=log(2) doubles the hazard.
 
     Args:
-        baseline: Registered distribution, positional or keyword; its batch shape
+        baseline: Registered distribution, keyword only; its batch shape
             broadcasts with eta, preserving nested parameter dtypes.
         log_hazard_ratio: Finite real predictor, keyword only, with any
             broadcast-compatible shape. Values are stored without checking.
@@ -207,23 +205,3 @@ class ProportionalHazards(SurvivalDistribution):
             +inf, NaN at NaN times, and the baseline-scaled limit at zero.
         """
         return self.log_hazard(t) + self.log_survival(t)
-
-
-_registered_ph_init: Callable[..., None] = ProportionalHazards.__init__
-
-
-def _initialize_ph(
-    self: ProportionalHazards,
-    baseline: SurvivalDistribution,
-    *,
-    log_hazard_ratio: ArrayLike,
-) -> None:
-    # D-028: the maintainer permits a positional baseline only for this wrapper.
-    # spec 3.3: normalize here so warnings point past the adapter to the user's line.
-    parameters = normalize_parameters(
-        {"log_hazard_ratio": log_hazard_ratio}, warning_stacklevel=3
-    )
-    _registered_ph_init(self, baseline=baseline, **parameters)
-
-
-ProportionalHazards.__init__ = _initialize_ph  # type: ignore[method-assign,assignment]

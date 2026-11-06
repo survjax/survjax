@@ -78,7 +78,7 @@ def test_traced_diagnostics_include_predictor_and_prefixed_baseline():
 
 
 def test_static_misuse_raises():
-    """Spec 4.1–4.2 / D-028 decision: eta stays keyword-only."""
+    """Spec 4.1–4.2/4.4: baseline and eta are keyword-only."""
     with pytest.raises(TypeError):
         ProportionalHazards(Exponential(rate=1), 0)
     with pytest.raises(TypeError):
@@ -188,22 +188,16 @@ def test_extreme_predictors_do_not_form_overflow_times_zero(x64_enabled):
         np.testing.assert_array_equal(jax.jit(jax.jacrev(fn))(predictor), [0, 0])
 
 
-def test_positional_baseline_matches_keyword_under_tracing():
-    """D-028 maintainer decision: both baseline forms retain registration behavior."""
+def test_positional_baseline_is_rejected_under_tracing():
+    """Spec 4.2/4.4: baseline is keyword-only in eager, jit and vmap calls."""
 
     def construct(rate, eta):
         baseline = Exponential(rate=rate)
-        return (
-            ProportionalHazards(baseline, log_hazard_ratio=eta),
-            ProportionalHazards(baseline=baseline, log_hazard_ratio=eta),
-        )
+        return ProportionalHazards(baseline, log_hazard_ratio=eta)
 
     for fn in (construct, jax.jit(construct), jax.vmap(construct)):
-        positional, keyword = fn(jnp.array([1.0, 2.0]), jnp.array([0.0, 1.0]))
-        for left, right in zip(
-            jax.tree.leaves(positional), jax.tree.leaves(keyword), strict=True
-        ):
-            np.testing.assert_array_equal(left, right)
+        with pytest.raises(TypeError):
+            fn(jnp.array([1.0, 2.0]), jnp.array([0.0, 1.0]))
 
 
 def test_lower_tail_recovers_value_and_first_derivatives(x64_enabled):
@@ -214,7 +208,7 @@ def test_lower_tail_recovers_value_and_first_derivatives(x64_enabled):
 
     def fn(r, e):
         return ProportionalHazards(
-            Exponential(rate=r), log_hazard_ratio=e
+            baseline=Exponential(rate=r), log_hazard_ratio=e
         ).log_survival(time)
 
     for evaluate in (fn, jax.jit(fn)):
@@ -253,9 +247,9 @@ def test_improper_infinity_value_and_derivatives(cure, x64_enabled):
     gradient = [expected * np.exp(eta) / cure, expected * np.exp(eta) * np.log(cure)]
 
     def fn(p, e):
-        return ProportionalHazards(CureBaseline(cure=p), log_hazard_ratio=e).survival(
-            jnp.inf
-        )
+        return ProportionalHazards(
+            baseline=CureBaseline(cure=p), log_hazard_ratio=e
+        ).survival(jnp.inf)
 
     np.testing.assert_allclose(
         jax.jit(fn)(cure, eta), expected, atol=ATOL[x64_enabled], rtol=RTOL[x64_enabled]
@@ -271,7 +265,7 @@ def test_improper_infinity_value_and_derivatives(cure, x64_enabled):
 
 def test_nan_predictor_propagates_to_infinity_hook_and_direct_values():
     """Spec 4.4–4.5: a NaN predictor cannot become the proper -inf hook default."""
-    dist = ProportionalHazards(Exponential(rate=1), log_hazard_ratio=jnp.nan)
+    dist = ProportionalHazards(baseline=Exponential(rate=1), log_hazard_ratio=jnp.nan)
     assert jnp.isnan(jax.jit(lambda d: d.log_survival_at_infinity())(dist))
     for name in METHODS:
         assert jnp.isnan(jax.jit(lambda d, name=name: getattr(d, name)(jnp.inf))(dist))
@@ -283,7 +277,7 @@ def test_reference_retains_wider_baseline_dtype(x64_enabled):
         pytest.skip("mixed float64/float32 parameters require x64 mode")
     baseline = Exponential(rate=jnp.array(1e-60, dtype=jnp.float64))
     dist = ProportionalHazards(
-        baseline, log_hazard_ratio=jnp.array(0.0, dtype=jnp.float32)
+        baseline=baseline, log_hazard_ratio=jnp.array(0.0, dtype=jnp.float32)
     )
     reference = jax.jit(lambda d: d.reference_time())(dist)
     assert reference.dtype == jnp.float64
@@ -294,7 +288,7 @@ def test_zero_log_limit_avoids_overflowing_linear_factor():
     """Spec 4.4/7.2: with cure=1, S(inf)=1 is constant in every finite eta."""
 
     def fn(eta):
-        dist = ProportionalHazards(CureBaseline(cure=1), log_hazard_ratio=eta)
+        dist = ProportionalHazards(baseline=CureBaseline(cure=1), log_hazard_ratio=eta)
         return dist.survival(jnp.inf)
 
     value, derivative = jax.jit(jax.value_and_grad(fn))(1000.0)

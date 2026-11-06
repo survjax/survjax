@@ -74,7 +74,7 @@ def model(
     gamma = numpyro.sample("gamma", distributions.Normal(0, 5))
 
     base = survjax.Weibull.from_log(log_shape=log_k, log_scale=log_b0)
-    survival = survjax.ProportionalHazards(base, log_hazard_ratio=gamma * arm)
+    survival = survjax.ProportionalHazards(baseline=base, log_hazard_ratio=gamma * arm)
     with numpyro.plate("observations", len(data)):
         # spec 11.3: the (N,) vector, not its sum, or the likelihood counts N times
         numpyro.factor("survival", survival.log_likelihood(data))
@@ -83,7 +83,7 @@ def model(
         if tau_grid is None:
             raise ValueError("tau_grid is required when compute_rmst=True")
         per_arm = survjax.ProportionalHazards(
-            base, log_hazard_ratio=gamma * jnp.array([0.0, 1.0])
+            baseline=base, log_hazard_ratio=gamma * jnp.array([0.0, 1.0])
         )
         numpyro.deterministic("rmst_tau", per_arm.rmst(tau))  # (2,)
         numpyro.deterministic("rmst_curve", per_arm.rmst(tau_grid[:, None]))  # (m, 2)

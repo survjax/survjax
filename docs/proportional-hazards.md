@@ -30,7 +30,7 @@ See the [API reference](api.md#proportional-hazards) for signatures.
 
 The baseline below has constant hazard 0.5 per month. With `eta=log(2)`, the
 PH model has hazard 1 per month and survival $e^{-t}$.
-The baseline may be positional or keyword; `log_hazard_ratio` is keyword only.
+Pass both `baseline` and `log_hazard_ratio` by keyword.
 
 ```{code-cell} ipython3
 import jax
@@ -40,7 +40,7 @@ import matplotlib.pyplot as plt
 import survjax
 
 baseline = survjax.Exponential(rate=0.5)
-ph = survjax.ProportionalHazards(baseline, log_hazard_ratio=jnp.log(2.0))
+ph = survjax.ProportionalHazards(baseline=baseline, log_hazard_ratio=jnp.log(2.0))
 months = jnp.array([0.0, 1.0, 2.0])
 assert ph.survival(0.0) == 1.0
 print("dtype:", ph.log_hazard_ratio.dtype)
@@ -107,7 +107,7 @@ Use the same built-in wrapper as in the exponential example:
 
 ```{code-cell} ipython3
 patients = survjax.ProportionalHazards(
-    relapse, log_hazard_ratio=jnp.log(jnp.array([1.0, 0.7, 1.5]))
+    baseline=relapse, log_hazard_ratio=jnp.log(jnp.array([1.0, 0.7, 1.5]))
 )
 # At month 12, baseline cumulative hazard is 6*0.08 + 6*0.05 = 0.78.
 assert jnp.allclose(patients.survival(12.0), jnp.exp(-0.78 * jnp.array([1.0, 0.7, 1.5])))
@@ -139,7 +139,7 @@ ratios 2, 1.5 and 3 across the draws. These are supplied values, not fitted draw
 scales = jnp.array([2.0, 3.0, 4.0])[:, None]
 eta = jnp.log(jnp.array([[1.0, 2.0], [1.0, 1.5], [1.0, 3.0]]))
 draws = survjax.ProportionalHazards(
-    survjax.Weibull(shape=2.0, scale=scales), log_hazard_ratio=eta
+    baseline=survjax.Weibull(shape=2.0, scale=scales), log_hazard_ratio=eta
 )
 assert draws.batch_shape == (3, 2)
 assert draws[0].batch_shape == (2,)

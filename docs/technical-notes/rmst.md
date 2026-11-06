@@ -22,7 +22,7 @@ model = survjax.Exponential(rate=0.2)
 weibull = survjax.Weibull(shape=1.0, scale=5.0)
 eta = jnp.log(2.0)
 ph_weibull = survjax.ProportionalHazards(
-    survjax.Weibull(shape=2.0, scale=10.0), log_hazard_ratio=eta,
+    baseline=survjax.Weibull(shape=2.0, scale=10.0), log_hazard_ratio=eta,
 )
 ```
 
@@ -62,14 +62,14 @@ its derivatives equal to those of the model evaluated alone.
 ```{code-cell} ipython3
 def beside_invalid(k, b, e):
     batch = survjax.ProportionalHazards(
-        survjax.Weibull(shape=k, scale=b), log_hazard_ratio=jnp.array([e, jnp.nan]),
+        baseline=survjax.Weibull(shape=k, scale=b), log_hazard_ratio=jnp.array([e, jnp.nan]),
     )
     return batch.rmst(6.0)
 
 
 def ph_restricted(k, b, e, t):
     return survjax.ProportionalHazards(
-        survjax.Weibull(shape=k, scale=b), log_hazard_ratio=e,
+        baseline=survjax.Weibull(shape=k, scale=b), log_hazard_ratio=e,
     ).rmst(t)
 
 
@@ -106,7 +106,7 @@ or valid-entry isolation requirements.
 
 ```{code-cell} ipython3
 extreme = survjax.ProportionalHazards(
-    survjax.Weibull(shape=0.2, scale=1.0), log_hazard_ratio=-200.0,
+    baseline=survjax.Weibull(shape=0.2, scale=1.0), log_hazard_ratio=-200.0,
 )
 assert extreme.parameter_issues().ok
 assert jnp.isnan(extreme.rmst(1.0))
@@ -171,7 +171,7 @@ Chain-rule factors are $e^\eta$ for the baseline rate and $r_{\mathrm{PH}}$ for 
 ```{code-cell} ipython3
 def ph_constant(r, e, t):
     return survjax.ProportionalHazards(
-        survjax.Exponential(rate=r), log_hazard_ratio=e,
+        baseline=survjax.Exponential(rate=r), log_hazard_ratio=e,
     ).rmst(t)
 
 
@@ -280,7 +280,7 @@ class ConstantHazard(survjax.SurvivalDistribution):
 
 
 custom = ConstantHazard(rate=0.2)
-for candidate in (custom, survjax.ProportionalHazards(custom, log_hazard_ratio=eta)):
+for candidate in (custom, survjax.ProportionalHazards(baseline=custom, log_hazard_ratio=eta)):
     try:
         jax.jit(candidate.rmst)(6.0)
     except NotImplementedError:

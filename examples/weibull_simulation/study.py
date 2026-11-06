@@ -232,7 +232,7 @@ def negative_log_likelihood(
     else:
         raise ValueError("model must be 'weibull' or 'exponential'")
     lp = theta[-1] * arm
-    dist = survjax.ProportionalHazards(base, log_hazard_ratio=lp)
+    dist = survjax.ProportionalHazards(baseline=base, log_hazard_ratio=lp)
     return -dist.log_likelihood(data).sum()
 
 

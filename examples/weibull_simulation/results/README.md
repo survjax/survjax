@@ -6,7 +6,7 @@ run used clean source `ac0fa01337ff37c05505292b3c7584e3f2f11cb1`; original
 commands, versions, prespecified limits, realized censoring and shared batch timings
 are preserved in `metadata.json`. Its original output path is historical.
 
-Under maintainer-approved D-044, Git stores compact evidence:
+Under maintainer-approved D-047, Git stores compact evidence:
 
 - `performance.csv`: all 12 scenario/model summaries and failure counts.
 - `failures.csv`: every rejected ID, separate reason flags, overall `failed`,

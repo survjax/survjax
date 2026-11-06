@@ -60,7 +60,7 @@ def write_figures(results: Path, out: Path) -> None:
             curves.append((label, base, theta[-1], style))
         for name, base, gamma, style in curves:
             lp = gamma * arm
-            dist = survjax.ProportionalHazards(base, log_hazard_ratio=lp)
+            dist = survjax.ProportionalHazards(baseline=base, log_hazard_ratio=lp)
             prediction = np.asarray(dist.survival_grid(time))
             for a, color in enumerate(("#666666", "#009E73")):
                 ax.plot(

@@ -1,3 +1,24 @@
+# SIM.merge-alignment — Complete the maintainer-started merge
+
+Start/previous step: ac15812. Incoming main: d1825f0. Original worktree base:
+8757c0f. Resolve the three record conflicts, preserving both histories and
+all deviation decisions. Incoming D-042/D-043/D-044 remain; simulation entries
+move to D-045/D-046/D-047 with a mapping. Update only simulation calls to the
+incoming keyword-only PH constructor, including docs/notebook source. Preserve
+local notebook execution outputs outside the commit. No spec or acceptance
+test edits; inherited changes remain as merged. No new API/dependencies.
+Validate with the two demo checks, notebook smoke execution and both docs
+builds. No full suites or new independent review under the current waiver.
+Complete only this already-started merge, then stop.
+
+Completed: conflicts resolved; keyword-only demo calls migrated. Both docs
+builds, fresh notebook smoke, two focused checks, repository Ruff and staged
+whitespace checks pass. No unresolved paths; no remaining merge substeps.
+
+---
+
+# Preserved simulation plan (ac15812)
+
 # SIM.notebook-cleanup — Interactive tutorial and lean demo
 
 Start/previous final: 8349e7f; original worktree base: 8757c0f.
@@ -8992,3 +9013,307 @@ harness corrections and limits are in REVIEW.md. Final whitespace/scope
 checks, commit and independent review follow. No library,
 docs, dependency, fixture or protected-path change. Remaining A9 steps above
 are still pending; this evidence does not close Slice A.
+
+---
+
+# Preserved incoming alignment plan (d1825f0)
+
+# ALIGN.REVIEW — Independent Codex Astra review (complete)
+
+Starting/previous step: 91a4503; worktree starting point: 3cb4cd7.
+Maintainer explicitly requests a fresh Codex Astra session, low reasoning,
+replacing the earlier reviewer waiver for this review. Spawned gpt-6-astra
+with reasoning low and no inherited conversation history. Round 1/3 reviewed
+23e8c3e..91a4503, including design cleanup and merged author corrections.
+Reviewer wrote ASTRA-REVIEW.md; author did not alter that report. Verdict:
+merge, no actionable findings. Reviewer independently passed the fast gate
+through A12 in both modes and audited 46 docs/example Python blocks across
+7 files. Full Tier 2/builds/release certification remain outside that review.
+No code changes or fix-ups. Record report and status only, then stop.
+
+---
+
+# ALIGN.3 — Final alignment verification (complete)
+
+Starting commit: 3b00d10 (maintainer's correction merge); previous completed
+substep: 97d473f (ALIGN.2c); worktree starting point: 3cb4cd7.
+D-043/D-044 acceptance corrections are now integrated. .spec-seen equals main
+and design HEAD 213cfb0 (revision 47, fixed simulation censoring limits),
+which includes the approved D-042 example cleanup. No implementation change
+is proposed. Run scripts/check.sh --fast --through A12 in both modes through
+the normal runner, inspect any failure, record exact evidence in REVIEW.md
+and update handoff status notes. Prior touched-file and docs-build evidence
+remains valid; no redundant rebuilds. No new API, dependency, code, test,
+spec or protected-path changes. Independent review remains waived by the
+maintainer while reviewer tokens are unavailable. Tier 2 remains the
+maintainer/CI merge gate. Stop after this verification-only step.
+
+Completed: scripts/check.sh --fast --through A12 exits 0 and reports all
+gates passed. Implementation tests: x64 1059 passed/8 skipped; x32 1064
+passed/3 skipped. Source doctests: 4 passed per mode. Acceptance: x64 3397
+passed/32 skipped; x32 3391 passed/38 skipped, with two existing NumPy
+reference warnings per mode. Static checks pass. D-043/D-044 integration
+evidence recorded without changing formal deviation statuses. REVIEW.md holds
+commands/timings and limits. All alignment substeps complete; no further
+implementation/docs corrections identified. Full Tier 2 and broader release
+obligations remain separate; independent review remains waived as requested.
+
+---
+
+# ALIGN.2c — Approved D-044 author handoff (complete)
+
+Starting/previous step: 3a6d013; worktree starting point: 3cb4cd7.
+Maintainer approves restricting upper-tail relative comparisons to the spec's
+normal-survival range while preserving shape/full-grid agreement and existing
+tolerances. Saved SPEC-TEST-D044.txt; refreshed the D-043 note's cross-reference.
+Checked the instruction against spec 4.1/4.2 and the affected A11 grid test.
+No spec, implementation, acceptance-test or dependency change; no tests rerun
+for this handoff-only step. Approval recorded without changing deviation
+statuses. All three decisions now have maintainer confirmation; acceptance
+corrections still belong to the independent author. ALIGN.3 final verification
+awaits their normal synchronization. No additional decision pending here.
+
+---
+
+# ALIGN.2b — Approved D-043 author handoff (complete)
+
+Starting/previous step: 3580ff2; worktree starting point: 3cb4cd7.
+Maintainer confirms the expected condition mask is [False,True,True] and asks
+for a short instruction note. Saved SPEC-TEST-D043.txt for the independent
+author; no acceptance tests, spec or implementation changed. Checked note
+against the failing test, custom predicate and spec 4.7. No tests rerun for
+this planning/handoff-only step. D-043 approval recorded; formal status stays
+with the maintainer. D-044 is the next decision; final gate remains pending.
+
+---
+
+# ALIGN.2a — Approved D-042 spec example cleanup (complete)
+
+Starting/previous step: a4c8b42; worktree starting point: 3cb4cd7.
+Maintainer explicitly approves example-only cleanup of positional PH snippets.
+Change spec/SPECIFICATION.md (4.4, 11.3) and use-cases/01-weibull-simulation,
+01-weibull-simulation-details, 02-bayesian-survival and
+02-bayesian-survival-details Markdown. Preserve requirements/revision 46;
+make constructor spelling consistent with revision 42. No public API, code,
+acceptance-test or dependency changes. Inspect exact diff, scan all PH snippets
+and AST-check the Python model/route sketches. Commit spec separately in the
+design repo with the prescribed spec(...) subject. Then update this worktree's
+.spec-seen and progress/review records in a separate implementation-repo commit.
+The spec-since helper accepts a repo-directory argument: use rmsttest rather
+than dev so it marks this worktree, not the unrelated dev checkout.
+Independent review remains waived. No executable change warrants numerical
+or docs rebuilds. Stop after cleanup and present D-043 as decision 2/3.
+
+Completed: design commit 54bbc62 corrects examples in five spec files;
+revision 46 and requirements unchanged. Exact diff/whitespace and PH snippet
+scan pass; both Bayesian Python sketches retain identical ASTs after keyword
+normalization. Ran ../scripts/spec-since.sh rmsttest --mark and commit the
+updated marker here. D-042 approval recorded without changing its status.
+No numerical or docs rebuild; no executable change. D-043 is next for decision.
+
+---
+
+# ALIGN.d1 — Keyword-only PH examples in executable docs (complete)
+
+Starting/previous step commit: e8e9a51 (ALIGN.1); worktree starting point:
+3cb4cd7. ALIGN.2's owner decisions are pending; this independent docs work
+can proceed. One topic across four pages: correct PH constructor argument
+spelling in docs/proportional-hazards.md, docs/rmst.md,
+docs/technical-notes/rmst.md and docs/use-cases/bayesian-rmst.md. Replace the
+obsolete positional-baseline promise. No public API, formulas, dependencies,
+parameters, posterior data or docstring changes. Spec 4.4, 8.7, 10.5, 11.3.
+No new tests for these source edits. Validate code-cell AST equivalence after
+normalizing argument spelling; scripts/build_docs.sh directly for both dtype
+modes; rendered-page checks; Ruff/whitespace. Under 300 changed lines.
+Independent review remains waived by the maintainer while reviewer tokens
+are unavailable. Stop after this documentation step and report.
+
+Completed: 15 constructor calls across four pages and one obsolete prose
+promise corrected (32 changed docs lines). All 33 Python/code-cell blocks
+retain identical ASTs after keyword normalization. scripts/build_docs.sh
+succeeded directly in both dtype modes; each rendered site has 23 HTML pages,
+1844 valid local links/assets and all 15 calls/prose verified. Ruff and
+whitespace checks pass. No implementation/test/spec/dependency changes.
+Independent review waived as above. Stop here; only ALIGN.2 owner decisions
+and ALIGN.3 verification after those decisions remain. There are no remaining
+constructor/doc migrations found by the source audit.
+
+---
+
+# ALIGN.1 — Keyword-only PH construction (complete)
+
+Starting commit: fc484d3; previous completed substep: fc484d3 (ALIGN.0).
+Previous docs step/worktree starting point: 3cb4cd7. Implement the ALIGN.1
+scope below, under 300 changed implementation/test lines. The maintainer
+waives independent review while the reviewer is out of tokens (2026-11-06).
+Stop after this step and report the remaining work. Protected files stay
+read-only; D-043/D-044 remain owner questions. Docs to-do: ALIGN.d1 below.
+
+Completed: removed the positional-baseline adapter; ordinary family registration
+owns initialization. Migrated eight unit files, both Bayesian Python modules
+and three notebook cells; retained explicit rejection tests. Implementation,
+test and example changes total 137 lines. Touched suites pass x64 210 / x32
+209 tests; Bayesian factor/trial/4000-draw RMST-route checks pass. Fast-gate
+implementation suites and doctests pass both modes. Acceptance remains red
+only for D-043 (both modes) and D-044 (x32); standalone x32 wheel setup errors
+were corrected by supplying SURVJAX_WHEEL, then all 5 wheel tests passed.
+REVIEW.md records exact commands/counts and the review waiver. No docs/spec
+or acceptance-test edits. Stop here: ALIGN.2, ALIGN.d1 and ALIGN.3 remain.
+
+---
+
+# Revision-46 alignment — inspection and proposed repair steps
+
+ALIGN.0 complete, 2026-11-06, authorized by the maintainer's "on to next
+part". Starting commit: 94a4474; previous docs step: 3cb4cd7; worktree starting
+point: 3cb4cd7. Scope: move the stale .venv to a reversible temporary backup,
+recreate from uv.lock, verify launcher paths, versions and static checks.
+Repository files touched: PLAN.md and REVIEW.md (progress/evidence only).
+No public API, dependency, code, test or protected-path changes. No new tests
+for this environment-only repair. Spec 10.1/10.3. Stop after ALIGN.0;
+ALIGN.1 and later steps remain prospective.
+
+Completed evidence: rebuilt with `uv sync --locked --group test`; all 34
+package versions match the retained environment exactly. pytest, mypy and
+pre-commit shebangs now name this worktree's .venv/bin/python. Backup retained
+at /var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/survjax-align0-u4rcxltr/.venv.
+Normal `uv run pytest --version`, `uv run mypy src`, Ruff format/check pass;
+tests/unit/test_import.py passes all 3 tests in each dtype mode through the
+normal pytest launcher. pyproject.toml and uv.lock have no diff. REVIEW.md
+records exact commands and limits; full numerical gate was not repeated for
+this environment-only repair. ALIGN.1 is next, not started.
+
+## Starting points and inspected changes
+
+- Inspection base: 23e8c3e (`merge spectests until a12`), branch spectests-rmst.
+- Previous implementation/docs step: 3cb4cd7 (DOCS.6); intervening spec-seen
+  update: 807edaf. Worktree's earliest reflog entry is also 3cb4cd7.
+- Archive-only commit: 5b6f798. The completed DOCS plan was moved verbatim to
+  plans/docs-through-docs6.md, with its index updated.
+- .spec-seen already equals design HEAD c27ca14b89d50f72743c026bd1b5e238ca71fa07.
+  Compared prior recorded design 00e7225 to this revision 46: revisions 42–46
+  clarify wrapper construction/hazard, RMST derivative tolerances, shape
+  Hessians, absent summary APIs and cutoff conversion/broadcast errors.
+- Acceptance source: tests/spec/SOURCE_COMMIT records
+  663d53df41f76e12985a816659ca52f60facb96c. Read the new A11/A12 tests, their
+  TESTMAP/API_ASSUMPTIONS and affected implementation. Spec/tests unchanged.
+- Section 12.2's first-release milestone explicitly brings PH and staged
+  RMST forward; keep AFT, generic summaries and sampling deferred.
+
+## Evidence and classification
+
+Ran the new tests in full, with no slow-test filter, in separate processes:
+
+```sh
+JAX_ENABLE_X64=1 SPEC_THROUGH=A12 uv run --group test python -m pytest -n 6 tests/spec/test_a11* tests/spec/test_a12* -q --tb=short
+JAX_ENABLE_X64=0 SPEC_THROUGH=A12 uv run --group test python -m pytest -n 6 tests/spec/test_a11* tests/spec/test_a12* -q --tb=short
+```
+
+Outputs: x64 **2 failed, 1246 passed, 5 skipped, 2 warnings** (116.37s);
+x32 **3 failed, 1232 passed, 18 skipped, 2 warnings** (113.95s).
+Warnings originate in the spec test's NumPy hazard reference at zero.
+Logs: /tmp/rmsttest-a11-a12-x64.log and /tmp/rmsttest-a11-a12-x32.log.
+
+1. Confirmed implementation gap, both modes: PH accepts a positional baseline;
+   test_positional_baseline_is_rejected fails. Remove the adapter implementing
+   the older D-028 decision and migrate callers to the current explicit rule.
+2. Suspected acceptance-test discrepancy, both modes: nested rate_above_cap
+   expects False for 1 > -1, despite the declared predicate returning True.
+   D-043 contains the evidence; maintainer/spec-test author must resolve it.
+3. Suspected acceptance-test discrepancy, x32 only: log_cdf_grid is compared
+   to nonzero float64 references below float32's normal range, one below its
+   representable range. Grid/direct agreement passes. D-044 records it.
+4. No A12 failure. New value, derivative, Hessian, tail, invalid-entry isolation,
+   broadcasting and summary-surface tests passed where not explicitly skipped.
+   No numerical RMST rewrite is justified by this inspection.
+5. Existing PH log_hazard override carries baseline limits and passes the new
+   boundary checks. Cutoff dtype/shape checks and absent summary APIs pass.
+6. D-042: spec prose/Bayesian snippet retain positional construction despite
+   the explicit keyword-only rule. Request maintainer cleanup; no spec edits.
+
+Environment: Python 3.12.9, JAX 0.11.2, NumPy 2.5.3, pytest 9.1.1.
+The moved .venv contains launchers pointing at dev-spectests-rmst, its old
+location. `uv sync --group test` succeeds but does not rewrite them. The first
+`uv run ... pytest` attempts failed to spawn pytest; Python module invocation
+works. An extra x32 construction-only run confirmed 1 failed, 25 passed,
+1 skipped (the positional rejection).
+
+Static checks: `uv run python -m ruff format --check .` reports 172 files
+already formatted; Ruff check reports All checks passed; mypy src reports
+Success: no issues found in 22 source files. `scripts/check.sh --fast --through
+A12` passes its guard and Ruff checks, then exits 2 because its mypy launcher
+cannot start. It never reaches tests. Full old-suite regression, wheel checks,
+docs builds and Tier 2 were not run; this is not a passing release gate.
+
+## Proposed sequence (each implementation/docs step ends with review and stop)
+
+### ALIGN.0 — Restore the worktree environment
+
+Recreate the local .venv at its current path from the unchanged uv.lock,
+retaining a reversible backup until module and launcher checks pass. No
+dependency/version changes, repository scripts or public API changes. Confirm
+pytest/mypy launchers resolve here. This is an environment repair, not a
+library step. Use normal runner commands for subsequent verification.
+
+### ALIGN.1 — Enforce keyword-only PH construction and migrate executable users
+
+Spec 3.3, 4.2, 4.4 (revision 42), 11.3; public API touched:
+ProportionalHazards.__init__ rejects positional baseline, retains named fields.
+
+Files: src/survjax/distributions/wrappers.py; eight unit-test files containing
+27 positional calls (including intentional error cases);
+examples/bayesian_rmst/{model.py,run.py,bayesian-rmst.ipynb}. Five positional
+calls occur in the example Python files. Use AST/cell-aware inspection to
+identify notebook callers. Retain intentional invalid-call tests where useful.
+Remove the adapter/imports, correct the constructor docstring, migrate valid
+calls, replace the obsolete test requiring positional/keyword equivalence with
+explicit rejection coverage. Preserve keyword caller-site warning attribution,
+jit/vmap construction, nesting, dtype promotion and broadcasting regressions.
+
+Read the Bayesian use-case main/details docs before editing its example;
+changes are constructor spelling only, with no regeneration of posterior data.
+Run all touched unit files fully in both modes; the A11 construction suite;
+Bayesian factor/route checks appropriate to the existing runner. Then the fast
+gate through A12, recording D-043/D-044 failures if still unresolved. If these
+block the review's passing-gate requirement, stop for resolution, not a waiver
+invented by the implementer. Write REVIEW.md, commit and run independent-review
+as required by its skill. Target under 300 changed implementation/test lines;
+propose a split before exceeding that. Do not edit docs/ in this code step.
+
+### ALIGN.2 — Resolve acceptance discrepancies with their owners
+
+Maintainer/spec-test-author action: D-043/D-044; spec snippet cleanup D-042.
+No protected test changes, skips, xfails, tolerance relaxation or diagnostic
+suppression by the implementer. Rerun the precise failures after independently
+supplied corrections. If a maintainer decision changes the actual contract,
+re-plan the corresponding implementation before coding; keep it separate from
+constructor migration. No numerical patch is proposed on current evidence.
+
+### ALIGN.d1 — Update executable PH documentation
+
+Spec 4.4, 8.7, 10.5, 11.3. Docs to-do from ALIGN.1: migrate PH examples and
+remove the promise of positional baselines. Pages found:
+docs/proportional-hazards.md, docs/rmst.md, docs/technical-notes/rmst.md and
+docs/use-cases/bayesian-rmst.md; scan remaining executable sources too.
+No public API changes. Keep correct shape-derivative limitations and the
+deferred API surface. Current interior shape-Hessian demonstrations raise;
+do not claim every supported differentiation order must raise.
+
+Use one page/topic per docs step, at most 300 changed lines; split this into
+d1a–d1d as needed. Run scripts/build_docs.sh directly, both dtype builds, with
+rendered output inspection. Separate commits, REVIEW.md and independent review
+for each step; no review waiver carries over from historical DOCS work.
+
+### ALIGN.3 — Close verification evidence
+
+After owner resolutions and repairs, run scripts/check.sh --fast --through A12
+with working launchers. Repeat the full new A11/A12 suites in both modes when
+changes justify it. Record exact outputs, unresolved deviations and links to
+the relevant acceptance tests. No redundant RMST tests or formula changes
+merely to manufacture a code step. Tier 2 remains the maintainer's merge gate;
+demos/simulation retain their separate end-to-end gates and existing deviations.
+Passing A11/A12 alone does not close those release obligations.
+
+ALIGN.1 and later steps remain unimplemented. ALIGN.0 is a local environment
+repair with planning/evidence records only, not a code or docs implementation
+step requiring independent review.

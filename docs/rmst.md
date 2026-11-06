@@ -85,11 +85,11 @@ for constructing predictors and interpreting hazard ratios.
 
 ```{code-cell} ipython3
 eta = jnp.log(2.0)
-ph_exp = survjax.ProportionalHazards(model, log_hazard_ratio=eta)
+ph_exp = survjax.ProportionalHazards(baseline=model, log_hazard_ratio=eta)
 equivalent_exp = survjax.Exponential(rate=0.2 * jnp.exp(eta))
 assert jnp.allclose(ph_exp.rmst(tau), equivalent_exp.rmst(tau))
 ph_weibull = survjax.ProportionalHazards(
-    survjax.Weibull(shape=2.0, scale=10.0), log_hazard_ratio=eta,
+    baseline=survjax.Weibull(shape=2.0, scale=10.0), log_hazard_ratio=eta,
 )
 equivalent_weibull = survjax.Weibull(shape=2.0, scale=10.0 * jnp.exp(-eta / 2.0))
 assert jnp.allclose(ph_weibull.rmst(tau), equivalent_weibull.rmst(tau))

@@ -37,7 +37,7 @@ def check_factor(trial) -> None:
         log_shape=params["log_k"], log_scale=params["log_b0"]
     )
     survival = survjax.ProportionalHazards(
-        base, log_hazard_ratio=params["gamma"] * trial.arm
+        baseline=base, log_hazard_ratio=params["gamma"] * trial.arm
     )
     prior = sum(distributions.Normal(0.0, 5.0).log_prob(v) for v in params.values())
     expected = prior + survival.log_likelihood(trial.data).sum()
@@ -78,7 +78,8 @@ def run(output: Path, num_draws: int) -> dict:
         log_shape=samples["log_k"][:, None], log_scale=samples["log_b0"][:, None]
     )
     posterior = survjax.ProportionalHazards(
-        base, log_hazard_ratio=samples["gamma"][:, None] * jnp.array([0.0, 1.0])
+        baseline=base,
+        log_hazard_ratio=samples["gamma"][:, None] * jnp.array([0.0, 1.0]),
     )
     rmst5 = posterior.rmst(5.0)
     # Horizons up to the 90th percentile of observed times, rounded down to half a year.
@@ -109,7 +110,7 @@ def run(output: Path, num_draws: int) -> dict:
         for name, s in stats.items()
     }
     truth_model = survjax.ProportionalHazards(
-        survjax.Weibull(shape=TRUE_SHAPE, scale=TRUE_SCALE),
+        baseline=survjax.Weibull(shape=TRUE_SHAPE, scale=TRUE_SCALE),
         log_hazard_ratio=jnp.log(TRUE_HAZARD_RATIO) * jnp.array([0.0, 1.0]),
     )
     true_rmst5 = truth_model.rmst(5.0)

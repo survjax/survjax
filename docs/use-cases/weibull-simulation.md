@@ -115,7 +115,7 @@ def negative_log_likelihood(theta, data, arm):
     baseline = survjax.Weibull.from_log(log_shape=log_k, log_scale=log_b0)
     linear_predictor = gamma * arm
     distribution = survjax.ProportionalHazards(
-        baseline, log_hazard_ratio=linear_predictor
+        baseline=baseline, log_hazard_ratio=linear_predictor
     )
     return -distribution.log_likelihood(data).sum()
 ```

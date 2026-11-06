@@ -1,0 +1,20 @@
+D-043: Correct the nested custom-condition expectation
+
+Maintainer approved this correction on 2026-11-06.
+
+In tests/spec/test_a11_ph_parameter_issues.py, update
+  test_custom_baseline_condition_appears_with_the_prefix
+so baseline.rate_above_cap expects [False, True, True], rather than
+[False, True, False].
+
+The custom CappedRate family returns rate > cap. For rate=[1,3,1] and
+cap=[2,2,-1], the last comparison is 1 > -1, hence True. Spec 4.7 requires
+preserving that condition mask, independently of the invalid-cap field mask.
+Keep baseline.cap=[False,False,True] and invalid_entries=[False,True,True].
+
+No spec, implementation, custom-family predicate or tolerance change is needed.
+Rerun the affected test in separate processes with JAX_ENABLE_X64=1 and 0.
+Commit the correction in the independent spec-test repo and hand it back
+through the normal spec-test synchronization workflow.
+
+This instruction covers D-043 only; see SPEC-TEST-D044.txt for D-044.
