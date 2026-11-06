@@ -14,7 +14,6 @@ dependencies = ["jax>=0.11.2", "numpy>=2.5.3"]
 
 [dependency-groups]
 examples = [
-    "arviz==0.23.0",
     "optimistix==0.1.0",
     "matplotlib==3.11.2",
     "equinox==0.13.8",
@@ -49,6 +48,15 @@ extend-exclude = ["spec"]
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "C4", "UP"]
 ignore = ["E501"]
+
+# The tutorial notebook keeps its reader-facing layout: its setup cell configures
+# NumPyro and JAX and makes the example package importable before importing it,
+# and its lines are not rewrapped.
+[tool.ruff.lint.per-file-ignores]
+"examples/bayesian_rmst/bayesian-rmst.ipynb" = ["E402"]
+
+[tool.ruff.format]
+exclude = ["examples/bayesian_rmst/bayesian-rmst.ipynb"]
 
 [tool.mypy]
 files = ["src"]

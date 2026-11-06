@@ -23,8 +23,8 @@ boundary gradients and checking that a fitting loss is finite.
 censoring, including tied observations, score draws and cohort diagnostics.
 [Restricted mean survival time](rmst.md) summarizes expected time before a
 finite cutoff, with explicit cutoff axes and staged derivative limits.
-[Bayesian survival and posterior RMST](use-cases/bayesian-rmst.md) fits a
-synthetic trial with NumPyro and checks posterior treatment effects and predictions.
+[Bayesian survival analysis of a randomized trial](use-cases/bayesian-rmst.md)
+fits a synthetic trial with NumPyro and reports the posterior RMST difference.
 The [SurvivalData guide](survival-data.md) walks a synthetic cohort through
 both constructors, diagnostics and R input conventions.
 [Exponential and Weibull](builtin-families.md) introduces the built-in

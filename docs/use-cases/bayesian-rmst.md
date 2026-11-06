@@ -7,266 +7,360 @@ kernelspec:
   name: python3
 ---
 
-# Bayesian survival and posterior RMST
+# Bayesian survival analysis of a randomized trial
 
-A survival likelihood can be a NumPyro factor without a distribution adapter.
-Here we fit a synthetic two-arm trial, then treat the posterior as a batch of
-survival distributions. The treatment effect is the difference in restricted
-mean survival time (RMST): expected event-free time accumulated before a
-specified horizon. All times on this page are **years**.
+How much longer does a treatment keep patients event-free? In this tutorial we
+fit a Bayesian Weibull proportional hazards model to a simulated two-arm trial
+and answer that question with the difference in *restricted mean survival
+time* (RMST), together with its full posterior uncertainty.
+The prior definition and sampling are done in NumPyro,
+survjax supplies the censored-data likelihood and turns the posterior
+draws into survival curves and RMST. Because we simulated the trial, we can
+compare the posterior with the truth.
 
-The page executes a short **smoke** run during every build. Tables and figures
-labelled **recorded full run** come from the committed four-chain run, not
-from those short chains. Everything is synthetic; no patient data are used.
-
-## Trial and reproducibility
-
-The trial has 300 subjects, 150 per arm. Its true Weibull shape is 1.38,
-control scale 11.42 years, and treatment hazard ratio 0.7. Independent
-Uniform(0, c) censoring is calibrated to an expected 55% censored fraction;
-the recorded trial has 164/300 censored observations and c ≈ 19.1725 years.
+The same tutorial is available as a
+{download}`runnable Jupyter notebook <../../examples/bayesian_rmst/bayesian-rmst.ipynb>`,
+which samples the posterior itself; see [Reproduce](#reproduce-bayes).
 
 ```{code-cell} ipython3
+:tags: [remove-input]
 import json
-import os
 from pathlib import Path
-import subprocess
-import sys
-import tempfile
+
+import numpy as np
 from IPython.display import HTML, display
 
-repo = next(p for p in (Path.cwd(), *Path.cwd().parents)
-            if (p / "examples/bayesian_rmst/run.py").is_file())
-results = repo / "examples/bayesian_rmst/results"
-full = json.loads((results / "metadata.json").read_text())
-child_env = dict(os.environ, JAX_ENABLE_X64="1")
-print("Recorded root seed:", full["root_seed"])
-print("Recorded censoring limit:", full["censor_limit_years"], "years")
+ROOT = next(p for p in (Path.cwd(), *Path.cwd().parents) if (p / "pyproject.toml").is_file())
+FULL = ROOT / "examples/bayesian_rmst/results"
+full_meta = json.loads((FULL / "metadata.json").read_text())
+
+
+def kaplan_meier(time, event):
+    """Product-limit step coordinates; censorings tied with an event stay at risk."""
+    time, event = np.asarray(time), np.asarray(event)
+    event_times = np.unique(time[event])
+    deaths = np.array([np.sum((time == t) & event) for t in event_times])
+    at_risk = np.array([np.sum(time >= t) for t in event_times])
+    survival = np.cumprod(1 - deaths / at_risk)
+    return np.r_[0.0, event_times, time.max()], np.r_[1.0, survival, survival[-1]]
+
+
+def posterior_table(draws):
+    """Summarize per-draw values in an HTML table, with the run's truth and diagnostics."""
+    header = ["", "Truth", "Mean", "SD", "95% credible interval", "R-hat", "ESS"]
+    rows = []
+    for key, (label, values) in draws.items():
+        values = np.asarray(values)
+        low, high = np.quantile(values, [0.025, 0.975])
+        diag = full_meta["diagnostics"][key]
+        cells = [label, f"{full_meta['truth'][key]:.3f}", f"{values.mean():.3f}",
+                 f"{values.std(ddof=1):.3f}", f"[{low:.3f}, {high:.3f}]",
+                 f"{diag['r_hat']:.3f}", f"{diag['ess']:.0f}"]
+        rows.append("".join(f"<td>{c}</td>" for c in cells))
+    head = "".join(f"<th>{h}</th>" for h in header)
+    body = "".join(f"<tr>{r}</tr>" for r in rows)
+    return HTML(f"<table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>")
 ```
 
-Root key 20261025 is folded with 2 for this use case. Separate streams 0, 1,
-2 and 3 generate the trial, NUTS, prior curves and predictive trials.
-Predictive replicate i folds i into stream 3. The shared generator splits each
-supplied key into event and censor keys. Changing the data or seed changes the
-experiment; do not reseed to obtain favourable coverage or diagnostics.
+## The model
 
-## Model and observation plate
+Each patient $i$ is randomized to control ($a_i=0$) or treatment ($a_i=1$).
+Event times follow a Weibull proportional hazards model,
 
-The model uses three log parameters. Its current priors are independent
-Normal(0, 5) distributions on log shape, log control scale and log hazard
-ratio. These are the maintainer's experimental priors, broader than those in
-the original use-case sketch. The prior plot below makes their consequences
-visible; they are not a recommended default for scientific applications.
+$$
+S(t\mid a)=\exp\!\Big[-(t/b_0)^k\,e^{\gamma a}\Big],
+$$
 
-The executable model is included directly from the example module:
+with shape $k$, control scale $b_0$ and log hazard ratio $\gamma$; the hazard
+ratio of treatment versus control is $e^\gamma$. As is typical in survival analysis,
+some patients are still event-free when follow-up ends. For patient $i$ we
+observe $t_i=\min(T_i, C_i)$ and the event indicator $\delta_i$. An observed
+event contributes the density $f(t_i)$, a censored observation contributes
+the survival probability $S(t_i)$, and with independent, non-informative
+censoring the log likelihood is
 
-```{literalinclude} ../../examples/bayesian_rmst/model.py
-:language: python
-:pyobject: model
-```
+$$
+\ell(k, b_0, \gamma)=\sum_{i}\Big[\delta_i\log f(t_i\mid a_i)+(1-\delta_i)\log S(t_i\mid a_i)\Big].
+$$
 
-The `(N,)` likelihood vector stays **inside** the observation plate. Summing it
-there would replicate the full-data likelihood N times. A summed factor
-outside a plate gives the same full-data target but discards the independence
-structure. If minibatching, subset both `data[idx]` and covariates explicitly:
-NumPyro owns N/batch scaling; survjax does not scale observations.
+survjax computes the terms of this sum, one per patient, with
+`dist.log_likelihood(data)`; `data` is a
+[`SurvivalData`](../survival-data.md) container holding the times and event
+indicators.
 
-The per-arm deterministic RMST sites sit outside the observation plate.
-`compute_rmst=False` keeps their work out of NUTS; they are filled afterwards.
+## A simulated trial where we know the answer
 
-## Factor wiring check, executed live
+The trial has 300 patients, 150 per arm. The true shape is $k=1.38$, the
+control scale $b_0=11.42$ years and the hazard ratio 0.7, so treatment lowers
+the hazard by 30% at every time. Censoring times are Uniform$(0, c)$ with
+$c\approx19.2$ years, chosen so that about 55% of patients are censored; in
+the simulated trial 164 of 300 are.
 
-At fixed parameters log k = log(1.2), log b₀ = log(10), gamma = −0.3, the
-check requires NumPyro's log density to equal the three prior log densities
-plus the summed survjax likelihood, to absolute tolerance 1e-10. It also
-checks the factor plate and the deterministic-site shapes.
+A hazard ratio is hard to translate into time gained. RMST is easier: it is
+the expected event-free time within a horizon $\tau$, the area under the
+survival curve up to $\tau$,
+
+$$
+\mathrm{RMST}(\tau)=\operatorname{E}[\min(T,\tau)]=\int_0^\tau S(t)\,dt.
+$$
+
+The difference between the arms, $\Delta\mathrm{RMST}(\tau)$, is measured in
+years and does not rely on proportional hazards to be interpretable. We use
+$\tau=5$ years. survjax evaluates RMST in closed form for the Weibull and its
+proportional hazards version (see [RMST](../rmst.md)). For the true model:
 
 ```{code-cell} ipython3
-factor = subprocess.run(
-    [sys.executable, "-c",
-     "from examples.bayesian_rmst.check_model import check_factor; check_factor()"],
-    cwd=repo, env=child_env, capture_output=True, text=True, timeout=90,
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
+
+import survjax
+
+both_arms = jnp.array([0.0, 1.0])  # control, treatment
+truth = survjax.ProportionalHazards(
+    survjax.Weibull(shape=1.38, scale=11.42), log_hazard_ratio=jnp.log(0.7) * both_arms
 )
-if factor.returncode:
-    raise RuntimeError(factor.stdout + factor.stderr)
-print(factor.stdout.strip())
+times = jnp.linspace(0, 20, 201)
+curves = truth.survival_grid(times)  # grid shape: (time, arm)
+
+fig, ax = plt.subplots(figsize=(7, 3), layout="constrained")
+ax.plot(times, curves, label=["Control", "Treatment"])
+up_to_5 = times <= 5
+ax.fill_between(times[up_to_5], curves[up_to_5, 0], curves[up_to_5, 1], color="0.6",
+                label="ΔRMST(5)")
+ax.set(xlabel="Time (years)", ylabel="True survival $S(t)$", ylim=(0, 1))
+ax.legend()
+plt.show()
+
+rmst = truth.rmst(5.0)
+print(f"True RMST(5): control {rmst[0]:.3f}, treatment {rmst[1]:.3f}, "
+      f"difference {rmst[1] - rmst[0]:.3f} years")
 ```
 
-The child uses float64 even when the surrounding documentation build tests
-float32. This keeps the Bayesian example's precision policy separate from
-other examples, without toggling JAX mode in a running kernel.
+Over the first five years, treated patients gain on average 0.17 years, about
+two months, of event-free time. Most patients in both arms are still
+event-free at five years, which is why the difference is small compared to
+the horizon.
 
-## Prior predictive survival
+## The likelihood as a NumPyro factor
 
-![Recorded prior predictive survival](../../examples/bayesian_rmst/results/fig1.png)
+We define a model in NumpPyro that samples the
+three parameters on the log scale, builds the survjax survival distribution,
+and adds the per-patient log likelihood to the target with `numpyro.factor`:
 
-There are 200 prior curves **per arm**, with observed KM in black. All draws
-are retained. The broad log priors put substantial mass on almost immediate
-failure, very long survival and sharp transitions. Tiny shapes can also give
-curves near exp(−1) across much of this grid. A diffuse log prior is not a
-neutral prior on clinically relevant survival curves. A real application
-needs a time scale and prior predictive assessment before fitting.
+```python
+def model(data, arm):
+    log_k = numpyro.sample("log_k", distributions.Normal(0, 5))
+    log_b0 = numpyro.sample("log_b0", distributions.Normal(0, 5))
+    gamma = numpyro.sample("gamma", distributions.Normal(0, 5))
 
-## Smoke sampling, executed live
+    base = survjax.Weibull.from_log(log_shape=log_k, log_scale=log_b0)
+    survival = survjax.ProportionalHazards(base, log_hazard_ratio=gamma * arm)
+    with numpyro.plate("observations", len(data)):
+        numpyro.factor("survival", survival.log_likelihood(data))
+```
 
-The smoke configuration uses four chains, 100 warmup and 100 retained draws
-per chain. Its diagnostics are exploratory; the full-run ESS thresholds are
-not enforced on the short chains. The runner sets four host devices before
-JAX initializes, using parallel chains when available and recording its method.
+The full model is in
+{download}`model.py <../../examples/bayesian_rmst/model.py>`. The factor
+receives the vector of 300 terms, one per patient, inside the observation
+plate, which tells NumPyro that the terms are conditionally independent
+and can speed up with vectorization.
+
+NumPyro then samples the posterior with NUTS. We run four chains of 1,000 warmup
+and 1,000 retained draws each, and collect the draws of all chains:
+
+```python
+from numpyro.infer import MCMC, NUTS
+
+mcmc = MCMC(NUTS(model), num_warmup=1000, num_samples=1000, num_chains=4)
+mcmc.run(jax.random.key(1), data, arm)
+mcmc.print_summary()  # R-hat and effective sample size per parameter
+samples = mcmc.get_samples()  # {"log_k": (4000,), "log_b0": (4000,), "gamma": (4000,)}
+```
+
+The full run had no divergent transitions, and all parameters and derived
+quantities reached $\hat R<1.01$ and an effective sample size above 2,000.
+
+## The posterior is a batch of distributions
+
+The posterior is a set of $S=4{,}000$ draws of $(k, b_0, \gamma)$. In survjax
+a distribution with array-valued parameters is a batch of distributions,
+so we can create one distribution with the draws and treatment arm ($a=0, a=1$)
+and get batch shape (draw, arm). The cells below run on the 4,000 draws of the
+committed full run:
 
 ```{code-cell} ipython3
-with tempfile.TemporaryDirectory(prefix="bayes-docs-") as directory:
-    destination = Path(directory) / "smoke"
-    smoke_process = subprocess.run(
-        [sys.executable, "examples/bayesian_rmst/run.py", "--config", "smoke",
-         "--output", str(destination)],
-        cwd=repo, env=child_env, capture_output=True, text=True, timeout=90,
-    )
-    if smoke_process.returncode:
-        raise RuntimeError(smoke_process.stdout + smoke_process.stderr)
-    smoke = json.loads((destination / "metadata.json").read_text())
-print("LIVE SMOKE:", smoke["chains"], "chains ×", smoke["draws_per_chain"], "draws")
-print("Chain method:", smoke["chain_method"])
-print("Divergences per chain:", smoke["divergences_per_chain"])
-print("RMST route maximum absolute error:", smoke["rmst_route_max_absolute_error"])
+:tags: [remove-input]
+with np.load(FULL / "posterior.npz", allow_pickle=False) as saved:
+    samples = {name: jnp.asarray(saved[f"sample_{name}"]).reshape(-1)
+               for name in ("log_k", "log_b0", "gamma")}
+    tau_grid = jnp.asarray(saved["tau_grid"])
+    observed_time, observed_event, observed_arm = saved["time"], saved["event"], saved["arm"]
 ```
-
-## Route A: the posterior is a batch
-
-The main route evaluates each draw before aggregation. With S flattened
-posterior draws from `mcmc.get_samples()`, the baseline has batch `(S,1)`
-and PH has batch `(S,2)`. The runner supplies these arrays and the grids:
-
-```{literalinclude} ../../examples/bayesian_rmst/model.py
-:language: python
-:pyobject: posterior_draws
-```
-
-The survival grid has 201 points from 0 to 20 years. The 101-point RMST grid
-ends at 13 years: the observed-time 90th percentile rounded down to half a
-year. The five-year horizon is within that follow-up bound.
-
-## Route B: deterministic sites after sampling
-
-`Predictive(model, posterior_samples=samples)(key, data, arm,
-compute_rmst=True, tau=5.0, tau_grid=tau_grid)` fills the model's RMST sites.
-Its curve is `(S,m,2)`; align it to route A's `(m,S,2)` before comparing.
-The runner requires absolute-only agreement to 1e-12, with finite values.
-The recorded full run's maximum difference is about 2.84e-14; the live smoke
-cell above reports its independently executed comparison.
-
-Do not evaluate at posterior mean parameters and call that a posterior curve.
-Pair the arm effects within each draw before computing differences or bands.
-
-## Recorded full-run figures and table
-
-### Diagnostics and truth
-
-The committed run uses **four chains × (1000 warmup + 1000 retained draws)**,
-default NUTS settings and NumPyro's default `init_to_uniform`. It has zero
-divergences. All three log parameters and all five reported quantities meet
-split R-hat < 1.01, NumPyro ESS > 400 and ArviZ tail ESS > 400. The NumPyro
-ESS here is the value from `numpyro.diagnostics.summary`, not a substituted
-rank-normalized estimator. Versions and individual metrics are in the record.
 
 ```{code-cell} ipython3
-assert full["config"] == "full" and full["audit"]["passed"]
-labels = {"k": "Shape k", "HR": "Hazard ratio", "RMST0(5)": "Control RMST(5)",
-          "RMST1(5)": "Treatment RMST(5)", "delta_RMST(5)": "Difference RMST(5)"}
-rows = ["<table><thead><tr>",
-        "".join(f"<th>{label}</th>" for label in
-                ("Quantity", "Truth", "Mean", "SD", "95% interval", "R-hat", "ESS", "Tail ESS")),
-        "</tr></thead><tbody>"]
-for key, label in labels.items():
-    estimate = full["posterior_table"][key]
-    diagnostics = full["audit"]["diagnostics"][key]
-    truth = full["audit"]["truth"][key]
-    cells = (label, f"{truth:.3f}", f"{estimate['mean']:.3f}", f"{estimate['sd']:.3f}",
-             f"[{estimate['lower_95']:.3f}, {estimate['upper_95']:.3f}]",
-             f"{diagnostics['r_hat']:.4f}", f"{diagnostics['numpyro_ess']:.0f}",
-             f"{diagnostics['tail_ess']:.0f}")
-    rows.append("<tr>" + "".join(f"<td>{cell}</td>" for cell in cells) + "</tr>")
-display(HTML("".join(rows) + "</tbody></table>"))
-print("Recorded full-run P(ΔRMST(5)>0):", full["probability_delta_rmst_positive"])
-print("Versions:", full["versions"])
+base = survjax.Weibull.from_log(
+    log_shape=samples["log_k"][:, None], log_scale=samples["log_b0"][:, None]
+)
+posterior = survjax.ProportionalHazards(
+    base, log_hazard_ratio=samples["gamma"][:, None] * jnp.array([0.0, 1.0])
+)
+rmst5 = posterior.rmst(5.0)          # (S, 2)
+delta5 = rmst5[:, 1] - rmst5[:, 0]   # paired within each draw, (S,)
+
+low, high = jnp.quantile(delta5, jnp.array([0.025, 0.975]))
+print(f"ΔRMST(5): mean {delta5.mean():.3f} years, 95% interval [{low:.3f}, {high:.3f}]")
+print(f"P(ΔRMST(5) > 0) = {(delta5 > 0).mean():.3f}")
 ```
 
-RMST means, SDs and intervals are in years. Both HR=0.7 and true
-ΔRMST(5)≈0.1702 years lie inside their 95% intervals. This is a sanity check
-on one fixed synthetic dataset, not repeated-sampling coverage evidence.
-The intervals also include HR=1 and ΔRMST=0: this trial does not determine
-the effect precisely, despite its known beneficial data-generating effect.
+To propagate the uncertainty correctly, we compute every summary within each
+draw, keep the two arms of a draw paired, and summarize only at the end: the
+posterior mean, credible interval and $P(\Delta\mathrm{RMST}(5)>0)$ are all
+summaries of the 4,000 values in `delta5`.
 
-![Recorded posterior survival](../../examples/bayesian_rmst/results/fig2.png)
+The same quantities can also be declared inside the model, as deterministic
+sites. A flag keeps them out of the sampler, where they are not needed, and
+NumPyro's `Predictive` fills them in afterwards for every posterior draw:
 
-The shaded areas are 95% **pointwise** credible bands, not simultaneous bands.
-Dashed orange curves are the data-generating truth. Black curves are observed
-Kaplan–Meier estimates, ending at each arm's last observed follow-up.
+```python
+def model(data, arm, compute_rmst=False, tau=5.0, tau_grid=None):
+    ...  # priors and likelihood factor as above
+    if compute_rmst:
+        per_arm = survjax.ProportionalHazards(
+            base, log_hazard_ratio=gamma * jnp.array([0.0, 1.0])
+        )
+        numpyro.deterministic("rmst_tau", per_arm.rmst(tau))  # (2,)
+        numpyro.deterministic("rmst_curve", per_arm.rmst(tau_grid[:, None]))  # (m, 2)
 
-![Recorded five-year RMST difference](../../examples/bayesian_rmst/results/fig3.png)
 
-The histogram is a normalized posterior density display, with the equal-tail
-95% interval shaded and the true effect dashed. Positive values favour
-treatment. The recorded posterior probability of a positive difference is
-about 0.847; it is conditional on this model, these priors and this dataset.
-
-![Recorded RMST difference curve](../../examples/bayesian_rmst/results/fig4.png)
-
-Differences are computed per draw at every cutoff before taking quantiles.
-A wider interval at longer horizons reflects uncertainty in accumulated time;
-RMST is zero for both arms at a zero cutoff.
-
-## Posterior predictive check
-
-![Recorded posterior predictive KM check](../../examples/bayesian_rmst/results/fig5.png)
-
-Each arm shows 100 replicated KM curves under the observed curve. The selected
-posterior indices are `floor(i*S/100)`, giving 25 replicates per chain in the
-full run. Each trial keeps the observed arm assignment and generates fresh
-event and censor times. The original **known synthetic** Uniform(0,c)
-censoring process is reused; a real study would need an appropriate censoring
-model or design assumptions. No library event-time `.sample()` is used.
-
-The observed curves lie within the replicate cloud over much of follow-up.
-This visual comparison can expose gross mismatch; it is not a calibrated
-p-value or proof that the model is correct. Late KM jumps are noisy when few
-subjects remain at risk. All replicates are shown without selection by fit.
-
-The demo-only KM handles events before censorings tied at the same time. It
-was checked once against R 4.4.2, survival 3.7.0, using `survfit(Surv(time,
-event) ~ 1)` separately by arm on this exact synthetic trial. At all 150
-observed times per arm, maximum survival discrepancies were 4.44e-16 and
-5.55e-16. R CSV times were aligned with their original observed times before
-step lookup to avoid decimal-rounding at jumps; no probabilities were adjusted.
-The estimator lives in `examples.bayesian_rmst.figures`, not the library API.
-
-## Reproduce and inspect
-
-The recorded full-run delivery is under `examples/bayesian_rmst/results/`.
-`delivery.json` records source commits and SHA-256 hashes; `metadata.json`
-records the full inference audit. The compact `posterior.npz` holds the
-synthetic trial, chain-grouped parameters, grids and divergence flags.
-Derived curves and replicated trials are regenerated, not stored in Git.
-The results README shows how to materialize a renderer-ready directory from
-the saved draws without rerunning NUTS. PNG previews are committed for display;
-the renderer regenerates both PNG and SVG figures.
-
-From the repository root:
-
-```sh
-uv run --group examples examples/bayesian_rmst/run.py --config full --output /tmp/bayes-full
-JAX_ENABLE_X64=1 uv run --group examples python -m examples.bayesian_rmst.figures /tmp/bayes-full /tmp/bayes-figures
+predictive = Predictive(model, posterior_samples=samples)
+sites = predictive(jax.random.key(0), data, arm, compute_rmst=True, tau_grid=tau_grid)
+sites["rmst_tau"]  # (S, 2), the same values as rmst5 above
 ```
 
-Both destinations must be new directories. Preserve failed-run evidence and
-investigate rather than silently retuning or reseeding. These recorded CPU
-timings and diagnostic results do not advertise a platform or version matrix.
-The core package remains independent of the optional examples dependencies.
+This route is convenient when the summaries belong with the model, for
+example to store them with the draws. The example computes both and checks
+that they agree to within $10^{-13}$ years.
 
-## Takeaways
+## Results
 
-- A row-wise factor inside an observation plate connects survjax to NumPyro.
-- Posterior draws form a batch; evaluate each draw before taking summaries.
-- Pair treatment and control within each draw for RMST differences.
-- Pointwise bands and a plausible predictive cloud do not prove model adequacy.
-- Check survival implications of log priors before using them in an application.
+The posterior summaries of these draws, with the true values and the sampling
+diagnostics of the run:
+
+```{code-cell} ipython3
+:tags: [remove-input]
+display(posterior_table({
+    "k": ("Shape k", jnp.exp(samples["log_k"])),
+    "HR": ("Hazard ratio", jnp.exp(samples["gamma"])),
+    "RMST0(5)": ("RMST(5), control", rmst5[:, 0]),
+    "RMST1(5)": ("RMST(5), treatment", rmst5[:, 1]),
+    "delta_RMST(5)": ("ΔRMST(5)", delta5),
+}))
+```
+
+The posterior survival curves per arm, with 95% pointwise credible bands, the
+true curves and the observed Kaplan–Meier curves:
+
+```{code-cell} ipython3
+survival = posterior.survival_grid(times)  # (time, S, 2)
+low, median, high = jnp.quantile(survival, jnp.array([0.025, 0.5, 0.975]), axis=1)
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 3.5), sharey=True, layout="constrained")
+for a, (ax, label) in enumerate(zip(axes, ["Control", "Treatment"], strict=True)):
+    ax.fill_between(times, low[:, a], high[:, a], alpha=0.3, label="95% pointwise band")
+    ax.plot(times, median[:, a], label="Posterior median")
+    ax.plot(times, curves[:, a], "--", color="C1", label="Truth")
+    in_arm = observed_arm == a
+    ax.step(*kaplan_meier(observed_time[in_arm], observed_event[in_arm]), where="post",
+            color="black", label="Observed Kaplan–Meier")
+    ax.set(title=label, xlabel="Time (years)", ylim=(0, 1))
+axes[0].set_ylabel("Survival probability")
+axes[1].legend()
+plt.show()
+```
+
+The posterior distribution of $\Delta\mathrm{RMST}(5)$, with its 95% credible
+interval and the true value. Positive values favour treatment.
+
+```{code-cell} ipython3
+:tags: [remove-input]
+low, high = jnp.quantile(delta5, jnp.array([0.025, 0.975]))
+fig, ax = plt.subplots(figsize=(7, 3), layout="constrained")
+ax.hist(delta5, bins=50, density=True, alpha=0.6)
+ax.axvspan(low, high, alpha=0.15, label="95% credible interval")
+ax.axvline(full_meta["truth"]["delta_RMST(5)"], color="C1", linestyle="--", label="Truth")
+ax.axvline(0, color="0.5", linewidth=0.8)
+ax.set(xlabel="ΔRMST(5) (years)", ylabel="Posterior density")
+ax.legend()
+plt.show()
+```
+
+Putting the horizons on a leading axis evaluates RMST for every horizon, draw
+and arm at once. The grid runs to 13 years, about the 90th percentile of
+follow-up:
+
+```{code-cell} ipython3
+rmst_curve = posterior.rmst(tau_grid[:, None, None])     # (horizon, S, 2)
+delta_curve = rmst_curve[..., 1] - rmst_curve[..., 0]    # (horizon, S)
+low, median, high = jnp.quantile(delta_curve, jnp.array([0.025, 0.5, 0.975]), axis=1)
+true_rmst = truth.rmst(tau_grid[:, None])                # (horizon, 2)
+
+fig, ax = plt.subplots(figsize=(7, 3), layout="constrained")
+ax.fill_between(tau_grid, low, high, alpha=0.3, label="95% pointwise band")
+ax.plot(tau_grid, median, label="Posterior median")
+ax.plot(tau_grid, true_rmst[:, 1] - true_rmst[:, 0], "k--", label="Truth")
+ax.axhline(0, color="0.5", linewidth=0.8)
+ax.set(xlabel="Horizon τ (years)", ylabel="ΔRMST(τ) (years)")
+ax.legend(loc="upper left")
+plt.show()
+```
+
+To go further, add covariates to the linear predictor, `log_hazard_ratio=X @
+beta`, try another baseline distribution, or report RMST at several horizons
+from the same draws. See the [proportional hazards](../proportional-hazards.md),
+[RMST](../rmst.md) and [likelihood](../likelihood.md) pages.
+
+(reproduce-bayes)=
+
+## Reproduce
+
+To work through the analysis interactively, open the notebook from the
+repository root, then **Restart Kernel and Run All Cells** in a fresh Python 3
+kernel. It samples the posterior in a few seconds:
+
+```bash
+uv run --group docs --group examples jupyter lab examples/bayesian_rmst/bayesian-rmst.ipynb
+```
+
+This page computes everything from the simulated trial and the posterior
+draws committed in `examples/bayesian_rmst/results/posterior.npz`, with the
+{download}`run metadata <../../examples/bayesian_rmst/results/metadata.json>`
+(priors, seed, versions and diagnostics). To sample them again, from the
+repository root:
+
+```bash
+JAX_ENABLE_X64=1 uv run --group examples python -m examples.bayesian_rmst.run /tmp/survjax-bayes
+```
+
+The run takes about ten seconds on a laptop CPU and writes to a new directory.
+It also checks that the likelihood factor is wired correctly, that the two
+RMST routes agree, that the chains converged, and that the true hazard ratio
+and $\Delta\mathrm{RMST}(5)$ lie inside their 95% credible intervals. The
+example runs in float64 and needs only the optional `examples` dependencies;
+survjax itself does not depend on NumPyro.
+
+## References
+
+Hoffman, M. D. and Gelman, A. (2014). The No-U-Turn sampler: adaptively
+setting path lengths in Hamiltonian Monte Carlo. *Journal of Machine Learning
+Research* 15, 1593–1623.
+
+Phan, D., Pradhan, N. and Jankowiak, M. (2019). Composable effects for
+flexible and accelerated probabilistic programming in NumPyro.
+arXiv:1912.11554.
+
+Royston, P. and Parmar, M. K. B. (2013). Restricted mean survival time: an
+alternative to the hazard ratio for the design and analysis of randomized
+trials with a time-to-event outcome. *BMC Medical Research Methodology* 13,
+152.
+
+All data on this page are synthetic.

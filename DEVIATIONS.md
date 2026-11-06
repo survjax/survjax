@@ -1,5 +1,31 @@
 # Deviations and spec questions
 
+## D-035 Lean Bayesian example, outputs and checks
+- Step: BAYES clean-up (2026-11-06), agreed with the maintainer in conversation
+- Spec: 11.3, delegated 02-bayesian-survival-details (Outputs, Acceptance
+  checks, Files and commands)
+- Spec says: figure 1 prior predictive curves (priors justified by it) and
+  figure 5 posterior predictive check; R-hat < 1.01 with bulk and tail ESS >
+  400; `run.py --config {smoke,full}`; results with fig*.svg; model.py with
+  route A helpers and KM.
+- Did: the docs page is the end goal and runs live on the committed draws, so
+  the example keeps only `model.py` (`make_trial`, `model`), `run.py` and
+  `results/{posterior.npz,metadata.json}`, plus the tutorial notebook.
+  - Figure 1 and the prior discussion are dropped (the Normal(0, 5) priors of
+    D-033 stay); figure 5 is dropped because it shows no survjax behaviour.
+  - Figures 2-4 and the table are computed on the page from the draws; no
+    figure files are committed (supersedes the PNG choice of D-034).
+  - The four acceptance checks stay as plain asserts in `run.py`: factor
+    wiring, routes A/B within 1e-12, R-hat < 1.01 / NumPyro ESS > 400 / no
+    divergences, and true HR and ΔRMST(5) inside their 95% intervals. Tail
+    ESS is dropped together with the ArviZ dependency.
+  - `check_model.py`, `check_figures.py` and `figures.py` (run by no test or
+    script), the audit record, smoke config, prior and predictive generation,
+    `delivery.json`, `figures.json` and the results README are removed.
+  - The slim runner reproduces the committed trial and all 12,000 draws bit for
+    bit, with identical diagnostics.
+- Status: open.
+
 ## D-034 Committed Bayesian figure format
 - Step: BAYES.d1 review S-001
 - Spec: 11.3 delegates to 02-bayesian-survival-details, Files and commands,
