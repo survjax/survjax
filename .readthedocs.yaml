@@ -9,6 +9,9 @@ build:
   jobs:
     create_environment:
       - python -m pip install uv==0.11.19
+      # Expose the pip-installed console script through RTD's asdf shims.
+      - asdf reshim python
+    install:
       - uv sync --locked --group docs --group examples
     build:
       html:

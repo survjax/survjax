@@ -44,3 +44,7 @@ RELEASE.4 owns user-facing instructions; leave existing docs-agent pages alone.
 Before public launch, run a fresh Linux/RTD build (including cold MNIST fetch),
 verify project-specific time/memory limits and public access/downloads, and
 record evidence. RTD project/account ownership is unverified.
+
+Round 1 follow-up: make install explicit and reshim the pip-installed uv;
+validate command lifecycle and build an archived checkout with dangling spec.
+No new scope, dependencies or protected paths.

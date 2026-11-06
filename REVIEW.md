@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # RELEASE.1 — Prepare Read the Docs builds
 
@@ -111,3 +111,45 @@ Previous completed step / clean starting SHA / original worktree base:
 3cb4cd7fbba3313f00dfabed0028ee6f404384df (DOCS.6).
 Plan-only archive / implementation parent: 2c991d0.
 This step is RELEASE.1; independent review follows this commit, then stop.
+
+## Round 1 response
+
+F-1: move locked synchronization into an explicit install job and run
+`asdf reshim python` immediately after pip installs pinned uv. This ensures
+the console executable can be resolved by subsequent shells and the unchanged
+build script. Hosting execution remains unverified.
+
+The lifecycle premise differs from the current official reference: without
+sphinx/mkdocs, jobs “will default to run nothing, giving you full control over
+the build process” (build-customization.html, Features and limitations).
+The explicit install override is still clearer and avoids that dependency on
+default behavior. The same page recommends custom jobs for advanced uv usage;
+we need --locked and our existing two-process script rather than native Sphinx.
+Its pixi example demonstrates the asdf tool/shim mechanism.
+
+N-1 addressed: git archive dd53e47 extracted into /tmp/survjax-release-standalone;
+confirmed spec is a symlink and its target does not exist. Ran
+`scripts/build_docs.sh` directly there: exit 0, both dtypes succeeded,
+including live Bayesian and MNIST pages, in a newly created separate .venv.
+The same link/download audit passed on both standalone sites: 23 pages,
+1,533 links/assets, 14 downloads, 18 notebooks / 153 cells, zero failures.
+No source, protected path or shared design checkout was modified.
+N-2: optional config-mirroring test omitted; real parsed YAML staging commands
+were exercised above. No regression test framework/dependency added.
+
+Shim reference: https://asdf-vm.com/manage/core.html#reshim documents recreation
+of shims for executables installed outside the plugin lifecycle. RTD's
+custom-build pixi example establishes asdf availability; `asdf reshim python`
+refreshes the Python tool's shims after pip installs uv. No local asdf runtime
+is available, so that hosting-specific command is documented, not executed.
+
+Round 1's "Not checked" says the implementer reported no cold MNIST fetch;
+the separate empty-cache fetch is recorded above. The docs builds themselves
+used the warm dataset, as stated.
+
+Round 2 checks: revised YAML bootstrap/install/build structure parsed and
+checked; git diff --check clean. `scripts/check.sh --fast --through A10`
+rerun after the lifecycle change: exit 0, all gates passed; Ruff 173 files
+formatted / checks passed; mypy 22 files clean; implementer 1059/8 (x64),
+1064/3 (x32) passed/skipped; doctests 4 each; spec 2149/27 and 2156/20.
+No additional numerical or full-suite runs.
