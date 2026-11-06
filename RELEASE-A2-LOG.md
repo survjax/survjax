@@ -37,3 +37,13 @@ been published by these preparation changes alone.
    escalation: both x32/x64 strict builds passed and identity is success.
    Checked rendered releasing.html in both modes for a2 tag and no old tag.
 10. bash -n scripts/check.sh and git diff --check pass.
+
+11. Preparation committed 38afc97. Independent RELEASE.A2 round 1 verdict:
+    maintainer, repeating protected-policy B-1/S-1. Reviewer cannot see the
+    maintainer's explicit "Authorize all these release actions" reply and
+    could not run tests (sandbox). Proceed under that recorded authorization;
+    no new implementation defect reported. Candidate wording retained until
+    publication; root log retained per request. D-048 left formally open.
+12. Rebuilt final wheel from sdist at 38afc97 in /tmp/survjax-a2-final;
+    validate_release.py accepts v0.0.1a2. Full artifact gate running with
+    SURVJAX_WHEEL set to that exact wheel; results recorded after completion.
