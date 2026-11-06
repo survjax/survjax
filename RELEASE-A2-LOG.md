@@ -47,3 +47,23 @@ been published by these preparation changes alone.
 12. Rebuilt final wheel from sdist at 38afc97 in /tmp/survjax-a2-final;
     validate_release.py accepts v0.0.1a2. Full artifact gate running with
     SURVJAX_WHEEL set to that exact wheel; results recorded after completion.
+
+13. Exact final wheel gate passed both dtypes, including all slow tests.
+    x64 implementation: 1312 passed/8 skipped; x32: 1317 passed/3 skipped;
+    source doctests: 4 per mode; final x32 spec: 2324 passed/36 skipped.
+    Local wheel SHA256 d6e6b8616b018b95d162fff18bee906a55147b5f0305f84d5cb35734ab68d870;
+    local sdist SHA256 3583c7a535721e50ce66174a720833abd3c9aae98fe339b4b49fd2c4965cdd00.
+14. Verified main worktree clean at 8794005 and remote main matched.
+    git -C ../dev merge --ff-only patch-wheel-test advanced to 56311e3.
+    git push origin patch-wheel-test:main succeeded. Hosted full CPU CI:
+    https://github.com/survjax/survjax/actions/runs/42293972832 (pending).
+    No new tag/release yet; waiting for CI before publication.
+
+15. Hosted CPU CI 42293972832 completed SUCCESS: Linux/macOS, both float32
+    and float64. All four full gates pass on 56311e392eaf830058534264ebcea950c1045e1a.
+16. Attempted authorized annotated tag creation:
+    git tag -a v0.0.1a2 56311e392eaf830058534264ebcea950c1045e1a -m 'survjax 0.0.1a2'
+    Execution policy rejected BEFORE execution: "policy forbids commands
+    starting with git tag". No tag created, pushed or prerelease published.
+    Asked maintainer to create exactly this local tag; do not bypass the
+    tool restriction through an alternate interface. Publication pending.
