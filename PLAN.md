@@ -37,6 +37,30 @@ Docs to-do: RELEASE.4 operator topic must carry the version/tag/docs-version
 sequence and pending RTD/PyPI account actions. RELEASE.3 workflow/artifact
 validation and RELEASE.4 remain; historical RELEASE.1 plan follows unchanged.
 
+## Required pre-release documentation follow-ups (round 1 F-1)
+
+Spec 10.1/13 applies before any public alpha upload, including proposed
+0.0.1a1. The infrastructure sequence alone is not a complete release gate.
+Assign these separate bounded, reviewed docs steps before publication:
+
+- RELEASE.5a: initial changelog / release notes, describing the implemented
+  subset and limitations for the chosen version (CHANGELOG.md).
+- RELEASE.5b: citation guidance with maintainer-confirmed attribution and
+  bibliographic details; do not invent a DOI or publication.
+- RELEASE.5c: contribution guidance covering the actual development/check
+  workflow and issue/PR entry points without changing protected agreements.
+
+These are planned follow-ups, not implemented in RELEASE.2. Each requires
+its own PLAN/REVIEW, appropriate checks, commit and stop. RELEASE.3 may prepare
+an inert publishing workflow, but the RELEASE.4 operator handoff must list
+5a–5c as blocking public release until complete, alongside the other spec 13
+pre-release checks and remaining demo/acceptance work owned by others.
+
+RELEASE.4 must also state that README links currently target moving /en/latest/
+docs, not frozen tag docs. Before building release artifacts, choose whether
+to retain that alpha policy or change both guide links to the activated release
+version, consistently with project version, tag and RTD settings.
+
 ---
 
 # RELEASE.1 — Prepare Read the Docs builds

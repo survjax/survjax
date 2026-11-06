@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # RELEASE.2 — Prepare package release metadata
 
@@ -92,3 +92,27 @@ Previous completed step / clean starting SHA:
 ac50796fc82ff087df3c8973724992a4ec2e2eb5 (RELEASE.1 review fix).
 Original worktree base: 3cb4cd7fbba3313f00dfabed0028ee6f404384df.
 This commit completes RELEASE.2; independent review follows, then stop.
+
+## Round 1 response
+
+F-1 addressed in PLAN.md: assign changelog, citation and contribution guidance
+to separate reviewed RELEASE.5a–5c docs steps. Treat them as prerequisites for
+any public alpha upload under spec 10.1/13; infrastructure preparation alone
+is not completion of the release gate. Do not implement those topics here or
+close unfinished work belonging to other agents.
+
+N-1 (optional) retained: the inline Markdown destination check covers today's
+README syntax, not every Markdown/HTML link form. Extending it would add a
+partial link parser unrelated to this correction. If README syntax changes,
+revisit the guard; no claim of a general README link validator.
+N-2: add an explicit RELEASE.4 handoff item for moving /en/latest/ links and
+consistent version-specific links if selected before release artifacts build.
+
+Only PLAN.md and this review response changed after round 1. Existing passing
+artifact/install/fast-gate results remain applicable; no code, metadata, tests
+or lockfile changes. git diff --check passed; no redundant test rerun for this
+planning-only follow-up. Independent review round 2 follows the fix-up commit.
+
+Reviewer housekeeping limitation: round 1 reports a prunable mutation-worktree
+Git entry after its directory was removed. Left to the reviewer/maintainer;
+this agent did not edit reviewer-owned state or prune other worktrees.
