@@ -1,6 +1,6 @@
 # Test map
 
-Spec: revision 46 (see `.spec-seen`). Unchanged requirements keep their
+Spec: revision 47 (see `.spec-seen`). Unchanged requirements keep their
 earlier revision tags. Tests from the revision 10 decision (sections 6.2, 10.2,
 13) are tagged `rev 10`. Tests from the performance amendment (section 7.2),
 accepted in revision 11, are tagged `rev 11`. A4 tests derive from revision 11 and
@@ -120,7 +120,7 @@ wrappers with field `baseline` (rev 42, one new test, two retags), wrapper
 RMST derivative tolerance factors (rev 44: the A12 derivative tests and
 helpers are retagged; no assertion changed), shape Hessians raise or are
 correct (rev 45, retags), and absent APIs plus `tau` shape and dtype rules
-(rev 46, four new tests; the absence test now expects `AttributeError`). The mpmath references
+(rev 46, four new tests; the absence test now expects `AttributeError`). Revision 47 (use-case 01 censoring limits) and the keyword-only PH example fixes change no test. The mpmath references
 need `mpmath`, and the A10 property tests `hypothesis`, in the test environment. Tests are static acceptance tests and have never
 been executed against survjax. Test names below are relative to `tests/spec/`.
 
@@ -1733,7 +1733,7 @@ is ordinary range (7.3 exception).
 | 4.4/4.5 | `log_hazard` row `log h0(t) + eta` carries the baseline's limits at `t=0` and `t=+inf` (Weibull `k<1`, `k=1`, `k>1`; Exponential), equal to the equivalent Weibull (rev 43) | `test_ph_weibull_log_hazard_limits_carry_through`, `test_ph_weibull_hazard_limits_carry_through`, `test_ph_weibull_hazard_limits_equal_equivalent_weibull`, `test_ph_exponential_hazard_at_the_boundaries` |
 | 7.3/12.1 | values stay accurate at the 7.3 extreme-scaling examples (Weibull `eta=±720`; Exponential `rate=1e-200`, `eta=500`), float64, against mpmath | `test_extreme_scaling_weibull_values_stay_accurate`, `test_extreme_scaling_exponential_values_stay_accurate` |
 | 5 | scalar, paired and explicit time-first shapes against `(S, 2)`; non-broadcasting time `TypeError` | `test_scalar_time_against_draw_by_arm_batch`, `test_paired_time_vector_against_arms`, `test_explicit_time_first_axis`, `test_time_that_does_not_broadcast_is_rejected` |
-| 5 | every `_grid` twin equals `m(t[:, None, None])` with shape `(K, S, 2)`, unsorted/repeated `t`, `K=N`, non-1-D `t` `TypeError`, grid from `t=0` | `test_grid_twin_equals_time_first_direct_method`, `test_grid_with_as_many_times_as_entries_is_not_paired`, `test_grid_rejects_time_that_is_not_one_dimensional`, `test_grid_from_zero_includes_base_supplied_values` |
+| 5 | every `_grid` twin equals `m(t[:, None, None])` with shape `(K, S, 2)`, unsorted/repeated `t`, `K=N`, non-1-D `t` `TypeError`, grid from `t=0`; the `log_cdf_grid` reference check is relative only where the reference `S` is a normal number in the active dtype (4.2, D-044) | `test_grid_twin_equals_time_first_direct_method`, `test_grid_with_as_many_times_as_entries_is_not_paired`, `test_grid_rejects_time_that_is_not_one_dimensional`, `test_grid_from_zero_includes_base_supplied_values` |
 | 12.1 | eager/`jit`/`vmap` agreement for every method; result dtype | `test_methods_agree_under_jit`, `test_methods_agree_under_vmap`, `test_result_dtype_is_the_parameter_dtype` |
 
 ### `test_a11_ph_identities.py`

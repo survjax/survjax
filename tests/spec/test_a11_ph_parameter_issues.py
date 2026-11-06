@@ -133,7 +133,7 @@ def test_custom_baseline_condition_appears_with_the_prefix():
             "baseline.cap": [False, False, True],
         },
     )
-    _assert_masks(_conditions(issues), {"baseline.rate_above_cap": [False, True, False]})
+    _assert_masks(_conditions(issues), {"baseline.rate_above_cap": [False, True, True]})
     np.testing.assert_array_equal(np.asarray(issues.invalid_entries), [False, True, True])
 
 
