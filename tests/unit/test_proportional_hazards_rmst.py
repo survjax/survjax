@@ -21,7 +21,7 @@ def _law(p, family):
         if family == "exponential"
         else Weibull(shape=p[0], scale=p[1])
     )
-    return ProportionalHazards(base, log_hazard_ratio=p[-2])
+    return ProportionalHazards(baseline=base, log_hazard_ratio=p[-2])
 
 
 def _integral(p, family):
@@ -114,7 +114,7 @@ def test_rmst_broadcast_closure_identity_and_explicit_cutoff_grid(family, x64_en
     else:
         base = Weibull(shape=1.4, scale=baseline)
         equivalent = Weibull(shape=1.4, scale=baseline * jnp.exp(-eta / 1.4))
-    dist = ProportionalHazards(base, log_hazard_ratio=eta)
+    dist = ProportionalHazards(baseline=base, log_hazard_ratio=eta)
     for cutoff in (jnp.array(0.75), jnp.array([0.01, 1.0, 100.0])[:, None, None]):
         expected = equivalent.rmst(cutoff)
         for fn in (dist.rmst, jax.jit(dist.rmst)):
@@ -153,7 +153,7 @@ def test_weibull_shape_hessian_remains_explicitly_unsupported():
 
     def fn(k):
         return ProportionalHazards(
-            Weibull(shape=k, scale=1.25), log_hazard_ratio=0.2
+            baseline=Weibull(shape=k, scale=1.25), log_hazard_ratio=0.2
         ).rmst(0.75)
 
     for outer in (jax.jacfwd, jax.jacrev):
@@ -194,7 +194,7 @@ def test_invalid_rows_preserve_shared_parameter_derivatives(family, field, x64_e
             if family == "exponential"
             else Weibull(shape=shape, scale=baseline)
         )
-        return ProportionalHazards(base, log_hazard_ratio=eta).rmst(tau)
+        return ProportionalHazards(baseline=base, log_hazard_ratio=eta).rmst(tau)
 
     q = 1.3
     for value in (fn(q), jax.jit(fn)(q)):
@@ -231,7 +231,9 @@ class CustomBaseline(SurvivalDistribution):
 
 def test_custom_baseline_rmst_has_no_generic_fallback():
     """Spec 8.7: custom families remain unsupported, including component fields."""
-    dist = ProportionalHazards(CustomBaseline(weights=[1.0, 2.0]), log_hazard_ratio=0.2)
+    dist = ProportionalHazards(
+        baseline=CustomBaseline(weights=[1.0, 2.0]), log_hazard_ratio=0.2
+    )
     for cutoff in (0.0, 1.0, jnp.inf, jnp.nan):
         for fn in (dist.rmst, jax.jit(dist.rmst)):
             with pytest.raises(NotImplementedError):

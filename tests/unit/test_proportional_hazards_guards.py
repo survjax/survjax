@@ -21,7 +21,9 @@ def test_finite_time_overflow_restores_infinity(offset, x64_enabled):
     eta = jnp.asarray(np.log(np.finfo(dtype).max) + offset)
 
     def evaluate(predictor):
-        dist = ProportionalHazards(Exponential(rate=1), log_hazard_ratio=predictor)
+        dist = ProportionalHazards(
+            baseline=Exponential(rate=1), log_hazard_ratio=predictor
+        )
         return dist.log_survival(1.0), dist.survival(1.0)
 
     for log_survival, survival in (evaluate(eta), jax.jit(evaluate)(eta)):
@@ -37,7 +39,7 @@ def test_finite_time_overflow_restores_infinity(offset, x64_enabled):
 
 
 def test_float64_warnings_deduplicate_two_user_call_sites(x64_enabled):
-    """Spec 3.3: positional/keyword baseline forms warn once per user's line."""
+    """Spec 3.3: keyword baseline calls warn once per user's line."""
     if x64_enabled:
         pytest.skip("float64 conversion warnings require x64 disabled")
     baseline = Exponential(rate=1)
@@ -45,13 +47,13 @@ def test_float64_warnings_deduplicate_two_user_call_sites(x64_enabled):
     with warnings.catch_warnings(record=True) as recorded:
         warnings.simplefilter("default")
         for _ in range(2):
-            positional_line = inspect.currentframe().f_lineno + 1
-            ProportionalHazards(baseline, log_hazard_ratio=eta)
-            keyword_line = inspect.currentframe().f_lineno + 1
+            first_line = inspect.currentframe().f_lineno + 1
+            ProportionalHazards(baseline=baseline, log_hazard_ratio=eta)
+            second_line = inspect.currentframe().f_lineno + 1
             ProportionalHazards(baseline=baseline, log_hazard_ratio=eta)
     assert [(w.filename, w.lineno) for w in recorded] == [
-        (__file__, positional_line),
-        (__file__, keyword_line),
+        (__file__, first_line),
+        (__file__, second_line),
     ]
     assert all(w.category is RuntimeWarning for w in recorded)
 
@@ -75,7 +77,7 @@ def test_generic_log_cdf_underflow_keeps_baseline_tangent(x64_enabled):
 
     def fn(r):
         return ProportionalHazards(
-            GenericExponential(rate=r), log_hazard_ratio=eta
+            baseline=GenericExponential(rate=r), log_hazard_ratio=eta
         ).log_survival(time)
 
     assert jnp.isneginf(GenericExponential(rate=rate).log_cdf(time))
@@ -108,7 +110,7 @@ def test_zero_limit_linear_factor_uses_promoted_dtype(x64_enabled):
 
     def fn(c):
         return ProportionalHazards(
-            LogCureBaseline(log_cure=c), log_hazard_ratio=eta
+            baseline=LogCureBaseline(log_cure=c), log_hazard_ratio=eta
         ).survival(jnp.inf)
 
     c = jnp.array(0.0, dtype=jnp.float64)

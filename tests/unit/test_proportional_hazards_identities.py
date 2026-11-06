@@ -25,7 +25,7 @@ def _exponential_pair(p):
     # H=exp(eta)*r*t, so the equivalent natural rate is r*exp(eta).
     rate, eta = p
     return (
-        ProportionalHazards(Exponential(rate=rate), log_hazard_ratio=eta),
+        ProportionalHazards(baseline=Exponential(rate=rate), log_hazard_ratio=eta),
         Exponential(rate=rate * jnp.exp(eta)),
     )
 
@@ -34,7 +34,9 @@ def _weibull_pair(p):
     # exp(eta)*(t/b)**k = (t/[b*exp(-eta/k)])**k, including k's chain rule.
     shape, scale, eta = p
     return (
-        ProportionalHazards(Weibull(shape=shape, scale=scale), log_hazard_ratio=eta),
+        ProportionalHazards(
+            baseline=Weibull(shape=shape, scale=scale), log_hazard_ratio=eta
+        ),
         Weibull(shape=shape, scale=scale * jnp.exp(-eta / shape)),
     )
 
@@ -250,7 +252,9 @@ def test_weibull_zero_grid_survival_has_zero_shape_derivative():
     """Spec 4.5/7.3: S(0)=1, so its shape derivative is exactly zero at k=1 too."""
 
     def value(shape):
-        ph = ProportionalHazards(Weibull(shape=shape, scale=2), log_hazard_ratio=0.4)
+        ph = ProportionalHazards(
+            baseline=Weibull(shape=shape, scale=2), log_hazard_ratio=0.4
+        )
         return ph.survival_grid(jnp.array([0.0, 1.0]))[0]
 
     shapes = jnp.array([0.7, 1.0, 1.7])

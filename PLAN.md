@@ -1,3 +1,25 @@
+# ALIGN.1 — Keyword-only PH construction (complete)
+
+Starting commit: fc484d3; previous completed substep: fc484d3 (ALIGN.0).
+Previous docs step/worktree starting point: 3cb4cd7. Implement the ALIGN.1
+scope below, under 300 changed implementation/test lines. The maintainer
+waives independent review while the reviewer is out of tokens (2026-11-06).
+Stop after this step and report the remaining work. Protected files stay
+read-only; D-043/D-044 remain owner questions. Docs to-do: ALIGN.d1 below.
+
+Completed: removed the positional-baseline adapter; ordinary family registration
+owns initialization. Migrated eight unit files, both Bayesian Python modules
+and three notebook cells; retained explicit rejection tests. Implementation,
+test and example changes total 137 lines. Touched suites pass x64 210 / x32
+209 tests; Bayesian factor/trial/4000-draw RMST-route checks pass. Fast-gate
+implementation suites and doctests pass both modes. Acceptance remains red
+only for D-043 (both modes) and D-044 (x32); standalone x32 wheel setup errors
+were corrected by supplying SURVJAX_WHEEL, then all 5 wheel tests passed.
+REVIEW.md records exact commands/counts and the review waiver. No docs/spec
+or acceptance-test edits. Stop here: ALIGN.2, ALIGN.d1 and ALIGN.3 remain.
+
+---
+
 # Revision-46 alignment — inspection and proposed repair steps
 
 ALIGN.0 complete, 2026-11-06, authorized by the maintainer's "on to next
