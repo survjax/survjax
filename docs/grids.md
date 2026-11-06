@@ -30,7 +30,7 @@ accelerated failure time model: a common shape $k$ and a group scale
 $b_g = b_{\text{Good}}\, e^{\beta_g}$, in years. We take illustrative
 parameter values close to that fit, $k = 1.5$, $b_{\text{Good}} = 12$,
 $\beta_{\text{Medium}} = -0.6$ and $\beta_{\text{Poor}} = -1.2$; see
-[Exponential and Weibull](builtin-families.md#coming-from-r-and-numpyro) for
+[Exponential and Weibull](technical-notes/parameter-conventions.md) for
 how these parameters relate to R's output.
 
 ```{code-cell} ipython3

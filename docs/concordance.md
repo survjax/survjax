@@ -190,21 +190,7 @@ assert not bool(empty_info.invalid | empty_info.unsupported)
 print(undefined, empty_info.no_comparable_pairs)
 ```
 
-## Reference evidence and evaluation practice
-
-`tests/reference/test_concordance_r.py` compares values, counts and masks
-against committed R-generated synthetic fixtures, with prepared/raw inputs
-and eager/jit/vmap execution in float32 and float64. The fixtures contain
-100 heavily tied rows and a small untied cohort, three score vectors each.
-Their provenance and regeneration commands are recorded in
-`tests/fixtures/concordance/README.md`. Regular tests and this guide need no R.
-
-The pinned reference uses R 4.4.2 and survival 3.7-0, with
-`reverse=TRUE`, `timewt="n"` and `timefix=FALSE`. R's `concordant`,
-`discordant` and `tied.x` map to our counts; their sum is comparable.
-`tied.y` and `tied.xy` are excluded. These fixtures agree with the pair rules
-above, including event/censor time ties. The comparisons establish evidence
-for these cases, rather than every possible dataset.
+## Evaluation practice
 
 The current implementation does O(N²) work with O(N) pair workspace per
 result and computes exact concordance over every supplied observation.
@@ -216,5 +202,6 @@ confidence interval.
 
 For predictive evaluation, fit on training data, choose settings on validation
 data, and evaluate fixed predictions on held-out observations. Select the
-score definition before inspecting test outcomes. A worked held-out synthetic
-workflow and playground integration remain separate documentation steps.
+score definition before inspecting test outcomes. See [Survival MNIST](use-cases/survival-mnist.md) for held-out evaluation
+and [verification](technical-notes/verification.md#concordance-reference-evidence)
+for R reference comparisons.

@@ -1,55 +1,68 @@
-# BAYES clean-up and main merge (2026-11-06)
+# DOCS.1 — Documentation restructure
 
-No independent review cycle for this step, by maintainer decision; the
-maintainer does one final pass before merging into main. Previous REVIEW.md
-contents: BAYES.d1 at 55565fd, MNIST.20 at main 2093ca2.
+Independent review waived by the maintainer for this restructuring. The full
+scope and size were explicitly approved, including playground removal.
 
-Last commit of the clean-up: add507a (user commit). Previous Bayesian step:
-55565fd (BAYES.d1). Working tree: merge of main 2093ca2 into release-bayes.
+## Reading order
 
-## Read first
+1. DOCS-MIGRATION.md: section-level moves, consolidation, deletions and deferred work.
+2. docs/index.md and docs/working-with-distributions.md: navigation and entry path.
+3. docs/distributions.md and docs/proportional-hazards.md: basic extension tutorial
+   and built-in PH wrapper progressing from exponential to piecewise baseline.
+4. Shortened built-in, likelihood and RMST guides; reorganized SurvivalData.
+5. docs/technical-notes/: extracted standalone examples, provenance and math links.
 
-1. DEVIATIONS.md D-041 (formerly D-035): agreed scope of the lean example.
-2. docs/use-cases/bayesian-rmst.md: the approved page; every number, table and
-   figure is computed on the page from `results/posterior.npz`.
-3. examples/bayesian_rmst/model.py, then run.py (acceptance asserts at the end
-   of `run`).
-4. examples/bayesian_rmst/bayesian-rmst.ipynb: the same tutorial, sampling
-   itself; it imports only `make_trial`.
-5. The merge resolutions listed in PLAN.md.
+## Invariants and scope
 
-## Invariants
+No source API, dependencies, tests, mathematical appendices, example code or
+results changed. SurvivalData representation remains distinct from implemented
+likelihood support. RMST restrictions and PH extreme-scaling limits remain in
+the main guides. Executable extractions have their own imports and setup.
+MNIST page and tentative simulation-guide.md are byte-identical to 2093ca2.
+Simulation stays excluded; unmerged Bayes v2 is not imported. Existing MNIST
+notebook supplies interactive exploration after playground removal.
 
-- `make_trial` uses the original key (root 20261025, fold 2, stream 0) and the
-  shared generator, so the committed trial is unchanged; NUTS uses stream 1.
-- `run.py` saves before it asserts, so a failing run leaves its evidence.
-  Diagnostic and truth thresholds apply only to the 1000-draw configuration.
-- The page reads `metadata.json` only for the truth and R-hat/ESS; means, SDs,
-  intervals and figures come from the draws.
+The entire approved restructure is implemented. Future Bayes/simulation merges
+are separate maintainer work, not unfinished restructuring substeps.
 
-## Tests and evidence
+## Validation
 
-- `tests/unit/check_bayesian_run.py`: a fresh float64 run passes the four
-  acceptance checks (factor wiring, routes within 1e-12, R-hat/ESS/divergences,
-  truth inside the 95% intervals) and reproduces the committed trial and draws
-  bit for bit.
-- `tests/unit/check_bayesian_notebook.py`: the notebook runs in a fresh kernel
-  with 100 draws per chain.
+- `scripts/build_docs.sh`: final direct escalated run exited 0; both float32
+  and float64 report `build succeeded.`
+  Builds use fresh notebook execution and warnings-as-errors, including MNIST's
+  existing float32 smoke example. 17 executable pages / 147 code cells per mode.
+- `uv run ruff format --check .`: `165 files already formatted`.
+- `uv run ruff check .`: `All checks passed!`.
+- `git diff --check`: clean.
+- `/tmp/audit_docs.py`: stdlib HTML audit of local href/src targets and fragment
+  IDs. Both modes: 22 HTML pages (19 source pages plus generated indexes/search),
+  1,744 local links/assets each, zero failures. All 19 rendered source copies
+  per mode match the current source files byte-for-byte.
+- Native Chrome rendered inspection: overview grouped navigation and executed
+  example; Working with distributions method/formula table; piecewise PH
+  hazard/survival figure and explanation; RMST support/derivative table; mathematical-appendix download table.
+  Visual inspection sampled float32 pages; both modes received the complete
+  HTML link/source audit, not a claim of visual inspection of every page.
+  These checks found no clipping, broken mathematical rendering or layout issue.
+- No numerical regression gate, wheel installation suite or R regeneration run:
+  no library/packaging/example implementation changed. Existing executable
+  documentation checks are exercised by the full build; no new unit tests.
 
-## Checks run
+Earlier attempts: sandboxed Jupyter kernels hit psutil/sysctl shutdown permission
+errors; interrupted and reran with approved escalation. First completed float32
+pass executed every page but failed warnings-as-errors for four H1-to-H3 heading
+jumps in the extracted parameter-conventions page. Fixed those to H2. A second
+accidental sandbox invocation was interrupted immediately, then the final direct
+script invocation ran outside the sandbox. No warning suppression added.
+The UI tool also stalled while acquiring Chrome; no build success was inferred
+from that delay. Browser inspection resumed once the tool returned.
 
-- Merged tree: `uv run ruff format --check .`, `uv run ruff check .`,
-  `uv run mypy src`: clean; `uv lock --check`: consistent.
-- Tier 2 at merge commit 9a2d723, `scripts/check.sh --through A10`: all gates
-  passed (own 1292 passed/8 skipped and 1297 passed/3 skipped; doctests 4+4;
-  spec 2333 passed/27 skipped and 2324 passed/36 skipped).
-- `scripts/build_docs.sh`: both builds succeeded.
-- Optional suites with the docs and examples groups, `check_bayesian_run.py`,
-  `check_bayesian_notebook.py` and `check_mnist_*.py`: 24 passed (x64),
-  24 passed (float32).
+## Commit trace
 
-## Unsure about
+Previous step / starting HEAD / original worktree base: 2093ca2 (MNIST.20).
+Archive-only commit: bfa2a3a. Final implementation commit follows this record.
+The maintainer's untracked docsstructure.md remains untouched and unstaged.
 
-- The notebook and the page each define the 8-line Kaplan–Meier helper and
-  the model; the duplication is deliberate (readable, editable notebook).
-- The ArviZ removal drops tail ESS from the acceptance checks (D-041).
+An optional output-free notebook assertion failed: the existing MNIST notebook
+contains saved outputs. Its bytes match 2093ca2 exactly; these are pre-existing
+and untouched. No notebook cleanup or result regeneration was performed.

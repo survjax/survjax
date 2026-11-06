@@ -64,6 +64,70 @@ The wrapper also provides `log_survival`, `log_cdf`, `log_prob`,
 policy as the [built-in families](builtin-families.md). In particular, direct
 survival at zero is 1; an **exact observation** at zero is still invalid.
 
+## A piecewise-constant baseline
+
+Proportional hazards does not require a constant baseline hazard. Suppose the
+baseline hazard is 0.08 per month for months 0–6, 0.05 for months 6–12, then
+0.02. The hazard ratio still multiplies every interval's hazard by the same
+factor. This is a parametric PH model with chosen cut points, not a Cox fit.
+
+The [custom-distribution guide](distributions.md#fixed-settings-and-vector-parameters-a-piecewise-constant-hazard)
+explains the baseline below, including its static cut points and vector of rates.
+We repeat the definition so this page runs independently.
+
+```{code-cell} ipython3
+from dataclasses import dataclass
+
+@survjax.register_family
+@dataclass(frozen=True)
+class PiecewiseHazard(survjax.SurvivalDistribution):
+    starts: tuple = survjax.static()  # interval start times, first is 0
+    rates: jax.Array = survjax.param(component_ndim=1)  # one rate per interval
+
+    def log_survival(self, t):
+        starts = jnp.asarray(self.starts)
+        ends = jnp.append(starts[1:], jnp.inf)
+        t = jnp.asarray(t)[..., None]  # trailing axis lines up with the intervals
+        # Time spent in each interval by time t; a later interval wins at a
+        # cut point, so the hazard is right-continuous.
+        exposure = jnp.where(
+            t < starts, 0.0, jnp.where(t < ends, t - starts, ends - starts)
+        )
+        return -jnp.sum(self.rates * exposure, axis=-1)
+
+    def reference_time(self):
+        # Middle of the first interval, one reference per batch entry.
+        return jnp.full(self.batch_shape, self.starts[1] / 2, dtype=self.rates.dtype)
+
+
+relapse = PiecewiseHazard(starts=(0.0, 6.0, 12.0), rates=jnp.array([0.08, 0.05, 0.02]))
+```
+
+Use the same built-in wrapper as in the exponential example:
+
+```{code-cell} ipython3
+patients = survjax.ProportionalHazards(
+    relapse, log_hazard_ratio=jnp.log(jnp.array([1.0, 0.7, 1.5]))
+)
+# At month 12, baseline cumulative hazard is 6*0.08 + 6*0.05 = 0.78.
+assert jnp.allclose(patients.survival(12.0), jnp.exp(-0.78 * jnp.array([1.0, 0.7, 1.5])))
+fig, axes = plt.subplots(1, 2, figsize=(8, 3), layout="constrained")
+times = jnp.linspace(0.0, 24.0, 241)
+labels = ["HR 1", "HR 0.7", "HR 1.5"]
+axes[0].plot(times, patients.hazard_grid(times), label=labels)
+axes[1].plot(times, patients.survival_grid(times), label=labels)
+axes[0].set(xlabel="Months", ylabel="Hazard per month")
+axes[1].set(xlabel="Months", ylabel="Survival probability", ylim=(0, 1))
+axes[1].legend()
+plt.show()
+```
+
+The baseline hazard changes at the cut points while each patient's hazard
+ratio stays constant. For regression, compute `log_hazard_ratio = X @ beta`;
+survjax handles the distribution and likelihood, while you choose and fit
+`beta`. RMST is currently supported only for Exponential and Weibull baselines,
+not this custom piecewise family.
+
 ## Batches of draws and arms
 
 The baseline and predictor broadcast at construction. Here three hypothetical
