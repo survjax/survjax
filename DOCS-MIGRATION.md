@@ -55,9 +55,10 @@ No library API, examples, results, mathematical source or specification changes.
 ## Use cases and deferred work
 
 - MNIST page, notebook, code and committed results remain unchanged.
-- Bayes: reviewed `../dev-release-bayes/docs/use-cases/bayesian-rmst-v2.md` as
-  the working narrative. Neither version was imported into this branch. Add
-  the accepted page under Use cases after its separate merge.
+- Bayes: the initial restructure reviewed
+  `../dev-release-bayes/docs/use-cases/bayesian-rmst-v2.md` without importing it.
+  The rebase onto main at `e6b3f9e` brought in the accepted page at
+  `use-cases/bayesian-rmst.md`, now listed under Use cases.
 - Simulation: `docs/simulation-guide.md` remains byte-for-byte unchanged and
   excluded in Sphinx. It is tentative, not the accepted simulation tutorial.
   Maintainer scrutiny and the eventual simulation branch merge remain separate.
@@ -105,5 +106,6 @@ where possible; this table records fallback mappings, not installed redirects.
 All other pre-restructure page paths remain unchanged. New pages include
 `working-with-distributions.html` and the remaining `technical-notes/` pages.
 Not every removed subsection has a direct replacement; the selector should
-fall back to the surviving page or index when its fragment is absent. Bayes
-and simulation page URLs remain owned by their eventual merge workstreams.
+fall back to the surviving page or index when its fragment is absent. The
+Bayesian page retains `use-cases/bayesian-rmst.html`; simulation page URLs
+remain owned by its eventual merge workstream.

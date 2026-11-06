@@ -1,3 +1,13 @@
+# DOCS.6 — Integrate documentation after rebase onto main
+
+Base: e6b3f9e; previous docs step: 3a1c399 (rebased). Preserve main's Bayes
+page under Use cases and archive its planning records with the existing plans.
+Update stale deferred-Bayes wording in DOCS-MIGRATION.md and verification.md;
+keep simulation deferred. No API, dependency or numerical changes. Validate
+with both docs builds, build-script unit tests and whitespace checks.
+
+---
+
 # DOCS.5 — Prepare repository docs for a future workspace portal
 
 Starting/previous step: 80aee9e; original worktree base: 2093ca2.
