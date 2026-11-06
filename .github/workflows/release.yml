@@ -1,0 +1,76 @@
+name: Publish release to PyPI
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pypi-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'vanAmsterdam/survjax'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      JAX_PLATFORMS: cpu
+      PYTEST_WORKERS: "2"
+      UV_LOCKED: "true"
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.11.19"
+          python-version: "3.12"
+      - name: Install locked tools and build wheel from sdist
+        run: |
+          uv sync --locked --group dev
+          printf 'uv_build==0.11.19\n' > "$RUNNER_TEMP/build-constraints.txt"
+          uv build --build-constraints "$RUNNER_TEMP/build-constraints.txt"
+      - name: Validate tag and distributions; select the exact wheel
+        run: |
+          wheel="$(uv run python scripts/validate_release.py dist "$RELEASE_TAG")"
+          echo "SURVJAX_WHEEL=$wheel" >> "$GITHUB_ENV"
+      - name: Run release checks on the built artifact in both dtypes
+        run: |
+          if ! git show-ref --verify --quiet refs/heads/main; then
+            git branch main origin/main
+          fi
+          scripts/check.sh --through A10
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: python-distributions
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment:
+      name: pypi
+      url: https://pypi.org/p/survjax
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: python-distributions
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        with:
+          packages-dir: dist
+          skip-existing: "false"

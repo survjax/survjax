@@ -1,3 +1,47 @@
+# RELEASE.3 — Prepare Trusted Publishing workflow
+
+Start / previous step: 2ae2d37cdc22dbcc8681f64325df9249b73837b5.
+Original worktree base: 3cb4cd7fbba3313f00dfabed0028ee6f404384df.
+Files: .github/workflows/release.yml, scripts/validate_release.py,
+tests/unit/test_validate_release.py, PLAN.md, REVIEW.md. No public API,
+dependency, protected path, shared CI, docs source or spec changes.
+Spec: 10.1–10.3 packaging/runtime isolation, 12.2 publication separate,
+13 wheel/sdist pre-release checks. Aim below 300 implementation/test lines.
+
+Use only release: published (includes prereleases), intended repository guard,
+checkout of event SHA, pinned existing Python/uv baseline and action SHAs.
+Build once with pinned existing uv_build baseline: uv build produces sdist
+and a wheel built from it. Validate exactly one of each, matching metadata
+and v<version> tag; reject development/local versions. Run the unchanged full
+through-A10 gate with SURVJAX_WHEEL pointing to that exact wheel. This does not
+claim A11/A12 acceptance; their integration retains independent ownership.
+Upload only the two tested distributions to a named workflow artifact. A
+separate dependent Ubuntu job downloads that artifact without checkout or
+build, uses environment pypi and job-only id-token: write, then invokes pinned
+pypa publishing action (no credentials or skip-existing). No ordinary CI event
+publishes. No TestPyPI, remote workflow dispatch, upload, tag or account action.
+
+The small stdlib validator checks the tag/version/name, filenames and wheel /
+sdist metadata + README agreement, returning the tested wheel path. Unit tests
+exercise positive alpha archives and tag/dev/archive-mismatch failures. Run
+touched unit tests fully in both dtypes, local uv build + real artifact audit,
+prove current dev artifacts are rejected; validate a temporary alpha build
+without changing this checkout's version. Parse YAML and inspect trigger,
+permissions and artifact flow using existing tools; run required fast A10 gate.
+No new actionlint/Twine dependency. Do not claim remote execution/upload.
+
+Independent review: user explicitly replaces unavailable Claude with a separate
+gpt-6-astra reviewer at low reasoning. Keep commit-first, independent review,
+maximum three rounds, fix-up commits, and stop/report. No Claude invocation.
+
+Docs to-do for RELEASE.4: workflow release.yml, environment pypi; pending PyPI
+publisher fields (project survjax, owner vanAmsterdam, repository survjax,
+workflow release.yml, environment pypi); required environment reviewers/tag
+restrictions and remaining release checks. RELEASE.5a–5c, public hosting,
+version bump and outstanding demo/acceptance gates remain before publication.
+
+---
+
 # RELEASE.2 — Prepare package release metadata
 
 Starting SHA / previous completed step: ac50796fc82ff087df3c8973724992a4ec2e2eb5.
