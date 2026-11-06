@@ -155,41 +155,7 @@ to every draw and arm. The `_grid` methods instead add a leading time axis:
 Indexing `draws[0]` selects the first draw and retains its two arms. See
 [Survival curves and time grids](grids.md) for the pointwise/grid distinction.
 
-## Exact events, right censoring and derivatives
-
-Use `log_likelihood` for per-observation contributions. The current likelihood
-subset is exact events and right censoring without truncation; representing
-other observation kinds in `SurvivalData` does not make their likelihoods
-available. Unsupported likelihood rows yield NaN. See
-[Log likelihoods](likelihood.md).
-
-For one exact event at month 1 and censoring at month 2, with baseline rate 1,
-the negative sum of contributions is $L(\eta)=3e^\eta-\eta$.
-At zero its value, first derivative and second derivative are 3, 2 and 3.
-
-```{code-cell} ipython3
-data = survjax.SurvivalData(
-    jnp.array([1.0, 2.0]), event=jnp.array([True, False])
-)
-
-
-def loss(eta):
-    model = survjax.ProportionalHazards(
-        survjax.Exponential(rate=1.0), log_hazard_ratio=eta
-    )
-    return -model.log_likelihood(data).sum()
-
-value, gradient = jax.jit(jax.value_and_grad(loss))(0.0)
-curvature = jax.jit(jax.grad(jax.grad(loss)))(0.0)
-assert jnp.all(jnp.isfinite(jnp.array([value, gradient, curvature])))
-value, gradient, curvature
-```
-
-With the built-in baselines, ordinary finite, valid, smooth interior parameter
-derivatives of direct methods and likelihoods support `jit`, `vmap`, forward
-and reverse AD to second order. Covariate design, objective reduction and
-optimization remain with the caller.
-
+```{note}
 **Initial-release extreme-scaling limit:** first and second parameter
 derivatives of PH direct methods and likelihoods can be inaccurate, zero or
 nonfinite even when values and mathematical derivatives are finite. This
@@ -201,25 +167,4 @@ does not ensure an accurate gradient. There is no fully mapped safe boundary
 or blanket exemption for all tails. Stabilization is post-initial-release
 work; ordinary derivatives, value/boundary policies and supported valid-entry
 isolation remain required.
-
-## Diagnostics
-
-Construction stores parameter values without automatically raising on numerical
-violations. Inspect `parameter_issues()`; nested fields use the `baseline.`
-prefix. Malformed types or incompatible shapes still raise `TypeError`.
-
-```{code-cell} ipython3
-bad = survjax.ProportionalHazards(
-    survjax.Weibull(shape=2.0, scale=jnp.array([2.0, -2.0])),
-    log_hazard_ratio=0.0,
-)
-issues = bad.parameter_issues()
-assert issues.invalid_entries.tolist() == [False, True]
-assert "baseline.scale" in issues.fields
-values = bad.survival(1.0)
-assert jnp.isfinite(values[0]) and jnp.isnan(values[1])
-issues.fields, values
 ```
-
-Use `issues.raise_if_invalid()` at a concrete host checkpoint when you want an
-exception.

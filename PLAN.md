@@ -1,3 +1,23 @@
+# DOCS.2 — Address the maintainer's documentation review
+
+Starting/previous step: cc5f106; original worktree base: 2093ca2.
+Implement docreview.md within the ongoing docs restructure. Change index.md to
+name SurvivalData, explain both containers and distributions are pytrees, state
+minimal core dependencies, and place likelihood immediately after the common
+distribution interface. Remove PH's general likelihood/derivative and diagnostics
+sections; retain batching and the specific extreme-scaling limit as a note.
+Update DOCS-MIGRATION.md and REVIEW.md. No API, dependency or spec changes.
+Spec: 3.2, 4, 7, 10.3/10.5. No new tests: execute scripts/build_docs.sh directly
+in both dtype modes, inspect affected rendered content/navigation, audit local
+links and run git diff --check. Independent review remains waived for this docs
+review task. One follow-up commit; no subsequent substeps planned.
+
+Completed: both dtype builds pass (17 executable pages / 145 cells each),
+rendered review assertions and 1,739 local links/assets per site pass;
+whitespace clean. All docreview.md items addressed.
+
+---
+
 # DOCS.1 — Restructure the pre-release documentation
 
 Maintainer approved the full proposed structure, exceeding 300 changed lines,

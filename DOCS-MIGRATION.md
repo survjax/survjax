@@ -72,3 +72,14 @@ Internal links follow moved sections. The full docs build executes both dtype
 modes, while the existing MNIST workflow remains float32. REVIEW.md records
 actual build, rendered-output and link-check results. No independent reviewer
 is invoked for this maintainer-approved restructure.
+
+## Maintainer review follow-up (docreview.md)
+
+- Landing page now explicitly introduces the survival data container, both
+  container/distribution pytrees, and the minimal JAX/NumPy core dependencies.
+- Log likelihoods now follows Working with distributions in navigation.
+- PH retains composition/batching but removes Exact events, right censoring and
+  derivatives and Diagnostics. These repeated general guidance already present
+  in the likelihood/common-interface guides; their illustrative checks were
+  removed, not moved to another page. The PH-specific extreme-scaling limitation
+  remains verbatim in a note.

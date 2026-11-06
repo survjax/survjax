@@ -9,10 +9,15 @@ kernelspec:
 
 # Survival analysis in JAX
 
-survjax supplies survival distributions, censored-data likelihoods, survival
-curves and evaluation tools that compose with JAX. You supply the model's
-parameters—directly, through a regression, from a neural network or as
+survjax supplies a survival data container, survival distributions, censored-data
+likelihoods, survival curves and evaluation tools that compose with JAX. You
+supply the model's parameters—directly, through a regression, from a neural network or as
 posterior draws—and choose how to fit them.
+
+`SurvivalData` and distributions are JAX pytrees, so you can pass them through
+transformations such as `jit` and `vmap`. survjax is lightweight on purpose:
+its only core dependencies are JAX and NumPy. Optimizers, neural networks and
+Bayesian inference libraries are optional tools you compose with it.
 
 ```{code-cell} ipython3
 import survjax
@@ -46,10 +51,10 @@ survival-data
 :caption: Survival distributions
 
 working-with-distributions
+likelihood
 builtin-families
 proportional-hazards
 distributions
-likelihood
 numerical-behaviour
 ```
 
