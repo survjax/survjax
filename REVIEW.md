@@ -57,3 +57,12 @@ Direct both-dtype docs build is the validation for these status edits.
 Follow-up validation: direct escalated scripts/build_docs.sh passed both strict
 sites with success identity. Both rendered release pages contain publication
 status. git diff --check passed. No repeat numerical tests for prose/date/log.
+
+Round 2 outcome: VERDICT maintainer; no new findings. N-1/N-2 fixed.
+B-1/S-1 remain policy/spec-author decisions already covered by explicit
+maintainer release authorization; D-048 stays formally open. N-3 root log is
+retained because maintainer explicitly requested all steps documented.
+Reviewer read diff only; tests, docs, network and approvals not independently
+reproduced. Proceed with the authorized docs/log integration; no further
+implementation step or tag change. Last content commit 7c7c914; published tag
+and release source remain 56311e3; previous step/base 8794005.

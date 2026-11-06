@@ -115,3 +115,23 @@ been published by these preparation changes alone.
 
 27. Final publication-status docs build passed both strict dtype sites with
     success identity; rendered release status checked. Whitespace clean.
+
+28. Follow-up review round 2: maintainer verdict, no new findings. N-1/N-2
+    fixed. Prior protected-policy B-1/S-1 remain formally recorded; maintainer
+    explicitly authorized those release actions. N-3 root log retained per
+    maintainer request. Reviewer did not reproduce runtime/network checks.
+29. Final record integration is docs/log/citation-date only. Release tag stays
+    at 56311e3; package is 0.0.1a2. No further release substeps remain for this
+    upload. RTD hosting and unfinished acceptance slices were not certified.
+
+## Next release checklist
+
+1. Change pyproject.toml version and run uv lock; version checks read metadata.
+2. Update candidate release notes/citation and validate wheel rebuilt from sdist.
+3. Run full artifact gate and docs build; review, integrate, confirm hosted CI.
+4. Tag the tested commit with the matching v-prefixed version, push tag, publish
+   a GitHub prerelease for an alpha. pypi environment now permits v* tags.
+5. Inspect build/upload; diagnose failures before retry. Never move/reuse a
+   published version. Verify public-index install and both artifact hashes.
+6. Record actual publication/date/results. A failed-before-upload environment
+   job can retry its publish job with the tested artifacts after rule repair.
