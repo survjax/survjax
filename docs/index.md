@@ -30,8 +30,9 @@ model.log_likelihood(data)  # one contribution per observation
 Start with [survival data](survival-data.md) and
 [working with distributions](working-with-distributions.md), then use
 [log likelihoods](likelihood.md) to build a fitting objective.
-The [MNIST use case](use-cases/survival-mnist.md) shows the same likelihood
-inside a neural network and includes an editable notebook.
+Three documented use cases show how to [fit a Weibull distribution](use-cases/weibull-simulation.md) - or a whole lot of them in a simulation study,
+using survival likelihoods in neural networks on [MNIST](use-cases/survival-mnist.md), and how to do [Bayesian survival analysis](use-cases/bayesian-rmst.md) with survjax.
+Each of the use-cases include executable notebooks that you can run in your own environment.
 
 This pre-release supports exact events and right censoring without truncation
 for likelihoods. Exponential and Weibull distributions, proportional hazards,
