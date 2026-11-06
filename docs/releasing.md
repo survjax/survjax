@@ -6,8 +6,8 @@ orphan: true
 
 This is the maintainer's procedure for a future public alpha release.
 Local preparation has added hosting configuration, package metadata and a
-publishing workflow. No account connection, hosted build or upload has been
-verified. The preparation baseline is `0.0.1.dev0`; examples below use the
+publishing workflow. The GitHub organization transfer is verified; Read the Docs has not been set
+up, and no hosted build or package upload has been verified. The preparation baseline is `0.0.1.dev0`; examples below use the
 proposed release **`0.0.1a1`**, Git tag **`v0.0.1a1`**. Confirm the version
 before following the release sequence. Account ownership is not established by
 the repository or documentation URLs.
@@ -30,50 +30,57 @@ commit; do not infer accelerator support from CPU checks. Record outstanding
 limitations in the release notes. Proceed only after these prerequisites and
 the hosting checks below have evidence.
 
-## Complete the planned GitHub organization transfer
+## Check the completed GitHub organization transfer
 
-The maintainer has created the GitHub organization `survjax`. The intended
-repository destination is **`https://github.com/survjax/survjax`**, keeping the
-name `survjax`. The transfer is still an operator action, not a completed result
-of local preparation. Confirm permissions to transfer/create in the receiving
-organization and that the destination name is available before proceeding.
+The repository is **`https://github.com/survjax/survjax`**, transferred from
+`vanAmsterdam/survjax`. Authenticated GitHub checks confirm the canonical name,
+`main` default branch, enabled issues and existing GPU workflow. It remains
+private: anonymous GitHub page/badge 404 responses do not prove a broken URL.
+The preparation worktree's origin fetch/push URLs already use the new identity.
 
-The local identity update is prepared: package repository/issues URLs, README
-GPU badge/links, `CITATION.cff`, release workflow repository guard and artifact
-metadata tests now target `survjax/survjax`. The guard accepts only the new
-namespace, so a release build under `vanAmsterdam/survjax` is blocked. These
-local edits do not perform the transfer or prove live destination access.
-After the separately authorized transfer, confirm the canonical URL and check
-all integrations below before tagging/building release artifacts.
-
-Recheck organization access, `pypi` environment protections, Actions permissions,
-and RTD GitHub App/webhook access for the transferred repository. Configure the
-PyPI publisher with the actual new owner; GitHub URL redirects do not substitute
-for the publisher's repository-owner identity. The table below names the
-intended post-transfer publisher, not an account configuration already made.
-Update authorized local clones' remotes through the operator procedure.
-[GitHub's transfer guide](https://docs.github.com/en/repositories/creating-and-managing-repositories/transferring-a-repository)
-describes redirects and organization permissions. No transfer or remote change
-is performed by these instructions themselves.
+Package repository/issues URLs, README badge/links, `CITATION.cff`, release
+guard and artifact metadata tests use `survjax/survjax`. The guard permits only
+that namespace. Confirm organization access, `pypi` environment protections,
+Actions permissions and any GitHub App access under the new owner. Configure
+the PyPI publisher with that owner; URL redirects do not replace publisher
+identity. Check any other clones' remotes separately. These integration/account
+checks remain operator work; transfer alone does not configure them.
 
 ## Connect Read the Docs
 
-An authorized operator must confirm who controls the intended project slug
-`survjax` and `https://survjax.readthedocs.io`. If that slug is unavailable or
-belongs elsewhere, agree on a replacement and update package/README URLs
-before building release artifacts. An HTTP error alone does not identify the
-owner or account settings.
+No Read the Docs project has been created by the maintainer yet. The intended
+Community address `https://survjax.readthedocs.io` currently returns 404; confirm
+slug availability in the dashboard instead of treating it as a live site.
 
-In the RTD dashboard, add or inspect the project connected to
-`https://github.com/survjax/survjax` after transfer. Confirm the repository and default
-branch `main`; install/authorize the Read the Docs GitHub App for this repository
-and verify its integration/webhook. Use the root `.readthedocs.yaml`.
-[Adding a project](https://docs.readthedocs.com/platform/stable/intro/add-project.html)
-can trigger a hosted build immediately. [Git integration](https://docs.readthedocs.com/platform/stable/reference/git-integration.html)
-on Community hosting requires a public repository; private-source builds
-require suitable Business hosting/access.
-Repository visibility and service/account changes require separate operator
-authorization; none is part of this local preparation.
+1. Ensure the reviewed `.readthedocs.yaml`, lockfile and docs/build changes are
+   pushed to the GitHub branch RTD will build, normally `main`. Local commits
+   in this worktree are not automatically available to RTD. The root config was
+   absent from remote `main` at this audit; importing before it is available
+   cannot use the prepared pipeline. Merge/push remain maintainer actions.
+2. Choose hosting consistent with repository visibility. Community hosting
+   requires a public repository; use Business for private-source builds.
+   Changing repository visibility or creating service accounts requires the
+   operator's separate authorization. No visibility/account changes were made.
+3. Sign in to the chosen RTD service with GitHub, authorize/install its GitHub
+   App for the `survjax` organization and this repository, then select
+   **Add project**, choose **survjax/survjax**, and **Continue**. Confirm the
+   repository/default branch and project slug, then **Next**. When asked about
+   configuration, select **This file exists** for root `.readthedocs.yaml`.
+4. Creation triggers a build. Inspect the build log for the correct source
+   commit, pinned setup and both dtype executions; keep the existing pipeline.
+   Verify `latest` is active and points to the intended default branch.
+5. Use the project's actual dashboard URL/domain. Community defaults to
+   `<project>.readthedocs.io`; Business uses
+   `<organization>-<project>.readthedocs-hosted.com`. A different slug/domain
+   requires updating package Documentation metadata and advertised URLs before
+   release. Do not infer the RTD account/organization name from the GitHub name.
+
+[Adding a project](https://docs.readthedocs.com/platform/stable/intro/add-project.html),
+[Git integration](https://docs.readthedocs.com/platform/stable/reference/git-integration.html)
+and [default domains](https://docs.readthedocs.com/platform/stable/custom-domains.html)
+describe this flow. GitHub App integration subscribes to the required events;
+manual imports need their own webhook setup. Project creation/builds can publish
+documentation, so these are operator actions, not work performed by this guide.
 
 The config selects Ubuntu 24.04, Python 3.12 and uv 0.11.19, synchronizes the
 locked docs/examples groups, and runs `scripts/build_docs.sh`. Both dtype
@@ -94,17 +101,19 @@ hosting fits that budget. MathJax rendering also uses the existing external CDN.
 
 Activate and build `latest` from `main`. After the release tag exists, sync RTD
 versions, activate its tag version, verify the actual URL slug, and build that
-exact commit. The expected release URL is
-`https://survjax.readthedocs.io/en/v0.0.1a1/`. Choose the checked tag version as
+exact commit. For the intended Community slug, the release URL would be
+`https://survjax.readthedocs.io/en/v0.0.1a1/`; use the actual dashboard domain. Choose the checked tag version as
 the site's default for the launch, keeping `latest` available. For Business
 hosting, set the version privacy to **Public**; project privacy separately
 controls public dashboard/build visibility. An active or hidden version is not
 a substitute for the appropriate privacy setting. Do not rely on the `stable`
 alias choosing an alpha.
 
-For this initial alpha, README guide links intentionally remain on
-`/en/latest/`: they can change after release. Use the verified tag URL when
-citing the release's documentation. Check the root redirect/default, version
+Until hosting is live, README guide links point to the repository sources.
+Root citation/contribution/changelog links also work in the source checkout
+and are resolved within the built site. Once hosting is verified, choose
+versioned hosted URLs consistently; use the verified tag URL when citing the
+release's documentation. Check the root redirect/default, version
 selector if present, navigation, search, rendered formulas/figures, and both
 use-case notebook/model/metadata downloads while signed out. Verify that
 notebook downloads match their tagged source files and the documentation logs

@@ -1,3 +1,45 @@
+# RELEASE.6 — Audit post-transfer links and explain RTD setup
+
+Start / previous step: 0657d65e852448441748b9f7ba038f0104223359.
+Original worktree base: 3cb4cd7fbba3313f00dfabed0028ee6f404384df.
+Maintainer reports transfer completed, asks all links checked, and confirms
+no RTD project exists yet and asks how to create it. One bounded docs/link
+step; no code/API/dependency, version/lockfile, protected, spec or nav edits.
+Current spec revision 47: 10.5/13. Preserve historical plans/reviews verbatim.
+
+Audit tracked active text/JSON/notebook URLs without reading tests/spec or spec
+symlink; historical plans/reviews exempt from rewriting. Authenticated GitHub
+API confirms survjax/survjax, main, private, issues enabled and GPU workflow
+exists. Sanitized read-only origin fetch and push URLs already new target;
+no remote mutation needed. Anonymous GitHub/badge 404 is private access, not
+wrong canonical identity. RTD URLs genuinely return 404; do not claim hosting.
+Remote main lacks root RTD config at audit time; local branch is not remote.
+
+Files: README.md, CITING.md, CONTRIBUTING.md, CHANGELOG.md, docs/releasing.md,
+docs/citing.md, docs/contributing.md, docs/changelog.md, PLAN.md, REVIEW.md.
+Update transfer status and post-transfer checks. README guide/source links use
+verified canonical GitHub source paths until hosting exists; do not advertise
+an uncreated site as live. Other root guides use relative docs links, and
+MyST includes use documented relative-docs: docs/ to resolve the same source
+paths in Sphinx. Keep intended Documentation metadata URL unchanged pending
+RTD project/slug/domain confirmation; no invented replacement account URL.
+
+Add concrete RTD setup: remote config available before importing; public
+Community vs private-source Business; organization GitHub App authorization;
+Add project / repository / slug / root YAML; build latest and inspect logs;
+actual domain comes from dashboard (Community vs Business differ); publication
+and privacy/version checks. User requested instructions only, not account,
+visibility, push/merge, remote, hosting or publishing actions.
+
+Validate current official service/MyST instructions, referenced source paths
+and corrected relative targets, direct both-dtype docs builds plus full site
+link/download and rendered-prose checks; fast A10 gate, whitespace. No unit
+tests added for reversible prose. Independent Astra/low review after commit,
+max three rounds with fixes; stop/report exact successes and unavailable URLs.
+No A11/A12, hosted Linux, public access or global-release certification.
+
+---
+
 # RELEASE.5e — Synchronize the prepared organization identity in docs
 
 Start / previous step: f301172d482e4159f8bb75be85dd6fbf7e83dca5.

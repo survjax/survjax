@@ -1,10 +1,9 @@
 # Contributing to survjax
 
-Bug reports, focused improvements and co-maintenance are welcome. The intended
-repository is [survjax/survjax](https://github.com/survjax/survjax); its transfer
-from `vanAmsterdam/survjax` is pending during release preparation. Local metadata
-and the publishing guard already target the organization. Use the repository's
-current verified location until the actual transfer is complete.
+Bug reports, focused improvements and co-maintenance are welcome. The
+repository is [survjax/survjax](https://github.com/survjax/survjax), transferred
+from `vanAmsterdam/survjax`. It is currently private; GitHub links require
+repository access until the maintainer chooses public visibility.
 
 Open an issue before a substantial API change, new dependency or large feature.
 Describe the problem and a small proposed scope. For bugs, include a minimal
@@ -75,7 +74,7 @@ scripts/build_docs.sh
 
 This executes runnable pages in separate dtype processes and fails on notebook
 errors or Sphinx warnings. MNIST needs a hash-checked download on a cold cache;
-see [verification and reproducibility](https://survjax.readthedocs.io/en/latest/technical-notes/verification.html).
+see [verification and reproducibility](docs/technical-notes/verification.md).
 Inspect rendered pages, figures and downloads; retain live execution.
 
 Keep each PR focused and reviewable. Explain the problem, resulting behavior,

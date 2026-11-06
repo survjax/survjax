@@ -5,8 +5,8 @@
 Draft notes for the proposed first public release, `0.0.1a1`.
 The preparation baseline is `0.0.1.dev0`; no release date or published tag
 is recorded here. Version, tag and publication follow the
-[operator handoff](https://survjax.readthedocs.io/en/latest/releasing.html).
-The documentation links below track moving `latest` sources.
+[operator handoff](docs/releasing.md).
+Documentation links below follow the source checkout or built docs version.
 
 ### Available in the preparation checkout
 
@@ -42,11 +42,11 @@ The documentation links below track moving `latest` sources.
   likelihood rows, so inspect diagnostics before interpreting results.
 - PH derivatives at extreme scales can be inaccurate, zero or nonfinite
   despite finite values and mathematical derivatives. See the
-  [PH guide](https://survjax.readthedocs.io/en/latest/proportional-hazards.html).
+  [PH guide](docs/proportional-hazards.md).
 - Weibull and PH-Weibull RMST support first shape derivatives; higher
   derivatives involving shape are unsupported. Their `tau=0` guarantees stop
   at value and first derivatives. Custom-family RMST is unavailable. See the
-  [RMST guide](https://survjax.readthedocs.io/en/latest/rmst.html).
+  [RMST guide](docs/rmst.md).
 - Unrestricted means, medians, quantiles, event-time sampling, generic RMST,
   additional built-in families, AFT wrappers, Kaplan–Meier and additional
   evaluation metrics remain future work. Fitting, priors and neural-network
@@ -62,8 +62,9 @@ acceptance integration retain separate ownership and completion gates.
 Recorded local checks through A10 do not certify those steps or the whole
 initial release. Citation and contribution guidance are prepared. Local package
 URLs, citation metadata, badge links and the publishing guard target
-`survjax/survjax`. The actual GitHub transfer and post-transfer integration /
-publisher checks remain pending.
+`survjax/survjax`, following the completed GitHub organization transfer.
+Post-transfer integration/publisher checks and documentation hosting remain
+pending; repository visibility is still private.
 
 Fresh Linux/RTD hosting, public documentation/download access, account
 connections, publisher/environment protection and public package installation

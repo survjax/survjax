@@ -30,12 +30,11 @@ according to their own guidance as well.
 
 ## Repository location and release metadata
 
-Local package and citation metadata are prepared for the intended organization
-destination **`https://github.com/survjax/survjax`**. The actual transfer from
-`vanAmsterdam/survjax` remains pending; these local edits do not verify a live
-canonical URL or organization access. Use the repository URL verified for the
-source you used, together with its version/commit. Hosting ownership and
-software author attribution are separate metadata.
+The repository is **`https://github.com/survjax/survjax`** following the
+transfer from `vanAmsterdam/survjax`. Package and citation metadata use that
+canonical identity. The repository is currently private, so access requires
+permission. Use the repository URL and exact version/commit for the source you
+used. Hosting ownership and software author attribution are separate metadata.
 
 Before publishing, confirm the agreed author list and canonical repository
 URL. Update `CITATION.cff` with the actual released version and release date
@@ -43,6 +42,6 @@ when assigned, consistently with the package and release notes. DOI and ORCID
 fields are currently omitted; add identifiers only when assigned and verified.
 A proposed version such as `0.0.1a1` is not a published release or a DOI.
 
-The [operator handoff](https://survjax.readthedocs.io/en/latest/releasing.html)
-records the coordinated repository/publisher updates and remaining launch
+The [operator handoff](docs/releasing.md)
+records post-transfer integrations, documentation hosting and remaining launch
 checks. Citation guidance does not certify those checks or imply publication.
