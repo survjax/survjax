@@ -1,5 +1,55 @@
 # Deviations and spec questions
 
+## D-044 A11 float32 log-CDF grid reference outside the normal tail guarantee
+
+- Step: revision-46 / A11–A12 gap inspection (2026-11-06).
+- Spec sections: 4.1, 4.2 and 12.1, revision 46.
+- Spec says: upper-tail log-CDF relative accuracy is guaranteed wherever
+  survival is a normal floating-point number (4.1/4.2).
+- Observed: `test_a11_ph_direct_methods.py::test_grid_twin_equals_time_first_direct_method[log_cdf_grid]`
+  passes the grid/direct comparison but fails its float64-reference comparison
+  in float32: actual -0 versus -3.1677234465149046e-43 and
+  -1.0069062497931706e-170. The first is subnormal in float32, the second
+  unrepresentable; both are below float32's normal minimum, about 1.175e-38.
+  The test demands rtol=1e-4, atol=0 against both nonzero references.
+- Propose: ask the maintainer/spec-test author to reconcile this assertion
+  with the normal-tail guarantee and float32 representability. Preserve the
+  test and implementation; do not widen tolerances or change the dtype.
+- Status: open.
+
+## D-043 A11 nested custom condition expected mask conflicts with its predicate
+
+- Step: revision-46 / A11–A12 gap inspection (2026-11-06).
+- Spec section: 4.7, revision 46.
+- Spec says: conditions contain the masks returned by `parameter_conditions`,
+  including nested masks with dotted prefixes; invalid_entries is their union
+  with field violations. It does not prescribe suppressing conditions on
+  invalid fields.
+- Observed: `test_a11_ph_parameter_issues.py::test_custom_baseline_condition_appears_with_the_prefix`
+  expects baseline.rate_above_cap=[False,True,False] for rate=[1,3,1],
+  cap=[2,2,-1]. Its custom family in `tests/spec/spec_families.py` returns
+  rate > cap, i.e. [False,True,True]. The implementation preserves that mask
+  and independently reports the invalid negative cap. Failure occurs in both
+  dtype modes; the invalid_entries union still matches the test.
+- Propose: ask the maintainer/spec-test author to reconcile the expected mask
+  with the declared predicate. Do not suppress diagnostics to satisfy this
+  assertion and do not edit the protected test.
+- Status: open.
+
+## D-042 Positional PH snippets remain after keyword-only clarification
+
+- Step: revision-46 / A11–A12 gap inspection (2026-11-06).
+- Spec sections: 4.4 and 11.3, revision 46.
+- Spec says: 4.4 explicitly rejects positional baselines (revision 42), but
+  its closure prose and the 11.3 Bayesian model snippet retain positional PH
+  construction. D-028 also records an older maintainer choice permitting it.
+- Propose: follow the explicit revision-42 keyword-only requirement in the
+  planned constructor migration; ask the maintainer to authorize or perform
+  cleanup of the remaining snippets. No spec edit or implementation change
+  is made in this inspection. Do not mark D-028 resolved on the maintainer's
+  behalf. The explicit constructor rule itself is settled.
+- Status: open.
+
 MNIST merge ID reconciliation (2026-11-05): main already uses D-028 to D-033.
 The MNIST entries are renumbered: D-028 preparation placement is now D-034,
 D-029 reference BFGS roundoff D-035, D-030 CNN initialization D-036, D-031
