@@ -1,4 +1,52 @@
-Independent review: round 1/3
+Independent review: round 2/3
+
+## Round 2 — Maintainer-approved S-1 build environment
+
+Start / previous final ae94e658ca5dc9775831c072953b1f505cc14768. The
+maintainer selected the recommended route: scripts/build_docs.sh now passes
+--group docs --group examples to the same locked uv run command. This is the
+precise shared/protected script edit approved by "let's go with your
+recommende route, do it" after the explanation of S-1. No dependency or
+lockfile change. Read the newest PLAN section, the one-line script diff, and
+the page's updated one-command reproduction instructions first.
+
+Spec 10.5 requires one command from a clean checkout that executes runnable
+examples afresh; use-cases/00-common and 01 require the live simulation smoke.
+Both groups must be selected independently of packages left by an earlier
+sync. The existing -E/-n/-W/--keep-going flags, separate dtype processes,
+notebook timeout and page-local float64 policy remain unchanged.
+
+Check setup: uv sync --locked --group docs removed 16 examples packages,
+including optimistix. uv run --locked --no-sync python -c with find_spec
+asserted optimistix absent ("docs-only environment: optimistix absent").
+Then scripts/build_docs.sh ran directly with approved escalation, no wrapper,
+redirect or environment assignment. Its first uv run installed 16 packages.
+Exit 0: both modes ended in build succeeded, without Sphinx warnings or
+notebook errors. Simulation page execution took 9.93 s / 9.44 s (x32/x64),
+well below 120 s. Live smoke reported float64 and 6.61 s / 6.26 s; the single
+fit was accepted, HR .5794 in both. Stock ipykernel TCP startup banners remain
+in the logs, not Sphinx warnings. This exercises the missing-dependency case,
+not a newly created empty venv.
+
+One-off BeautifulSoup inspection passed for both rendered pages: five tables
+with 4/6/12/12/6 data rows, zero stderr/system-message/problematic elements,
+live smoke/accepted-fit output present, and three SVGs plus four downloads
+resolve and match committed source bytes. This is structural inspection;
+browser layout is still unverified. No generated outputs are committed.
+
+bash -n scripts/build_docs.sh passed. uv run --locked --no-sync Ruff format
+and lint passed (151 files already formatted / All checks passed!). The same
+invocation of mypy src passed (22 source files); git diff --check passed.
+No new tests mirror this one-line command, and no numerical suites rerun.
+
+S-1 is implemented under maintainer approval. Navigation is still orphaned
+and browser visual inspection remains outstanding as described in round 1.
+Optional N-1/N-2/N-3 are not changed by this focused follow-up. No other
+protected/shared path is edited; no merge/push/publication.
+
+---
+
+## Round 1 evidence (historical, before the approved S-1 edit)
 
 # SIM.10 — Executable Weibull simulation page
 

@@ -1,3 +1,30 @@
+# SIM.10 round 2 — Approved docs build environment (2026-11-06)
+
+Start / previous final ae94e658ca5dc9775831c072953b1f505cc14768.
+Original base 8757c0fda78e34e6e818249adedd2a144a33c33d; integration base
+d2469e0a7e719dbcb276277e6fd80a447626ad4e. Keep release-simulation and all
+unfinished PLAN history. Round 1 returned maintainer for S-1; the maintainer
+now explicitly approves the recommended --group examples build-script edit.
+This approval overrides the handoff's prohibition for this precise change.
+
+Change scripts/build_docs.sh's existing uv run command to select both docs
+and examples from the unchanged lockfile. Update this page's reproduction
+instructions to use the resulting one-command build. No dependency/API,
+generator, numerical, core, shared navigation/config or other script change.
+Spec 10.5 and use-cases/00-common deliverable shape / 01 acceptance require
+live smoke execution with the optional demo dependencies available.
+
+Meaningful check: sync only the docs group, verify optimistix is absent,
+then run scripts/build_docs.sh directly (no wrapper/env assignment/redirect).
+Confirm the command installs the examples packages and both notebook builds
+pass, including live float64 smoke and single-fit output. Run bash syntax,
+Ruff/mypy and diff checks. No new implementation-mirroring test for this
+one-line command edit. Update REVIEW.md for round 2, commit, invoke the exact
+independent-review skill and stop. Navigation and browser visual inspection
+remain separate outstanding work; do not imply that this resolves them.
+
+---
+
 # SIM.10 — Executable Weibull simulation page (2026-11-06)
 
 Start / previous final 04ec2d8436a75125adc89eaf5361f968c0bf476b (SIM.9b

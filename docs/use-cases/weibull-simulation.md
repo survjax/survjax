@@ -253,10 +253,9 @@ peak memory were not measured. These measurements describe this machine/run.
 
 ## Reproduce and inspect the evidence
 
-From the repository root, prepare the approved optional environment and build:
+From the repository root, build with the locked docs and examples groups:
 
 ```bash
-uv sync --locked --group docs --group examples
 scripts/build_docs.sh
 ```
 
