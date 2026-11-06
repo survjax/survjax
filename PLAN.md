@@ -1,3 +1,43 @@
+# RELEASE.4 — Write the release operator handoff
+
+Start / previous step: 035f4e001f46d999a36e035b9db91f0bd6f2bc95.
+Original worktree base: 3cb4cd7fbba3313f00dfabed0028ee6f404384df.
+Files: docs/releasing.md, PLAN.md, REVIEW.md. One docs topic under 300 lines;
+no API, dependency, configuration, protected path, spec or version changes.
+Current spec revision 46: 10.1/10.3/10.5, 12.2, 13 release requirements.
+Historical revision numbers in previous review records remain historical.
+
+Write a standalone Sphinx/MyST orphan page (no notebook cells), accessible as
+releasing.html and through search, leaving the docs agent's pages/navigation
+untouched. Cover: current unverified hosting/publication status; outstanding
+release gates/owners; RTD slug/account confirmation and GitHub connection;
+private-repository hosting constraints, active/default/public version settings;
+locked executable builds, cold MNIST network and budget/download checks;
+PyPI pending publisher exact fields and pypi environment protections; candidate
+version/tag/source/docs sequence; build/test the same distributions; explicit
+GitHub Release trigger and final environment approval; fresh public-install and
+unauthenticated docs checks. Do not perform the operator's remote/account work.
+
+Use candidate 0.0.1a1 / v0.0.1a1 consistently, keeping the repository version at
+0.0.1.dev0. Initial-alpha README guide links deliberately retain /en/latest/;
+state they move and give the release version URL separately. Verify actual RTD
+version slug/default and public access; do not rely on stable for an alpha.
+List RELEASE.5a–5c and other agents' unfinished demo/acceptance work as blockers,
+not new implementation scope. Never claim A10 proves A11/A12 or broader release.
+
+Verify current official RTD/PyPI/GitHub docs. Run scripts/build_docs.sh directly
+(both dtype processes), inspect rendered handoff/links/code blocks and audit
+local site links/assets/downloads. Run the required fast gate through A10 and
+git diff --check. No new unit tests for prose; no remote account actions,
+publication or public-install command execution. Independent Astra/low reviewer
+as authorized, after commit, at most three rounds; fix if needed, then stop.
+
+Remaining: RELEASE.5a initial changelog, 5b citation, 5c contribution guidance;
+external hosting evidence, release version commit, remote account setup and
+other agents' completion gates are required before any public launch.
+
+---
+
 # RELEASE.3 — Prepare Trusted Publishing workflow
 
 Start / previous step: 2ae2d37cdc22dbcc8681f64325df9249b73837b5.

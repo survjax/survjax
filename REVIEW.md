@@ -1,122 +1,113 @@
 Independent review: round 1/3
 
-# RELEASE.3 — Prepare PyPI Trusted Publishing
+# RELEASE.4 — Release operator handoff
 
-Reviewer substitution: maintainer explicitly requested a separate gpt-6-astra
-agent at low reasoning because Claude is unavailable. Keep commit-first,
-independent review, findings/fix-up commits, max three rounds and stop/report;
-do not invoke Claude or edit the protected reviewer skill. Reviewer reads the
-committed step independently; no implementation handoff/analysis is supplied.
+Independent reviewer: Astra, low reasoning, as explicitly requested by the
+maintainer for this workstream; no Claude invocation or protected skill edit.
 
 ## Read first
 
-1. PLAN.md RELEASE.3 and current spec 10.1–10.3, 12.2, 13.
-2. .github/workflows/release.yml: trigger, build/test/artifact job, isolated
-   dependent publisher, environment and permissions.
-3. scripts/validate_release.py: matching version/tag, filenames and archive
-   metadata/description; tests/unit/test_validate_release.py: synthetic cases.
-4. scripts/check.sh and tests/install/test_wheel.py (unchanged): gates and
-   supplied-wheel support used by the new workflow. Do not edit protected paths.
+1. PLAN.md RELEASE.4: one documentation topic, no navigation/other-agent edits.
+2. docs/releasing.md: account actions, prerequisites and release sequence.
+3. .readthedocs.yaml, .github/workflows/release.yml and
+   scripts/validate_release.py (unchanged): verify the handoff matches reality.
+4. Current spec revision 46, 10.1/10.3/10.5, 12.2 and 13. The shared design
+   source advanced during this workstream; previous review revision labels
+   are historical and have not been rewritten. No numerical scope here.
 
-## Invariants
+## Invariants and choices
 
-- Local preparation only. No push, tag, release, remote workflow run, package
-  upload, account/credential/visibility setup or publication occurs here.
-- Only published GitHub Releases in vanAmsterdam/survjax build; no push, PR,
-  schedule or dispatch trigger. Checkout the event SHA, without credentials.
-- Existing Python 3.12 / uv 0.11.19 CPU baseline; locked dev/test environment;
-  existing uv_build constrained to tested 0.11.19. No new dependencies.
-- uv build creates a source archive and builds its wheel from that archive.
-  One pure Python survjax wheel + matching sdist only. Current development
-  artifacts cannot pass: tag is v<version> and version must be dotted
-  major.minor.patch optionally followed by a/b/rc + number, without dev/local.
-  This deliberately narrow release policy is for this initial release, not
-  a general PEP 440 implementation or public library API.
-- Validate matching wheel/sdist metadata and exact Markdown README bytes.
-  Pass the validated absolute wheel through SURVJAX_WHEEL to the full A10 gate
-  (both dtypes, including installed-wheel tests); gate does not rebuild it.
-- Artifact upload follows passing tests; publish job only downloads the named
-  artifact and invokes the PyPI action, no checkout/build/source execution.
-  Only publish receives id-token: write, uses pypi environment; no token secret,
-  alternate registry or skip-existing bypass. Action SHAs pinned.
-- Existing shared CPU CI is unchanged. Through A10 does not verify A11/A12;
-  acceptance integration stays with its owner and is a pre-release obligation.
-  No docs/source/spec/protected-path/version/lockfile changes.
+- Only docs/releasing.md and plan/review records change. No API, dependency,
+  runtime/config/version/lockfile, navigation, protected path or spec changes.
+- Page is a standalone MyST orphan document, releasing.html, searchable but
+  outside the existing toctree. This preserves the docs agent's navigation.
+- Candidate 0.0.1a1, tag v0.0.1a1, expected RTD slug v0.0.1a1; operator must
+  confirm both selected version and actual RTD slug. Preparation baseline
+  0.0.1.dev0 remains unchanged. Version/lock/install-assertion updates occur
+  together in the eventual reviewed release commit.
+- Initial-alpha README links deliberately remain moving /en/latest/ links;
+  release documentation can be cited through its checked version-specific URL.
+- Exact pending publisher fields match workflow release.yml / environment
+  pypi / repository vanAmsterdam/survjax / project survjax. PyPI account owner
+  and RTD project owner are not inferred from these identifiers or URLs.
+- Record private-source hosting requirements, active/default/privacy settings,
+  fresh Linux build requirement, MNIST cold network/cache, timeout/resource
+  budget, both dtype execution and complete-site output/download checks.
+- Explicitly require changelog, citation and contribution guidance, provenance,
+  license, tested configurations, other agents' demo/docs/acceptance evidence,
+  public package/docs checks and coordinated version commit before launch.
+  A10 is the current prepared gate, not evidence for A11/A12; independent
+  acceptance owner must integrate the appropriate release gate.
+- Publishing a GitHub Release is the workflow trigger. Before pypi environment
+  approval inspect the exact run's tested artifacts/hashes; local rehearsal
+  files are not claimed as workflow upload files. No accounts, tags, release,
+  push/upload, visibility change or public-install command is executed here.
 
-## Official interfaces checked (2026-11-06)
+## Current official interfaces checked (2026-11-06)
 
-- https://docs.pypi.org/trusted-publishers/using-a-publisher/ and
-  https://docs.pypi.org/trusted-publishers/adding-a-publisher/:
-  OIDC permission, action and GitHub environment publisher identity.
-- https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/:
-  separate build/publish jobs, artifact transfer, pending publisher and
-  protected pypi environment. Account setup remains an operator action.
-- https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#release:
-  release published trigger; event SHA identifies the tagged release commit.
-- https://docs.astral.sh/uv/guides/package/: default wheel-from-sdist build.
-- https://raw.githubusercontent.com/pypa/gh-action-pypi-publish/release/v1/action.yml:
-  packages-dir and skip-existing inputs, metadata verification and attestations
-  default on. Publish is Linux-only; selected Ubuntu 24.04 accordingly.
-- git ls-remote verified action commit refs: checkout v5 fbc6f399..., upload
-  v4 ea165f8d..., download v5 634f93cb..., publisher v1.14.3 7245906f...
-  (annotated tag peeled). setup-uv SHA/baseline reused from existing CI.
+- RTD project connection/import:
+  https://docs.readthedocs.com/platform/stable/intro/add-project.html and
+  https://docs.readthedocs.com/platform/stable/reference/git-integration.html.
+- RTD active/hidden/public/default and prerelease behavior:
+  https://docs.readthedocs.com/platform/stable/versions.html and
+  https://docs.readthedocs.com/platform/stable/commercial/privacy-level.html.
+  Hidden is not private; Business project and version privacy differ.
+- RTD documented budget:
+  https://docs.readthedocs.com/platform/stable/builds.html#build-resources.
+- PyPI pending publisher:
+  https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/.
+  Pending publisher does not reserve the project name.
+- GitHub environment protections and account-plan/visibility availability:
+  https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments.
 
-## Checks and outcomes
+## Verification
 
-- New tests first failed collection in both modes (scripts is not on pytest's
-  import path). Fixed the test loader to runpy.run_path on the script, without
-  adding a package, dependency or modifying global test import setup.
-- JAX_ENABLE_X64=1 uv run --group test pytest -n 6 -q
-  tests/unit/test_validate_release.py: 6 passed in 0.55s; float32: 6 / 0.49s.
-  Covers valid alpha, mismatched tag, dev/local rejection, archive metadata
-  disagreement and extra-artifact rejection. Tests all below one second.
-- YAML parsed with existing environment PyYAML BaseLoader (preserves YAML 1.2
-  on key); checked release-only trigger, job-scoped OIDC, environment pypi,
-  same artifact name and no checkout/run steps in publisher. Passed.
-- bash -n on each embedded run block: passed. No actionlint executable
-  available; not installed as a new project dependency.
-- uv build --out-dir /tmp/survjax-release3-dev: exit 0, sdist + wheel-from-sdist
-  built. Validator rejects these actual 0.0.1.dev0 artifacts as intended.
-- Separate temporary source copy with version 0.0.1a1 (only under /tmp):
-  uv build /tmp/survjax-release3-candidate --build-constraints
-  /tmp/survjax-release3-build-constraints.txt --out-dir /tmp/survjax-release3-alpha:
-  exit 0. Constraints contain uv_build==0.11.19 as in the workflow.
-  Validator accepts both real alpha archives for v0.0.1a1 and returns the
-  exact wheel path. Repository version/lock/assertions remain unchanged.
-- Both full tests/install/test_wheel.py runs used SURVJAX_WHEEL pointing to
-  /tmp/survjax-release3-dev/survjax-0.0.1.dev0-py3-none-any.whl:
-  float64: 4 passed in 40.42s; float32: 4 passed in 39.72s. Includes fresh
-  out-of-tree installation, runtime-only imports, derivatives, external typing.
-- Same SURVJAX_WHEEL supplied to scripts/check.sh --fast --through A10:
-  exit 0, all gates passed. Ruff 175 files formatted / checks passed;
-  mypy 22 files clean. Implementer float64: 1066 passed / 8 skipped;
-  float32: 1071 / 3. Source doctests: 4 each. Spec float64: 2149 / 27;
-  float32: 2156 / 20. Fast gate deselects slow cases; full touched install
-  checks above include them. No A11/A12 claim.
-- git diff --check: passed. Full numerical tier-2 gate not run locally;
-  configured for the future release workflow, existing CI/maintainer gate.
+- scripts/check.sh --fast --through A10: exit 0, all gates passed.
+  Ruff: 176 files already formatted / all checks passed; mypy: 22 files clean.
+  Implementer float64: 1066 passed / 8 skipped; float32: 1071 / 3.
+  Source doctests: 4 passed each. Spec float64: 2149 passed / 27 skipped;
+  float32: 2156 / 20. Slow tests intentionally deselected. No new unit tests
+  for prose, and no redundant full numerical suite or install-suite rerun.
+- First direct scripts/build_docs.sh run: exit 0; both Sphinx builds succeeded
+  with fresh existing notebook execution. Kernel shutdown logged sandbox-denied
+  psutil process inspection (sysctl PermissionError); this was outside notebook
+  calculations. Rerun directly using approved escalation to verify the final
+  text without that sandbox limitation; final evidence follows below.
+- Both future shell blocks parsed using bash -n; embedded Python parsed with
+  ast.parse; no {code-cell} directives in the new page. Passed. The release
+  rehearsal and public-index install examples were not executed by this check.
+- Escalated scripts/build_docs.sh rerun: exit 0; float32 and float64 each
+  report build succeeded, with forced execution retained. No earlier psutil
+  PermissionError tracebacks observed in the escalated run. Existing kernel
+  local-TCP notices remain tool output, not Sphinx warnings or execution errors.
+- uv run --locked --group docs python /tmp/survjax-release-audit.py:
+  each site has 24 HTML pages, 1,579 local links/fragments/assets, 14 downloads,
+  zero failures. Existing notebook downloads byte-match sources; use-case
+  images and navigation present. 18 notebooks / 153 code cells in the shared
+  sequential execution tree; build logs confirm both dtype executions.
+- Rendered handoff inspection in both sites: title, five sections, exact five
+  publisher fields, two shell blocks, source-copy byte identity, search index
+  entry and existing sidebar all passed. No visual browser/layout claim;
+  standard Furo styling/configuration remains unchanged.
+- git diff --check: passed.
 
-## Limits / remaining work
+## Limitations and remaining work
 
-GitHub-hosted Linux workflow, artifact service, OIDC identity, environment
-protection, PyPI metadata rendering/attestations and upload remain untested.
-No TestPyPI/PyPI upload or successful-hosted claim. No new Twine dependency;
-publishing action performs its own metadata verification when run later.
-The local alpha build validates packaging/tag policy, not a released/tested
-version: installed-wheel assertions still require the development version.
+No hosted Linux/RTD execution, account ownership/configuration, GitHub artifact
+service/OIDC, PyPI upload/rendering, public clean-install or signed-out public
+access verified. The new page describes these pending operator actions rather
+than reporting them complete. Both docs builds use the existing warm MNIST
+cache; RELEASE.1 separately recorded a cold-cache fetch, not hosted evidence.
+No tag/version change or publication authorization is inferred from this page.
 
-RELEASE.4 must identify pending publisher: PyPI project survjax; GitHub owner
-vanAmsterdam, repository survjax, filename release.yml, environment pypi.
-Operator must create/protect that environment with required reviewers and
-allowed release tags, configure the pending publisher under their authorized
-account, update version/lock/install assertion together, and complete all
-release/demos/acceptance/hosting checks before publishing a GitHub Release.
-RELEASE.5a–5c (changelog, citation, contribution), license/provenance/version
-checks from spec 13 and public clean-install/docs checks still gate launch.
-No account/project ownership inferred from URLs; no account work done here.
+Remaining docs steps: RELEASE.5a changelog, 5b citation, 5c contribution guidance.
+Remaining release gates belong to their existing owners. Keep the public launch
+blocked until the handoff's prerequisites are evidenced. The new orphan page
+has no sidebar entry; a later navigation decision remains with the docs owner.
 
 ## Commit trace
 
-Previous step / clean start: 2ae2d37cdc22dbcc8681f64325df9249b73837b5.
+Previous completed step / clean start:
+035f4e001f46d999a36e035b9db91f0bd6f2bc95 (RELEASE.3).
 Original worktree base: 3cb4cd7fbba3313f00dfabed0028ee6f404384df.
-RELEASE.3 commit follows these checks, then independent Astra review and stop.
+Commit the bounded docs step, independent Astra review, then stop.
