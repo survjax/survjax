@@ -33,3 +33,5 @@ Imported verbatim; old status/next-step instructions are historical only.
 
 
 [Pre-restructure integrated plans](pre-docs-restructure.md): verbatim PLAN.md at 2093ca2, including completed MNIST work and historical records from other workstreams. Archival does not close unfinished work recorded there.
+
+[Pre-release preparation](pre-release-prepare.md): verbatim completed DOCS.1–6 records at 3cb4cd7; historical unfinished work remains owned by its original workstreams.
