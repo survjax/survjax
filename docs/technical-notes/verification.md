@@ -191,7 +191,11 @@ committed; the harness and artifact were committed together in `51319c8`.
 From the repository root, run `scripts/build_docs.sh`. It executes runnable
 pages afresh in separate float32/float64 processes and fails on notebook errors
 or Sphinx warnings. Open `docs/_build/html-x32/index.html` or
-`docs/_build/html-x64/index.html` afterwards.
+`docs/_build/html-x64/index.html` afterwards. Use
+`scripts/build_docs.sh --output-dir DIR` to choose another build root; its HTML
+subdirectories are still `html-x32` and `html-x64`. See the
+{download}`build interface and portal compatibility notes <../../DOCS-BUILD.md>`
+for path handling, dependencies, caches, exit behavior and serving under a prefix.
 
 The MNIST use case executes its smoke example in float32 and downloads
 hash-checked images on first use. A warm cache at `SURVJAX_EXAMPLES_DATA`

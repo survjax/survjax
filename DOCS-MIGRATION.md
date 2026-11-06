@@ -83,3 +83,27 @@ is invoked for this maintainer-approved restructure.
   in the likelihood/common-interface guides; their illustrative checks were
   removed, not moved to another page. The PH-specific extreme-scaling limitation
   remains verbatim in a note.
+
+## Page URL map for a future worktree selector
+
+Paths below are relative to the selected dtype's HTML root. Keep existing paths
+where possible; this table records fallback mappings, not installed redirects.
+
+| Previous page | Current destination | Notes |
+| --- | --- | --- |
+| `slice-a-verification.html` | `technical-notes/verification.html` | Renamed; most original section anchors remain. |
+| `playground.html` | `index.html` | Removed; use-case notebooks replace its exploratory role. |
+| `builtin-families.html#coming-from-r-and-numpyro` | `technical-notes/parameter-conventions.html` | Parameter mappings moved. |
+| `builtin-families.html#comparisons-with-r` | `technical-notes/verification.html#comparisons-with-r` | Evidence moved. |
+| `builtin-families.html#precision-in-both-tails` | `numerical-behaviour.html#precision-in-both-tails` | Numerical guidance consolidated. |
+| `distributions.html#the-edges-of-the-time-axis` | `technical-notes/custom-distributions.html#the-edges-of-the-time-axis` | Advanced boundaries moved. |
+| `distributions.html#details` | `technical-notes/custom-distributions.html#details` | Extension details moved. |
+| `distributions.html#building-on-another-distribution-proportional-hazards` | `proportional-hazards.html#a-piecewise-constant-baseline` | Built-in wrapper replaces custom wrapper example. |
+| `likelihood.html#telling-the-causes-apart` | `technical-notes/likelihood-diagnostics.html` | Diagnostic recipe moved. |
+| `rmst.html#derivatives-and-their-limits` | `technical-notes/rmst.html#derivatives-and-their-limits` | Full derivative examples moved. |
+
+All other pre-restructure page paths remain unchanged. New pages include
+`working-with-distributions.html` and the remaining `technical-notes/` pages.
+Not every removed subsection has a direct replacement; the selector should
+fall back to the surviving page or index when its fragment is absent. Bayes
+and simulation page URLs remain owned by their eventual merge workstreams.

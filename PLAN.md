@@ -1,3 +1,31 @@
+# DOCS.5 — Prepare repository docs for a future workspace portal
+
+Starting/previous step: 80aee9e; original worktree base: 2093ca2.
+Execute docs-worktree-instruction.md: keep all build/theme/source ownership in
+this repository; no portal, discovery, shared-spec or workspace tooling changes.
+Change scripts/build_docs.sh to accept --output-dir, resolve its own worktree,
+select that .venv/source and isolate build caches under the output root. Document
+arguments, output layout, exits, dependencies and portal responsibilities in
+DOCS-BUILD.md. Extend DOCS-MIGRATION.md with a page URL map; link build instructions
+from the existing verification note. Keep Furo extensible via its existing
+Sphinx configuration/template overrides, without a premature selector.
+
+No library API/dependency changes. Tests: shell syntax/argument handling, normal
+and explicit-output builds, source/environment identity in notebook execution,
+AST/cell unchanged checks where applicable, HTTP nested-prefix link/asset crawl,
+rendered navigation/search asset inspection. Use existing Python stdlib for the
+local test server/audit; no new permanent test framework. Add
+tests/unit/test_docs_build_script.py using the existing pytest setup to pin
+worktree/environment selection, spaces in output paths, argument errors and
+stop-on-failure behavior with a stub uv executable. Existing approved
+larger docs scope and review waiver apply. Preserve user's callout edit unstaged.
+Record build/compatibility evidence in REVIEW.md and commit one completed step.
+Completed: default/custom builds pass both modes; live kernel source/env checked;
+nested-prefix HTTP audits pass; 7 CLI tests pass per mode; Ruff and whitespace
+checks pass. No remaining substeps.
+
+---
+
 # DOCS.4 — Remove internal contract citations from documentation
 
 Starting/previous step: 300c368; original worktree base: 2093ca2.
