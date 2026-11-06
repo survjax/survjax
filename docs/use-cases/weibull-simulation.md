@@ -265,12 +265,15 @@ assuming the wrong baseline hazard.
 
 ![Coverage of nominal 95% intervals, with one Monte Carlo standard error bars.](../../examples/weibull_simulation/results/fig3_coverage.svg)
 
-At 1,000 patients, compare coverage between the two models at each censoring
-limit. Misspecification affects both the estimates and their reported
+At 1,000 patients with a 50-year censoring limit (about 24% censored),
+coverage is 89% for Exponential and 94% for Weibull. With a 20-year limit
+(about 53% censored), both are approximately 94%. Misspecification affects both the estimates and their reported
 uncertainty, so coverage alone does not describe its consequences.
 
-All summaries use accepted fits. The table retains failed fits alongside the
-results; coverage therefore describes the accepted fits.
+All summaries use accepted fits. Of 12,000 attempted fits, 137 were rejected
+because their maximum absolute gradient exceeded the prespecified $10^{-5}$
+threshold, despite successful solver status. The table retains these failures;
+coverage therefore describes the accepted fits.
 
 ### How long does repeated fitting take?
 

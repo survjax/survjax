@@ -1,11 +1,12 @@
 # Committed full-study evidence
 
-Six scenarios, 1000 replicates per model, root seed 20261025. The numerical
-run used clean source `a3792a7703ed539db777472d876bd00ac2d1568e`; original
-commands, versions, calibration, realized censoring and shared batch timings
+Six scenarios, 1000 replicates per model, root seed 20261025. Censoring
+limits are prespecified at 50 and 20 years (spec revision 47). The numerical
+run used clean source `ac0fa01337ff37c05505292b3c7584e3f2f11cb1`; original
+commands, versions, prespecified limits, realized censoring and shared batch timings
 are preserved in `metadata.json`. Its original output path is historical.
 
-Under maintainer-approved D-035, Git stores compact evidence:
+Under maintainer-approved D-044, Git stores compact evidence:
 
 - `performance.csv`: all 12 scenario/model summaries and failure counts.
 - `failures.csv`: every rejected ID, separate reason flags, overall `failed`,
@@ -15,13 +16,13 @@ Under maintainer-approved D-035, Git stores compact evidence:
   with common stored edges (about .025 wide); bins are left-closed/right-open,
   except the final bin includes its right edge. There is no subsampling.
 - `illustration.csv`: the first replicate accepted by both models at n=300,
-  target censoring 55% (scenario 3, replicate 0), with complete fit parameters.
+  censoring limit 20 years (scenario 3, replicate 0), with complete fit parameters.
 - `evidence.json`: source/output checksums and the reducer’s commit, path,
   file-dirty status and exact source hash.
 
-All 127 rejections fail the strict max-absolute-gradient <1e-5 gate, despite
+All 137 rejections fail the strict max-absolute-gradient <1e-5 gate, despite
 successful solver status and positive-definite Hessians. They stay rejected.
-Weibull coverage at n=1000 is 94.34% and 93.08%, both within three observed
+Weibull coverage at n=1000 is 94.26% and 93.60%, both within three observed
 Monte Carlo SEs of 95%; denominators include accepted fits only.
 
 Full per-fit diagnostics remain local and are ignored at this results path.

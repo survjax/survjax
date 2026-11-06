@@ -1,11 +1,11 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "configuration": "full",
   "source": {
-    "commit": "a3792a7703ed539db777472d876bd00ac2d1568e",
+    "commit": "ac0fa01337ff37c05505292b3c7584e3f2f11cb1",
     "worktree_dirty_at_start": false,
-    "lock_sha256": "338e4197649448473ba91683bfc62a54bc22d78988e9b2a2818765688941877e",
-    "spec_seen": "00e7225b6b10b0d4e3137f7cf85c0b76e377d821"
+    "lock_sha256": "060305c3d661f12f68c97674f56c6411f680c5b631facd83a67afe9ba7615ff5",
+    "spec_seen": "213cfb0b7167b9b833e7fae8898de50ae2e83321"
   },
   "invocation": {
     "python_argv": [
@@ -14,7 +14,7 @@
       "--config",
       "full",
       "--out",
-      "/private/tmp/survjax-sim-full-a3792a7"
+      "/tmp/survjax-weibull-fixed-limits"
     ],
     "cwd": "/Users/wamster3/dev/survjax/dev-release-simulation",
     "entry_point": "run_config"
@@ -91,16 +91,10 @@
     "fits_per_second": "timed_scenarios * replicates_per_scenario / warm_seconds"
   },
   "csv_conventions": "unused parameters blank; raw nan/inf/-inf retained; flags/reasons 0/1; reasons overlap; failed unique",
-  "output_directory": "/private/tmp/survjax-sim-full-a3792a7",
-  "calibration": [
-    {
-      "target_censoring": 0.25,
-      "censor_limit": 47.793149053990135
-    },
-    {
-      "target_censoring": 0.55,
-      "censor_limit": 19.17253543619806
-    }
+  "output_directory": "/private/tmp/survjax-weibull-fixed-limits",
+  "censoring_limits": [
+    50.0,
+    20.0
   ],
   "batches": [
     {
@@ -110,27 +104,25 @@
       "scenarios": [
         {
           "index": 0,
-          "target_censoring": 0.25,
-          "censor_limit": 47.793149053990135,
-          "realized_censoring": 0.25024
+          "censor_limit": 50.0,
+          "realized_censoring": 0.23938
         },
         {
           "index": 1,
-          "target_censoring": 0.55,
-          "censor_limit": 19.17253543619806,
-          "realized_censoring": 0.5513800000000001
+          "censor_limit": 20.0,
+          "realized_censoring": 0.53668
         }
       ],
       "models": {
         "exponential": {
-          "first_call_seconds": 2.2156247501261532,
-          "warm_seconds": 0.4720632922835648,
-          "fits_per_second": 4236.720017617077
+          "first_call_seconds": 1.8769988338463008,
+          "warm_seconds": 0.42590754199773073,
+          "fits_per_second": 4695.854857650434
         },
         "weibull": {
-          "first_call_seconds": 3.200153207872063,
-          "warm_seconds": 0.8925789999775589,
-          "fits_per_second": 2240.698022304226
+          "first_call_seconds": 3.05701491702348,
+          "warm_seconds": 0.6532224998809397,
+          "fits_per_second": 3061.7438933357807
         }
       }
     },
@@ -141,27 +133,25 @@
       "scenarios": [
         {
           "index": 2,
-          "target_censoring": 0.25,
-          "censor_limit": 47.793149053990135,
-          "realized_censoring": 0.25103
+          "censor_limit": 50.0,
+          "realized_censoring": 0.24019
         },
         {
           "index": 3,
-          "target_censoring": 0.55,
-          "censor_limit": 19.17253543619806,
-          "realized_censoring": 0.5494566666666667
+          "censor_limit": 20.0,
+          "realized_censoring": 0.5336466666666667
         }
       ],
       "models": {
         "exponential": {
-          "first_call_seconds": 3.0389620838686824,
-          "warm_seconds": 1.2959898337721825,
-          "fits_per_second": 1543.221982057286
+          "first_call_seconds": 2.1487395423464477,
+          "warm_seconds": 0.5968302078545094,
+          "fits_per_second": 3351.036816969466
         },
         "weibull": {
-          "first_call_seconds": 5.947731125168502,
-          "warm_seconds": 2.964943083934486,
-          "fits_per_second": 674.5492049533699
+          "first_call_seconds": 3.8761712918058038,
+          "warm_seconds": 1.9126950409263372,
+          "fits_per_second": 1045.6449968267707
         }
       }
     },
@@ -172,27 +162,25 @@
       "scenarios": [
         {
           "index": 4,
-          "target_censoring": 0.25,
-          "censor_limit": 47.793149053990135,
-          "realized_censoring": 0.249577
+          "censor_limit": 50.0,
+          "realized_censoring": 0.238873
         },
         {
           "index": 5,
-          "target_censoring": 0.55,
-          "censor_limit": 19.17253543619806,
-          "realized_censoring": 0.549411
+          "censor_limit": 20.0,
+          "realized_censoring": 0.533992
         }
       ],
       "models": {
         "exponential": {
-          "first_call_seconds": 5.628578708041459,
-          "warm_seconds": 3.7833708748221397,
-          "fits_per_second": 528.6291157205205
+          "first_call_seconds": 5.063507207669318,
+          "warm_seconds": 3.4311452922411263,
+          "fits_per_second": 582.8957475285627
         },
         "weibull": {
-          "first_call_seconds": 10.333798374980688,
-          "warm_seconds": 7.871760416775942,
-          "fits_per_second": 254.07277331989042
+          "first_call_seconds": 8.879095250274986,
+          "warm_seconds": 7.022413333877921,
+          "fits_per_second": 284.80237560946284
         }
       }
     }

@@ -12,6 +12,10 @@ This separates source provenance from generated results. No full test suite
 or independent review is requested; run only changed example checks and docs.
 No public API or dependencies change.
 
+Completed: design 213cfb0, source ac0fa01, regenerated compact evidence and
+all figures. Focused checks and both final docs builds passed. No substeps
+remain; full test suites and independent review were not run.
+
 ---
 
 # SIM.docs-rewrite — Incorporate maintainer edits
