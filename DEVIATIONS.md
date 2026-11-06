@@ -23,6 +23,9 @@
   step" approves the 22 KiB compact evidence replacement and continuation to
   figures. Keep raw diagnostics local and source/environment/seed reproducible.
   No spec edit, external hosting, compression workaround or new dependency.
+- Module-layout decision (2026-11-06, SIM.8c.1 F-1): maintainer approved
+  _evidence.py for compact reduction and _plots.py for figures; check_*.py
+  stays independent checks. Move the producer out of check_full.py.
 - Status: open.
 
 

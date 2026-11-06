@@ -205,3 +205,33 @@ def test_metadata_solver_settings_match_the_actual_fitter_call(monkeypatch):
         jax.numpy.array(True),
     )
     assert assessed.accepted
+
+
+@pytest.mark.parametrize("dirty", [False, True])
+def test_reducer_provenance_tracks_its_own_source_file(tmp_path, monkeypatch, dirty):
+    """SIM.8c.1 F-2: source path and dirty state cannot refer to another file."""
+    from examples.weibull_simulation import _evidence
+    from examples.weibull_simulation.check_results import _compact_fixture
+
+    _compact_fixture(tmp_path)
+    expected_path = "examples/weibull_simulation/_evidence.py"
+    seen = []
+
+    def git_output(command, **kwargs):
+        if command == ["git", "rev-parse", "HEAD"]:
+            return "a" * 40 + "\n"
+        # The reducer is dirty in one case; PLAN.md remains clean in both.
+        assert command[:4] == ["git", "status", "--porcelain", "--"]
+        seen.append(command[-1])
+        return (
+            " M " + expected_path + "\n"
+            if dirty and command[-1] == expected_path
+            else ""
+        )
+
+    monkeypatch.setattr(_evidence.subprocess, "check_output", git_output)
+    _evidence.write_evidence(tmp_path, tmp_path)
+    manifest = json.loads((tmp_path / "evidence.json").read_text())
+    assert manifest["reducer_path"] == expected_path
+    assert manifest["reducer_dirty"] is dirty
+    assert seen == [expected_path]

@@ -14,13 +14,13 @@ import survjax
 
 if __package__:
     from . import study
+    from ._evidence import write_evidence
     from ._results import capture_metadata, write_metadata, write_results
-    from .check_full import write_evidence
     from .study import FitResult, calibrate_censoring, fit_replicate, generate_weibull
 else:
     import study
+    from _evidence import write_evidence
     from _results import capture_metadata, write_metadata, write_results
-    from check_full import write_evidence
     from study import FitResult, calibrate_censoring, fit_replicate, generate_weibull
 
 ROOT_SEED = 20261025

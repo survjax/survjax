@@ -1,3 +1,24 @@
+# SIM.8c.1 round 2 — Approved module layout and provenance checks (2026-11-06)
+
+Maintainer "ok approved" accepts the recommended _evidence.py reducer and
+_plots.py figure modules; check_*.py remains independent checks. This settles
+F-1. Earlier pending module/quotas below are historical, preserved verbatim.
+Current start 38a9e64848b9a32148f640d4d765a8cebdf65dc8; previous reviewed
+final 61c5cc62a7f890175b40aa6a1333566800d2e809. Bases unchanged.
+
+Move check_full.py to _evidence.py, update run.py and check imports, and record
+approval in D-035 without changing its open status. No numerical behaviour
+or generated artifacts change. F-2: add controlled clean/dirty provenance
+checks in check_metadata.py, using the existing hand raw fixture; the fake
+Git status differs for the reducer and PLAN.md so a wrong scope is caught,
+and the true case catches a constant-False flag. Assert the exact source path.
+Run focused optional export/CLI/metadata checks plus Ruff/mypy, update REVIEW
+round 2 and invoke independent-review. Continue the previously approved
+compact-data/figure steps after review clears. No public library API,
+dependency, protected path, spec or generator contract changes.
+
+---
+
 SIM.8c.1 resumed review (2026-11-06): first written round at 4e6c475,
 verdict maintainer. F-1 requests explicit runtime-module approval: recommend
 _evidence.py for reduction and _plots.py for figures, reserving check_*.py

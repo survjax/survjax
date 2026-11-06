@@ -1,6 +1,21 @@
-Independent review: round 1/3; verdict maintainer (2026-11-06)
+Independent review: round 2/3
 
 # SIM.8c.1 — Full-run provenance and reducer placement
+
+## Round 2 fixes (2026-11-06)
+
+F-1: maintainer explicitly approved the recommended _evidence.py producer
+and _plots.py figure layout. Approval is recorded in newest PLAN and D-035;
+older pending entries remain historical. Move is behaviour-preserving.
+F-2: check_metadata.py now drives both clean/dirty cases with controlled
+file-specific Git responses. It asserts the literal reducer path, dirty flag
+and exact status scope; PLAN.md is clean even when the reducer is dirty.
+This catches both constant-False and wrong-file mutations without modifying
+source files during a concurrent test run. No numerical/fixture data changes.
+Validation: focused export/CLI/metadata 23 passed in 9.97 s; Ruff format/check
+and mypy src passed (148 files / 22 source files); git diff --check passed.
+No repeated core gate for this host-module rename/test-only fix; prior
+wheel-supplying through-A10 gate passed both dtype modes.
 
 ## Resumed review (2026-11-06)
 
