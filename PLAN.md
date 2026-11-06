@@ -1,3 +1,43 @@
+# SIM.10 — Executable Weibull simulation page (2026-11-06)
+
+Start / previous final 04ec2d8436a75125adc89eaf5361f968c0bf476b (SIM.9b
+round 2 merge). Original base 8757c0fda78e34e6e818249adedd2a144a33c33d;
+integration base d2469e0a7e719dbcb276277e6fd80a447626ad4e. release-simulation.
+Maintainer says "ok do it" for the remaining executable docs page. Preserve
+all unfinished PLAN history; the demo workstream is still in progress.
+
+One docs topic, <=300 page lines: docs/use-cases/weibull-simulation.md as a
+MyST notebook. Introduction/design, labelled committed illustration/true
+curves, actual model/solver source included inline, a live smoke run
+(n=100,R=20,two levels), one live smoke-replicate fit, then labelled committed
+full results/figures and takeaways. Load performance/metadata from reviewed
+compact files; display bias/coverage and precision/power with every supplied
+MCSE, accepted/failed counts, calibrated/realized censoring and shared-batch
+first/warm timings, CPU/versions/thread context. Explain strict failure gate,
+accepted denominators, RMS model SE, full-source snapshot and D-034/D-035
+storage/timing semantics. Verify input hashes before displaying full results.
+All Python loops format host records; simulation keeps reviewed JAX batching.
+Use temporary smoke output, never overwrite committed results during a build.
+The study selects float64 in its own notebook kernel in both docs-build modes.
+
+Use orphan:true for this standalone page pending maintainer navigation
+integration; do not change docs/index.md, docs/conf.py or protected scripts.
+Existing approved env command: uv sync --locked --group docs --group examples,
+then run scripts/build_docs.sh directly as required (no wrappers/redirects/env
+assignments). If fresh docs-only execution fails, report/propose the exact
+maintainer change rather than edit the script. No new dependency/API/module,
+core, generator, other-agent files, or spec changes. Reuse committed SVGs via
+relative image paths and small-data download links; do not copy assets.
+
+Checks: warning-clean full docs build executes both modes; confirm the new
+page runs live smoke within 120s, assertions pass, figures/tables and downloads
+resolve, and visually inspect rendered HTML in a browser. Ruff/mypy as
+appropriate. Write REVIEW.md with exact commands, evidence/limitations,
+commit and independent-review; stop after this docs step. Shared navigation
+and build-tool integration remain maintainer-owned. No merge/push/publication.
+
+---
+
 # SIM.9b round 2 — Coverage tick/point association (2026-11-06)
 
 Round-1 fix-first F-1 is test-only: tie Figure 3's visible tick labels to the
