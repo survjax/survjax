@@ -39,7 +39,7 @@ The other familiar quantities are transformations of it:
 | density | $f(t) = h(t)\,S(t)$ | `log_prob(t)` (log density) |
 | CDF | $F(t) = 1 - S(t)$ | `log_cdf(t)` |
 
-```{admonition} The circle of survival — Wouter van Amsterdam
+```{admonition} The circle of survival
 :class: note
 
 For a visual introduction to how survival, cumulative incidence, density,
