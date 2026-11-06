@@ -1,6 +1,7 @@
 # MNIST.20 — One compiled concordance; no shadowed module name
 
-Independent review: round 1/3 (pending).
+Independent review: round 1/3, verdict merge (2026-11-06), in
+review/slices/MNIST.20.md. No findings.
 
 Previous step MNIST.19 (bdce9b2, merge verdict); main merged in 9e742bd. The
 merge's preserved review records are in that commit's REVIEW.md.
