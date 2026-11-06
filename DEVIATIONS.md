@@ -48,6 +48,10 @@
   cleanup of the remaining snippets. No spec edit or implementation change
   is made in this inspection. Do not mark D-028 resolved on the maintainer's
   behalf. The explicit constructor rule itself is settled.
+- Maintainer approval, 2026-11-06: retain keyword-only construction and clean
+  up the remaining spec/use-case snippets. Implemented as design commit
+  54bbc62, with no requirement or revision change. This worktree's .spec-seen
+  is aligned to that commit. Formal deviation status remains the maintainer's.
 - Status: open.
 
 MNIST merge ID reconciliation (2026-11-05): main already uses D-028 to D-033.

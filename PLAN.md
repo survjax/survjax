@@ -1,3 +1,29 @@
+# ALIGN.2a — Approved D-042 spec example cleanup (complete)
+
+Starting/previous step: a4c8b42; worktree starting point: 3cb4cd7.
+Maintainer explicitly approves example-only cleanup of positional PH snippets.
+Change spec/SPECIFICATION.md (4.4, 11.3) and use-cases/01-weibull-simulation,
+01-weibull-simulation-details, 02-bayesian-survival and
+02-bayesian-survival-details Markdown. Preserve requirements/revision 46;
+make constructor spelling consistent with revision 42. No public API, code,
+acceptance-test or dependency changes. Inspect exact diff, scan all PH snippets
+and AST-check the Python model/route sketches. Commit spec separately in the
+design repo with the prescribed spec(...) subject. Then update this worktree's
+.spec-seen and progress/review records in a separate implementation-repo commit.
+The spec-since helper accepts a repo-directory argument: use rmsttest rather
+than dev so it marks this worktree, not the unrelated dev checkout.
+Independent review remains waived. No executable change warrants numerical
+or docs rebuilds. Stop after cleanup and present D-043 as decision 2/3.
+
+Completed: design commit 54bbc62 corrects examples in five spec files;
+revision 46 and requirements unchanged. Exact diff/whitespace and PH snippet
+scan pass; both Bayesian Python sketches retain identical ASTs after keyword
+normalization. Ran ../scripts/spec-since.sh rmsttest --mark and commit the
+updated marker here. D-042 approval recorded without changing its status.
+No numerical or docs rebuild; no executable change. D-043 is next for decision.
+
+---
+
 # ALIGN.d1 — Keyword-only PH examples in executable docs (complete)
 
 Starting/previous step commit: e8e9a51 (ALIGN.1); worktree starting point:

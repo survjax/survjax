@@ -1,50 +1,33 @@
-# ALIGN.d1 — Keyword-only PH documentation
+# ALIGN.2a — Approved D-042 spec example cleanup
 
-Independent review waived by maintainer while reviewer tokens are unavailable
-(2026-11-06). Starting/previous step: e8e9a51; worktree starting point: 3cb4cd7.
+Independent review remains waived by maintainer while reviewer tokens are
+unavailable. Starting/previous step: a4c8b42; worktree starting point: 3cb4cd7.
+Read PLAN.md ALIGN.2a, then the design-repo diff for spec/SPECIFICATION.md
+and the four affected use-case design notes. Only PH example spelling changes;
+revision 46 and all requirements remain fixed. Constructor behavior and
+executable guides were already migrated in ALIGN.1/ALIGN.d1.
 
-Read first: PLAN.md ALIGN.d1; docs/proportional-hazards.md constructor prose;
-then the PH calls in docs/rmst.md, docs/technical-notes/rmst.md and
-docs/use-cases/bayesian-rmst.md. Spec 4.4, 8.7, 10.5, 11.3.
+Validation complete below. No tests/spec edits. D-043/D-044 still await separate
+maintainer decisions. Preserve deviation statuses; record the D-042 approval
+without independently marking entries resolved.
 
-Invariants: one topic, constructor argument spelling only. Preserve executable
-cell meaning, formulas, model settings, parameters and stored results. Correct
-all executable PH examples together so the full docs build can execute.
-No new public API, dependencies or tests. Validation is recorded below.
+## Validation and outcome
 
-D-042/D-043/D-044 remain owner resolutions. Do not touch spec or acceptance
-tests. This docs step does not close the red numerical acceptance gate.
+- Design commit: 54bbc62e3880dbbe5544cf913fb95291e78904f9; five spec files,
+  14 insertions and 14 deletions. Example spelling only; revision remains 46.
+- Inspected the complete design diff. `git -C spec diff --check` passed.
+- Scanned PH call snippets across SPECIFICATION.md and all use-case notes:
+  all 12 remaining call examples use baseline=. Replaced a type-only shorthand
+  with prose (PH with a Weibull baseline) to avoid an apparent positional call.
+- Both Python sketches in 02-bayesian-survival-details retain identical ASTs
+  after keyword normalization. Model/prior/route mathematics unchanged.
+- `../scripts/spec-since.sh rmsttest --mark`: reports
+  rmsttest/.spec-seen -> 54bbc62. Used the current worktree directory argument;
+  no mutation of the separate dev checkout.
+- D-042 approval and implementation recorded; statuses remain untouched.
+- Implementation, tests, docs pages, dependency declarations and lockfile
+  unchanged. No numerical tests/docs build repeated for spec example spelling.
+- `git diff --check`: passes. Design working tree clean after its commit.
 
-## Validation and results
-
-- `scripts/build_docs.sh`, executed directly: exit 0; float32 and float64
-  Sphinx builds both reported `build succeeded`, with forced notebook
-  execution and warnings-as-errors configuration. All changed executable
-  pages ran successfully in each mode. Kernel startup notices were printed;
-  neither Sphinx build reported a build warning/failure.
-- Source AST audit, `uv run --no-sync python /tmp/align-docs-audit.py`:
-  33 code blocks retain identical ASTs after baseline keyword normalization;
-  all 15 PH calls are keyword-only. The audit includes executable code-cell
-  blocks and displayed Python examples, and scans the rest of docs/ too.
-- Rendered HTML audit,
-  `uv run --no-sync python /tmp/align-docs-html-audit.py`:
-  x32 and x64 each contain 23 HTML pages and 1844 valid local link/asset
-  references, including fragment targets. Each site contains all 15 corrected
-  rendered PH constructor calls and the corrected keyword-only prose.
-  This is an HTML content/link audit; no browser visual inspection was run.
-- `uv run ruff format --check .`: 173 files already formatted.
-- `uv run ruff check .`: All checks passed!
-- `git diff --check`: exit 0.
-- `git diff --exit-code -- src tests examples pyproject.toml uv.lock spec`:
-  exit 0. Only four docs pages and PLAN.md/REVIEW.md changed. Documentation
-  source diff is 32 changed lines, within the one-topic step limit.
-
-No new tests for argument spelling; the docs build executes the examples.
-No numerical regression rerun, Tier 2 or independent review for this docs-only
-step. Existing numerical evidence remains in e8e9a51:REVIEW.md; the maintainer
-waived independent review while the reviewer is unavailable.
-
-ALIGN.d1 is complete. ALIGN.2 still requires owner decisions on D-042/D-043/
-D-044, and ALIGN.3 remains final verification after those resolutions. The
-acceptance gate remains red on the known discrepancies; this step does not
-claim merge readiness. Stop after this step.
+Independent review remains waived. D-043 and D-044 await separate decisions;
+ALIGN.3 verification remains pending. Present D-043 now and wait.
