@@ -1,55 +1,67 @@
-# BAYES clean-up and main merge (2026-11-06)
+Independent review: round 1/3
 
-No independent review cycle for this step, by maintainer decision; the
-maintainer does one final pass before merging into main. Previous REVIEW.md
-contents: BAYES.d1 at 55565fd, MNIST.20 at main 2093ca2.
+# DOCS-WORKFLOW.1 — Local build provenance and inspection
 
-Last commit of the clean-up: add507a (user commit). Previous Bayesian step:
-55565fd (BAYES.d1). Working tree: merge of main 2093ca2 into release-bayes.
+Read PLAN.md, scripts/build_docs.sh, tests/tooling/test_build_docs.py, then
+Local commands in docs/index.md. Spec 10.1/10.5: locked optional tools, fresh
+execution in separate dtype processes, warnings/errors fatal, rendered review.
+No public API, dependency, numerical source, protected path or spec changes.
 
-## Read first
+Starting worktree and previous completed work: e6b3f9e. Separate archive-only
+commit: 8517177; incoming PLAN.md preserved verbatim in plans/pre-docs-workflow.md.
 
-1. DEVIATIONS.md D-041 (formerly D-035): agreed scope of the lean example.
-2. docs/use-cases/bayesian-rmst.md: the approved page; every number, table and
-   figure is computed on the page from `results/posterior.npz`.
-3. examples/bayesian_rmst/model.py, then run.py (acceptance asserts at the end
-   of `run`).
-4. examples/bayesian_rmst/bayesian-rmst.ipynb: the same tutorial, sampling
-   itself; it imports only `make_trial`.
-5. The merge resolutions listed in PLAN.md.
+Invariants: the last state in the whole-run identity is authoritative. Starting
+an attempt truncates any old success; only two successful Sphinx invocations
+and unchanged tracked sources/commit/status append success. TERM/INT produce
+failure; uncatchable death leaves building. Existing HTML may remain but is
+uncertified. No concurrent builds/edits; untracked content and post-build edits
+are explicitly outside detection. Dirty status is provenance, not a snapshot.
+Build-local supported environment variables replace runtime/cache locations;
+HOME and the shared MNIST default/explicit override are preserved. Installed
+jupyter_core.paths, IPython.paths and matplotlib.__init__ confirm these variables.
 
-## Invariants
+Checks performed in this checkout on 2026-11-06:
 
-- `make_trial` uses the original key (root 20261025, fold 2, stream 0) and the
-  shared generator, so the committed trial is unchanged; NUTS uses stream 1.
-- `run.py` saves before it asserts, so a failing run leaves its evidence.
-  Diagnostic and truth thresholds apply only to the 1000-draw configuration.
-- The page reads `metadata.json` only for the truth and R-hat/ESS; means, SDs,
-  intervals and figures come from the draws.
+- Direct `scripts/build_docs.sh`: exit 0, no escalation, both Sphinx builds
+  succeeded with -E -n -W --keep-going and MyST force execution unchanged.
+  Identity commit 85171775b6596757302168a3f3b0c2b3bedb6c81, dirty with planned
+  changes; started 11:32:13Z, completed 11:34:48Z; dtypes x32/x64. Fifteen source
+  pages per mode; runnable notebooks executed afresh. Kernel TCP warnings
+  were emitted by IPKernelApp; no Sphinx build warning/error or cleanup failure.
+  This used the warm default MNIST cache; cold acquisition was not tested.
+- `uv run --locked --group test pytest -q tests/tooling/test_build_docs.py`:
+  4 passed in 2.59s. Final rerun after formatting: 4 passed in 1.88s; slowest call 0.39s.
+  Tests cover paths containing spaces, actual mkdir/export environment seen
+  by the child process, preservation of explicit MNIST path, dirty provenance,
+  absolute output paths, second-dtype failure/TERM and tracked edits removing
+  old certification. Stub uv avoids numerical reruns; it does not test Sphinx.
+- `bash -n scripts/build_docs.sh`: exit 0. Shellcheck not run.
+- Initial `uv run ruff format --check .` caught one test-fixture quote format;
+  `uv run ruff format tests/tooling/test_build_docs.py` fixed it (1 reformatted).
+  Final `uv run ruff format --check .`: 165 already formatted;
+  `uv run ruff check .`: All checks passed; `uv run mypy src`: no issues in
+  22 source files. `git diff --check`: exit 0.
+- No unrelated numerical gate/test rerun, per the task's explicit instruction.
+  Git staging/commit needed escalation after sandbox index.lock denial;
+  documentation execution itself did not need escalation.
 
-## Tests and evidence
+Visual evaluation: cua.getState returned no browsers and exactly
+"Browsers: Error: The browser access host is unavailable". Native
+cua.getApp('com.google.Chrome') worked. Opened only one new tab, navigated to
+absolute file URLs in this checkout, read AX content and captured/examined
+screenshots of x32 index.html#local-commands (build/cache/identity paragraphs)
+and x64 same section scrolled to fallback/escalation/JupyterLab paragraphs.
+Text, inline code, margins and navigation are readable without overlap or
+horizontal clipping at 1920x1003. Closed only our new tab and observed the
+original tab remaining. This is a changed-topic visual check, not a full-site
+math/table audit; no offline MathJax rendering claim. Both index sources are
+identical across dtypes. Existing examples/results remain unchanged.
 
-- `tests/unit/check_bayesian_run.py`: a fresh float64 run passes the four
-  acceptance checks (factor wiring, routes within 1e-12, R-hat/ESS/divergences,
-  truth inside the 95% intervals) and reproduces the committed trial and draws
-  bit for bit.
-- `tests/unit/check_bayesian_notebook.py`: the notebook runs in a fresh kernel
-  with 100 draws per chain.
+Uncertainties/limits: no cold MNIST download, no process-restriction failure
+reproduced, no guarantee of native browser/escalation on other hosts, no
+concurrency support. The post-build test formatting/this review are metadata
+changes after the recorded build; rendered docs and runner remain identical.
 
-## Checks run
-
-- Merged tree: `uv run ruff format --check .`, `uv run ruff check .`,
-  `uv run mypy src`: clean; `uv lock --check`: consistent.
-- Tier 2 at merge commit 9a2d723, `scripts/check.sh --through A10`: all gates
-  passed (own 1292 passed/8 skipped and 1297 passed/3 skipped; doctests 4+4;
-  spec 2333 passed/27 skipped and 2324 passed/36 skipped).
-- `scripts/build_docs.sh`: both builds succeeded.
-- Optional suites with the docs and examples groups, `check_bayesian_run.py`,
-  `check_bayesian_notebook.py` and `check_mnist_*.py`: 24 passed (x64),
-  24 passed (float32).
-
-## Unsure about
-
-- The notebook and the page each define the 8-line Kaplan–Meier helper and
-  the model; the duplication is deliberate (readable, editable notebook).
-- The ArviZ removal drops tail ESS from the acceptance checks (D-041).
+Remaining candidates (not started): single-dtype authoring preview, offline
+MathJax, docs CI/artifacts, browser-host repair. No further required sub-step
+in this first workflow topic once independent review is accepted. Stop then.

@@ -74,9 +74,57 @@ R. The MNIST page downloads hash-checked images on first use; a warm cache at
 `SURVJAX_EXAMPLES_DATA` (default `~/.cache/survjax-examples/mnist`) avoids network
 access on later builds.
 
+The runner keeps Jupyter runtime files, IPython state and Matplotlib
+configuration/cache under ignored `docs/_build/runtime/`, using
+`JUPYTER_RUNTIME_DIR`, `IPYTHONDIR` and `MPLCONFIGDIR`. It sets these for the
+build without changing `HOME` or global settings. It preserves the MNIST cache
+choice to avoid downloading it in every worktree. For a cold cache, set
+`SURVJAX_EXAMPLES_DATA` to a writable location (for example an absolute path
+under `docs/_build/mnist`) before invoking the script directly. An explicit
+value is never replaced. The first download needs network; warm-cache success
+does not establish cold-cache portability.
+
+The script prints absolute HTML paths and `docs/_build/build-identity.txt`.
+Before inspection, read that record: its **last** `state:` must be `success`,
+with the intended absolute checkout, commit, dtype pair and UTC completion
+time. Compare with `git rev-parse HEAD` and `git status --short`. A dirty tree
+is labelled with its status; this is provenance, not a reproducible snapshot
+of uncommitted or untracked file contents. Do not edit sources or run builds
+concurrently during verification. Tracked edits during the build are detected;
+untracked content edits and changes after completion require a fresh build.
+A new attempt invalidates the old success before setup. Errors/signals leave
+a failed record; abrupt termination may leave `building`. Neither certifies
+old HTML that remains on disk. Only completion of both dtype builds certifies
+the pair. The record is external to HTML; an already open tab can be stale.
+
 To view the rendered site on macOS, run `open
 docs/_build/html-x64/index.html` (or use `html-x32` for float32). On other
-systems, open that `index.html` file in a browser.
+systems, open that `index.html` file in a browser. Use the absolute printed
+path to avoid a different worktree's site, and reload after building. Local
+`file:///absolute/path/.../index.html` is sufficient for routine checks; no
+preview server or Quarto command is needed for this Sphinx/MyST-NB site.
+
+For agent inspection, use the currently documented computer-use APIs. Discover
+available browser surfaces first. If discovery reports the browser access host
+unavailable, native Chrome may still work: select `com.google.Chrome` with
+`cua.getApp`, read the returned documentation, open a new tab and navigate to
+the absolute local HTML URL using those APIs. Do not assume that either browser
+host access or native Chrome is available on every host. Close only the tab
+you created and record the actual capability failure if neither works.
+
+Inspect navigation, tables, code outputs and equations in both dtypes. Reading
+HTML, checking links or reading the accessibility tree verifies structure and
+content; capture and examine screenshots to assess layout, clipping and math
+rendering. Record pages inspected, checkout/build identity, screenshot findings
+and limits in the review. MathJax currently loads from a CDN, so offline HTML
+does not guarantee rendered equations.
+
+If a build reproduces a sandbox Jupyter/psutil process-inspection or child
+cleanup failure, retain its exact error and request the narrowly approved
+`scripts/build_docs.sh` escalation, invoking the script directly. Writable
+runtime directories do not repair process-inspection restrictions. Escalation
+availability depends on the host. Historical cleanup errors are not evidence
+that the current build failed; record the current command and outcome.
 
 For an editable notebook, run `uv run --locked --group docs jupyter lab
 docs/playground.ipynb`. JupyterLab uses the same locked environment as the
