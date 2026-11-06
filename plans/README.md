@@ -31,3 +31,5 @@ Imported verbatim; old status/next-step instructions are historical only.
 
 # Incoming main plans (preserved integration history)
 
+
+[Pre-restructure integrated plans](pre-docs-restructure.md): verbatim PLAN.md at 2093ca2, including completed MNIST work and historical records from other workstreams. Archival does not close unfinished work recorded there.
