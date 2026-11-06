@@ -1,8 +1,23 @@
 # Revision-46 alignment — inspection and proposed repair steps
 
-Planning only, 2026-11-06. No implementation step has started. This plan does
-not authorize protected-path edits, later-slice work, dependencies or release.
-Stop after reporting it; implementation needs the maintainer's next instruction.
+ALIGN.0 complete, 2026-11-06, authorized by the maintainer's "on to next
+part". Starting commit: 94a4474; previous docs step: 3cb4cd7; worktree starting
+point: 3cb4cd7. Scope: move the stale .venv to a reversible temporary backup,
+recreate from uv.lock, verify launcher paths, versions and static checks.
+Repository files touched: PLAN.md and REVIEW.md (progress/evidence only).
+No public API, dependency, code, test or protected-path changes. No new tests
+for this environment-only repair. Spec 10.1/10.3. Stop after ALIGN.0;
+ALIGN.1 and later steps remain prospective.
+
+Completed evidence: rebuilt with `uv sync --locked --group test`; all 34
+package versions match the retained environment exactly. pytest, mypy and
+pre-commit shebangs now name this worktree's .venv/bin/python. Backup retained
+at /var/folders/lz/l2_06bbx7fn4z318dtwnb3x40000gp/T/survjax-align0-u4rcxltr/.venv.
+Normal `uv run pytest --version`, `uv run mypy src`, Ruff format/check pass;
+tests/unit/test_import.py passes all 3 tests in each dtype mode through the
+normal pytest launcher. pyproject.toml and uv.lock have no diff. REVIEW.md
+records exact commands and limits; full numerical gate was not repeated for
+this environment-only repair. ALIGN.1 is next, not started.
 
 ## Starting points and inspected changes
 
@@ -135,5 +150,6 @@ merely to manufacture a code step. Tier 2 remains the maintainer's merge gate;
 demos/simulation retain their separate end-to-end gates and existing deviations.
 Passing A11/A12 alone does not close those release obligations.
 
-All proposed steps remain unimplemented. This planning-only inspection does
-not invoke independent-review (the skill explicitly excludes planning).
+ALIGN.1 and later steps remain unimplemented. ALIGN.0 is a local environment
+repair with planning/evidence records only, not a code or docs implementation
+step requiring independent review.
