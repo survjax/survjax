@@ -30,11 +30,9 @@ according to their own guidance as well.
 
 ## Repository location and release metadata
 
-The repository is **`https://github.com/survjax/survjax`** following the
-transfer from `vanAmsterdam/survjax`. Package and citation metadata use that
-canonical identity. The repository is currently private, so access requires
-permission. Use the repository URL and exact version/commit for the source you
-used. Hosting ownership and software author attribution are separate metadata.
+The repository is **`https://github.com/survjax/survjax`**. Use that URL and
+the exact version or commit for the source you used. Hosting ownership and
+software author attribution are separate metadata.
 
 Before publishing, confirm the agreed author list and canonical repository
 URL. Update `CITATION.cff` with the actual released version and release date
@@ -43,5 +41,5 @@ fields are currently omitted; add identifiers only when assigned and verified.
 A proposed version such as `0.0.1a1` is not a published release or a DOI.
 
 The [operator handoff](docs/releasing.md)
-records post-transfer integrations, documentation hosting and remaining launch
+records publisher setup, documentation hosting and remaining launch
 checks. Citation guidance does not certify those checks or imply publication.

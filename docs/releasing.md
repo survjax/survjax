@@ -6,8 +6,8 @@ orphan: true
 
 This is the maintainer's procedure for a future public alpha release.
 Local preparation has added hosting configuration, package metadata and a
-publishing workflow. The GitHub organization transfer is verified; Read the Docs has not been set
-up, and no hosted build or package upload has been verified. The preparation baseline is `0.0.1.dev0`; examples below use the
+publishing workflow. Read the Docs hosting and package publication still need
+verification. The preparation baseline is `0.0.1.dev0`; examples below use the
 proposed release **`0.0.1a1`**, Git tag **`v0.0.1a1`**. Confirm the version
 before following the release sequence. Account ownership is not established by
 the repository or documentation URLs.
@@ -30,37 +30,29 @@ commit; do not infer accelerator support from CPU checks. Record outstanding
 limitations in the release notes. Proceed only after these prerequisites and
 the hosting checks below have evidence.
 
-## Check the completed GitHub organization transfer
+## Check repository and publishing access
 
-The repository is **`https://github.com/survjax/survjax`**, transferred from
-`vanAmsterdam/survjax`. Authenticated GitHub checks confirm the canonical name,
-`main` default branch, enabled issues and existing GPU workflow. It remains
-private: anonymous GitHub page/badge 404 responses do not prove a broken URL.
-The preparation worktree's origin fetch/push URLs already use the new identity.
-
+The canonical repository is **`https://github.com/survjax/survjax`**.
 Package repository/issues URLs, README badge/links, `CITATION.cff`, release
-guard and artifact metadata tests use `survjax/survjax`. The guard permits only
+guard and artifact metadata tests use that identity. The guard permits only
 that namespace. Confirm organization access, `pypi` environment protections,
-Actions permissions and any GitHub App access under the new owner. Configure
-the PyPI publisher with that owner; URL redirects do not replace publisher
-identity. Check any other clones' remotes separately. These integration/account
-checks remain operator work; transfer alone does not configure them.
+Actions permissions and GitHub App access. Configure the PyPI publisher with
+that owner; URL redirects do not replace publisher identity. Check other
+clones' remotes separately. Verify repository pages, issues and badges while
+signed out before launch.
 
 ## Connect Read the Docs
 
-No Read the Docs project has been created by the maintainer yet. The intended
-Community address `https://survjax.readthedocs.io` currently returns 404; confirm
-slug availability in the dashboard instead of treating it as a live site.
+The intended Community address is `https://survjax.readthedocs.io`. Confirm
+the project slug in the dashboard and complete a hosted build before
+advertising that address as live documentation.
 
 1. Ensure the reviewed `.readthedocs.yaml`, lockfile and docs/build changes are
    pushed to the GitHub branch RTD will build, normally `main`. Local commits
-   in this worktree are not automatically available to RTD. The root config was
-   absent from remote `main` at this audit; importing before it is available
-   cannot use the prepared pipeline. Merge/push remain maintainer actions.
-2. Choose hosting consistent with repository visibility. Community hosting
-   requires a public repository; use Business for private-source builds.
-   Changing repository visibility or creating service accounts requires the
-   operator's separate authorization. No visibility/account changes were made.
+   in a worktree are not automatically available to RTD. Confirm the root
+   config exists on the remote branch before importing the project.
+2. Use Community hosting for the public repository. Confirm signed-out
+   repository access before connecting the service.
 3. Sign in to the chosen RTD service with GitHub, authorize/install its GitHub
    App for the `survjax` organization and this repository, then select
    **Add project**, choose **survjax/survjax**, and **Continue**. Confirm the

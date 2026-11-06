@@ -1,3 +1,36 @@
+# RELEASE.7 — Clean the public repository presentation
+
+Start / previous step: dfa24b5 (RELEASE.6).
+Original worktree base: 3cb4cd7fbba3313f00dfabed0028ee6f404384df.
+Maintainer authorizes public-ready wording, obsolete-file cleanup and removal
+of the simulation guide; defers the external spec link and retains Git email.
+One bounded cleanup topic, about 300 changed implementation lines including
+123 deleted draft lines; archive moves preserve contents verbatim.
+Files: CITING.md, CONTRIBUTING.md, CHANGELOG.md, docs/releasing.md,
+docs/conf.py, docs/simulation-guide.md (remove), INSTRUCTION.md and
+DOCS-MIGRATION.md (move into plans/), plans/README.md, DOCS-BUILD.md,
+tests/fixtures/bc_like/README.md, Bayesian notebook warning output, PLAN/REVIEW.
+No API, dependency, numerical, version, spec or protected-path changes.
+Spec coverage: 10.4 provenance, 10.5 documentation, 13 release preparation.
+
+Remove private-access/transfer narration from reader-facing pages and make
+operator instructions reusable rather than a snapshot of a previous audit.
+Do not claim RTD hosting, PyPI upload or remaining acceptance work completed.
+Retain useful notebook results, clear only the machine-path warning, and
+refresh obsolete fixture integration wording while preserving provenance.
+Keep active local agent/workmux configuration pending a separate portability
+step with the deferred external spec/reviewer arrangement. No history rewrite,
+remote action, publication, visibility change or email change.
+
+Checks: archive byte identity, notebook cell/source and non-warning output
+identity, reference searches, git diff --check, direct both-dtype docs build,
+scripts/check.sh --fast --through A10. No new tests for this prose cleanup.
+Independent-review after commit, up to three rounds, then stop/report.
+Remaining: portable contributor/agent contract and external spec decision;
+actual hosting/publication and separately owned release acceptance gates.
+
+---
+
 # RELEASE.6 — Audit post-transfer links and explain RTD setup
 
 Start / previous step: 0657d65e852448441748b9f7ba038f0104223359.

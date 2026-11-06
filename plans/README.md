@@ -4,6 +4,13 @@
 kept here, moved verbatim (newest section first within each file). Read one
 only when a step needs it.
 
+Historical instructions and migration records (not current assignments):
+
+- [MNIST showcase instruction](mnist-showcase-instruction.md): original task brief,
+  formerly INSTRUCTION.md; retained verbatim for references in DEVIATIONS.md.
+- [Documentation migration](docs-migration.md): original restructure record,
+  formerly DOCS-MIGRATION.md; pending-work statements describe that snapshot.
+
 Prospective worktree handoffs: [first-release agents](release-agents/README.md).
 These are future assignments, not completed-step archives or implementation approval.
 

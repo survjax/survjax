@@ -62,9 +62,7 @@ acceptance integration retain separate ownership and completion gates.
 Recorded local checks through A10 do not certify those steps or the whole
 initial release. Citation and contribution guidance are prepared. Local package
 URLs, citation metadata, badge links and the publishing guard target
-`survjax/survjax`, following the completed GitHub organization transfer.
-Post-transfer integration/publisher checks and documentation hosting remain
-pending; repository visibility is still private.
+`survjax/survjax`. Publisher checks and documentation hosting remain pending.
 
 Fresh Linux/RTD hosting, public documentation/download access, account
 connections, publisher/environment protection and public package installation
