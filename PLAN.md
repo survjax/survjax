@@ -1,3 +1,24 @@
+# BAYES clean-up and main merge (2026-11-06)
+
+Clean-up (commit add507a, agreed with the maintainer; D-041, formerly D-035):
+the approved docs page is the end goal and runs live on the committed draws.
+The example keeps `model.py` (`make_trial`, `model`), `run.py` (NUTS, saved
+draws and metadata, the four acceptance checks as asserts) and
+`results/{posterior.npz,metadata.json}`, plus the tutorial notebook
+`bayesian-rmst.ipynb`. The check modules, figure renderer, figure files,
+delivery manifests, prior/predictive generation and ArviZ are removed. Optional
+checks: `tests/unit/check_bayesian_run.py` (bit-for-bit reproduction of the
+committed draws) and `tests/unit/check_bayesian_notebook.py`.
+
+Merge of main (2093ca2, MNIST and CI): conflicts in `pyproject.toml` (both
+notebooks exempt from E402 and formatting), `docs/index.md` (both use cases
+listed), `DEVIATIONS.md` (Bayesian D-033 to D-035 renumbered D-039 to D-041,
+with a reconciliation note), and the plan and review records (both kept).
+Verify: ruff, mypy, both docs builds, the Bayesian optional checks, the fast
+gate and `scripts/run_tests.sh`.
+
+---
+
 # BAYES.d1 revision — Compact delivery and page order (2026-11-05)
 
 Maintainer accepts compact storage and explicitly forbids the 19MB archives;
@@ -478,6 +499,2292 @@ table and five figures; shared navigation/build integration stays with its owner
 No dependency, protected-file or spec edits in this step.
 
 ---
+
+
+---
+
+# Incoming main plans (MNIST, preserved verbatim)
+
+# MNIST.20 — One compiled concordance; no shadowed module name
+
+Starting/previous step bdce9b2 (MNIST.19, merge verdict); merged main at
+9e742bd. Maintainer: N-1 accepted, N-3 approved; fix N-2. model.py keeps the
+single `jax.jit(survjax.concordance_index)` as `concordance_index`, used by
+`evaluate` and by run.py's timing helper, whose `data` parameter becomes
+`observations` (it shadowed the imported `data` module). The timing test
+patches `model.concordance_index`. Example code only; results unchanged.
+Verify: ruff, mypy, optional MNIST suite (float32), smoke run, fast gate.
+
+---
+
+# Merge main into release-minst (2026-11-05)
+
+Maintainer-started merge of main (PH, RMST, CI, GPU) into the MNIST branch.
+Record conflicts keep both contributions verbatim: the release-minst plans
+come first, then main's. In the preserved-RMST heading conflict, main's
+restructured headings replace this branch's "(verbatim parent ae569e4)"
+heading for the same preserved records. DEVIATIONS.md: the MNIST entries
+D-028 to D-032 are renumbered D-034 to D-038 (reconciliation note there).
+docs/index.md keeps both new page links. No executable file conflicted.
+
+---
+
+# MNIST.19 — Simplify the example support code
+
+Starting/previous step 22906cb (maintainer commit of the tutorial notebook and
+docs page); original worktree base ee72c83. Maintainer asked for the cleanup
+proposed after reviewing the support code against the accepted notebook.
+Example code only: no library/public API, spec or dependency changes (pandas
+was added to the examples group in 22906cb). Rendered notebook and docs page
+must stay the same; committed results stay byte-identical except timings.
+
+- model.py: evaluate() returns only mean log likelihood, shape and C (no n,
+  warm-up or timing); fit_intercept(data: SurvivalData) returns (log_k, log_b);
+  train() uses data.UC_KEY.
+- data.py: generating constants and UC_KEY (fold_in(root, 3), use-case 03
+  details "Splits and keys") at the top; split/outcome code uses UC_KEY.
+- run.py: adds n and the warmed, synchronized C timing to each row (spec
+  use-case 03: record C run time at n=10k); CSVs via pandas with LF endings;
+  pandas in recorded versions.
+- Notebook: new fit_intercept call; metrics table without column selection.
+  Docs page reads committed CSVs and is unchanged.
+- README: notebook defaults to full; current docs-page description.
+- pyproject.toml: 22906cb left `ruff check`/`ruff format --check` failing on
+  the notebook (E402 after the sys.path setup; unwrapped lines). Formatting it
+  would rewrap reader-facing lines of the accepted notebook, so add a
+  notebook-only E402 ignore and format exclusion instead (no new rule family).
+- Tests: update check_mnist_metrics/reference for the new signatures; move the
+  timing test to run's helper; add optional check_mnist_notebook.py executing
+  the notebook with CONFIG="smoke" through nbclient.
+- Verify: optional MNIST suite, run_tests.sh, ruff, mypy, a fresh full run
+  diffed against committed metrics/history, docs build in both modes, and the
+  notebook executed in full config compared with the accepted outputs.
+
+# MNIST.18 — Runnable notebook companion
+
+Starting/previous step 4020dda; original worktree base ee72c83. Add
+examples/survival_mnist/survival-mnist.ipynb, with editable smoke/full config,
+direct data/fit/train/predict/evaluate cells, live figures and committed full
+results. Reuse existing example functions and docs-group Jupyter dependencies.
+Link and give launch command in the example README; add docs download link.
+No public API, dependency, library, model or numerical changes. User explicitly
+requests this additional artifact; spec 11.2/use-case03 narrative and cohorts
+apply. Keep saved notebook outputs empty; execute a temporary copy using
+nbclient from the notebook directory and inspect outputs. Check notebook schema,
+Ruff, both docs builds and download link. No new test suite for this companion:
+execution covers its integration with the already-tested example. One docs step,
+then commit and independent review.
+
+# MNIST.17 — Apply annotated walkthrough edits
+
+Starting/previous step commit 7840cd7; original worktree base ee72c83.
+Apply the maintainer's mnist2.md annotations to docs/use-cases/survival-mnist.md:
+remove realized-censoring prose and preprocessing/outcome-repeat prose; show an
+untyped loss snippet; use “Adam optimizer” and “Calculating Harrell’s C”;
+report actual learned and generating shapes, delete oracle-gap prose; explain
+shared shape/per-image scale is a choice and both can be predicted per image.
+Repair the orphaned closing expression left by the annotated deletion.
+No library/example/API/dependency changes or new tests. Spec 11.2/use-case03
+page order remains; explicit requested prose deletions govern this edit, while
+censor fractions and oracle metrics remain in metadata/table. Keep mnist2.md
+as the user's untouched, untracked input. Build docs in both modes, inspect
+rendered changed passages and validate the untyped snippet against loss's AST.
+Commit and run independent review for this single docs step.
+
+# MNIST showcase — completed
+
+All four INSTRUCTION.md steps are implemented and independently reviewed:
+MNIST.13 round 1 merge, MNIST.14 round 2 merge, MNIST.15 round 2 merge,
+MNIST.16 round 1 merge. Final combined float32 MNIST suite: 30 passed in
+56.68s. Full results and both rendered docs modes verified. REVIEW.md records
+remaining nonblocking nits and the broad gate's missing-wheel setup errors.
+No implementation sub-steps remain; maintainer reviews the entire use case.
+
+# MNIST.15 review follow-up — training behaviour and historical records
+
+Round 1 F-1: restore the removed behavioural training test, using three epochs
+and validation values 3/2/2 to pin earliest-best selection, returned checkpoint,
+epoch means, exact shuffle keys and dropping one row from 257. No demo guards.
+F-2: add dated supersession notes to D-029/D-031/D-032, retaining open statuses.
+N-2: point from the top MNIST.15 plan to its execution evidence. N-1 sizes are
+nonblocking; retain clear formatting. S-1/S-2 follow explicit maintainer brief;
+no new spec interpretation or edits. Run focused training checks and lint,
+commit separately, then request MNIST.15 round 2. Docs/code outputs unchanged.
+
+# MNIST.16 — Invite readers to build their own survival model
+
+Starting/previous-step commit 7db112e (MNIST.15 implementation); original
+worktree base ee72c83. Maintainer authorized completing all steps together.
+Change only examples/survival_mnist/README.md and
+ docs/use-cases/survival-mnist.md, plus plan/review records. One docs topic,
+full prose rewrite expressly requested by INSTRUCTION.md section 7.
+Lead with the payoff and three-line loss, preserve the generating-rule/model/
+live-smoke/full-results/takeaways order, use epoch-only figure and three-decimal
+tables. Short README: run command, outputs, committed results and attribution.
+Spec 11.2/use-case03 page requirements; no API, dependency or numerical changes.
+Run scripts/build_docs.sh directly in both configured parent dtype modes;
+keep neural smoke float32. Inspect rendered HTML/figures, links and output
+metrics. Run Ruff/mypy. Independent review and final report cover all four
+requested steps; no later feature work. Prior reviews continue separately.
+
+# MNIST.15 continuation — approved convergence change
+
+Maintainer approved rtol=atol=3e-4 and completing the remaining work. Apply
+only that solver change, retaining throw=True/max_steps=256; no test tolerance
+changes or model tuning. Address MNIST.14 review F-1/F-2/N-1 in this step:
+the data-only commit temporarily broke old runner callers and docs smoke;
+this step replaces them. Add the missing bad-download checksum test and
+remove unused enumerate. The brief explicitly supersedes old metadata fields
+(review S-1); follow its reduced metadata list without expanding spec edits.
+Run full and smoke acceptance and preserve all failure evidence below.
+
+# MNIST.15 — Readable neural demo and full experiment
+
+Execution evidence is recorded under "MNIST.15 execution status" and
+"MNIST.15 BFGS investigation" near the end of this file.
+
+Starting/previous commit 7821028; original base ee72c83. Change model.py,
+run.py, optional check_mnist tests, results and whitespace hook exclusions.
+The brief explicitly groups this larger step. No library API/dependencies.
+Spec 11.2/use-case03 model, training, references, figures and acceptance.
+Remove demo guards/progress/precision subprocesses; keep plain prediction,
+float32 BFGS and epoch checkpoint selection. Tests retain tiny analytical
+loss/metrics, real smoke gradients before/after step one, smoke CLI and full
+acceptance. Run optional suite, full experiment and check acceptance without
+tuning; report solver or shape failure. Docs follow MNIST.16.
+
+# MNIST.14 — Showcase data
+
+Authorized to continue all four steps without intermediate maintainer stops.
+Change data.py and data/outcome tests; delete calibration.json. No public
+library API. Spec 11.2/use-case03 data, precision, outcomes and split rules.
+Keep hash/parsing, fixed cohorts and deterministic outcome checks; remove
+calibration and misuse guards. Run focused float32 tests. Docs deferred to
+MNIST.16. Starting/previous commit f77b901; original base ee72c83.
+
+# MNIST.13 — Showcase specification (2026-11-01)
+
+Starting/previous-step commit: c1a0915; original worktree base: ee72c83.
+Maintainer instruction: INSTRUCTION.md, process step 1 of 4. Continue the
+current MNIST sub-slice; no archive transition is needed.
+
+Files: spec/use-cases/03-survival-mnist-details.md (float32 throughout,
+fixed Uniform(0, 7) censoring, intercept precision and implementation steps),
+spec/use-cases/03-survival-mnist.md (outcomes table), and the revision line
+in spec/SPECIFICATION.md. Commit these alone in design, then run the required
+spec-marking script and commit .spec-seen here with this plan and REVIEW.md.
+Preserve INSTRUCTION.md as the committed maintainer brief for later steps.
+Public API/tests: unchanged; validate exact requested replacements, revision
+increment and diff whitespace. No runtime tests for this specification step.
+Spec coverage: 11.2 and its delegated use-case 03 precision/outcome requirements.
+Independent review after commits; stop before implementation.
+
+Remaining steps: 2 data.py/tests; 3 model.py/run.py/tests and regenerated full
+results; 4 README and prose docs rewrite with rendered HTML checks. These are
+explicitly authorized by the brief, including its larger grouped step 3.
+Docs to-do: step 4 as above.
+
+# MNIST.12 — Executable documentation page (2026-11-01)
+
+Start clean at 365c173 (MNIST.11 final); original worktree base ee72c83.
+Maintainer directs the executable page. Spec11.2/use-case03 page order,
+Precision, Outputs/Acceptance, Run/budget and attribution; spec10.5 docs build.
+Approved D-030/031/032 behavior is explained accurately, without reopening it.
+
+Files:
+- docs/use-cases/survival-mnist.md: MyST notebook. Explain generating rule and
+  plot true digit curves; include actual CNN/loss source; execute the existing
+  smoke CLI live in isolated precision children and display its table; read and
+  label committed full metrics/settings/timings, three figures and epoch summary
+  view; explain selection, oracle gaps, cohort sizes, limitations and attribution.
+  Temporary smoke output never overwrites committed results. No model tuning.
+- docs/index.md: navigation/link and accurate examples/cache build requirements.
+- scripts/build_docs.sh: activate existing approved examples group with docs;
+  no dependency/lockfile change. Still execute both parent JAX dtype builds.
+- examples/survival_mnist/README.md: resolve N-5 heading and N-6 normalization
+  provenance wording; link the new page, retire pending-page wording.
+- REVIEW.md: reading order, build/visual evidence, completion mapping and
+  independent review MNIST.12, then stop.
+
+One docs topic, target <=300 changed implementation/docs lines. No core/example
+numerics, API, protected paths, spec or result artifacts change. No new tests
+for prose; executable cells and warnings-as-errors build are the checks. Run
+scripts/build_docs.sh directly, using its approved escalation if needed. Seed
+normal data cache only from the existing SHA-verified copies if needed so the
+build can execute without repeating acquisition. Inspect rendered page and
+assets through a local preview. Run Ruff/mypy; full core gate need not repeat
+for docs plus dependency-group activation after MNIST.11's passing gate.
+Remaining: none within this use-case implementation if docs checks/review pass;
+formal deviation statuses remain maintainer-owned. No publishing/merging.
+
+# MNIST.11 — Committed full-run artifacts (2026-11-01)
+
+Start clean at 2223416 (MNIST.10 final); original worktree base ee72c83.
+Maintainer accepted the figures/experiment and both C timing views, then asked
+for the next bits. One concept: produce the fixed full experiment's inspectable
+results from the approved code. D-031/D-032 decisions are already recorded;
+formal statuses remain maintainer-owned. No new permission or spec edit needed.
+Spec11.2/use-case03 Run/budget, Outputs, Acceptance, Files/commands; approved
+within-epoch progress CSV and first/warm timing protocol augment those outputs.
+
+Files:
+- examples/survival_mnist/results/: generate metrics.csv, history.csv,
+  progress.csv, metadata.json and fig1/2/3.svg directly with the existing CLI,
+  fixed50k/10k/10k cohorts,10 epochs and prescribed keys/settings. No hand-edited
+  numerical data or selected rerun. Both C timings measured at n=10k.
+- examples/survival_mnist/run.py and tests/unit/check_mnist_run.py: LF-only
+  CSV serialization and its output assertion, required by Git whitespace checks.
+- run.py _figures and check_mnist_figures.py: strip Matplotlib's trailing SVG
+  line whitespace; check output formatting and unchanged raster rendering.
+- examples/survival_mnist/README.md: reproduction command/source revision,
+  concise measured full results, sizes/selection, shape criterion, oracle gaps,
+  timing caveat, licensed MNIST figure attribution and remaining docs work.
+- REVIEW.md: reading order, full acceptance/consistency evidence, visual QA,
+  checks and independent-review MNIST.11, then stop.
+
+No numerical implementation, API, dependency, protected path, spec or training
+changes. Git whitespace checks exposed the existing CSV writer's default CRLF.
+Set only its three lineterminator arguments to LF and pin that output in the
+existing runner check. Normalize generated CSV newlines without changing fields.
+Matplotlib also emits trailing path-data spaces; remove only terminal spaces/tabs
+per SVG line and verify raster output is pixel-identical before/after.
+Generated data/SVGs naturally exceed300 textual lines; they are the required
+experiment artifacts, not new implementation. Human-authored changes stay
+small. Review the scalar evidence and rendered plots, not SVG path coordinates.
+No new tests for fixed data: extend the writer check for LF; existing math,
+writer, tracing and selection tests remain; run explicit independent artifact acceptance/consistency checks and
+record exact commands/results. Full experiment is synthetic outcomes on MNIST;
+no raw IDX/cache, label arrays or per-image predictions are committed.
+
+Run the approved full CLI once with verified warm cache. Check finite metrics,
+CNN beats intercept LL/C, k within5% of1.38, earliest best epoch by validation,
+all epoch/progress boundaries/means, cohort sizes/censoring, metadata/timing
+agreement and exact expected file set. Render/inspect all3 SVGs. No tuning or
+repeat based on test results. Run static checks, optional suites both dtypes
+and fresh-wheel A10 gate. No docs build/R generation in this data step.
+Docs to-do: display committed results/figures and live smoke on the page.
+Remaining sub-step: executable documentation after this handoff/review.
+
+# MNIST.10 follow-up — Both concordance timings (2026-11-01)
+
+Continue MNIST.10 after round1 at a6f8217; do not reset the review counter.
+Maintainer explicitly decides "ok just record both" after approving the figures
+and experiment state. Record those decisions in D-031 and D-032; retain formal
+open statuses, which only the maintainer changes. No spec edits requested.
+
+Files:
+- model.py evaluate: same public C, through one module-level jitted callable.
+  Record synchronized first invocation and median of3 synchronized repeated
+  calls on identical scores/data. First invocation per model may reuse earlier
+  compilation; do not call it a fresh-process cold benchmark or clear caches.
+  Preserve concordance_seconds and add concordance_warm_seconds. No training,
+  parameters, C value/definition, figures or selection changes.
+- run.py: record both per-model timings, repeat count/statistic/callable/cache
+  policy in metadata and explain diagnostic validation in the training timer.
+- check_mnist_metrics.py: deferred scalar/fake clock pins synchronization,
+  exactly3 warm repetitions, median rather than last/mean/first-call duration;
+  real C correctness checks still run in both dtype modes.
+- check_mnist_run.py: fix F-1 with two distinct batch losses and a sparse
+  validation cell; assert every progress.csv row. Pin both metadata/CSV timings.
+- DEVIATIONS.md: quote the existing logging/figure approvals and timing decision,
+  without asking again or editing spec. README.md and REVIEW.md explain protocol.
+
+Spec11.2/use-case03 References and metrics, project12.3 timing conventions,
+maintainer's explicit denser-logging direction. No core API/module/dependency/
+protected edit. Keep implementation/test changes about300 lines. Run relevant
+optional checks in both dtype modes, static checks and fresh-wheel A10 gate;
+actual warm-cache smoke plus synthetic10k timing probe. No experiment retuning
+or repeated full training needed. Independent review MNIST.10 round2, then stop.
+Remaining sub-steps: committed approved full artifacts, executable docs.
+Original previous-step final aadbb14; worktree base ee72c83 remain unchanged.
+
+# MNIST.10 — Within-epoch convergence trace (2026-11-01)
+
+Start clean at aadbb14; original worktree base ee72c83. Maintainer requests
+more frequent loss logging because the one-epoch smoke history is uninformative
+and predictions still differ from truth. This step adds observation, not tuning.
+Spec11.2/use-case03 Training, Figures and Acceptance; maintainer explicitly
+requests denser logging. Keep the prescribed epochs, updates, keys and
+end-of-epoch checkpoint selection. D-031 timing choice remains unchanged.
+
+Files:
+- model.py: append per-minibatch pre-update NLL and optional initial/periodic
+  full-validation NLL indexed by completed optimizer updates to TrainingResult.
+  train accepts a positive log_every_batches or None (epoch-only validation).
+  Reuse the final validation at each epoch boundary for checkpoint selection;
+  intermediate validation can never select a model. Fail on nonfinite traces.
+- run.py: request about10 validation samples per epoch (ceil(batches/10)),
+  write progress.csv with integer update count, training_batch_nll and sparse
+  validation_nll (empty cells where not evaluated). Training loss at step s
+  uses the minibatch before update s+1; validation at s uses the model after s
+  updates. Figure3 uses update axis and marks selected_epoch*batches_per_epoch;
+  retain history.csv and its epoch definitions. Record logging interval/settings.
+- check_mnist_progress.py: controlled logging schedule, initial/end boundaries,
+  intermediate-best validation does not select; real Adam parameters/histories
+  agree with/without denser validation; malformed logging interval/nonfinite
+  diagnostic failure. Update runner/figure checks for trace data and SVG.
+- README.md: logging semantics, CSV meanings and why smoke is not convergence
+  evidence. REVIEW.md: tests, actual fixed smoke trace, visual QA and review.
+
+Keep source/test changes about300 lines; no new module, dependency, core API,
+protected path or spec edit. Run optional suites in both modes, static checks,
+fresh-wheel A10 gate; run unchanged fixed smoke and a temporary fixed ten-epoch
+full diagnostic, then inspect denser fig3 and prediction gap. No
+selection/seed/optimizer/epoch changes based on test results. No claim that
+more logging improves predictions. Remaining: full-run artifacts/timing choice
+and executable docs after this step's independent review and handoff. The full
+diagnostic is not a committed release artifact and retains the current labelled
+C timing; it does not decide D-031 or tune on held-out results.
+
+# MNIST.9 — Figure writer (2026-11-01)
+
+Start clean at 97203e7 (MNIST.8 final); original worktree base ee72c83.
+Implement the three use-case03 figures in the already-named run.py. Spec11.2;
+use-case03 main Outputs and details Figures/Precision/Splits. No core API,
+module, dependency, protected path or spec change. D-031 remains an open
+future full-run timing choice; no timing behavior changes in this step.
+
+Files:
+- examples/survival_mnist/run.py: private figure writer receives selected CNN
+  log shape/scales, official-order test pixels/labels and training histories.
+  Public survival_grid on float32 linspace(0,20,201), first test image per
+  digit, 2x5 groups each with image and predicted/true curves (truth dashed).
+  fig1.svg headline, fig2.svg boxplots over all test predictions grouped by
+  digit with generating log-scale markers, fig3.svg epoch NLL histories with
+  selected epoch marked. Close each figure; no extra model selection/training.
+  Matplotlib imports remain in float32 child, not stdlib-only parent.
+- tests/unit/check_mnist_figures.py: optional offline analytic exponential
+  curves, exact grid/first-image selection/true curves, full digit groups,
+  histories and one-based selected mark, SVG outputs and figure closure.
+- tests/unit/check_mnist_run.py: check figure writer gets the selected inputs,
+  all test rows in official order and the runner output directory.
+- examples/survival_mnist/README.md: emitted figures and remaining full/docs work.
+- REVIEW.md: requirement evidence, visual QA and independent review MNIST.9.
+
+Keep changed implementation/tests about300 lines; run.py remains about300 lines.
+Run both dtype optional suites, Ruff/mypy, fresh-wheel A10 gate, actual fixed
+warm-cache smoke into /tmp and render/inspect plots. No committed MNIST data,
+images or full results in this step. No tuning based on smoke metrics.
+Docs to-do: embed/caption figures and MNIST attribution on the eventual page.
+Remaining sub-steps: decide D-031 before fixed full run/committed artifacts;
+then executable docs. Commit/review then stop for maintainer handoff.
+
+# MNIST.8 — Reproducibility metadata (2026-11-01)
+
+Start clean at d8af61a (MNIST.7 final); original worktree base ee72c83.
+One concept: write metadata.json alongside the runner's two aggregate CSVs.
+Spec 11.2 and use-case03/common deliverable, Precision, Splits/keys, Outcome
+generator, Training, References/metrics and Files/commands. No public core API,
+module, dependency, protected path, spec or training behavior change.
+
+Files:
+- examples/survival_mnist/run.py: retain calibrated c and fitted log parameters
+  beyond the temporary bridge; write stored float64 oracle constants, config,
+  actual cohort sizes/realized censoring, selected epoch, epochs/batch/optimizer/
+  architecture, root key derivations, actual software/CPU environment and source
+  SHA256 hashes already verified by load_mnist. Record preparation/training,
+  synchronized prediction and per-model concordance times with timing semantics.
+  Write strict JSON (no NaN/Infinity); records contain no image/label rows.
+- tests/unit/check_mnist_run.py: extend controlled runner record assertions with
+  independent censoring fractions, all precision/parameter/settings/key fields,
+  controlled version/hardware values, deterministic timer sequence and sizes.
+  Verify record write, selection and CSV correspondence in the existing pipeline.
+- examples/survival_mnist/README.md: metadata content and timing boundaries.
+- REVIEW.md: overwrite, check evidence, independent review MNIST.8, then stop.
+
+Keep implementation/test diff about300 lines; run both dtype optional suites,
+Ruff/mypy and fresh-wheel A10 gate. Exercise same fixed smoke via warm cache,
+inspect JSON/CSV agreement; outputs remain temporary, no tuning or committed
+full-run evidence. Existing one-epoch shape miss remains an observation, not
+permission to tune. No new code tests in protected tests/spec.
+Docs to-do: display run metadata/settings and timing semantics. Remaining
+sub-steps: figure writer, prescribed full run/committed artifacts and executable
+page. Do not start those before maintainer review of this step.
+
+# MNIST.7 — CLI and CSV records (2026-10-31)
+
+Start clean at 45850eb; original branch base ee72c83. Implement the named
+run.py CLI --config {smoke,full} --out DIR. Spec 11.2 and use-case 03 Files
+and commands, Precision, Splits and keys, References and metrics, Run and budget.
+No new dependency/core API/protected path/spec edit. D-030 initialization stands.
+
+Files:
+- examples/survival_mnist/run.py: standard-library parent launches sequential
+  CPU subprocesses with explicit JAX_ENABLE_X64=1 then =0 before importing JAX.
+  Temporary JSON carries calibrated c and fitted log parameters. Preparation
+  uses all source training digits for calibration, generates all 70k outcomes,
+  and fits only the selected training rows. Training uses fixed train/validation
+  cohorts and supplied intercept; selected CNN predicts in batches of128 with
+  tail retained. Evaluate CNN/intercept/oracle on test once selection is done.
+  Write metrics.csv and history.csv; print selected epoch/metrics. Metadata
+  writer split out to the next step to keep this implementation about300 lines.
+  Errors propagate, never continue after failed preparation or invalid metrics.
+- tests/unit/check_mnist_run.py: offline optional checks for child precision
+  environment, failure propagation, data split boundaries, selected predictions,
+  batch tail/order and exact output records with controlled collaborators.
+- examples/survival_mnist/README.md: executable command and staged scope.
+- REVIEW.md: invariants, evidence, independent review MNIST.7 then stop.
+
+Target about300 implementation/test lines. Run optional checks in both modes,
+static checks and cumulative fresh-wheel A10 gate; exercise actual smoke via
+verified warm cache into /tmp. Do not tune from smoke/test results. Report
+failed acceptance observations honestly; full-run acceptance belongs to the
+later fixed10-epoch run. No committed MNIST data/row outputs or results here.
+Docs to-do: CLI, records and precision boundary. Later: reproducibility metadata, figures, full run,
+committed result artifacts, executable documentation page.
+
+# MNIST.6 — Evaluation metrics (2026-10-31)
+
+Start clean at 4a4fb99 (previous integration step); branch base ee72c83.
+One concept: evaluate supplied predictions for CNN/intercept/oracle consistently.
+Spec 11.2, use-case 03 References and metrics/Precision/Acceptance checks;
+public concordance convention in spec 9.1. No core API, module, dependency,
+protected path or spec change. Existing maintainer initialization decisions stand.
+
+Files:
+- examples/survival_mnist/model.py: evaluate(log_shape, log_scale, data),
+  float32 predictions and observations, scalar shared shape, scalar or per-row
+  scales. Return cohort size, mean log likelihood, k, C and C wall time.
+  Use public likelihood and concordance_index with score -log_scale;
+  broadcast the intercept scale so constant predictions give C=0.5.
+  Include all rows; fail loudly for invalid/nonfinite or undefined metrics.
+  Host evaluation only, not a differentiable or jittable reporting API.
+- tests/unit/check_mnist_metrics.py: explicit examples-group offline checks
+  for independent exponential likelihood, score direction/ties, oracle constants,
+  actual CNN predictions, full-cohort tail, float32 cast and invalid inputs.
+- examples/survival_mnist/README.md: invocation and first-call-inclusive timing.
+- REVIEW.md: reading order, invariants, checks and independent-review record.
+
+About 300 implementation lines maximum; keep model.py about 300 lines.
+Checks: both dtype optional suites, Ruff/mypy, fresh-wheel A10 gate; synthetic
+10k concordance timing with independently known C, no held-out MNIST metrics.
+Commit, independent review MNIST.6 (maximum three rounds), then stop.
+Docs to-do: evaluation table, cohort sizes and timing semantics on the eventual
+page. Later steps own runner, metadata/full results, figures and docs.
+
+# MNIST.integration — Resolve incoming main (2026-10-31)
+
+Complete the maintainer-started merge of main ae569e4 into release-minst at
+1d06cc9. Only DEVIATIONS.md, PLAN.md and REVIEW.md conflict. Preserve both
+parents' complete plan records below. Combine the distinct deviation entries,
+retaining historical IDs and statuses with an explicit topic-disambiguation
+note for D-028/D-029; retain their identical common history once. Overwrite
+REVIEW.md with this integration record. All other staged files stay exactly
+as the automatic merge produced them, including incoming CLAUDE.md.
+
+No new API, dependency, numerical implementation, spec edit or demo step.
+Spec coverage is unchanged: incoming RMST and existing MNIST work retain their
+parent evidence. No new tests for record concatenation. Run static checks,
+the fresh-wheel gate through A10 and the optional MNIST checks in both dtype
+processes. Verify parent record preservation and absence of conflicts, commit
+the existing merge, invoke independent review MNIST.integration, then stop.
+Docs to-do and remaining MNIST work remain in the preserved plans below.
+
+---
+
+# Preserved release-minst plan (verbatim parent 1d06cc9)
+
+# MNIST.5s — Use stock BFGS (2026-10-31)
+
+Maintainer directs removal of the custom optimizer: use optx.BFGS for the
+intercept estimate. This supersedes the previous precision-driven implementation.
+No dependency, module, public library API, protected path or spec change.
+
+Files: model.py removes both optimizer subclasses and uses stock BFGS with
+rtol/atol=1e-5; check_mnist_reference.py removes custom-search tests and checks
+objective quality against the independent profile optimum rather than demanding
+near-machine-precision parameter recovery. Existing tolerance constants stay.
+DEVIATIONS.md records the maintainer decision; REVIEW.md records evidence.
+Spec 11.2 and use-case 03 References/Precision. Maintainer additionally directs using the fit to initialize the CNN. Change
+CNN's scalar constructor argument to initial log scale and require train's
+initial_intercept=(log shape, log scale), supplied from the separate fit process.
+Cast explicitly to float32, validate finite shape (2,), initialize bias and shape.
+Update model/training checks and example README; record this authorized change
+to the use-case initialization in D-030 (spec remains read-only).
+
+Checks: optional model/reference/training/data checks in separate dtype processes,
+Ruff/mypy, cached smoke/full training-only fits, cumulative fresh-wheel gate.
+Commit, independent review MNIST.5s, then stop. Docs to-do unchanged below.
+
+# MNIST.5 — Float64 intercept-only reference fit (2026-10-31)
+
+Start clean on release-minst at c035ed1; maintainer approved MNIST.4 and
+requests the next bit. MNIST.4 round2 returned merge; F-1/N-1/N-2 fixed.
+D-028 placement acceptance remains recorded, with formal status maintainer-owned.
+
+One concept: intercept-only MLE; keep metrics separate so model.py stays
+under about 300 lines and precision/process boundaries remain reviewable.
+Spec 11.2, 7.2–7.3, 10.3; 03 details References and metrics, Precision;
+release-agent MNIST handoff (float64 fit, float32 neural/evaluation process).
+No library API, module, dependency, protected or spec change.
+
+Files:
+- examples/survival_mnist/model.py: private mean Weibull NLL and
+  fit_intercept(time,event) host entry returning float64 log-parameter array
+  (log k, log b). Require x64 mode explicitly; never toggle global precision.
+  Supplied training rows only, matching nonempty vectors, public SurvivalData
+  validation and at least one event. Start k=1, b=sum(observed time)/events,
+  with event count cast to float64 before division. Fixed approved Optimistix
+  BFGS minimizes public survjax likelihood in log parameters, rtol/atol=1e-10,
+  max_steps256, with a bounded roundoff-aware Armijo comparison near stationarity.
+  Explicit failure on solver failure/nonfinite results or
+  gradients; no floors, clipping, penalty likelihoods or fallback fits.
+- tests/unit/check_mnist_reference.py: explicit examples-group offline checks.
+  Float64 MLE against an independently derived mpmath profile-score root,
+  all-observation/censoring influence, shape/invalid-row/no-event failures,
+  unsuccessful and nonfinite optimizer-result paths. Explicit float32-process
+  refusal, with unavailable-float64 cases skipped there for a stated reason.
+  Existing smooth likelihood derivatives already tested; fit is host-only,
+  no optimizer-gradient/JIT API promise. Recheck fitted log parameters cast
+  explicitly for float32 evaluation in a separate process.
+- README.md: exact fit invocation and process boundary; fitting checks.
+- REVIEW.md: overwrite with reading order, invariants, evidence and limits.
+
+Target <=300 changed source/test/README lines, model.py <300. No CNN training
+change, metric helper, test-set evaluation, CLI, full-run result, figure or docs
+page. Docs to-do: float64 training-only reference fit and explicit evaluation
+cast. Later steps still own oracle/C metrics, 10k C timing, calibration/metadata
+writer, full runs and executable page. No additional fit tuning on test data.
+
+Checks: fitting checks in separate x64/float32 processes, existing explicit
+neural/preparation checks, Ruff/mypy. Actual warm-cache full 50k training-only
+fit in x64 with recorded parameters, stationarity and timing; save temporary
+fit output, then a separate float32 process proves evaluation conversion.
+Fresh-wheel scripts/check_wheel.sh --through A10. Ordinary tests stay offline
+and demo-free. Commit, independent-review skill MNIST.5 (max3 rounds with
+fix-ups), then stop after verdict; do not begin metrics until told.
+
+Numerical implementation note: first probe used a mistaken Solution.y field;
+installed Optimistix documents Solution.value, now corrected. Default reverse-
+mode BFGS converged with log-shape errors 5.87e-9/9.63e-9, outside the existing
+relative tolerance (no tests/tolerances loosened). Tightening solver tolerances
+1e-12→1e-14/1e-15 did not change those results. Installed BFGS supports
+options.autodiff_mode: forward AD for two parameters avoids a large reverse
+tape and independently improves score residuals from ~1e-8 to <=1.3e-10 in
+these probes. Use that supported option, retaining rtol/atol1e-12, defaults
+otherwise and all original assertions. Add a right-censor-at-zero analytical
+case (zero cumulative hazard term), without changing existing expected values.
+
+Full training-only diagnostic: forward BFGS at rtol/atol1e-12 reaches the
+same log parameters [0.1719941343787224,1.4325235160420127] and stationarity
+~2.1e-14 as 1e-10, but refuses to terminate and hits256 steps. The 1e-10
+criterion reports success in9 steps. Use fixed solver rtol/atol1e-10 for
+termination; all analytical parameter-validation tolerances/assertions remain
+unchanged. Solver failures remain failures (never accept a max-step status).
+This is solver accuracy/roundoff diagnosis on training data, not test-metric
+or seed/checkpoint tuning. Record initial failed probes honestly in REVIEW.md.
+
+Implementation/evidence: source/test/README238 lines; model.py247 lines.
+Forward-AD BFGS with fixed1e-10 termination passes all unchanged 50-digit
+profile-MLE assertions and second-order objective checks. Actual full50k
+training-only fit returns log parameters [.1719941343787224,1.4325235160420127]
+(k1.1876708667659677,b4.189257522824442), NLL1.234515803406909, gradients
+<=2.1e-14; CPU1.51943s including compile. Separate float32 process converts
+stored logs and evaluates finite float32 likelihood with no precision toggle.
+Combined checks:50 passed/1 skip x64 (18.21s),35 passed/16 precision skips
+x32 (13.99s). Fresh-wheel gate exit0: own1087/1093 passed (7/1 skips),
+doctests4 per mode, acceptance2333/2324 passed (27/36 skips), Ruff/mypy pass.
+REVIEW.md records initial API/numerical failures, diagnosis, exact commands
+and limits; no test assertions/tolerances loosened, no test-set model tuning.
+Commit, invoke independent MNIST.5 round1, then stop before metric helpers.
+
+Round1 F-1:1e-10 still stalls on the real5k smoke cohort and valid exact-only
+and seeded n10 samples. The full50k probe missed this coverage gap. Near an
+optimum, mean-NLL changes are quadratic in parameter errors, so float64
+objective resolution limits loss-based line searches around sqrt(eps64).
+Investigate fixed1e-8 BFGS termination (rtol/atol), retaining all prior accuracy
+assertions and strict solver-status failure. Extend the same independent
+profile-score oracle to exact-only [1,4,8] and fixed-seed small mixed/exact
+cohorts; do not drop or loosen the original cases. Verify both real5k/50k
+training-only fits and separate32bit conversion. N-1: update the Files bullet
+in place to the final setting. Update REVIEW.md with all outcomes. Focused
+checks both processes/static checks; no repeated core/wheel gate for this
+example-only fix. Commit then exact MNIST.5 round2, max3 rounds total.
+
+Fixed1e-8 resolves most new controls but seeded exact n10 still stalls, despite
+accepted-iterate gradient max6.14e-10. Public Armijo slope1e-4 and RMS/two-norm
+probes do not fix it. Source diagnosis: Cauchy termination is checked only on
+accepted steps; Armijo can keep rejecting near roundoff at an already stationary
+iterate. Implement one private concrete BFGS specialization with an additional
+accepted-gradient max-norm<=1e-9 termination condition, guarded against the dummy
+initial gradient. Preserve stock BFGS steps/search and result status; never
+reclassify failed/max-step solves. This is the required BFGS fitter's stopping
+rule, not a new optimizer framework, public API, module or fallback algorithm.
+Keep all MP assertions unchanged and verify the broader controls plus5k/50k.
+
+Gradient-only termination is insufficient for robust high precision: smoke's
+accepted score max1.06e-8 and predicted correction [3.24e-9,-1.64e-8] still
+need a final step. Replace that experimental specialization with a concrete
+roundoff-aware Armijo search attached to stock BFGS. Keep its normal1e-10
+Cauchy termination. Only when accepted gradient max<=sqrt(eps64), descent is
+nonpositive/tiny and both objective values finite, permit a full trial whose
+objective difference is within4*eps64*(1+abs(f)+abs(f_trial)). This changes only
+the optimizer comparison, never likelihood/data/parameters. Reset step state
+consistently on acceptance. Strict failure/max-step guards remain. Add direct
+search checks for roundoff, real worsening, nonfinite trial and large gradient,
+alongside unchanged MP regressions. No gradient-only early exit or fallback.
+
+Final F-1 resolution: retained normal BFGS1e-10 termination; attached a private
+roundoff-aware Armijo search. Only finite full-step trials, nonpositive descent
+with predicted change below4*eps64*(1+abs(f)+abs(f_trial)), and accepted gradient
+max<=sqrt(eps64) can use the allowance. Real increases, nonfinite trials, large
+gradients and already shortened steps remain rejected; coherent search state
+is tested. No likelihood value/data/parameter change or failed-status promotion.
+All8 independent MP cases pass at their original assertions. Both real fits
+now succeed: smoke5k logparams [.16221816847747333,1.4258202396725628], gradients
+<=1.8e-15,1.42978s; full50k original logparams unchanged, gradients<=2.1e-14,
+1.32151s. Both convert/evaluate float32 in a separate process. Combined focused
+checks:59 passed/1 skip x64 (19.90s),35 passed/25 skips x32 (13.93s); Ruff/mypy
+pass. All source files remain <300 lines (model292, checks223). Record exact
+comparisons/limits in REVIEW.md, commit and request MNIST.5 round2, then stop.
+
+Round2 on7a8fd27: F-1 fixed, including both real cohorts and60 reviewer stress
+cohorts with no solver failures. F-2: add explicit rejection cases for large
+predicted descent with worsening trial and for positive predicted direction;
+assert accepted step resets to step_init. N-2: document sqrt(eps64)-scale
+accuracy limits (reviewer found one stock-BFGS stopping point1.14x default
+parameter tolerance); no further tuning/test relaxation. N-3: explain why
+gradient/allowance guards exist in code comments. S-1 is logged as open D-029:
+maintainer confirmation of the private modified Armijo under prescribed BFGS.
+Do not alter solver/spec in response; finish authorized F-2 test fix and round3,
+then stop for that decision before metrics. Targeted suites/static checks only;
+no numerical logic or core changes. This is the last allowed review round.
+
+F-2 validation: final suites61 passed/1 skip x64 (20.76s),35 passed/27 skips
+x32 (14.01s); Ruff/mypy clean. Only tests, explanatory comments and records
+changed. Commit and invoke final MNIST.5 round3, then stop for D-029 decision.
+
+---
+
+# MNIST.4 — Deterministic epoch training and checkpoint selection (2026-10-31)
+
+Start clean on release-minst at 3d99b3d. Maintainer reviewed/agreed and asks
+for next step, accepting D-028 preparation placement and the reviewed code.
+Record that decision in D-028 without marking it resolved (maintainer-owned).
+No spec edit is requested. Explicit optional checks follow the existing handoff.
+
+One concept: host epoch orchestration with compiled float32 minibatch updates.
+Spec 11.2, 7.2–7.3, 10.3; 03 details Precision, Splits and keys, Training.
+No core API, dependency, protected, docs, generator or placement changes.
+
+Files:
+- examples/survival_mnist/model.py: train(train images/data, validation
+  images/data, config=smoke/full), typed result with selected parameters,
+  epoch train/validation NLL columns and 1-based selected epoch. Scalar
+  log_k=0; CNN bias uses training observed mean only; init fold_in(uc,2).
+  Adam(1e-3), batch128, epochs1/10, drop training remainder. Shuffle with
+  fold_in(fold_in(uc,3), zero-based epoch). eqx.filter_jit updates and
+  filter_value_and_grad; explicit finite loss/gradient host checkpoints on
+  the first actual minibatch at initialization and after update1. Float32
+  cohort inputs required; invalid data rejected at host entry. Full validation
+  includes its remainder and is accumulated in float32, in bounded batches.
+  Retain earliest strictly best finite validation result; epoch histories
+  record mean minibatch training NLL and full validation NLL. No test inputs.
+- tests/unit/check_mnist_training.py: explicit examples-group offline checks:
+  independent constant-exponential validation mean including tail, instrumented
+  10-epoch schedule/key/batch/initialization/checkpoint/history tests, initial
+  and post-update nonfinite failures and float32/shape/config entry checks.
+  Existing neural checks cover actual Adam/gradients; run actual one-epoch
+  smoke training on verified warm-cache MNIST as separate integration evidence.
+- README.md: training call and explicit optional check command.
+- DEVIATIONS.md: dated D-028 acceptance note, status not changed.
+- REVIEW.md: overwrite with reading order, invariants, evidence and limits.
+
+Aim <=300 source/test/README changed lines. No CLI/metadata writer,
+intercept/oracle metrics, full training results, figures or docs page yet.
+Docs to-do: smoke training/history/selection and explicit runtime diagnostics.
+Later run.py still owns calibration comparison/writer from MNIST.2 N-2.
+
+Checks: optional suites in separate x64/float32 processes (neural work always
+float32), Ruff/mypy; warm-cache 5k/1k one-epoch smoke with recorded timings,
+finite gradients/history/selected model (no test-set model selection). Fresh
+wheel scripts/check_wheel.sh --through A10. Ordinary tests stay offline and
+need no demo packages. Commit and exact independent-review for MNIST.4,
+max 3 rounds with fix-ups; stop after this step's verdict.
+
+Implementation/evidence: 318 source/test/README changed lines; model.py 184
+lines and optional training checks 186. Final combined suites before row-
+marker strengthening: 34 passed/1 precision skip x32 (19.66s), 35 passed x64
+(20.39s). Final strengthened training tests: 8 passed/1 skip x32 (6.48s),
+9 passed x64 (8.06s). Actual fixed warm-cache smoke: 5k/1k, one epoch,
+39 minibatches, 8 rows dropped, selected epoch1; required gradient checks
+passed, training/validation NLL 1.244823575/1.246947408, CPU training incl.
+compile 4.66429s. No test cohort used and no full-run acceptance claim.
+Fresh-wheel gate exited 0: own tests 1087/1093 passed (7/1 skips), doctests
+4 per mode, acceptance 2333/2324 passed (27/36 skips). Only optional-test
+row markers and review-record formatting changed after that gate; targeted
+checks pass. Exact commands/evidence/limits in REVIEW.md. Record D-028
+acceptance without changing its formal status. Commit, independent MNIST.4
+round 1, then stop after verdict.
+
+Round 1 on 3f1f36c returned fix-first for F-1: symmetric event flags made
+observed and event-only time means equal (129). Change fixture events to
+rows 1..100 (event mean 50.5), retaining hand-derived observed mean129.
+N-1: share one fixed Adam transformation for init/update, with all state
+still local per run. N-2: comment the zero-based shuffle/one-based selected
+convention. D-028 acceptance is recognized; no outstanding question there.
+Run all optional/preparation checks in both modes, static checks, and repeat
+the warm-cache smoke to compare metrics against the original. No duplicate
+core/wheel gate for this example-only small refactor/test strengthening.
+Commit fix-up and invoke independent MNIST.4 round 2, then stop/report.
+
+Fix-up validation: combined suites 34 passed/1 precision skip x32 (14.91s),
+35 passed x64 (15.07s); Ruff/mypy clean. Repeated actual smoke after shared
+optimizer change is exactly identical in histories/selected epoch/shape
+(2.37785s CPU wall time). Source/test/README total321 changed lines after
+this fix-up. Commit and request MNIST.4 round2, then stop after verdict.
+
+---
+
+# MNIST.3 — Float32 CNN and likelihood loss (2026-10-30)
+
+Start clean on release-minst at f232294. Maintainer approved MNIST.2 and
+requested the next bit. MNIST.2 round 2 returned merge (F-1 fixed;
+N-1 preconditions accepted, N-2 metadata writer remains for run.py).
+Continue MNIST; preserve all current and inherited plan records below.
+
+One concept: CNN/loss integration, before the epoch runner. Spec 11.2,
+10.3, 7.2–7.3; 03 details Precision, Network, Training (one update only).
+No library API, dependency, protected path, shared generator or docs edits.
+
+Files:
+- examples/survival_mnist/data.py: move the existing outcome constants and
+  helpers here unchanged, keeping ordinary preparation checks free of demo
+  dependencies. Existing model.py helper names remain re-exported.
+- examples/survival_mnist/model.py: exact Equinox CNN, explicit float32
+  Conv2d/Linear parameters, pool stride 2 for the specified geometry, scalar
+  per-image log scale; final bias log(mean observed training time). CNN
+  accepts an explicit initialization key (runner will use fold_in(uc,2)).
+  Plain loss((cnn,log_k), images, data) uses vmap, Weibull.from_log and mean
+  negative public likelihood. Runner will initialize scalar log_k=0.
+- tests/unit/test_mnist_outcomes.py: import preparation from data.py.
+- tests/unit/check_mnist_model.py: explicitly invoked optional-environment
+  checks, not silently skipped or included in ordinary pytest discovery.
+  Synthetic images/observations only: architecture/dtype/batch geometry,
+  analytic constant-head exponential loss and derivatives, second-order
+  forward/reverse checks on smooth head parameters, filtered-jit agreement,
+  finite gradients before/after one Adam(1e-3) update with data[idx].
+- README.md: preparation import update and exact optional-check commands.
+- REVIEW.md: overwrite with reading order, invariants, evidence and limits.
+
+Aim about 300 changed lines including mechanical move/tests. No training
+loop, checkpointing, smoke/full run, reference fit or figure in this step.
+Docs to-do: model/loss explanation and finite-gradient checks in live smoke.
+Next training step must implement loud finite-gradient failures, prescribed
+initialization/shuffle keys, epoch/batch budgets, validation-only selection
+and history. MNIST.2 N-2 metadata writer remains assigned to later run.py.
+
+Checks: focused ordinary preparation suite in separate dtype processes;
+explicit JAX_ENABLE_X64={0,1} uv run --group examples pytest -q
+ tests/unit/check_mnist_model.py (float32 neural arithmetic in both);
+Ruff/mypy and fresh-wheel scripts/check_wheel.sh --through A10. No network
+or real MNIST needed for this step. Record exact outputs/versions, commit,
+invoke independent-review skill for MNIST.3 (max 3 rounds/fix-ups), then stop.
+
+Implementation complete: CNN/loss and explicit optional checks, with unchanged
+outcome helpers moved to data.py. Raw source/test/README diff 318 changed
+lines including the mechanical move (new model module 65 lines). Initial
+checks incorrectly included MaxPool Python metadata/-inf initializer; fixed
+checks to select inexact arrays, with no runtime or tolerance change. Neural
+checks pass 3 per mode (15.68s/12.09s); ordinary preparation 22 per mode
+(6.68s/7.03s). Isolated offline test environment confirms preparation works
+without Equinox/Optax. Fresh-wheel through-A10 gate exited 0: own suites
+1087/1093 passed (7/1 skips), doctests 4 per mode, acceptance 2333/2324
+passed (27/36 skips); Ruff/mypy clean. Exact commands and limits in REVIEW.md.
+Commit, invoke independent MNIST.3 round 1, then stop after verdict.
+
+Round 1 returned fix-first for F-1: a missing dense ReLU escaped checks. Add
+an independent NumPy forward reference; remove unused re-exports (N-1) and
+rename the preparation test alias (N-2). N-3: next runner must construct data
+from float32 outcomes. S-1 invocation already follows the handoff's explicit
+optional-check instructions; future standing-gate policy is maintainer-owned.
+Record the file-role question as open D-028 without further layout/spec changes.
+Complete the authorized test fix and review, then stop for maintainer's layout
+decision before training. Focused suites in both modes and static checks;
+no repeated full gate for these test/import/record-only changes. Commit a
+fix-up and invoke MNIST.3 round 2, then stop/report all open questions.
+
+---
+
+# MNIST.2 — Fixed synthetic outcomes and censoring calibration (2026-10-30)
+
+Start clean on release-minst at e63220b; maintainer approved MNIST.1 and
+requested the next step. MNIST.1 round 2 returned merge (F-1/N-1 fixed;
+optional N-2/N-3 remained). Continue the same MNIST sub-slice; retain its
+sections and inherited unfinished SIM/A9 records below.
+
+One concept: outcome preparation, before network/training/reference fitting.
+Spec 11.2, 10.3; 03 details Precision, Splits and keys, Outcome generator;
+00-common shared generator. No library API, dependency or protected edits.
+
+Files:
+- examples/survival_mnist/model.py: demo-only float64 oracle log-scale table,
+  host calibration from exactly the 60k training-source labels with the
+  unchanged shared calibrator; float32 outcomes via the shared generator,
+  one fold_in(fold_in(fold_in(key(20261025),3),0),global_index) per image.
+  Explicit indices permit checking subset/reordering stability; the eventual
+  runner generates all 70k outcomes before splitting. Expose existing shared
+  GeneratedData result, avoiding a new container or core sampling API.
+- examples/survival_mnist/calibration.json: measured c, float64 oracle table,
+  aggregate training digit counts, input hashes, versions, key scheme and
+  realized full/smoke censoring fractions from one fixed run. No image rows.
+- examples/survival_mnist/data.py and tests/unit/test_mnist_data.py: resolve
+  prior optional N-2/N-3 with stable host integer dtype and the reviewed
+  JAX 0.11.2 validation-prefix regression anchor.
+- tests/unit/test_mnist_outcomes.py: offline synthetic digit labels; analytical
+  oracle formula, independent high-precision quadrature of calibrated mixture,
+  training-source-only calibration inputs, direct per-index U/C key algebra,
+  eager/jit/vmap agreement and reordered/subset outcome identity; float32
+  fields in both modes, valid SurvivalData and finite oracle likelihood.
+- README.md: minimal preparation recipe and recorded calibration provenance;
+  overwrite REVIEW.md with reading order, invariants, evidence and limits.
+
+Target about 300 changed source/test/artifact lines; no MNIST data, network,
+CNN, optimizer, full result claim, docs or shared generator/lock edits. Docs
+to-do: generating rule, calibration c, split censoring and float32 exception.
+Checks: focused tests both processes, Ruff/mypy; real warm-cache 70k outcome
+probe (float32 draws, NumPy float64 calibration/oracle); independent mpmath
+mixture integral; fresh-wheel scripts/check_wheel.sh --through A10. Keep
+ordinary tests offline with synthetic labels only. Record exact evidence,
+commit, invoke independent-review skill for MNIST.2 (max three rounds with
+fix-ups), then stop after the verdict.
+
+Implementation/evidence: float64 c=6.9890429382458406, independently checked
+with 40-digit mixture quadrature (.5000000000001933). All 70k outcomes were
+generated once in float32; public data validation passed; full censoring
+fractions train/validation/test .50036/.5079/.4995 recorded with metadata.
+Offline focused suites 22 passed per mode (5.54s/5.00s). Fresh-wheel gate
+exited 0: own tests 1087/1093 passed (7/1 skips), doctests 4 per mode,
+acceptance 2332/2322 passed (28/38 skips), Ruff/mypy clean. Initial README
+blank-line formatting failure was corrected before the successful gate.
+Source/test/artifact diff about 276 lines. Exact commands/timings/limits in
+REVIEW.md. Commit then independent MNIST.2 round 1; stop after verdict.
+
+Round 1 returned fix-first for F-1: dtype assertions lacked a strongly
+typed float64 c input. Pass np.float64(7.0) in the existing per-key/dtype
+test, retain all dtype assertions, run focused checks in both modes and
+static checks, commit a test-only fix-up and request round 2. No runtime
+change; prior fresh-wheel gate remains applicable. Optional N-1 preconditions
+remain documented. N-2 to-do for the eventual run.py step: commit the metadata
+writer and compare recomputed c/fractions with calibration.json. Reviewer
+independently reproduced all stored values and cross-mode identical outcomes.
+
+---
+
+# MNIST.1 — Verified data acquisition and deterministic splits (2026-10-30)
+
+Start clean on maintainer-created release-minst at ee72c83. Shared generator,
+examples dependencies and A10 are integrated. Preserve unfinished inherited
+SIM/A9 records below; do not archive another workstream as completed.
+
+One concept: data loading, before outcomes/calibration or neural training.
+Spec 10.3, 11.2, 12.2; use-cases/03 main and details Data acquisition,
+Precision, Splits and keys. No library API, dependencies or protected paths.
+
+Files:
+- examples/survival_mnist/data.py: published compressed IDX filenames/MD5s,
+  first-fetch SHA-256 values measured after MD5 verification, checked cache,
+  strict IDX parsing, float32 NCHW pixels, fixed full/smoke global indices.
+  Default cache SURVJAX_EXAMPLES_DATA or ~/.cache/survjax-examples/mnist.
+- examples/survival_mnist/README.md: attribution, checksum source, usage,
+  cache policy and honest pending implementation stages.
+- tests/unit/test_mnist_data.py: tiny synthetic IDX bytes and mocked network;
+  malformed format/counts/labels, corrupted cache/download, cache reuse,
+  pixel preprocessing, deterministic disjoint split/smoke prefix checks.
+- REVIEW.md: overwrite with reading order, invariants, evidence and limits.
+
+Target <=300 source/test/README changed lines; split further if needed.
+No outcomes, model, full results or docs in this step. Docs to-do: attribution,
+cache/network requirements and live smoke page when remaining steps are ready.
+Checks: offline focused tests in both dtype processes, Ruff, mypy, existing
+through-A10 gate; separate real four-file acquisition/cache-reuse probe in
+/private/tmp (never commit data). Commit then exact independent-review skill
+for MNIST.1, at most three rounds, fix-up commits as needed; stop and report.
+
+Implementation complete: 296 source/test/README lines; real four-file MD5
+verification and SHA-256 recording, two real cache loads, offline 11-test
+suite passing in both modes. Ruff/mypy pass. Direct cumulative gate hit five
+missing-SURVJAX_WHEEL setup errors; built a fresh wheel and reran acceptance
+in both modes successfully (2332/2322 passed, 28/38 skips). Prior own suites
+1076/1082 passed (7/1 skips), doctests 4 per mode. Exact commands, times and
+limits are in REVIEW.md. Commit and independent round 1 follow; stop after
+the verdict before outcomes/calibration.
+
+Round 1 returned fix-first for F-1 (default cache path test gap). Extend the
+existing synthetic load check to exercise unset SURVJAX_EXAMPLES_DATA and
+assert the expanded home path without any writes or HOME changes. Clarify
+N-1's fresh-download failure message; leave optional N-2/N-3 unchanged.
+Run focused tests per dtype and static checks, commit the fix-up, then request
+round 2. No repeat full gate: no parsing, split or packaging change.
+
+---
+
+# Merge ci into main (2026-11-04)
+
+Resolve the two record conflicts by retaining both contributions verbatim.
+No executable edits; validate record preservation, whitespace, Ruff and focused GPU archive tests.
+Commit and push the existing merge as requested.
+
+---
+
+# GPU.2 — Manually dispatched GPU check for a selected commit
+
+Add `.github/workflows/gpu.yml` with only `workflow_dispatch`. It checks out
+the event's immutable `github.sha`, runs the existing Modal GPU runner with a
+five-hour execution cap and $10 cost cap, uploads its result ZIP, and writes
+the ref/SHA/job result to the Actions summary. Add a README status badge scoped
+to the latest manual GPU run on `main`; require it only before releases that
+claim the tested NVIDIA T4/CUDA 12 configuration, not CPU-only releases.
+
+Files: `.github/workflows/gpu.yml`, `README.md`, `PLAN.md`, `REVIEW.md`.
+Public API: none. Tests to add: none; validate workflow YAML and its dispatch,
+SHA pinning, Modal secret references, artifact and summary configuration.
+Spec sections: none (CI and release workflow only). Modal auth is supplied by
+repository secrets `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`; setting secrets
+in GitHub is a maintainer setup step, not part of this code change.
+
+Keep the change under 300 lines. Commit on `ci`, then use the independent
+review workflow and stop. The workflow runs only when manually dispatched;
+the tag is created afterward at the SHA that passed.
+
+---
+
+# A9.close — Reconcile completed A9 records (2026-11-04)
+
+Maintainer requested A9 bookkeeping on the existing a9 branch at a351952.
+Files: PLAN.md, plans/A9.md, plans/README.md and REVIEW.md. Public API,
+code, tests and dependencies touched: none. No protected-path changes.
+
+Pre-edit plan: add a dated closure note to the A9 archive, preserving its
+historical text verbatim; retain the completed A9.d1 gate/narrative map in
+that archive verbatim from 14155ed:REVIEW.md; correct the archive index's
+stale pending labels. The existing integrated plans below remain verbatim.
+Cite A9.4 round-1 and A9.d1 round-2 merge verdicts and the later combined
+gate evidence without claiming new execution or whole-Slice-A acceptance.
+The maintainer's bookkeeping instruction authorizes this record closure.
+
+Spec context: 7.3, 10.3, 12.1–12.3. No new tests: this step only reconciles
+records. Verify historical-text and gate-map byte preservation, referenced
+paths/commits, diff scope and whitespace. Do not repeat numerical tests,
+docs builds or benchmark measurements for unchanged executable inputs.
+Commit once, run independent-review as A9.close (at most three rounds),
+address required findings in fix-up commits, then stop/report.
+
+---
+
+# CI.integration — Finish maintainer-started main merge (2026-11-01)
+
+Branch ci; merge already in progress when requested. Finish this existing
+merge only, without rebasing, merging into main, pushing or worktree cleanup.
+CI parent / previous CI endpoint: 1299a88fbf444fe1717a50f896ea024121f96f29.
+Incoming main: 95f453279ab9bffad1c67dc234a56d46b534a677.
+Original worktree base: 84d2943e788440db60504afb49a13360d43ad95e.
+
+Conflict-resolution plan, written before resolution:
+- PLAN.md: this integration first; preserve both complete parent plans verbatim
+  below as history. Neither unfinished workstream is silently discarded.
+- DEVIATIONS.md: retain incoming main's complete entry sequence and statuses.
+  Its D-030 is the previously reconciled RMST zero-boundary entry; rename
+  only CI's colliding guard entry to D-033 and record the historical mapping.
+  Preserve both entry bodies and all decisions; no new spec question/decision.
+- REVIEW.md: overwrite for CI.integration with reading order, preservation
+  invariants, exact checks, limitations and independent-review round 1/3.
+  Prior reviews remain available verbatim in the two parents.
+- All other paths are already merged. Preserve main's source/docs/test changes
+  exactly, with the sole existing CI interpreter-path selection retained in
+  tests/install/test_wheel.py; the auto-merge includes PH exports/RMST checks.
+  Keep .github/workflows/ci.yml exactly the CI parent. No protected/spec edit.
+
+Verify byte equality of all other paths to the appropriate parent; both
+complete plans as exact substrings; unique deviation IDs and unchanged entry
+bodies; no conflict markers or unmerged paths. Run YAML, Ruff/mypy, lock,
+whitespace checks and fresh-wheel through-A10 gate in both dtype processes.
+No new test for record reconciliation; existing installed-wheel tests cover
+both contributions. Imported docs are unchanged, so no docs authoring/build
+step is introduced. Commit the merge, run independent-review as
+CI.integration (up to three rounds), then stop/report.
+
+Validation complete: both parent plans/entry bodies preserved, unique IDs,
+all other paths byte-exact as planned. YAML, lock, Ruff/mypy and whitespace
+checks pass. Fresh-wheel A10 gate exits 0: own 1282/8 x64 and 1287/3 x32;
+doctests 4 per mode; existing acceptance 2332/28 and 2322/38 passed/skipped.
+Exact commands/results and platform limits are in REVIEW.md. Commit and
+independent CI.integration review remain before handoff.
+
+Remaining: hosted CPU runs after maintainer push; maintainer's ci-to-main
+integration; optional GPU provisioning/environment/workflow. Existing PH/RMST
+handoffs and pending independent acceptance remain owned as recorded below.
+
+---
+
+# Preserved CI parent plan (verbatim)
+
+# CI.1 — Three-platform CPU GitHub Actions (2026-11-01)
+
+## CI.1 round 2 plan — approved PR guard policy
+
+Maintainer agreed to use the PR source branch name for guard exemptions,
+retain merge-commit tests, and ensure the guard runs. In workflow only:
+create local main from origin/main when absent; on PRs attach a temporary
+local branch at the existing merge commit with the source branch name.
+The source name main must map to ci-pr-main so it cannot overwrite the
+baseline; both names have the same ordinary no-exemption policy. Pass the
+source name as an environment value, never interpolate it into shell code.
+No protected script edit, new privilege, commit/content/checkout change.
+
+Record the decision in D-030 without changing its open status, update
+REVIEW.md for round 2/3, validate YAML/embedded shell and actual guard in
+throwaway repositories: ordinary/main source blocked on protected changes,
+meta-* and spectests-* get exactly their existing path exemptions, clean
+ordinary PR passes. Check merge SHA preservation and baseline creation.
+Rerun static/whitespace checks; initial full numerical gate remains valid
+because this fix changes only checkout/ref metadata. Commit and request
+independent-review round 2, then follow its verdict and stop.
+Validation complete: all ten guard scenarios pass, preserving the merge SHA,
+two parents and main baseline. YAML/shell syntax, Ruff/mypy and whitespace
+checks pass. The full initial wheel-gate evidence remains in REVIEW.md.
+
+## CI.1 round 1 follow-up plan
+
+Review 2166045 returned fix-first: F-1 Windows CRLF checkout; F-2 silently
+skipped guard. S-1 asks which PR branch policy to apply; record D-030 and
+ask the maintainer before dependent changes. S-2 is already settled by the
+explicit request for CPU macOS/Linux/Windows. Fix F-1 by setting autocrlf
+false and eol lf before checkout on the ephemeral runners. No protected
+script change. Revalidate YAML and whitespace; full numerical rerun is
+unnecessary for checkout configuration after the passing initial gate.
+N-1/N-2/N-3 are nonblocking nits; retain the existing gate/triggers/action
+choices for now. Record review limits and remaining work in REVIEW.md.
+
+Start on maintainer-created branch ci at
+84d2943e788440db60504afb49a13360d43ad95e (worktree starting base).
+Previous implementation endpoint: aae68920769855aa08227f4b7c4818ce7a820923
+(RMST.integration); subsequent commits are inherited maintainer metadata.
+Earlier unfinished RMST/A9 records below remain
+owned by their original workstreams; preserve them rather than archiving
+unfinished work. This CI step adds no numerical feature or public API.
+
+Files and behavior, planned before code:
+- .github/workflows/ci.yml: push, pull_request and manual CPU checks on
+  ubuntu-24.04, macos-15 (Apple silicon), windows-2022 (x64), Python 3.12,
+  uv 0.11.19 and the unchanged lock. Read-only token, independent job failures,
+  bounded runtime and cancellation of superseded runs. Force JAX_PLATFORMS=cpu.
+- Provision locked dev/test dependencies and build a wheel while online;
+  export its native absolute path with Python so Windows Git Bash does not
+  leak an MSYS path. Run the unchanged scripts/check.sh --through A10 offline
+  with two workers. Its own suite, source doctests and independent tests each
+  run in separate float64/float32 processes. Keep tests/spec read-only.
+- tests/install/test_wheel.py: select Scripts/python.exe on Windows and
+  bin/python elsewhere. Existing out-of-tree wheel tests verify this path
+  through actual installation on each matrix platform; no mock-only tests.
+- REVIEW.md: overwrite for CI.1 with invariant/check map and honest platform
+  limits. No docs/, protected paths, spec, dependencies or lock changes.
+
+Spec covered: 10.1 (existing static checks), 10.3 (locked CPU baseline,
+separate dtype processes, installed package, optional accelerator evidence),
+12.1/12.2 (existing through-A10 acceptance gate, no new slice).
+Validate YAML, Ruff/mypy, lock consistency, full local wheel gate, whitespace
+and scope. Commit then use independent-review, at most three rounds; stop.
+Hosted Linux/Windows execution requires pushing, which is outside this step.
+
+GPU assessment / subsequent optional step (not enabled in this commit):
+- Prefer manually dispatched Linux/NVIDIA verification. GitHub larger runners
+  offer a T4, or use an ephemeral self-hosted/cloud GPU. Runner availability,
+  account eligibility and billing must be chosen before adding a working job.
+- Pin a separate accelerator environment to the CPU JAX version plus compatible
+  CUDA plugins/libraries and record the NVIDIA driver. Do not mutate uv.lock
+  or add GPU dependencies to core. Current JAX guidance offers CUDA 12/13;
+  choose against actual GPU and driver (Linux minima 525/580 respectively).
+- Set JAX_PLATFORMS=cuda, assert GPU devices, log versions/driver/devices and
+  run applicable numerical/transformation/spec suites per dtype, initially
+  serially to avoid GPU memory contention. Installation smoke tests retain
+  their separate CPU-only environment. Record backend failures explicitly.
+- Require float32 and float64 evidence before NVIDIA support claims; measure
+  performance separately. Metal remains experimental/float32 only, outside
+  required CPU CI. Do not execute untrusted PRs on a persistent GPU runner.
+Sources checked 2026-11-01:
+https://docs.github.com/en/actions/reference/runners/larger-runners
+https://docs.jax.dev/en/latest/installation.html
+
+Local validation completed: unchanged fresh-wheel A10 gate exits 0; own
+suites 1097/7 x64 and 1103/1 x32 passed/skipped; source doctests 4 each;
+independent suites 2332/28 x64 and 2322/38 x32. YAML/Ruff/mypy/lock and
+whitespace checks pass. REVIEW.md records commands and platform limits.
+
+Remaining sub-steps: CI.1 review and hosted CPU runs after maintainer push;
+GPU provisioning, separate lock and optional workflow require a later step.
+
+---
+
+# RMST.integration — Resolve the maintainer-started main merge (2026-10-31)
+
+Branch: release-rmst. Merge already in progress when requested; finish that
+merge only, without rebasing, publishing, or merging this branch into main.
+Parents: ddd7f1f808eea0c802848bf0489135b547fed67f (RMST) and
+4f170654fdc5bb2840f89232e439e33d7e5fc3ff (incoming main).
+
+Conflict-resolution plan, before edits:
+- tests/impl_tolerances.py: preserve both independently added blocks verbatim:
+  measured RMST factors and SIMULATION_SIGMAS=6. No tolerance value changes.
+- PLAN.md: keep this active integration/RMST handoff first, then preserve both
+  pre-merge plan versions verbatim in clearly labelled records below. Do not
+  discard or archive unfinished history. Main's existing plans/A10.md remains.
+- REVIEW.md: write this integration's reading order, preservation invariants,
+  checks and limitations. The prior RMST and README reviews remain available
+  verbatim at the two parent commits; no extra review/archive module needed.
+- All other staged paths came from main. Preserve them exactly, including
+  CLAUDE.md and .workmux.yaml; do not edit their protected contents. No new
+  numerical code, public API, dependency or spec change in this integration.
+
+Initial static check found an inherited main issue: README.md's fenced
+Python example needs two blank lines before its top-level function. Apply
+Ruff's formatting-only correction, preserving the example's behavior; this
+is the only inherited-file exception, with no docs/ or protected-path edit.
+
+Validate source equality against the RMST parent; imported-file equality
+against main; both plan records as exact substrings; both tolerance blocks;
+absence of conflict markers/unmerged paths; Ruff/mypy, locked environment,
+focused RMST+generator tests in separate dtype processes, and unchanged
+fresh-wheel through-A10 gate. Commit the existing merge, invoke the required
+independent-review as RMST.integration (round 1/3), then stop/report.
+
+Remaining work owned by this worktree after integration:
+1. Core RMST.1/.2/.3 and math appendix are complete and independently reviewed
+   (RMST.3 round 3 merge). Spec revisions 38/39 are now on design main; no
+   new spec decision is needed. Deviation status remains maintainer-owned.
+2. Handoff base.py/exponential.py/weibull.py closure edits to release-ph once
+   this RMST branch is integrated into code main. This local main snapshot
+   does not contain wrappers.py or ProportionalHazards yet. PH owns wrappers,
+   exports and its own closure/RMST identity/derivative tests; do not duplicate.
+3. Then one separate executable docs/rmst.md topic: staged surface; explicit
+   cutoff axes rather than rmst_grid; units; invalid values; first-order-only
+   zero boundary; unspecified NaN-own tangents; native higher-shape restriction
+   and supported nonshape derivatives. Coordinate navigation/API ownership.
+4. Recheck the combined PH+RMST documentation/examples and both-dtype release
+   evidence after separately reviewed PH integration. No new core RMST feature
+   is planned; generic quadrature/sampling/options stay outside this workstream.
+
+Validation complete: 49 focused RMST/generator tests pass per dtype;
+Ruff/mypy/lock/preservation/whitespace checks pass. The fresh-wheel A10 gate
+exits 0: own 1097/7 x64 and 1103/1 x32, doctests four per mode, independent
+2332/28 x64 and 2322/38 x32 passed/skipped. Finish the maintainer-started
+merge and obtain the independent RMST.integration review before reporting.
+
+---
+
+# Preserved RMST-side plan (verbatim pre-merge version)
+
+# PLAN.md: current sub-slice only
+
+This file holds the plan of the sub-slice in progress, newest section first.
+Other sub-slices are archived verbatim in `plans/` (index: `plans/README.md`).
+Still open there: A9 (`plans/A9.md`, "A9 Docs to-do" and "Final evidence
+audit and planning checks") and A8 (`plans/A8.md`, "Closure still required").
+
+---
+
+# RMST.3 — Weibull derivative and isolation evidence (2026-10-30)
+
+Start release-rmst at b2150e1fe10df97d7ac2d4e9926a2b8a803f90c4;
+original launch base remains 8757c0fda78e34e6e818249adedd2a144a33c33d.
+The maintainer explicitly requested the next implementation step. Appendix
+review is running in its separate checkout against the committed snapshot;
+its findings will be handled before this step is committed. Preserve history.
+
+Status: implementation resumed from appendix fix-up
+dc48b24cd89a571a082099f4055cd1669c8ff3cd. The maintainer explicitly
+approved unspecified own derivatives for a NaN RMST result (2026-10-30),
+settling S-1b. Appendix round 2 returned VERDICT: merge, all findings fixed.
+
+One bounded numerical-verification concept, about 250 changed test lines:
+
+- New tests/unit/test_weibull_rmst_derivatives.py: independent 60-digit
+  mpmath quadrature of survival and its shape/scale derivative integrands;
+  integrate the scale kernel directly to avoid cancellation in m-r*S,
+  and derive the cutoff derivative from survival. Use actual dtype-rounded
+  inputs for references. Cross
+  k={0.2,0.5,1,2,10,50}, tau/b={0.01,0.1,0.5,1,10,100,1e5},
+  b={1e-4,1,1e4}; straddle both branch thresholds at four shapes too.
+  Compare eager/jit/vmap forward and reverse natural Jacobians; express
+  parameter errors in log-coordinate units k*dM/dk and b*dM/db, divided
+  by |M|, so the section 12.1 value-scaled exception respects time units.
+  The cutoff derivative uses absolute scale 1 and the S(tau) identity.
+- tests/impl_tolerances.py: add only RMST-specific absolute error factors,
+  zero relative tolerance. Pre-test full-range probes (142 cases, both
+  dtypes) found maxima [shape,scale,cutoff] of
+  [1.72e-14,2.46e-15,1.56e-15] x64 and
+  [1.29e-5,1.55e-6,6.45e-7] x32 under the above normalization.
+  Fix parameter factors 2e-13/5e-5 and cutoff factors 2e-13/5e-6,
+  allowing rounding margin without changing any existing tolerance.
+- Verify finite supported (b,tau) Hessians across the grid and independent
+  analytical Hessian entries on lower-series and gamma interior cases.
+  Preserve explicit shape-Hessian NotImplementedError coverage; extend it
+  across forward/reverse combinations in the gamma middle branch.
+- Shared shape/scale parameters: valid entries beside invalid parameters
+  or cutoffs retain the isolated call's first derivatives in both modes;
+  supported scale Hessians stay isolated too. Do not assert a guarantee
+  about an invalid result's own tangent. Extend zero first-derivative checks
+  over shapes/scales, with eager/jit/vmap and debug_nans for valid entries.
+
+Spec 4.5, 7.2–7.3, 8.7 revision 38, 12.1–12.2 and the release handoff were
+read in full. No numerical algorithm/public API, wrappers, exports, modules
+in src/, dependencies, quadrature tangent, grids or ordinary docs changes.
+No new higher-order boundary or shape guarantee. Docs to-do: executable
+RMST topic after PH integration, with first-order-only zero boundary,
+unspecified NaN-own tangents, and the native higher-shape restriction. Explain
+keeping shape outside differentiated arguments for supported Hessians;
+packing it with scale can materialize a zero shape tangent in native JAX.
+
+Run focused RMST tests in separate x64/float32 processes, Ruff/mypy,
+whitespace checks, and unchanged scripts/check_wheel.sh --through A10
+(fresh wheel supplies the standard gate's required install artifact).
+Write REVIEW.md with exact outputs, commit, invoke independent-review
+exactly as RMST.3, handle up to three rounds and stop/report. PH owns
+wrappers.py/exports and must wait for maintainer core integration and an
+explicit ownership handoff before built-in closure edits. No merge/push.
+
+## RMST.3 approved tolerance clarification
+
+Maintainer explicitly answered “Confirm log-parameter scaling” to S-1/D-029.
+Approved clarification: change spec 12.1's exception to name k*dM/dk and b*dM/db, with cutoff error
+still at absolute scale 1. Bump specification revision 38 to 39, commit alone
+on design release-rmst, then mark this worktree via spec-since.sh
+dev-release-rmst --mark and commit .spec-seen plus decision/review records.
+Committed separately in design as
+1389af4da8cd23f7c0d38da047ba14b5ac0801f2; .spec-seen now records it.
+No numerical code, tests or factor changes are needed. Leave D-029's status
+maintainer-owned. Finish round 2's source-fix review before invoking round 3
+on the approved contract/records; do not exceed three rounds for RMST.3.
+
+## RMST.3 round 2 preparation
+
+Round 1 at ab7afb1 returned VERDICT: merge. Record S-1 as D-029 and ask
+whether to clarify 12.1 in log-parameter units; do not edit the spec until
+answered. N-1: narrow the old Weibull invalid-cutoff tangent assertion to
+valid entries only, matching the confirmed unclaimed NaN-own-tangent rule.
+Apply the same correction to the analogous Exponential test. The independent
+precision-failure fix is already committed at 106078d. Run those focused
+isolation tests per dtype, record round-1 outcome and final gate evidence,
+commit records/test corrections and invoke round 2 on the fix and N-1.
+
+## RMST.3 precision-failure isolation fix-up
+
+A post-commit probe found a spec 8.7 isolation violation outside the accuracy
+range: float32 k=[2,0.01], b=1.25 shared, tau=[0.75,0.01] gives a valid
+first value and a NaN failed second value, but the first reverse scale derivative
+is NaN (forward is finite). The gamma probability underflows; the inactive
+exp(log_value) then overflows because its substituted probability was one.
+Protect the exponentiation operand before it runs in src/survjax/_numerics.py;
+keep NaN as the failed value. Add a dtype-specific regression for failed-entry
+shared-scale isolation (k=0.005 in x64). No floors or tangent rule changes.
+The extra source/test lines keep this step below about 300 numerical lines.
+Validation: failed-entry first/second derivatives pass in both dtypes; the
+fresh-wheel A10 gate passes with own 1080/7 and 1086/1, doctests four
+per dtype, acceptance 2332/28 and 2322/38 passed/skipped. Record results,
+commit a fix-up, then request
+round 2 only after the current round 1 report is written.
+
+Initial implementation evidence at ab7afb1: 198 new derivative-test lines, 10 RMST tolerance
+lines and nine changed lines in the existing zero test (217 numerical-test/
+tolerance lines total). Focused tests pass 31 per dtype. The fresh-wheel A10
+gate exits 0: own 1079/7 x64 and 1085/1 x32 passed/skipped, doctests four
+per mode, independent 2332/28 x64 and 2322/38 x32. No algorithm change.
+Commit and independent review remain required before core handoff.
+
+# RMST.appendix — Permanent mathematical appendix and conservative guarantees (2026-10-30)
+
+## Round 2 fix-up plan
+
+Maintainer explicitly confirmed S-1b: a NaN RMST result's own derivatives may
+be unspecified. Record the confirmation verbatim in D-028 and REVIEW.md;
+keep valid-entry isolation mandatory and leave deviation status maintainer-owned.
+F-1: extend both existing RMST Docs to-do records with the zero-boundary and
+NaN-own-tangent limits. F-2: add the missing gamma-middle section pointer.
+N-1: restore the mathematical reason the 24b example needs a wider dtype;
+rebuild and visually inspect the adjacent PDF. N-2: label the old report
+reference historical. No numerical/spec/API changes; current revision 38
+already says what the maintainer approved. S-1a's relation is symmetric;
+no further spec wording change is needed to preserve the approved meaning.
+Run static/whitespace checks and docs builds, commit the fix-up and invoke
+round 2/3 exactly before continuing with the authorized RMST.3 step.
+
+Maintainer approved the code/report and requested conservative guarantees,
+a permanent math-only appendix outside docs/, tied to code, then the next
+implementation step. Start clean release-rmst at
+1a007fceb52ef1303cd739f14b58ce9d67f1cce9. Preserve unfinished PLAN history.
+
+One documentation/contract concept; no numerical behavior change:
+
+- Clarify spec 8.7/12.1: Weibull/PH-Weibull zero-cutoff guarantees cover
+  value and first derivatives only; higher guarantees require valid smooth
+  interior inputs. A NaN result's own tangents have no staged guarantee;
+  valid-entry derivative isolation remains mandatory (also settles S-1).
+  Bump revision 37 to 38 and commit this alone in the design repo. Its
+  tracked files are clean; leave unrelated untracked .claude/ alone. The
+  launch authorizes branch creation: use release-rmst there too, avoiding
+  main. Mark this dedicated worktree via spec-since.sh dev-release-rmst
+  --mark; literal dev would mark a different checkout. Commit .spec-seen here.
+- Move/refine reports/weibull-rmst-math.md to appendices/weibull-rmst.md:
+  retain the mathematical derivations and bounds; remove commit/step/review
+  context, API proposals, empirical evidence and approval questions. Add
+  appendices/README.md as the list of mathematical appendices with code
+  pointers. Keep an adjacent rebuilt PDF; retire the old report/PDF paths.
+- Add stable appendix-section references beside the three code branches
+  and zero boundary; correct Weibull.rmst's boundary docstring. Do not
+  alter its numerical expression, exports, wrappers or public docs pages.
+- Record the maintainer decision in D-028 while leaving its status field
+  maintainer-owned. Overwrite REVIEW.md with the contract and appendix map.
+
+Aim at about 300 changed text lines, using a rename/extraction rather than
+copying the historical report. Pandoc/XeLaTeX compilation, all-page Poppler
+visual inspection, Ruff/mypy, focused RMST tests in separate dtype processes
+and scripts/build_docs.sh (approved escalation for kernel cleanup) validate
+this step. Commit and invoke independent-review exactly as RMST.appendix;
+fix factual findings, then continue to the explicitly authorized next step.
+No merge, rebase, push, tags or publication.
+
+Next implementation: RMST.3 full-range derivative verification. Write its
+concrete bounded plan after this appendix step; measure value-scaled error
+factors before choosing any new RMST derivative tolerances. Keep the native
+shape-Hessian restriction and code ownership; PH closure still waits for
+reviewed core integration and handoff. Split evidence if about 300 lines
+would be exceeded. No generic quadrature tangent or summary options/API.
+
+---
+
+# RMST.2-report — Mathematical approval report (2026-10-30)
+
+Requested before maintainer approval of _weibull_rmst; start clean at
+b3340749469e1513938a0cd5140f45305ab0d4bb on release-rmst. Preserve all
+unfinished PLAN history. This is a maintainer report, not the later user
+RMST guide or RMST.3 implementation. No production/spec/export changes.
+
+- reports/weibull-rmst-math.md: one PDF-ready mathematical report, about
+  300 source lines maximum. Derive the gamma identity, degree-12 series,
+  remainder bounds, the mean-tail Chernoff bound and threshold choices;
+  explain log arithmetic, safe operands, promotion, derivative limitations,
+  measured evidence versus proof, and the staged decision against rmst_grid.
+- output/pdf/weibull-rmst-math.pdf: compile with Pandoc/XeLaTeX; keep the
+  editable source and exact build command in the report. Render pages with
+  Poppler and inspect every page, extract text/check compile warnings.
+  Temporary render/LaTeX products go under tmp/pdfs, not into the commit.
+- DEVIATIONS.md: record D-028, discovered while explaining the zero branch:
+  at k=1,b=2,tau=0 the right second cutoff derivative is -1/2 but autodiff
+  returns 0. Ask whether 8.7's higher nonshape derivative promise includes
+  existing higher right derivatives at the zero boundary. Leave status open,
+  with no implementation/spec decision. Finishing the requested explanatory
+  artifact does not depend on that decision; stop/report it afterward.
+- REVIEW.md: overwrite for this report step, round 1/3; reading order,
+  mathematical assumptions, factual checks, build/render evidence and limits.
+
+References: spec 8.7/12.1; implementation at b334074; existing RMST tests and
+independent-review report; primary NIST DLMF 8.2/8.7 definitions. No new
+library/build dependencies. Existing Pandoc, XeLaTeX and Poppler are present.
+Run scripts/build_docs.sh as the documentation regression, static checks and
+whitespace checks; numerical report probes are separate from production tests.
+Report completed: 269 Markdown lines plus D-028, 5 compiled/visually checked
+PDF pages. Bound constants and zero-boundary probe verified at 60 digits /
+x64 respectively. Final XeLaTeX log has no layout/font warnings; docs builds
+pass in both modes after approved escalation removed sandbox cleanup errors.
+Production/spec/tests/docs sources and project metadata remain unchanged.
+REVIEW.md records exact checks, PDF identity, warning history and limits.
+Commit report/source/PDF and records; invoke independent-review exactly for
+RMST.2-report; act on factual/layout findings only, route spec questions to
+maintainer, then stop.
+
+Review round 1 on 6448c46: maintainer; proofs/constants/PDF verified.
+S-2 expands D-028 (k=2 third derivative; k<1 divergent second derivative).
+The user's loop question arrived during that review: add the explicit JAX
+staging/count/option discussion with official documentation and a local
+Jaxpr check; correct factual nits N-1/N-2. Final report is 289 lines / 5 PDF
+pages, recompiled and visually checked. Follow-up additions are not separately
+reviewed because the verdict requires a maintainer decision, not another
+round seeking approval. N-3 artifact repository placement remains a maintainer
+integration choice. Commit this bounded report update; stop and ask D-028.
+No production, spec, test or website source change. No RMST.3 work, merge, push or publication.
+
+---
+
+# RMST.2 — Weibull RMST values and safe tails (2026-10-29)
+
+Authorized by “ok for now; on to the next bit”. Continue clean release-rmst
+at 01b29dc9e0ea5830580770c0183865cb159fc376; original workstream base stays
+8757c0fda78e34e6e818249adedd2a144a33c33d. Same unfinished RMST sub-slice;
+keep RMST.1 and unfinished A9/A10 history below, with no archive commit.
+RMST.1 round 2 returned merge. Carry S-1 without a behavior change.
+
+One concept: staged Weibull RMST values, with safe lower/upper tails. Target
+at most about 300 changed source/test lines; split evidence before growing.
+Spec: 4.5, 5, 7.2–7.3, 8.7, 10.2, 12.1–12.2. No dependency, export,
+wrapper, docs, protected-path or generic quadrature changes.
+
+- Create src/survjax/_numerics.py, explicitly named by spec 10.2 (not an
+  unnamed module). Only shared RMST cutoff dtype/shape validation and the
+  private Weibull value expression belong here; no configuration/backend API.
+  Reuse validation in Exponential without changing its formula or policies
+  (review N-2). Keep invalid substitution in the public family methods.
+- Weibull.rmst(tau): thin typed method, parameter-issue/invalid-cutoff NaNs,
+  safe inputs before arithmetic. Keep weibull.py around 300 lines (275 now).
+  For log x=k*(log tau-log b), use the integrated exponential series for
+  x<0.1 (12 terms; next term <=0.1**13/13!); incomplete gamma in the middle;
+  the mean for x>64+4/k, safely classified in log space. The last threshold
+  is well beyond the gamma tail over the required k range. Evaluate every
+  inactive branch on finite safe inputs. Zero returns the active cutoff,
+  preserving d/dtau=1 and zero parameter derivatives. No custom JVP.
+- New tests/unit/test_weibull_rmst.py: independent mpmath quadrature values
+  across k=[0.2,50], tau/b=[0.01,1e5], scale changes, explicit power underflow
+  and overflow; k=1 identity, scalar and cutoff-grid broadcasting, dtype/shape
+  misuse, eager/jit/vmap, zero/invalid/parameter-issue policies, first
+  derivative and supported Hessian smoke checks, shape-Hessian failure.
+  Existing central tolerances only; no unmeasured tolerance additions.
+  Final audit adds common-dtype promotion plus its mixed-float32/float64
+  regression (9 lines): total 309 source/test lines, one numerical concept.
+- Overwrite REVIEW.md with round 1/3, reading order, invariants, evidence map,
+  actual commands/results and remaining RMST.3 derivative-range evidence.
+
+Checks: focused RMST/Weibull/Exponential suites in separate x64 and float32
+processes; Ruff format/check, mypy, unchanged fresh-wheel through-A10 gate.
+Inspect diff/size/scope; commit; use independent-review exactly for RMST.2,
+follow up to three rounds and stop. No further step or PH handoff yet.
+
+Implementation: 309 source/test changed lines after the mixed-dtype fix.
+Weibull 300 lines, private numerical module 70 lines; no new tolerances.
+Final focused four-module suites: 57 passed/1 existing skip (x64), 58 passed
+(x32). Ruff: 114 files formatted, all lint checks pass; mypy: 21 files clean.
+Final fresh-wheel through-A10 gate: exit 0; own tests 1069/7 skipped and
+1075/1 skipped, doctests 4 per mode, independent 2332/28 skipped and
+2322/38 skipped. REVIEW.md records exact commands/timings, the initial
+pre-correction gate, corrected artifact and mixed-dtype mutation proof.
+Initial implementation commit b552201. Round 1 returned fix-first for F-1:
+missing tail-gradient assertions. Add 10 test lines (no runtime change),
+checking finite first derivatives in every direction and [1,0] cutoff
+slopes at the two power tails under jit-vmap, jacfwd and jacrev. Focused
+suites 21 passed per dtype; both unsafe-input mutants now fail in both
+modes; statics clean. N-1's promised value-range/float32 limitation is in
+Docs to-do below. Commit the fix-up, request round 2/3 and follow its verdict.
+
+Docs to-do: RMST topic after core/PH integration, stating the Weibull shape
+higher-derivative limit, first-order-only zero boundary, unspecified own
+derivatives for NaN results, and absolute-scale cutoff-derivative accuracy.
+Accuracy is promised on k in [0.2,50], tau/b in [0.01,1e5]; outside that
+range, float32 can return NaN for valid inputs when the gamma probability
+underflows (review RMST.2 N-1).
+RMST.3 still owns full-range measured derivative tolerances/evidence (N-1).
+PH owns wrappers.py/exports and waits for the reviewed Weibull core merge
+and explicit ownership handoff before private built-in closure edits.
+
+---
+
+# RMST.1 — Staged base surface and Exponential RMST (2026-10-29)
+
+Authorized release workstream on `release-rmst`; actual clean base:
+`8757c0fda78e34e6e818249adedd2a144a33c33d` (8757c0f).
+Preserve unfinished A9/A10 history below; no archive of unfinished work.
+One concept, at most about 300 source/test lines. No dependencies, exports,
+protected paths, docs, wrappers or Weibull edits in this step.
+
+- `src/survjax/distributions/base.py`: add spec-named `rmst(tau)`, `mean()`,
+  `median()` and `quantile(p)` methods raising NotImplementedError. The RMST
+  default covers unsupported families; Weibull remains staged until RMST.2.
+- `src/survjax/distributions/exponential.py`: override only `rmst(tau)` with
+  `-expm1(-rate*tau)/rate`. Validate dtype/shape statically, substitute invalid
+  cutoff/parameter entries before arithmetic, return NaN for those entries.
+  Keep tau=0 active so value=0, parameter derivatives=0, tau derivative=1.
+- `tests/unit/test_rmst.py`: public surface/absence, unsupported custom family,
+  misuse, zero and invalid values, scale changes, explicit cutoff axes,
+  eager/jit/vmap, independent mpmath integration/derivatives, forward/reverse
+  Hessians and higher derivatives, second-order check_grads and invalid-entry
+  derivative isolation (shared and per-row parameters). Use existing central
+  value/tail/derivative tolerances; add no tolerance without demonstrated need.
+- `REVIEW.md`: reading order, invariants, spec-to-test map, exact checks/results,
+  known staged limits and independent-review round count; overwrite now.
+
+Spec read in full: 4.1–4.2, 4.4–4.5, 4.7, 5, 7.2–7.3, 8.1–8.7,
+10.2, 12.1–12.2. Apply 8.7's explicit staged exception to 8.4.
+Checks: focused RMST/distribution regression in separate x64/float32 processes;
+Ruff format/check, mypy; unchanged fresh-wheel cumulative gate through A10.
+Inspect diff and scope, commit, invoke exact independent-review skill for
+RMST.1 in `../review/code-release-rmst`, act on at most three rounds, stop.
+
+Docs to-do: separate executable RMST topic after core and PH integration;
+state staged surface, Weibull shape-derivative limitation, first-order-only
+zero boundary and unspecified own derivatives for NaN results. A9/A10 docs
+remain with their assigned implementers. Ownership handoff: after reviewed
+Exponential AND Weibull core merges, release-ph may edit built-in private
+closure hooks and integrate wrapper RMST in its own reviewed step. No core
+handoff yet after RMST.1; wrappers.py and exports remain PH-owned.
+
+Implementation/evidence: exactly 300 source/test changed lines; no new
+central tolerances. Final focused RMST: 13 passed per dtype. Distribution
+regression: 140 passed/3 existing skips (x64), 143 passed (x32). Ruff: 112
+files formatted, all lint checks pass; mypy: no issues in 20 source files.
+Fresh-wheel unchanged through-A10 gate: exit 0; own tests 1061/7 skipped
+and 1067/1 skipped, doctests 4 per mode, independent tests 2332/28 skipped
+and 2322/38 skipped. Exact commands, times, environment, artifact identity
+and final-source limits are in REVIEW.md. Initial commit 944582f.
+
+Round 1: fix-first for F-1, missing cutoff-derivative mutation coverage.
+Add an 18-line test-only fix-up; no runtime changes. Both dtype suites now
+14 passed, and the safe-cutoff-removal mutant fails the new test in both
+modes. Final statics clean. N-1/full-range evidence remains RMST.3;
+N-2/validation reuse remains RMST.2. S-1 invalid-entry tangent semantics
+is reserved for the maintainer; no implementation change for it. REVIEW.md
+records the reviewer gate's missing-wheel environment and artifact cleanup
+limits. Commit this bounded follow-up and request round 2/3, then stop.
+
+---
+
+# A10.4 — Synthetic R concordance references (2026-10-29)
+
+Authorized by “plan and implement A10.4”. Work on maintainer-created `A10.4`
+from clean `e8dbbed`. One concept: committed synthetic Harrell-C reference
+data and comparisons, with no public API or production behavior change.
+Spec: 6.1, 9.1–9.2, 10.4, 12.1. Target about 300 changed lines including
+generated payloads, excluding plan/review records; split if it grows beyond
+that. Existing A10 planning remains below because this is the same sub-slice.
+
+Files to create/change:
+
+- `scripts/fixtures/generate_concordance.R`: require R 4.4.2, survival 3.7-0
+  and flexsurv 2.3.2 before output; fixed seed/RNG, synthetic cohorts only.
+  Base-R export (no dependency added), optional output directory/check-only.
+  Evaluate `survival::concordance` with `reverse=TRUE`, `timewt="n"`,
+  `timefix=FALSE`. Include 100 heavily tied rows covering all time-tie kinds,
+  plus untied positive times with >50% censoring and perfect/reversed scores.
+- `tests/fixtures/concordance/{data.csv,concordance_synthetic.json,SHA256SUMS,README.md}`:
+  CSV observations/scores and the already documented independent-test JSON
+  schema; record versions, seed, generator hash and exact R call. Regenerate
+  twice into temporary directories and compare every payload byte. Explain
+  R's count mapping and exact ties, with no convention difference assumed.
+- `tests/conftest.py`: extend the existing shared manifest-checked loader
+  for this set, preserving CSV/JSON row/score alignment and provenance.
+- `tests/reference/test_concordance_r.py`: compare R values and all four
+  count pairs/masks for prepared/raw, eager/jit/vmap calls in both dtypes;
+  existing central tolerances only, exact counts. Missing fixtures fail.
+- Overwrite `REVIEW.md` with reading order, invariants, requirement mapping,
+  actual commands/results and limits; update this section with evidence.
+
+The independent loader requires its copy under read-only `tests/spec/fixtures/`.
+Produce the matching export in our fixture directory for maintainer delivery,
+as with A8. Do not edit protected paths or change its loader/selection. A full
+through-A10 gate remains unavailable until the maintainer supplies that copy.
+No spec/deviation/dependency/docs changes are needed. Docs to-do: the existing
+concordance topic/playground and held-out example remain separate steps.
+
+Checks: verify pinned R/package versions and installed concordance help; run
+generator check-only and two independent generations, compare with committed
+payloads and check hashes. Run focused own references/concordance in separate
+dtype processes, Ruff, mypy and `scripts/check_wheel.sh --through A9`.
+Probe all independent A10 modules in both modes and report the missing-file
+failures explicitly. Inspect final diff/whitespace/scope, write REVIEW.md
+with “Independent review: round 1/3”, commit on `A10.4`, then invoke the exact
+independent-review skill command from `../review/code-A10.4`. Follow at most
+three rounds, with separate fixes if needed, then stop and report.
+
+Planning evidence: clean branch/status, current A10 outline and earlier
+review read; normative sections above, shared fixture loader, both existing
+reference sets and independent fixture schema read. R reports 4.4.2,
+survival 3.7.0, flexsurv 2.3.2. The official concordance manual confirms
+orientation, weighting, timefix and five count fields; pinned installed help
+will govern generation. No implementation or tests before this plan.
+
+Implementation completed: exactly 300 changed implementation/test/fixture
+lines, including 105 CSV lines; public API and production code unchanged.
+Pinned R generated 104 synthetic observations in two cohorts, three score
+draws each. Both independent regenerations and committed payloads are
+byte-identical; SHA-256 checks pass. All six R outputs also match a separate
+pair enumeration of the spec rules, including all three time-tie kinds.
+Focused own concordance/reference suites: 77 passed in 27.85s (float64),
+77 passed in 27.86s (float32), no skips. Ruff: 104 files formatted / All
+checks passed; mypy: no issues in 20 source files. Independent A10 probe:
+8 failed, 113 passed (57.50s) / 8 failed, 112 passed, 1 existing skip
+(59.90s); all failures are the absent protected fixture, before assertions.
+REVIEW.md records commands, the corrected working-directory error and limits.
+The matching JSON is ready for maintainer delivery; no full A10 pass claimed.
+Fresh-wheel `scripts/check_wheel.sh --through A9`: exit 0, all gates passed.
+Own suites: 1048 passed, 7 skipped / 1054 passed, 1 skipped; source doctests:
+4 passed per mode; independent through-A9: 2211 passed, 28 skipped / 2202
+passed, 37 skipped. Existing skips only. REVIEW.md records timings and wheel
+hash. Final scope/whitespace/static audit is clean; commit and round 1 follow.
+
+---
+
+# A10.3 — Public concordance transformation and permutation evidence (2026-10-29)
+
+Status: **F-2 fix-up verified; maintainer-authorized round 4 pending**, following
+"implement and review (automatic via claude, use the skill) the next part of
+A10" and the subsequent "approved". Work on the maintainer-created `a10b`
+branch from clean `a5cfea7`.
+The reviewed A10.2 API and main/A9 integration are present. The next outline
+item is A10.3, before the separate A10.4 R-fixture step below.
+
+Completed implementation: two new own-test modules, 231 lines, seven tests.
+Focused concordance suites: 72 passed per dtype (21.99s float64 / 22.07s
+float32), no skips. Fresh-wheel `scripts/check_wheel.sh --through A9` exited
+0, ending `check: all gates passed through A9`: own suites 1043 passed,
+7 skipped / 1049 passed, 1 skipped; source doctests 4 passed per mode;
+independent through-A9 suites 2211 passed, 28 skipped / 2202 passed,
+37 skipped. Five non-fixture independent A10 modules: 113 passed (22.55s)
+float64 / 112 passed, 1 skipped (30.07s) float32. Ruff: 92 files formatted,
+All checks passed; mypy: no issues in 20 source files. Existing skips only.
+Exact commands, timings, wheel identity, initial cache/lint failures and
+limits are recorded in REVIEW.md. No production code changed; no full A10
+claim. Final staged audit, commit and automatic Claude review follow.
+
+Round 1 on fc7f82c returned fix-first for should-fix F-1 (no blockers/nits).
+Add prepared-data static-metadata compilation evidence: equal flags reuse
+one trace despite changed data/scores; changing flags produces another.
+Retain raw tracing coverage with an accurate description. Final source/test
+total: 260 lines, eight tests. Focused own suites now 73 passed per mode
+(12.16s float64 / 12.22s float32), no skips; Ruff formatting/lint clean.
+The earlier full gate/A10 selection are initial-commit evidence, not reruns
+after this test-only follow-up. REVIEW.md records the distinction and the
+reviewer's inability to execute checks under its headless permissions.
+Commit the fix-up and request round 2 using the same skill; then stop.
+
+The maintainer requested round 3 after correcting reviewer permissions.
+Round 3 on bd1bd84 could execute checks/mutants and returned fix-first for
+F-2: the third prepared-data call changed weak_type as well as metadata,
+so a constant-metadata mutant survived. Use an explicit all-True event
+array on that call, matching the other constructor paths. Final focused
+suites: 73 passed per mode (13.31s float64 / 13.33s float32), Ruff clean.
+The corrected test catches the constant-metadata mutant in both modes in
+isolated temporary source copies. Source/test total: 263 lines, eight tests.
+REVIEW.md records the reviewer's gate results (including missing-fixture and
+unsupplied-wheel failures), mutant results, deferred N-1 and reviewer-owned
+temporary worktree cleanup. Commit the F-2 fix-up and stop at three rounds;
+no merge approval or full A10 claim, and no automatic A10.4 start.
+
+The subsequent "do another round of review" explicitly authorizes one
+additional independent review beyond the three-round limit. Review the
+unchanged F-2 fix-up from 491f7cc; record round 4 and follow its verdict.
+This request does not authorize starting A10.4 or changing protected paths.
+
+One concept: complete own public-API evidence for transformations and
+observation permutations. Aim for at most 300 changed source/test lines.
+Public API and implementation behavior: unchanged. Spec sections: 6.1–6.3,
+7.2 (compilation reuse), 9.1–9.2, 12.1 (transformations and metric shapes).
+
+Files to create or change:
+
+- Create `tests/unit/test_concordance_transformations.py`. Use distinct,
+  hand-enumerated tied-time/tied-score cohorts, with counts and fractions
+  derived in comments. Check `(B,1,N)` data against `(D,N)` scores, using
+  different B and D lengths; compare eager, jit, nested vmap and jit-of-vmap
+  to those expectations for values, all eight count words and all masks.
+  Cover prepared inputs and raw construction inside the compiled function.
+- In that module, test transformed invalid and unsupported cohorts beside
+  valid and evaluated zero-pair cohorts. Check cohort isolation, preserved
+  overlapping masks, zero failed counts and result shapes against explicit
+  expectations. Add a trace counter showing equal-shape/dtype changes to
+  scores, times and event values reuse compilation. No score derivatives.
+- Create `tests/property/test_concordance.py`. Reproducible Hypothesis cases
+  (`derandomize=True`) use small positive integer times, boolean events and
+  bounded integer scores so ties and exact arithmetic are frequent. Verify
+  joint row-permutation invariance of the complete result, count partition
+  (`comparable = concordant + discordant + tied_score`), and score negation
+  swapping concordant/discordant while preserving ties, masks and C's
+  complement when defined. Cover no-pair NaNs explicitly. Identity-based
+  expectations must not use production helpers or independent test helpers.
+- Update this plan with actual results and overwrite `REVIEW.md` with the
+  reading order, invariants, spec/test mapping, checks and limits. Retain
+  historical plan records below. No changes to spec, `.spec-seen`, docs,
+  protected tests/scripts, fixtures, dependencies or likelihood code.
+
+Verification after approval:
+
+- Run all own concordance modules, including both new modules, in separate
+  `JAX_ENABLE_X64=1` and `=0` processes. Use existing central tolerances for
+  non-exact floating identities; compare count words and masks exactly.
+- Run Ruff format/check and mypy, then the unchanged
+  `scripts/check_wheel.sh --through A9` for the combined-tree regression and
+  installed exports. Run the five non-fixture independent A10 modules in
+  both dtypes with `SPEC_THROUGH=A10`, without changing their selection logic
+  or contents. The missing concordance R fixture precludes a full A10 claim.
+- Inspect whitespace and the final diff; commit this step on `a10b` with
+  `REVIEW.md` recording `Independent review: round 1/3`. From a clean tree,
+  invoke the exact independent-review skill command in
+  `../review/code-a10b`, step `A10.3`, and read `../review/slices/A10.3.md`.
+  Follow its verdict, with at most three rounds and separate fix-up commits
+  for blocker/should-fix findings; stop after this step and report.
+
+Docs to-do: existing concordance topic/playground and held-out synthetic
+example remain later steps. A10.4 owns pinned-R generation/reference tests.
+Planning checks: read branch/status/history, the A10 outline, current public
+metric and own/independent shape/property coverage, shared test fixtures and
+spec sections above. No implementation, tests or review run during planning.
+
+---
+
+# A10 integration with merged main/A9 (2026-10-29)
+
+Authorized by "main had moved and i've merge; check merge conflicts and
+bring up to date; A9 has been merged now". The maintainer-initiated merge
+is in progress: A10-cindex HEAD f71140a, incoming main ff9786f.
+Five files conflict. This is merge resolution/integration of reviewed work,
+not a new concordance feature or spec decision. Snapshot the initial index
+and preserve every incoming non-conflict change except the two explicitly
+listed integration edits below. Leave the merge commit to the maintainer.
+
+Files to resolve: PLAN.md, REVIEW.md, src/survjax/__init__.py,
+src/survjax/likelihood.py and tests/unit/test_import.py.
+Necessary integration edits: src/survjax/distributions/base.py and
+tests/install/test_wheel.py. No edits to spec, .spec-seen, independent
+tests, protected scripts, incoming dependencies, fixtures or docs.
+
+- Preserve main's method-only likelihood API and the two public A10 exports.
+  Remove the obsolete standalone likelihood wrapper. Keep input-form
+  normalization in _observation_inputs.py and import that same helper from
+  the distribution method and metrics; do not duplicate the old resolver.
+- Keep all incoming numerical likelihood behavior, A8 references, A9
+  transformation/wheel tests, fixture handoff and spec alignment. Keep the
+  withdrawn standalone A9 example absent. Extend the installed-wheel test's
+  exact expected export set by the two reviewed C-index functions.
+- Retain both branches' planning history below this current integration
+  record. Overwrite REVIEW.md with current reading order, invariants,
+  parent records, validation results and remaining A10 work.
+- Sync the environment from the incoming lockfile without changing project
+  metadata. Run focused integration checks, then scripts/check_wheel.sh
+  --through A9, including a freshly built wheel, full own suites and unchanged
+  independent through-A9 suites in both dtypes. Run the five non-fixture A10
+  acceptance modules in both dtypes. A10 R fixtures remain a separate step;
+  do not claim a full through-A10 gate or regenerate R data.
+- Verify conflict markers/unmerged entries are gone, all seven intended
+  resolution paths are staged, every other index entry matches the snapshot,
+  and protected incoming files equal main. Record results and stop with the
+  merge resolved and staged; no new merge, rebase or merge commit.
+
+
+Validation completed 2026-10-29. All five conflicts are resolved/staged;
+main's method-only API regression, the two C-index exports and the one
+shared resolver are preserved. The incoming likelihood evaluator AST is
+unchanged apart from moving its identical input resolver; only the method's
+import changes. All other 173 original stage-0 index entries are unchanged.
+Environment synced with uv sync --locked --offline --dev; no metadata edit.
+Focused shared-input/likelihood/concordance/API suites: 120 passed per mode
+(12.49s float64 / 11.93s float32). Fresh-wheel full gate:
+`UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check_wheel.sh --through A9`
+exited 0, ending `check: all gates passed through A9`.
+
+| Gate stage | Float64 | Float32 |
+| --- | --- | --- |
+| Own tests, including installed wheel | 1036 passed, 7 skipped, 56.62s | 1042 passed, 1 skipped, 59.24s |
+| Source doctests | 4 passed, 1.09s | 4 passed, 1.10s |
+| Independent through A9 | 2211 passed, 28 skipped, 60.17s | 2202 passed, 37 skipped, 53.97s |
+| Five non-fixture independent A10 modules | 113 passed, 28.26s | 112 passed, 1 skipped, 21.81s |
+
+Ruff: 89 files already formatted / All checks passed! Mypy: no issues in
+20 source files. No source/test changes followed these runs. Complete
+commands, wheel identity, selection and remaining limits are in REVIEW.md.
+Net-to-main and resolution-only whitespace checks are clean. The full staged
+check reports only two pre-existing incoming-main EOF blank lines in
+read-only tests/spec/API_ASSUMPTIONS.md and test_a6_likelihood_shapes.py;
+confirmed identical in main and left unchanged. No new whitespace issue.
+The incoming .spec-seen remains be26e50. Subsequent design changes only add
+use-case companion links; concordance/likelihood requirements are unchanged.
+Final metadata restaging/index audit follows; leave the merge commit to
+the maintainer under the repository agreement. No full A10 gate claim.
+
+Spec: 6.1, 7.1-7.3, 9.1-9.2, 10.2-10.3, 12.1. Public API is the current
+method-only likelihood plus the already reviewed concordance functions.
+No new tests beyond updating existing exact export expectations are needed
+for this merge; use both branches' existing transformation/acceptance suites.
+Docs to-do: concordance topic/playground/held-out example, as recorded below.
+Earlier missing A8/A9 integration evidence is historical; update current
+results here after the combined-tree checks have actually run.
+
+---
+
+# A10.2b2 review follow-up — N-5 and N-8 (2026-10-28)
+
+Review follow-up to the approved public integration step, requested by
+"check the nits in ../slices/A10.md" and the standing "check the review and
+address" instruction. Read the actual report at ../review/slices/A10.md,
+round 4 for 8109470: merge verdict, no blockers or should-fix findings.
+Work on A10-cindex from clean 8109470; one test-only fix-up commit, then stop.
+No new public API, numerical behavior or spec decision.
+
+
+Completed 2026-10-29: N-8 adds three eager/jit unsupported-mode cases; N-5
+adds distinct ClosedJaxpr descent after the Jaxpr case. Only 38 test lines
+were added; production code is unchanged. Focused five-file selection:
+67 passed in 6.56s (float64), 67 passed in 5.83s (float32), no skips.
+Ruff: 78 files already formatted / All checks passed. Mypy: no issues in
+20 source files. Both reported unsupported-mode mutants are caught in both
+dtypes: E1 fails right-trunc only (1 failed, 2 passed); E2 fails interval
+and left-censored (2 failed, 1 passed). Each mutation run deselects 23 tests.
+REVIEW.md records exact selections, timings, scope and the untested distinct
+ClosedJaxpr representation. Final whitespace/staged/scope checks follow.
+Ready for the one test-only fix-up commit and review stop.
+
+Files: tests/unit/test_concordance_entry_points.py,
+tests/unit/test_concordance_counts.py, PLAN.md and REVIEW.md.
+Spec: 9.1 (unsupported modes), 9.2 (whole cohorts and workspace), 12.1.
+
+- N-8: add three parametrized from_bounds cases: finite right truncation,
+  interval observation and left censoring. Each unsupported cohort has a
+  valid neighbor with hand-counted C=3/8 and counts (1,2,1,4). Check eager/jit
+  agreement, unsupported-only masks, zero failed counts, and no evaluated
+  zero-pair flag. Inputs must be valid observations; unsupported is distinct
+  from invalid. Preserve the existing left-truncation coverage.
+- N-5: descend through distinct ClosedJaxpr wrappers in the recursive own
+  workspace guard, after the Jaxpr case. Locked JAX 0.11.2 aliases the two
+  classes; handle that without recursing on Jaxpr.jaxpr repeatedly. Do not
+  claim other JAX versions were executed.
+- Reconcile the review's focused-count difference: its four files total 63;
+  the previously reported 64 also included test_api_reference.py. Keep the
+  original evidence intact and record the selection explicitly in REVIEW.md.
+- Run the five focused own modules in separate dtype processes, Ruff, mypy
+  and whitespace/protected-scope checks. In temporary source copies only,
+  remove each unsupported-mode term in turn and require the new cases to
+  catch both mutants in both modes. Do not mutate the working source.
+- This is test-only: production runtime is unchanged from the passing public
+  integration gate. No full regression/independent A10 rerun is necessary;
+  record that limit honestly. No fixture, docs, dependency, protected test,
+  .spec-seen, sync or likelihood changes. No merge or next subslice.
+
+---
+
+# A10.2b2 — Public concordance entry points (2026-10-26)
+
+Status: **implemented and verified; ready for review**, authorized by
+"review approved ... get on with next subslice". Work in dev-a10 on A10-cindex from clean `715a7e3`; no merges.
+The maintainer also explicitly allows the two API-reference entries needed by
+the export-coverage test, as a narrow exception to the code-step docs rule.
+Tutorials and broader docs remain separate. The shared spec is now revision
+37; its concordance contract is unchanged. Likelihood alignment/spec sync
+remain owned elsewhere; do not change .spec-seen or that API here.
+
+
+Final evidence (completed 2026-10-27): both public entry points and their
+exports are implemented. Own focused suites pass 64 tests per dtype
+(6.87s float64 / 6.27s float32), no skips. The five selected independent A10
+modules pass 113 tests in float64 (45.13s), and 112 with 1 existing skip in
+float32 (47.97s). This is focused A10 evidence, not a full A10 gate.
+
+The initial through-A7 attempt failed only the old exact export smoke list
+(1 failed, 848 passed, 7 skipped); adding the two intended names fixed it.
+REVIEW.md records that failure and correction. The final unmodified
+through-A7 gate exited 0, ending `check: all gates passed through A7`:
+
+| Gate stage | Float64 | Float32 |
+| --- | --- | --- |
+| Own tests | 849 passed, 7 skipped, 171.12s | 855 passed, 1 skipped, 172.98s |
+| Source doctests | 4 passed, 1.03s | 4 passed, 0.97s |
+| Independent through A7 | 2123 passed, 28 skipped, 223 deselected, 121.84s | 2127 passed, 24 skipped, 223 deselected, 116.32s |
+
+Ruff: 78 files already formatted / All checks passed. Mypy: no issues in
+20 source files. No new skips or exclusions. Optional complete output:
+`/private/tmp/survjax-a102b2-final-gate.log`; this table is the durable summary.
+REVIEW.md was finalized before the final gate and is unchanged afterward.
+Source/test changes total 291 lines, plus seven approved API-reference lines;
+the metrics module is 220 lines. Final static/whitespace/scope checks follow
+this plan-only result edit. No merge, spec/sync marker, independent-test,
+likelihood API or dependency changes; no full A10 completion claim.
+Stop after this step's commit for review.
+
+One concept: connect checked observations and caller scores to the existing
+counter/result layer, with public exports. Target at most 300 source/test
+changed lines; split if that budget is exceeded.
+
+- Update metrics.py with concordance_index and concordance_index_with_info
+  using the shared _resolve_data helper and one private cohort evaluator.
+  Accept real JAX-supported score arrays without casting their precision to
+  the data dtype. Reject static type/shape misuse; invalid runtime values give
+  NaN plus masks. Recheck current data fields and retain construction issues.
+- Require matching non-scalar last observation axes; broadcast only leading
+  axes. Reduce invalid/support evidence per cohort and explicitly broadcast
+  every mask to result shape (review N-7). Replace entire failed cohorts with
+  safe finite arrays/boolean masks before counting; never drop observations.
+  Flatten leading batches for vmap and restore result shapes. Empty cohorts
+  remain evaluated zero-pair cases. Preserve data-float ratio dtype.
+- Export both functions in __init__.py. Add only their autodoc entries and
+  minimal section wrapper in docs/api.md, as approved. Rename result field
+  docstring headings to Attributes (review N-6). Do not change other docs.
+- Add tests/unit/test_concordance_entry_points.py: hand-counted raw/prepared
+  values, all five shape-table rows with every info leaf checked, failed-
+  cohort isolation/mask overlap, edited-field validation, empty/scalar/mismatch
+  cases, preserved score ordering/precision and jit/vmap agreement.
+- Update tests/unit/test_import.py's exact export set with the two intended
+  additions; retain every existing name pending separate likelihood alignment.
+- Update D-027's implementation note, this plan, and overwrite REVIEW.md with
+  reading order, invariants, spec mapping, actual check outputs and limits.
+
+Spec: 3.2–3.3, 6.1–6.3, 7.2, 9.1–9.2, 10.2, 12.1; accepted D-027. No new
+helpers/dependencies outside this concrete evaluator, no score gradients.
+Run new/existing concordance own suites plus the five non-fixture independent
+A10 modules in separate dtype processes; static checks and the unmodified
+through-A7 regression gate. A10 R fixtures/A8/A9 work remain unfinished;
+selecting the five modules is focused evidence, not a complete through-A10 gate.
+Verify only approved API-reference edits, protected paths and sync marker,
+record results, commit this one step on A10-cindex, then stop for review.
+Docs to-do: executable concordance tutorial, playground and held-out example;
+no full docs-build claim for this code step's two reference entries.
+
+---
+
+# A10.2b1 — Concordance result containers and ratio (2026-10-25)
+
+Status: **implemented and verified; ready for review**, authorized by
+"review approved ... get on with next subslice". Work only in dev-a10 on A10-cindex, starting clean at
+`10b8877`. Do not merge, rebase or touch the separately owned spec alignment,
+test sync, .spec-seen, likelihood API or protected paths. The checkout retains
+revision-34 API alignment while accepted spec revision 35 is visible through
+the shared read-only link. This step is independent of the likelihood change.
+
+
+Implementation evidence: a 100-line result module and 172-line test module
+(272 source/test lines). Focused result/count suites pass, 39 per dtype
+(2.71s x64 / 2.15s x32), including all 14 new result cases. No failures/skips.
+The unmodified through-A7 gate exited 0, ending
+`check: all gates passed through A7`:
+
+| Gate stage | Float64 | Float32 |
+| --- | --- | --- |
+| Own tests | 826 passed, 7 skipped, 145.51s | 832 passed, 1 skipped, 145.95s |
+| Source doctests | 4 passed, 0.87s | 4 passed, 0.81s |
+| Independent through A7 | 2123 passed, 28 skipped, 223 deselected, 96.59s | 2127 passed, 24 skipped, 223 deselected, 90.68s |
+
+Ruff: 77 files already formatted / All checks passed. Mypy: no issues in
+20 source files. No new skips or exclusions. Optional raw output:
+`/private/tmp/survjax-a102b1-final-gate.log`; this table is the durable summary.
+REVIEW.md was finalized before the gate and is unchanged afterward. Final
+format/lint/mypy and working/staged whitespace/protected-path checks follow
+this plan-only result edit. Both package/module imports resolve to dev-a10.
+No spec, .spec-seen, independent tests, likelihood API, docs, dependencies,
+lockfile, top-level exports or other branches changed. No merges or full
+through-A10 completion claim. Stop after this step's commit for review.
+
+One concept: turn already-counted pairs into transformable diagnostics and a
+floating C-index. The full public integration exceeds one review-sized step;
+implement this result layer first, with source/tests under 280 changed lines.
+
+- Create `src/survjax/metrics.py`: frozen registered `ConcordanceCount` (hi/lo
+  uint32 array fields) and `ConcordanceInfo` (the four accepted count fields,
+  invalid, unsupported and no_comparable_pairs arrays). Result types stay in
+  their module (spec 6.3/10.2); no top-level export or metric entry point yet.
+- Add private `_concordance_result(counts, invalid, unsupported, dtype)` in
+  that module. Inputs are aligned count words and per-result masks. Preserve
+  exact uint32 words; zero all counts on failed cohorts, retaining both masks.
+  Cast words into the data float dtype before reconstructing totals and
+  dividing. Award half credit to tied scores. Substitute a safe denominator
+  for zero-pair cohorts before division; return NaN with no_comparable_pairs
+  only on evaluated zero-pair cohorts. No floors, epsilons or score gradients.
+- Create `tests/unit/test_concordance_results.py`: hand-counted fractions,
+  high-word totals, undefined/failed/overlapping-mask cases, per-result array
+  shapes, preserved data dtype, frozen fields and pytree reconstruction;
+  eager/jit/vmap agreement in both dtype processes. Expected counts/fractions
+  come from explicit integer arithmetic, not code under test. Use existing
+  central tolerances; do not add numeric tolerance constants.
+- Update this plan, the implementation note in D-027 (retain formal open
+  status), and overwrite REVIEW.md with reading order, invariants, requirement
+  mapping, exact commands/results and limits. No docs or dependency changes.
+
+Spec: 3.3 (floating division), 6.3 (result pytrees), 7.2 (safe operands),
+9.1–9.2 (counts/ratio), 10.2 (result placement), 12.1; accepted D-027 contract.
+Validate focused result/count suites in separate float64/float32 processes,
+Ruff format/lint, mypy, and the unmodified through-A7 regression gate. Verify
+imports use dev-a10. No through-A10 completion claim or independent-test edits.
+Record actual results, inspect staged/protected diffs, commit and stop.
+
+Docs to-do: retain the later concordance topic/API reference, adding named
+hi/lo counts and result-mask interpretation once public integration is reviewed.
+Next step: public observation/score validation, cohort-safe inputs, leading-axis
+broadcasting and entry points, after coordinating pending alignment and the
+code-step/API-reference documentation constraint. No automatic next step.
+
+---
+
+# A10 review follow-up — N-1 through N-4 (2026-10-25)
+
+Status: **implemented and verified; ready for review**, authorized by
+"check the review and address". Read all of `../review/slices/A10.md` for
+`04bc1a7`: merge verdict, no blockers or should-fix findings. One follow-up
+commit on `A10-cindex`, then stop; starting tree was clean at `04bc1a7`.
+
+Files: `src/survjax/_concordance.py`, its own test module, PLAN.md,
+DEVIATIONS.md and REVIEW.md. Public API: none. Source/test budget: under 60
+changed lines. Spec: 9.1–9.2 workspace/preconditions and 12.1 verification.
+No numerical, dependency or docs changes; the shared resolver is unchanged.
+
+- N-1: document the boolean (N,) exact-mask precondition.
+- N-2: inspect the traced JAX program recursively, including loop bodies, for
+  an N-by-N intermediate at N=7. Verify sensitivity in a temporary source
+  copy using an equivalent N-by-N comparison inside the loop; require the
+  shape test to fail and the hand-counted value test to pass in both dtypes.
+- N-3: require finite safe substitutes for entire invalid/unsupported cohorts
+  before public counting. Retain cohort length/masks and zero failed counts;
+  never drop rows. Record this in the later public integration outline.
+- N-4: remove the redundant high-word assertion/import, make stale merge text
+  historical, and commit complete check commands/results in REVIEW.md.
+  Temporary logs supplement that durable evidence; no logging infrastructure.
+- Record the maintainer's accepted D-027 decision, retaining its formal open
+  status for maintainer disposition. No public result type implemented here.
+- S-1: revision 35 alignment, spec-test sync and `.spec-seen` belong to another
+  agent/branch. Do not edit, mark, merge or sync them here. S-2's early A10
+  authorization is recorded; no delivery/role edits. Reconcile dependencies
+  after those changes land, before starting public integration.
+
+Verification: focused counter/shared-input/likelihood entry-point suites pass,
+93 tests per dtype (5.90s x64 / 5.40s x32), no skips. The N-by-N mutant is
+rejected while its hand-counted value test passes: 1 expected failure / 1 pass
+in 0.21s per dtype. REVIEW.md records commands and sensitivity details.
+Final Ruff: 75 files already formatted / All checks passed. Mypy: no issues
+in 19 source files. Working/staged whitespace checks pass. An AST comparison
+confirms production code is unchanged except docstrings; protected paths,
+`.spec-seen`, docs and exports are unchanged. No full numerical gate rerun for
+this docstring/test follow-up; the reviewer's passing through-A7 gate is
+historical evidence only. No through-A10 completion claim. Docs to-do: retain
+the separate public concordance documentation step. Stop after this commit.
+
+---
+
+# A10.2a — Share observation input normalization (2026-10-25)
+
+Status: **implemented and verified; ready for review**, authorized by
+"ok no issues here on to the next bit, which is approved by me". A10.1 is accepted. Split the next integration
+step: first relocate its existing data-input resolver, then add public metrics
+once D-027 is settled. This preparatory part introduces no public contract.
+
+At planning start, `A10-cindex` was at `67bac4d` with the maintainer's merge
+in progress and 21 resolved paths staged. This step preserved that index and
+kept its own work unstaged until the maintainer completed the merge. Incoming
+protected spec tests and the sync script were not edited.
+
+The maintainer completed the merge as `34a7657` during this step. Verified
+no merge remains and its index is empty; all new work stayed unstaged. The
+shared resolver is independent of D-027, which the maintainer wants to discuss
+before public integration; no proposed public choice has been adopted.
+
+
+Implementation evidence: the resolver AST is identical to the original function
+in the merged HEAD. The helper is 21 lines; new shared-input tests are 78 lines.
+Together with its import/relocation, 116 source/test lines changed. Focused
+shared-input/public-likelihood tests: 68 passed per dtype (4.35s / 3.79s),
+without skips. The full through-A7 regression gate exited 0:
+
+| Gate stage | Float64 | Float32 |
+| --- | --- | --- |
+| Own tests | 811 passed, 7 skipped, 153.02s | 817 passed, 1 skipped, 169.74s |
+| Source doctests | 4 passed, 1.13s | 4 passed, 1.05s |
+| Independent through A7 | 2123 passed, 28 skipped, 223 deselected, 115.04s | 2127 passed, 24 skipped, 223 deselected, 107.53s |
+
+Ruff: 75 files already formatted / All checks passed. Mypy: no issues in
+19 source files. Full output: `/private/tmp/survjax-a102a-final-gate.log`;
+last line `check: all gates passed through A7`. No new skips, test exclusions,
+public API or numerical changes. The larger deselection count reflects incoming
+later-step independent tests. REVIEW.md was finalized before the gate and is
+unchanged afterward. Final static/diff checks follow this plan-only result edit.
+D-027 records discussion only. The maintainer's merged docs/protected files
+remain unchanged. No R, docs build, installation or performance check was run.
+
+Files and public API:
+
+- Create `src/survjax/_observation_inputs.py` and move `_resolve_data` there
+  verbatim from `likelihood.py`; import it back at its existing call site.
+  Preserve all checks, error messages and pure SurvivalData normalization.
+  No public API, dtype, numerical, dependency or docs change.
+- Create `tests/unit/test_observation_inputs.py` for shared-normalizer behavior
+  needed by both callers: raw invalid-indicator evidence through eager/jit/vmap,
+  missing/mixed input rejection, and prepared rich observations preserving
+  every pytree leaf (including issue bits). Reuse the existing public likelihood
+  suite for the unchanged values/first/second derivatives and input contract.
+- Update this plan and REVIEW.md with this step's actual checks and limitations.
+  Preserve the staged merge versions of those files until merge completion.
+  Target under 150 changed source/test lines; one concept and one commit.
+- Record the newly synced count-reader assumption and the maintainer's request
+  for discussion in D-027, retaining its open status; adopt no public contract.
+
+Spec: 6.1–6.2 (single shared checked normalizer), 3.2–3.3 (prepared leaves and
+raw issues), 7.1/12.1 (likelihood regression evidence). No score contract or
+ConcordanceInfo field/representation choice is made here. D-027 remains open;
+new independent Q-042–Q-045 explicitly label their public choices assumptions.
+
+After editing, run focused new/likelihood entry-point tests in separate x64/x32
+processes, Ruff format/lint and mypy. Run the unmodified through-A7 gate for
+regression evidence; A8 fixtures/A9 completion and the public A10 API remain
+unimplemented, so do not claim a through-A10 pass. Record failures honestly.
+Check whitespace, source diff and preservation of the incoming staged index.
+Commit only this step after the maintainer finishes the merge, then stop.
+If the merge is still pending, leave a checked, reviewable diff and report
+that the step cannot yet be committed under the no-merge rule.
+
+Docs to-do: the separately approved concordance docs topic/API reference after
+public integration. No documentation is needed for moving a private resolver.
+
+---
+
+# Merge-conflict resolution (2026-10-24)
+
+The maintainer requests resolving the in-progress merge on `A10-cindex`.
+Resolve only `PLAN.md` and `REVIEW.md`, preserving the A10.1 records and the
+incoming A7 docs and spec-test sync records. Keep prior reviews as historical
+evidence; their statements describe their original checkouts. No public API,
+source, spec, independent test or requirement changes; no new tests needed.
+Check conflict markers, whitespace, preservation of both sides and the Git
+unmerged-file list. Stage the two resolutions without creating a merge commit.
+
+---
+
+# A10 — Harrell's concordance (2026-10-23)
+
+Status: **A10.1 implemented and verified; ready for review**, authorized by
+"Approved go for it". The maintainer requested checking the updated roadmap
+and starting A10. The existing branch is `A10-cindex`, starting at `9a034f4`.
+The request authorizes bringing concordance forward now, ahead of the draft's proposed after-A9 sequence; it does not
+authorize spec edits or publication. Statistical requirements remain accepted
+spec revision 34, sections 3.3, 6.1–6.2, 9.1–9.2, 10.2 and 12.1.
+
+Implementation evidence: a 61-line private counting module and 169-line test
+module (230 source/test lines). Exact comparisons, event-first equal-time
+pairs and two-word totals; no public API change. Focused checks pass, 24
+per dtype (1.37s x64 / 1.34s x32), without skips. Final through-A7 regression
+gate exited 0 and ended `check: all gates passed through A7`:
+
+| Gate stage | Float64 | Float32 |
+| --- | --- | --- |
+| Own tests | 801 passed, 7 skipped, 141.70s | 807 passed, 1 skipped, 143.20s |
+| Source doctests | 4 passed, 0.82s | 4 passed, 0.81s |
+| Independent through A7 | 2123 passed, 28 skipped, 44 deselected, 94.06s | 2127 passed, 24 skipped, 44 deselected, 90.73s |
+
+Ruff: 73 files already formatted / All checks passed. Mypy: no issues in
+18 source files. Full output: `/private/tmp/survjax-a101-final-gate.log`.
+REVIEW.md records the focused commands, initial cache/lint failures and limits;
+its metadata was finalized during the gate, with final static checks afterward.
+No new skips or exclusions. No A10 independent suite, R fixture, docs build,
+installation or performance evidence claimed. D-027 remains open. Stop after
+this step's commit; A10.2 has not started.
+
+Read `../design/ROADMAP.md` and its linked
+`../design/proposals/concordance-at-end-of-slice-a.md`. Both describe a draft
+delivery amendment: accepted section 12.2 still assigns concordance to E.
+Do not modify the design repo or treat its proposed completion gate as adopted.
+Do not claim A8, A9, the A7 docs or Slice A completion through this work.
+
+Starting working-tree changes belong to the unfinished A7 docs step:
+`PLAN.md`, `docs/index.md`, `docs/likelihood.md` and untracked
+`docs/numerical-behaviour.md`. Preserve them. Prepend this plan without
+rewriting its existing content; stage only A10 changes when committing.
+No docs edits in A10 code steps. No dependencies, fitting helpers, KM, IPCW,
+Brier, IBS, AUC, approximate metric API or score-gradient guarantee.
+
+## A10.1 — Private comparable-pair counting (first approval and review stop)
+
+One concept: exact counts for one valid, supported cohort, without public
+entry points. Target approximately 230–280 changed source/test lines, plus
+the plan and review. Split and replan if implementation exceeds 300 lines.
+
+Files to create:
+
+- `src/survjax/_concordance.py`: a private typed counting function for
+  one-dimensional finite scores, finite times and exact/right status.
+  Return concordant, discordant and tied-score totals as private `(hi, lo)`
+  tuples of `uint32` scalar arrays. Each total denotes `hi * 2**32 + lo`.
+  Keep this representation private pending D-027. Comparable totals are
+  accumulated during the same loop. No public API or export changes.
+- `tests/unit/test_concordance_counts.py`: hand-enumerated pair counts and
+  eager/jit/vmap checks; private accumulator carry checks using synthetic
+  word values. Test expectations come from Python integer arithmetic and
+  explicit pair lists, never from the implementation being tested.
+
+Update this plan's status and overwrite `REVIEW.md` only at the implementation
+review stop, recording reading order, invariants, requirement-to-test mapping,
+actual check output and remaining limitations.
+
+Implementation invariants (spec 9.1–9.2):
+
+- A JAX loop compares one row with the cohort and counts only partners with
+  larger indices. Work is O(N squared), pair workspace O(N); never form an
+  N-by-N array. Later leading-axis batching calls this core with `vmap`.
+- For unequal times the earlier row must be an event. At equal times only
+  event/censor pairs are comparable, with the event earlier. Compare scores
+  exactly; higher score on the earlier event wins. No near-tie tolerance.
+- Sum each loop's boolean counts as `int32`, then add the nonnegative count
+  into two unsigned words with explicit carry. No int64 requirement and no
+  total-count cap imposed to avoid int32 overflow. The cohort length must fit
+  the per-row int32 counting contract; no quadratic large-cohort test needed.
+- This core accepts already validated cohorts. Invalid scores, unsupported
+  modes, stored data issues and floating ratios belong to the integration
+  step; no public function returns partial or placeholder results meanwhile.
+
+Own tests accompanying this step:
+
+1. A small cohort with explicitly listed concordant, discordant and score-tied
+   pairs; all counts sum to the hand-counted comparable total.
+2. Separate equal-time event/event, event/censor and censor/censor cases,
+   plus censoring earlier than an event. Include reversed array order to
+   ensure array position never substitutes for event-time order.
+3. Perfect, reversed and all-tied scores; singleton, empty and all-censored
+   inputs produce zero counts in the private core. Public acceptance of empty
+   inputs remains a D-027 question; do not infer it from core behavior.
+4. Row permutations preserve all totals; eager, jit and cohort-wise vmap
+   agree. Counts remain exact in separate x64/x32 processes.
+5. Carry across `2**32`, repeated carries and high-word totals, checked
+   against arbitrary-precision Python integers. Exercise totals beyond signed
+   int32 capacity directly without allocating an enormous cohort.
+
+Verification after approval:
+
+- Run `tests/unit/test_concordance_counts.py` in separate
+  `JAX_ENABLE_X64=1` and `=0` processes via `uv run --group test pytest`.
+- Run `UV_CACHE_DIR=/private/tmp/survjax-uv-cache scripts/check.sh --through A7`
+  for the established implementation baseline. The existing A8 acceptance
+  tests require unfinished fixture work; do not label this an A10 full gate.
+  No independent A10 suite is currently synced; request maintainer coordination
+  before declaring A10 complete. Never edit `tests/spec/` or the gate script.
+- Run `git diff --check`; record pre-existing failures separately without
+  repairing unrelated docs. Check staged diff excludes the A7 docs changes.
+- Commit only this approved step on `A10-cindex`, with imperative subject and
+  a body explaining why, then stop for review. No automatic A10.2 start.
+
+Docs to-do: after public integration and review, a separate concordance topic
+with score direction, pair/tie conventions, support, batching, masks,
+undefined results, complexity and held-out synthetic evaluation. Update the
+API reference and playground in the separately approved docs integration.
+
+## Later A10 steps — outline only; each needs its own approved plan
+
+- A10.2b: after the separately owned spec alignment and test sync land, refine
+  the public integration plan around the maintainer's accepted D-027 decision.
+  Introduce `metrics.py`, frozen registered count and `ConcordanceInfo` types,
+  and both public entry points. `_resolve_data` is now shared by A10.2a; use
+  that same helper. Validate last-axis lengths before broadcasting leading
+  axes; reduce invalid/unsupported evidence per cohort. Before calling
+  `_pair_counts`, substitute finite safe scores/times and a boolean exact mask
+  for each entire invalid/unsupported cohort, preserving observation count and
+  failure masks. Never drop rows or count a partially valid cohort. Force all
+  returned count words to zero for those failed cohorts, and set
+  `no_comparable_pairs` only for evaluated cohorts. Honor stored raw-input
+  issues; compute the ratio in the data float dtype,
+  casting words before floating arithmetic and using a safe denominator for
+  undefined cohorts. Add input-form, masks, dtype and shape tests with code;
+  split integration if its source/test budget exceeds 300 lines. Resolve the
+  current export-reference test's docs requirement before adding top-level
+  exports: code steps cannot silently edit docs or weaken that test.
+- A10.3: finish public transformation/broadcast and permutation evidence in
+  both dtypes; independent acceptance tests arrive only from the maintainer.
+  No score derivatives are promised. Maintain one concept per small commit.
+- A10.4: synthetic R generator, fixture README and reference tests, following
+  section 10.4's pinned R/package requirements. Use `reverse=TRUE`,
+  `timewt="n"`, `timefix=FALSE`. If the pinned environment is unavailable,
+  hand off the generator and stop; never invent reference output.
+- A10 docs and final audit: executable topic/playground, held-out synthetic
+  example, installed wheel/source-archive exports and evidence map. Coordinate
+  with unfinished A8/A9 work; a concordance step alone cannot close Slice A.
+
+Planning checks actually run: branch/status/history inspection; accepted
+sections above, roadmap and draft amendment read; existing input resolver,
+dtype policy, data/diagnostic containers, export-reference test and gate read.
+`../scripts/spec-since.sh dev` prints
+`dev: spec unchanged since d243a96`. No implementation, tests, build, R
+environment check, spec edit, spec-seen update or commit during planning.
+
+---
+
+
+---
+
+# Preserved incoming main plan (verbatim pre-merge version)
 
 # README.1 — Draft the alpha README (2026-10-30)
 
@@ -6935,3 +9242,53 @@ harness corrections and limits are in REVIEW.md. Final whitespace/scope
 checks, commit and independent review follow. No library,
 docs, dependency, fixture or protected-path change. Remaining A9 steps above
 are still pending; this evidence does not close Slice A.
+
+## MNIST.15 execution status
+
+Full experiment command `uv run --group examples python -m
+examples.survival_mnist.run --config full --out examples/survival_mnist/results`
+failed in fit_intercept: Optimistix BFGS reached max_steps=256 with the retained
+rtol=atol=1e-5 in float32. Per INSTRUCTION.md, no solver workaround or tolerance
+change was made. Maintainer decision requested before dependent experiment work.
+Existing full metrics/figures are still from the old implementation.
+Focused optional model/reference/metrics/figures/real-smoke-gradient tests:
+15 passed in 26.94s. Ruff check passed; mypy passed (21 source files).
+Step 3 remains uncommitted and incomplete; docs step 4 has not started.
+Smoke CLI end-to-end test also passed: 1 passed in 32.74s (float32).
+Full-run acceptance and docs builds were not run after the solver failure.
+
+## MNIST.15 BFGS investigation (maintainer authorized)
+
+Diagnostic script /tmp/mnist_bfgs.py, default float32 library objective, fixed
+50k training cohort; no example solver settings changed. BFGS rtol=atol=1e-5
+returns theta=[0.1719790995, 1.4325047731] at limits 16, 256 and 2048;
+gradient=[-7.07896e-7, 1.56059e-6]. At 256 its state has 6 accepted steps,
+backtracking step size 0 and evaluation parameters equal to returned parameters.
+Tolerances 3e-5 and 1e-4 also stall. Tolerances 3e-4 and 1e-3 both succeed
+in 6 steps with the exact same returned float32 parameters.
+Independent host NumPy float64 diagnostic profile-score bisection (not demo
+code): k=1.187654848546, b=4.189167960546; log-parameter differences
+[-1.54769e-6, 2.63636e-6], mean-NLL gap=2.62368e-12. Profile uses
+b^k=sum(t^k)/number_of_events and solves the scalar shape score. No test
+observations used. Installed Optimistix 0.1.0 checks Cauchy convergence only
+on accepted steps; backtracking stagnation prevents the tight run terminating.
+Proposed change: BFGS(rtol=3e-4, atol=3e-4), retaining max_steps=256 and
+throw=True. This changes termination, not the fitted baseline on this cohort.
+Await maintainer decision on this concrete change before the full experiment.
+
+MNIST.15 completed: approved BFGS tolerance applied, full results regenerated
+with selected epoch 7, k=1.368050814, CNN LL/C above intercept. Final optional
+suite 28 passed in 19.71s; Ruff/mypy/whitespace checks passed (generated SVGs
+excluded as requested). See REVIEW.md for exact evidence and earlier failures.
+
+MNIST.15 regression follow-up: the ordinary smoke fit did not reproduce the
+full-cohort convergence failure. Add the real 50k fit to the optional reference
+suite, comparing with the independently derived profile optimum at existing
+float32 tolerances. Focused reference suite: 2 passed in 4.58s. No code change.
+
+MNIST.16 verification completed: direct scripts/build_docs.sh passes both
+parent modes (with approved escalation after sandbox cache/shutdown errors).
+Final page source and rendered commands verified in native Brave; 66 local
+links/assets/fragments per mode pass, figures match committed outputs and
+metadata/metrics/cohorts are current. Ruff/format/mypy and relevant pre-commit
+checks pass. Independent reviews remain; no implementation sub-steps remain.

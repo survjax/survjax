@@ -25,6 +25,8 @@ censoring, including tied observations, score draws and cohort diagnostics.
 finite cutoff, with explicit cutoff axes and staged derivative limits.
 [Bayesian survival analysis of a randomized trial](use-cases/bayesian-rmst.md)
 fits a synthetic trial with NumPyro and reports the posterior RMST difference.
+[Survival MNIST](use-cases/survival-mnist.md) trains an image-based survival
+model and compares a live smoke run with committed full results.
 The [SurvivalData guide](survival-data.md) walks a synthetic cohort through
 both constructors, diagnostics and R input conventions.
 [Exponential and Weibull](builtin-families.md) introduces the built-in
@@ -55,6 +57,7 @@ likelihood
 numerical-behaviour
 slice-a-verification
 concordance
+use-cases/survival-mnist
 grids
 distributions
 api
@@ -63,11 +66,13 @@ api
 ## Local commands
 
 From the repository root, run `scripts/build_docs.sh` to build the site and
-execute its notebook separately with JAX float32 and float64. The generated
+execute its notebooks separately with JAX float32 and float64. The generated
 pages are in `docs/_build/html-x32/` and `docs/_build/html-x64/`. The build
-fails on warnings and notebook errors. It selects the locked `docs` and
-`examples` dependency groups for the executable Bayesian demo. The examples need no network access,
-R installation or external data; dependency installation uses the lockfile.
+fails on warnings and notebook errors. Dependencies use the locked docs and
+examples groups. Core examples use synthetic data and need no external data or
+R. The MNIST page downloads hash-checked images on first use; a warm cache at
+`SURVJAX_EXAMPLES_DATA` (default `~/.cache/survjax-examples/mnist`) avoids network
+access on later builds.
 
 To view the rendered site on macOS, run `open
 docs/_build/html-x64/index.html` (or use `html-x32` for float32). On other

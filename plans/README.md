@@ -9,8 +9,9 @@ These are future assignments, not completed-step archives or implementation appr
 
 | File | Contents |
 | --- | --- |
+| `GPU.1.md` | Modal GPU runner and safe source-archive follow-up |
 | `A10.md` | A10 concordance records through A10.d2, including A10.4/d1; unfinished, retained while A9 is current |
-| `A9.md` | A9 transformations, installation and Slice A evidence; open: "A9 Docs to-do" and "Final evidence audit" |
+| `A9.md` | A9 transformations, installation, CPU baseline and verification docs; complete, with closure note and retained gate map (2026-11-04) |
 | `A8.md` | A8 R fixtures and reference tests, with integration history; open: "Closure still required" |
 | `len-data.md` | SurvivalData size interface, spec revision 37 |
 | `LL.md` | Removal of the public likelihood function, spec revision 35 (LL.1, LL.2) |

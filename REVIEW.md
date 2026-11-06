@@ -1,68 +1,50 @@
-Independent review: round 2/3
+# BAYES clean-up and main merge (2026-11-06)
 
-# BAYES.d1 — Compact results and executable documentation
+No independent review cycle for this step, by maintainer decision; the
+maintainer does one final pass before merging into main. Previous REVIEW.md
+contents: BAYES.d1 at 55565fd, MNIST.20 at main 2093ca2.
 
-Read current PLAN.md revision, results/README.md and delivery.json, compact
-posterior.npz inventory, page section order/takeaways, then original integration
-in docs/index.md/scripts/build_docs.sh. Parent/previous step b45f511; worktree
-base b1291a8. Original round1 docs commit086bfc4 is superseded, not retained as
-an ancestor: the maintainer explicitly forbids the 19MB storage and agrees to
-compact data. No merge/rebase/force-push/tag/global GC. Only the latest local
-unmerged docs commit is replaced; no published tracking/tag ref contains it.
+Last commit of the clean-up: add507a (user commit). Previous Bayesian step:
+55565fd (BAYES.d1). Working tree: merge of main 2093ca2 into release-bayes.
 
-Round1 findings:
-- F-001: compact storage explicitly chosen. One posterior.npz (94,330 bytes)
-  holds exact saved trial/time/event/arm, three (4,1000) log-parameter arrays,
-  divergence flags and grids. No derived curves, prior arrays, predictive
-  arrays or split archives. Entire results delivery about822KB with five PNGs.
-- Existing posterior_draws regenerates derived arrays in /tmp; README supplies
-  a runnable recipe that also copies metadata, producing a renderer-ready dir.
-  The existing renderer regenerates prior/predictive trials and both PNG/SVG
-  outputs. No new numerical/helper module, dependency or library API.
-- F-002: full diagnostics/truth table is now after route B in the figures/table
-  section. Takeaways are the final section after reproduction instructions.
-- N-002: route A uses literalinclude of posterior_draws, no hand-copy drift.
-- S-001: maintainer agrees to the recommended compact-data/PNG-preview option.
-  D-034 records PNG previews vs illustrated fig*.svg; SVG is reproducible with
-  existing renderer. Status open, no spec edit or self-resolution. Priors D-033
-  remain unchanged/open and are described as experimental, not recommended.
+## Read first
 
-Checks of revision:
-- Executed the README materialization recipe with JAX_ENABLE_X64=1 using
-  /private/tmp/bayesd1-compact-20261105 as the new destination. All source
-  fields match original full arrays exactly; all regenerated fields match at
-  atol1e-12, rtol0, pickle disabled. No posterior sampling rerun or values edited.
-- Dedicated check_figures against that materialized dir: exit0, predictive
-  generation/key/domain checks and all KM/quantile/five-figure/overwrite checks
-  pass. This validates consumption by the existing plotting pipeline.
-- Compact data 94,330 bytes; total results 822,073 bytes at verification.
-  Manifest has no archive parts and hashes only the compact delivery files.
-- Ruff check and step-owned Markdown format/whitespace pass. The unrelated
-  untracked bayesian-rmst-v2.md remains user work and is excluded/untouched.
-- scripts/build_docs.sh directly, approved escalation: exit0, both modes.
-  Approved page executed in19.79s/11.87s (x32/x64), with the unrelated orphan
-  v2 draft also discovered and executed successfully; it remains untouched.
-- Final HTMLParser checks: route A < route B < figures/table < diagnostics
-  table; takeaways last, five figures present and resolving, table six rows.
-- Staged pre-commit hooks all applicable pass, including added-large-files;
-  no skips/exclusions/config changes. Final compact manifest hashes pass, no
-  archive parts, entire delivery under1MB. History check follows replacement.
-- Source doc/notes now272+48 lines; required compact regeneration recipe and
-  reviewer-requested takeaways extend the original ~300-line documentation
-  unit. This revision adds no numerical functionality.
+1. DEVIATIONS.md D-041 (formerly D-035): agreed scope of the lean example.
+2. docs/use-cases/bayesian-rmst.md: the approved page; every number, table and
+   figure is computed on the page from `results/posterior.npz`.
+3. examples/bayesian_rmst/model.py, then run.py (acceptance asserts at the end
+   of `run`).
+4. examples/bayesian_rmst/bayesian-rmst.ipynb: the same tutorial, sampling
+   itself; it imports only `make_trial`.
+5. The merge resolutions listed in PLAN.md.
 
-Original approved integration and invariants remain:
-- 2026-11-05 maintainer approves index link/toctree and adding existing
-  --group examples to build_docs.sh. No dependency or lockfile changes.
-- Parent docs mode remains x32/x64; live factor and four-chain100+100 smoke
-  use float64 children; recorded four-chain1000+1000 tables/figures are labelled.
-- Full original audit/metadata/timings and PNGs unchanged. Manifest records
-  generation commits and SHA256. All data synthetic, not reference expectations.
-- Previous docs build passed both modes. Fresh isolated offline locked group
-  probe resolves Sphinx9.1.0, myst-nb1.4.0, NumPyro0.22.0, ArviZ0.23.0.
-- Browser host unavailable in this environment; structural HTML checks do not
-  claim visual layout QA. Figures were visually inspected in BAYES.4/.5.
-- No new numerical fit, core gate, API, code module, tests/spec or spec changes.
+## Invariants
 
-Remaining: independent review round2, formal maintainer D-033/D-034 disposition
-and release integration/evidence audit. No next feature started.
+- `make_trial` uses the original key (root 20261025, fold 2, stream 0) and the
+  shared generator, so the committed trial is unchanged; NUTS uses stream 1.
+- `run.py` saves before it asserts, so a failing run leaves its evidence.
+  Diagnostic and truth thresholds apply only to the 1000-draw configuration.
+- The page reads `metadata.json` only for the truth and R-hat/ESS; means, SDs,
+  intervals and figures come from the draws.
+
+## Tests and evidence
+
+- `tests/unit/check_bayesian_run.py`: a fresh float64 run passes the four
+  acceptance checks (factor wiring, routes within 1e-12, R-hat/ESS/divergences,
+  truth inside the 95% intervals) and reproduces the committed trial and draws
+  bit for bit.
+- `tests/unit/check_bayesian_notebook.py`: the notebook runs in a fresh kernel
+  with 100 draws per chain.
+
+## Checks run
+
+- Merged tree: `uv run ruff format --check .`, `uv run ruff check .`,
+  `uv run mypy src`: clean; `uv lock --check`: consistent.
+- Gate and optional suites: running at the merge commit; results are recorded
+  in a follow-up commit.
+
+## Unsure about
+
+- The notebook and the page each define the 8-line Kaplan–Meier helper and
+  the model; the duplication is deliberate (readable, editable notebook).
+- The ArviZ removal drops tail ESS from the acceptance checks (D-041).

@@ -1,6 +1,20 @@
 # Deviations and spec questions
 
-## D-035 Lean Bayesian example, outputs and checks
+MNIST merge ID reconciliation (2026-11-05): main already uses D-028 to D-033.
+The MNIST entries are renumbered: D-028 preparation placement is now D-034,
+D-029 reference BFGS roundoff D-035, D-030 CNN initialization D-036, D-031
+concordance timing D-037 and D-032 convergence figure D-038. Historical MNIST
+plans/reviews citing the old IDs refer to these entries; those records remain
+verbatim. Only the entry IDs change; decisions/statuses stay.
+
+Bayesian merge ID reconciliation (2026-11-06): main already uses D-033 to
+D-038 for its CI and MNIST entries. The Bayesian entries are renumbered:
+D-033 prior choice is now D-039, D-034 committed figure format D-040 and
+D-035 lean example D-041. Historical Bayesian plans/reviews citing the old
+IDs refer to these entries; those records remain verbatim. Only the entry IDs
+change; decisions/statuses stay.
+
+## D-041 Lean Bayesian example, outputs and checks
 - Step: BAYES clean-up (2026-11-06), agreed with the maintainer in conversation
 - Spec: 11.3, delegated 02-bayesian-survival-details (Outputs, Acceptance
   checks, Files and commands)
@@ -12,9 +26,9 @@
   the example keeps only `model.py` (`make_trial`, `model`), `run.py` and
   `results/{posterior.npz,metadata.json}`, plus the tutorial notebook.
   - Figure 1 and the prior discussion are dropped (the Normal(0, 5) priors of
-    D-033 stay); figure 5 is dropped because it shows no survjax behaviour.
+    D-039 stay); figure 5 is dropped because it shows no survjax behaviour.
   - Figures 2-4 and the table are computed on the page from the draws; no
-    figure files are committed (supersedes the PNG choice of D-034).
+    figure files are committed (supersedes the PNG choice of D-040).
   - The four acceptance checks stay as plain asserts in `run.py`: factor
     wiring, routes A/B within 1e-12, R-hat < 1.01 / NumPyro ESS > 400 / no
     divergences, and true HR and ΔRMST(5) inside their 95% intervals. Tail
@@ -26,7 +40,7 @@
     bit, with identical diagnostics.
 - Status: open.
 
-## D-034 Committed Bayesian figure format
+## D-040 Committed Bayesian figure format
 - Step: BAYES.d1 review S-001
 - Spec: 11.3 delegates to 02-bayesian-survival-details, Files and commands,
   which illustrates committed fig*.svg files.
@@ -41,7 +55,7 @@ Bayesian merge ID reconciliation (2026-11-01): Bayesian prior-choice D-028
 is now D-033; PH retains D-028. Historical Bayesian plans/reviews citing
 D-028 mean D-033 here. Entry bodies and statuses are preserved.
 
-## D-033 Bayesian demo prior choice
+## D-039 Bayesian demo prior choice
 - Step: BAYES.1 follow-up
 - Spec: 11.3, delegated 02-bayesian-survival-details Model sketch
 - Spec says: log_k ~ Normal(0,0.5), log_b0 ~ Normal(log(10),1.5),
@@ -51,6 +65,127 @@ D-028 mean D-033 here. Entry bodies and statuses are preserved.
   Preserve that choice; align the independent factor-density check and record
   priors in run metadata. Design files remain unchanged. The broader priors
   still need prior-predictive assessment in the later plots step.
+- Status: open.
+
+## D-038 Denser convergence figure and progress record
+
+- Step: MNIST.10 round1 review S-1.
+- Spec section: use-cases/03 "Figures" and "Files".
+- What the spec says: Figure3 shows training/validation NLL by epoch; the
+  listed result files do not name a within-epoch progress.csv.
+- Maintainer request (2026-11-01): "fig3 with the loss curve is uninformative
+  as only 1 epoch; make a version that logs the losses more often so we can
+  actually track the convergence".
+- Maintainer approval: "i'm happy with the figs and teh state of the experiment".
+  This is the authorization for the denser figure; no second figure approval
+  is being requested. The independent reviewer cannot see the conversation.
+- What was done: Figure3 plots completed updates and within-epoch losses;
+  progress.csv preserves those diagnostics alongside unchanged history.csv
+  epoch summaries. Training and checkpoint selection remain unchanged.
+- Update (2026-11-01, MNIST.15): INSTRUCTION.md (2026-11-01) supersedes the dense trace: Figure3 now
+  shows epoch training/validation NLL and progress.csv is removed.
+- Status: open.
+
+## D-037 MNIST concordance timing and compilation
+
+- Step: MNIST.8 independent review round1, S-1.
+- Spec section: use-cases/03 details "References and metrics".
+- What the spec says: measure C run time at n=10k and record it. It does not
+  specify whether compilation is included or a warm timing is required.
+- What was done: retain the existing synchronized per-model C call timing,
+  explicitly labelled as including possible first-call compilation. No timing
+  behavior or full-run artifact has been changed in this metadata step.
+- Proposal: maintainer decides whether the later full-run benchmark should
+  additionally record a warm pass. Asked during review; no warm timing is
+  implemented pending that decision. This question concerns the future full
+  run, not the correctness of the currently labelled timing.
+- Maintainer decision (2026-11-01): "ok just record both", accepting first
+  invocation and warm timings after the explanation of compilation cost.
+  Record a synchronized first invocation and median of3 synchronized warm
+  repetitions using the same compiled public C callable and input cohort.
+- Update (2026-11-01, MNIST.15): INSTRUCTION.md (2026-11-01) supersedes both timing fields: evaluation
+  warms C once, then reports one synchronized warm call as concordance_seconds.
+- Status: open.
+
+## D-036 Initialize the CNN from the intercept fit
+
+- Step: MNIST.5s.
+- Spec section: use-cases/03 details "Network".
+- What the spec says: shared log shape starts at zero; final bias is the log
+  of the observed training mean.
+- Maintainer decision (2026-10-31): "Initialize the CNN too", confirming use
+  of the stock BFGS intercept estimate for both values.
+- What was done: train requires the training-only fitted (log shape, log scale),
+  casts both to float32, and uses them for the shared shape and final bias.
+  CNN accepts initial log scale directly. No global precision setting changes.
+  The spec is unchanged pending maintainer reconciliation.
+- Status: open.
+
+## D-035 MNIST reference BFGS roundoff comparison
+
+- Step: MNIST.5 independent review round2, S-1.
+- Spec section: 11.2; use-cases/03 details "References and metrics".
+- What the spec says: fit the intercept-only Weibull with Optimistix BFGS
+  in float64. It does not specify modifications to its line search.
+- What was done: a private BFGS subclass retains stock recurrence, descent,
+  termination and failure status, with a private Armijo subclass allowing
+  finite full-step trials within4*eps64*(1+abs(f)+abs(f_trial)) only near
+  stationarity and with tiny nonpositive predicted descent. Likelihood,
+  observations and parameters are unchanged. Failed/max-step results raise.
+- Why/proposal: stock search stalled on valid smoke/small training cohorts;
+  the modified comparison converges on required5k/50k cohorts and all60
+  reviewer stress cohorts. Propose accepting this bounded comparison as the
+  reference's BFGS implementation. Maintainer must confirm before metrics;
+  no further solver or spec change is made pending the decision.
+- Maintainer decision (2026-10-31): rejects the custom roundoff optimizer;
+  directs plain optx.BFGS for the intercept estimate. MNIST.5s removes both
+  subclasses and the parameter-precision requirement that motivated them.
+- Update (2026-11-01, MNIST.15): INSTRUCTION.md (2026-11-01) and revision 41 supersede the old precision
+  requirement: stock Optimistix BFGS now runs in float32, with the subsequently
+  maintainer-approved rtol=atol=3e-4 and no custom line search.
+- Status: open.
+
+## D-034 MNIST preparation placement
+
+- Step: MNIST.3 independent review, S-1.
+- Spec section: 11.2 delegates exact demo layout to use-cases/03 details,
+  "Files and commands".
+- What the spec says: data.py covers acquisition/parsing/splits; model.py
+  covers generator use, CNN, loss, training and metrics.
+- What was done: moved unchanged outcome constants/calibration/generation
+  from model.py to data.py so ordinary preparation tests need no Equinox.
+  Both named files remain; no additional module or dependency was added.
+- Proposal: accept preparation in data.py, leaving optional neural code in
+  model.py. The reviewer identified the placement as a maintainer question;
+  no spec change or further placement change has been made. Maintainer
+  decision is required before continuing to the training step.
+- Maintainer decision (2026-10-31): "ok reviewed and agreed; on to next step"
+  accepts the proposed preparation placement and authorizes continuing training.
+  No spec edit requested. Formal status bookkeeping remains maintainer-owned.
+- Status: open.
+
+CI merge ID reconciliation (2026-11-01): incoming main already uses D-030
+for the RMST zero-boundary entry. CI's protected-path guard entry is now
+D-033. Historical CI plans/reviews citing D-030 refer to D-033 here; those
+records remain verbatim. Only the entry ID changes; decisions/statuses stay.
+
+## D-033 Protected-path guard on GitHub pull-request merge refs
+
+- Step: CI.1 independent review, S-1 / F-2 (2026-11-01).
+- Spec section: 10.3 CI verification; working agreement protected-path rules.
+- Spec says: Linux CPU CI is required. The local gate permits selected paths
+  based on meta-* and spectests-* branch prefixes; PR CI checks a detached
+  merge ref, whose branch name is HEAD. The PR branch policy is not stated.
+- Observed: checkout fetches origin/main without creating local main on most
+  CI events, so the unchanged gate skips its guard but prints guard: ok.
+  Creating local main enables the guard, but detached PRs lose exemptions.
+- Proposed: use the PR source branch name for the existing exemptions while
+  testing the merge commit, and create a local main reference for comparison.
+  Maintainer agreed in conversation to source-branch exemptions, merge-commit
+  tests, and an active guard. Implement in the workflow without editing the
+  protected gate: create local main and attach the source name at the merge
+  commit. A source named main maps to ci-pr-main to preserve the baseline;
+  both use ordinary no-exemption rules. Status remains maintainer-owned.
 - Status: open.
 
 Merge ID reconciliation (2026-10-31): both workstreams independently assigned

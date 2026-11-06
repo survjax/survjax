@@ -20,7 +20,7 @@ not convergence evidence for the Bayesian demo. Probe source and exact
 invocation are preserved in REVIEW.md. ArviZ 0.23.0 writes a daily import
 warning stamp under ~/arviz_data; the probe required sandbox escalation.
 ArviZ 0.23.0 was part of the original group for the Bayesian tail ESS and was
-removed in the Bayesian clean-up (D-035); NumPyro's split R-hat and ESS remain.
+removed in the Bayesian clean-up (D-041); NumPyro's split R-hat and ESS remain.
 No loader dependency is required for the standard-library IDX reader.
 
 Install with `uv sync --locked --group examples`; use `uv sync --locked --group docs --group examples` for future demo docs builds.

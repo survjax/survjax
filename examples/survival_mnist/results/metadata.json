@@ -1,0 +1,33 @@
+{
+  "config": "full",
+  "sizes": {
+    "train": 50000,
+    "validation": 10000,
+    "test": 10000
+  },
+  "realized_censored": {
+    "train": 0.4998,
+    "validation": 0.5074,
+    "test": 0.4994
+  },
+  "selected_epoch": 7,
+  "training_seconds": 19.26745608309284,
+  "concordance_seconds": {
+    "cnn": 0.34791250014677644,
+    "intercept": 0.31429812498390675,
+    "oracle": 0.34157008305191994
+  },
+  "versions": {
+    "survjax": "0.0.1.dev0",
+    "jax": "0.11.2",
+    "jaxlib": "0.11.2",
+    "numpy": "2.5.3",
+    "equinox": "0.13.8",
+    "optax": "0.2.8",
+    "optimistix": "0.1.0",
+    "matplotlib": "3.11.2"
+  },
+  "python": "3.12.9",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "cpu": "arm"
+}

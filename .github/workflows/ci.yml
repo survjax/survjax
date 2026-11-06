@@ -1,0 +1,135 @@
+name: CPU CI
+
+# Tier 2 (every push to main, every PR): Linux and macOS, the full suite, one
+# job per dtype mode. Tier 3 (weekly, or manual with full_matrix): Windows too.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+    inputs:
+      full_matrix:
+        description: "Include Windows (tier 3)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cpu-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  # The weekly run skips the matrix when main has not moved since the last
+  # successful weekly run (a skipped run also counts, for the same commit).
+  plan:
+    name: Plan
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+    outputs:
+      run: ${{ steps.plan.outputs.run }}
+    steps:
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run=true
+          if [ "$GITHUB_EVENT_NAME" = schedule ]; then
+            last="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?event=schedule&status=success&per_page=1" \
+              --jq '.workflow_runs[0].head_sha // ""')"
+            if [ "$last" = "$GITHUB_SHA" ]; then
+              run=false
+              echo "Weekly run skipped: $GITHUB_SHA already passed the weekly matrix." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
+  check:
+    needs: plan
+    if: needs.plan.outputs.run == 'true'
+    name: CPU / ${{ matrix.os }} / x64=${{ matrix.x64 }} / Python 3.12
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON((github.event_name == 'schedule' || inputs.full_matrix) && '["ubuntu-24.04","macos-15","windows-2022"]' || '["ubuntu-24.04","macos-15"]') }}
+        x64: ["1", "0"]
+    defaults:
+      run:
+        shell: bash
+    env:
+      JAX_PLATFORMS: cpu
+      PYTEST_WORKERS: "2"
+      SURVJAX_X64_MODES: ${{ matrix.x64 }}
+      SURVJAX_JAX_CACHE: ${{ github.workspace }}/.jax-cache
+      UV_LOCKED: "true"
+    steps:
+      - name: Keep shell scripts in LF format on checkout
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prepare branch references for the protected-path guard
+        env:
+          CI_SOURCE_BRANCH: ${{ github.head_ref }}
+        run: |
+          if ! git show-ref --verify --quiet refs/heads/main; then
+            git branch main refs/remotes/origin/main
+          fi
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            guard_branch="$CI_SOURCE_BRANCH"
+            # Preserve the baseline for PRs from a branch also named main.
+            if [ "$guard_branch" = main ]; then
+              guard_branch=ci-pr-main
+            fi
+            # Attach a name at the merge commit; keep its tree and parents.
+            git switch -c "$guard_branch"
+          fi
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.11.19"
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install locked dependencies and build wheel
+        run: |
+          uv sync --locked --group dev
+          uv build --wheel
+      - name: Record wheel and CPU environment
+        run: |
+          uv run python - <<'PY'
+          import os
+          import platform
+          import sys
+          from pathlib import Path
+
+          import jax
+          import numpy
+
+          wheel, = Path("dist").glob("*.whl")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+              env.write(f"SURVJAX_WHEEL={wheel.resolve()}\n")
+          print(platform.platform(), platform.machine(), sys.version)
+          print(f"JAX {jax.__version__}, NumPy {numpy.__version__}")
+          print(jax.devices())
+          assert all(device.platform == "cpu" for device in jax.devices())
+          PY
+      - name: Restore the JAX compilation cache
+        uses: actions/cache@v4
+        with:
+          path: .jax-cache
+          key: jax-${{ runner.os }}-x64${{ matrix.x64 }}-${{ hashFiles('uv.lock') }}-${{ github.run_id }}
+          restore-keys: |
+            jax-${{ runner.os }}-x64${{ matrix.x64 }}-${{ hashFiles('uv.lock') }}-
+      - name: Run all gates through A10 in this dtype mode
+        env:
+          UV_OFFLINE: "1"
+          UV_PYTHON_DOWNLOADS: never
+        run: bash scripts/check.sh --through A10
