@@ -207,7 +207,7 @@ def test_estimable_fit_acceptance_gates_and_rejected_inference(failure):
 
 def _plot_fixture(path, empty=False):
     raw, summaries = _compact_fixture(path)
-    # Hand laws: true Exp(1); fitted W(k=2,b=3), Exp(.25), both fitted HR=.5.
+    # Hand laws: true W(k=3,b=2), HR=.25; fitted W(2,3)/Exp(.25), HR=.5.
     for r in raw:
         r["theta_0"] = np.log(2) if r["model"] == "weibull" else -np.log(4)
         if r["model"] == "weibull":
@@ -225,7 +225,9 @@ def _plot_fixture(path, empty=False):
     for name, rows in (("replicates.csv", raw), ("performance.csv", summaries)):
         (path / name).write_text(_csv(rows, list(rows[0])))
     (path / "metadata.json").write_text(
-        json.dumps({"dgp": {"shape": 1.0, "baseline_scale": 1.0, "log_hr": 0.0}})
+        json.dumps(
+            {"dgp": {"shape": 3.0, "baseline_scale": 2.0, "log_hr": np.log(0.25)}}
+        )
     )
     write_evidence(path, path)
 
@@ -245,7 +247,10 @@ def test_figures_show_analytical_curves_density_and_one_mcse(
     monkeypatch.setattr(plots, "_save_figure", save)
     plots.write_figures(tmp_path, tmp_path)
     curves = saved["fig1_survival.svg"].axes[0]
-    expected = [lambda t: np.exp(-t), lambda t: np.exp(-t)]
+    expected = [
+        lambda t: np.exp(-((t / 2) ** 3)),
+        lambda t: np.exp(-0.25 * (t / 2) ** 3),
+    ]
     if not empty:
         expected += [
             lambda t: np.exp(-((t / 3) ** 2)),
@@ -264,6 +269,9 @@ def test_figures_show_analytical_curves_density_and_one_mcse(
         )
     if empty:
         assert "unavailable" in curves.get_title()
+    np.testing.assert_array_equal(
+        saved["fig2_sampling.svg"].axes[0].lines[0].get_xdata(), [0.25, 0.25]
+    )
     for patch in saved["fig2_sampling.svg"].axes[0].patches:
         data = patch.get_data()
         np.testing.assert_allclose(

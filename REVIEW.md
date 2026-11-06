@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: round 2/3
 
 # SIM.9a — Three-figure renderer and analytical checks
 
@@ -9,6 +9,18 @@ of check_fit.py. Previous final fb7fb97e09cd31e6ed3241a70a88abf205128ed4
 d2469e0a7e719dbcb276277e6fd80a447626ad4e. The maintainer explicitly approved
 _evidence.py/_plots.py and continuation through figures. No library API,
 generator contract, dependency, protected path or docs/ change.
+
+## Round 1 F-1 fix
+
+The former true-DGP fixture k=b=1 and HR=1 was degenerate. Replace it with
+k=3,b=2,HR=.25, distinct from the fitted W(k=2,b=3),HR=.5 and Exp(.25),HR=.5.
+Check exp(-(t/2)^3) and exp(-.25*(t/2)^3), so losing treatment or swapping
+shape/scale is visible. Also assert the sampling true-HR line at .25.
+Only tests change; no full SVG/data changes or new fitting. Round-2 checks:
+18 passed in 26.85 s; Ruff format/check and mypy src passed. No repeat
+of the unchanged cumulative gate.
+N-1 arm colour distinction will be handled in SIM.9b before delivery;
+N-2 helper extraction is optional and is left as explicit sequential code.
 
 ## Invariants
 
@@ -43,7 +55,7 @@ uv run mypy src
 
 18 passed in 23.76 s; committed provenance 1 passed/7 deselected in .33 s;
 Ruff/mypy pass (150 files / 22 source files). No tolerance change.
-Hand origins: true Exp(1), fitted Weibull k=2,b=3 and Exp(.25), both fitted
+Hand origins: true Weibull k=3,b=2,HR=.25; fitted Weibull k=2,b=3 and Exp(.25), both fitted
 HR=.5. Test all six time-grid curves against closed-form laws, including t=0;
 integrated density is one using accepted=2 rather than attempted=3; bar bounds
 are .5 +/-sqrt(1/8), from p=.5 and R_acc=2. Both ordinary and zero-accepted

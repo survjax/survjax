@@ -1,3 +1,15 @@
+# SIM.9a round 2 — Discriminating true-DGP display fixture (2026-11-06)
+
+Round 1 fix-first F-1 is test-only. Use true k=3,b=2,HR=.25, distinct from
+both fitted laws and with unequal shape/scale; expected survival is
+exp(-(t/2)^3) and exp(-.25*(t/2)^3). Assert the histogram's true-HR line at
+.25 (not log(.25)). No renderer or data change; original full previews remain
+valid. Focused checks and Ruff/mypy, fix-up commit and independent round 2.
+Optional arm-colour N-1 is reserved for SIM.9b before SVG delivery; retain the
+explicit sequential renderer rather than refactor solely for optional N-2.
+
+---
+
 # SIM.9a — Three-figure renderer and analytical display checks (2026-11-06)
 
 Previous final fb7fb97e09cd31e6ed3241a70a88abf205128ed4 (SIM.8c.2 round 1
