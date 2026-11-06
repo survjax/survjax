@@ -636,9 +636,135 @@ on it. Guessed exception types and call shapes are centralised in
 
 - **Checked:** 12.2 (rev 37, "First public release" items 2 and 3), the role
   file's delivery table (A0–A9) and Q-047 (A10).
-- **Open:** the `ProportionalHazards` wrapper with PH closure and the staged
-  RMST have no step. No tests were written; the maintainer should assign
-  steps (for example A11 PH wrapper, A12 staged RMST). Rev 37 item 1 now
-  brings Harrell's C into the first release, which bears on Q-047.
-- **Depends:** none yet.
+- **Resolved** by the maintainer's handoff of 2026-11-06 (spec rev 41):
+  **A11** is `ProportionalHazards` excluding RMST (construction, parameter
+  issues, direct methods and grids, likelihood, PH identities, ordinary-range
+  derivatives, isolation, custom baseline); **A12** is native staged RMST and
+  the PH–RMST integration (section 8.7 and the 12.1 "Staged RMST" row,
+  including `rmst` on a PH wrapper of a custom baseline). Files are
+  `test_a11_*.py` and `test_a12_*.py`.
+- **Depends:** every `step("A11")` and `step("A12")` marker.
 
+## Q-050: constructing `ProportionalHazards` (spec 4.2, 4.4, 4.7; rev 41)
+
+- **Status:** resolved by spec rev 42 (4.4; decision 0053, maintainer
+  confirmation 2026-11-06): both wrappers are registered families with a nested
+  field `baseline` and a parameter field `log_hazard_ratio` / `log_time_ratio`,
+  constructed with keyword arguments only; a positional baseline raises
+  `TypeError`. The 4.4 example now uses keywords. Adds
+  `test_positional_baseline_is_rejected`.
+- **Checked:** 4.2 ("Registered families, built-in and custom, are
+  constructed with keyword arguments only"), 4.4 (example
+  `survjax.ProportionalHazards(base, log_hazard_ratio=X @ beta)`, baseline
+  positional), 4.7 (nested keys "prefixed by the field name and a dot";
+  4.4 names the prefix `baseline.`), 10.2 (wrappers re-exported at top level).
+- **Question:** is the wrapper keyword-only like every registered family, or
+  does it accept the baseline positionally as the 4.4 example shows?
+- **Guess:** the nested field is named `baseline`, the predictor field
+  `log_hazard_ratio`, and `helpers.ph` passes both by keyword, which works
+  under either reading. No test calls the wrapper positionally or asserts that
+  a positional call raises.
+- **Depends:** every A11/A12 test through `helpers.ph`;
+  `test_baseline_and_linear_predictor_are_stored_under_constructor_names`,
+  `test_non_distribution_baseline_is_rejected_naming_the_field` and the
+  `baseline.`-key tests in `test_a11_ph_parameter_issues.py`.
+
+## Q-051: PH hazard limits at `t=0` and `t=+inf` (spec 4.4, 4.5; rev 41)
+
+- **Status:** resolved by spec rev 43 (4.4; decision 0054): the table
+  gains `log_hazard` rows (PH `log h0(t) + eta`, AFT `log h0(t*exp(-eta)) - eta`),
+  evaluated through the baseline's `log_hazard`, so the baseline's 4.5
+  boundary limits carry through. Adds the `log_hazard`/`hazard` boundary tests
+  in `test_a11_ph_direct_methods.py`.
+- **Checked:** 4.4 (the table gives PH formulas for `log_survival` and
+  `log_prob` only; "The direct methods and the likelihood keep the PH
+  formulas"), 4.5 (`log_hazard`/`hazard` at `t=0` and `t=+inf` come from a
+  `log_hazard` override; "the generic default gives NaN" at `+inf` and "no
+  value or gradient guarantee" at `t=0`), 4.4 identity ("every method ...
+  equals the same method of `Weibull(...)`").
+- **Question:** does `ProportionalHazards` override `log_hazard` (as
+  `log h0(t) + eta`, so the baseline's limits pass through), or use the
+  generic default? The identity would need the former at the boundaries.
+- **Guess:** none. `log_hazard`/`hazard` at `t=0` and `t=+inf` are not
+  tested. `log_prob` at `t=0` is tested through the 4.4 formula
+  `log h0(t) + eta + exp(eta) log S0(t)` with the Weibull limits of 4.5
+  (`test_density_limit_at_zero_for_weibull_baseline`); interior hazards are
+  tested everywhere.
+- **Depends:** `test_density_limit_at_zero_for_weibull_baseline`.
+
+## Q-052: factor for the staged RMST derivative tolerances (spec 8.7, 12.1, 13; rev 41)
+
+- **Status:** resolved by spec rev 44 (12.1, 13; decision 0055): the
+  factor is the ordinary 12.1 `rtol` (1e-8 float64, 1e-4 float32); `eta`
+  derivatives have scale `|rmst|`; higher orders use the same log units at
+  scale `|rmst|`. The guess below became the requirement; no assertion changed.
+- **Checked:** 12.1 ("errors in `k*d rmst/dk` and `b*d rmst/db` (or
+  `r*d rmst/dr` for Exponential) have an absolute tolerance scaled by
+  `|rmst|` ... The `tau` derivative uses absolute scale 1. Factors are fixed
+  after measuring `igamma_grad_a`"), 8.7 (review measurements: first
+  derivatives to 2e-13 relative in float64, float32 well-scaled
+  derivatives 1e-6 to 1e-5), 13.
+- **Question:** the factor is an implementation measurement that the spec
+  does not state.
+- **Guess:** factor = the 12.1 ordinary `rtol` (1e-8 float64, 1e-4 float32),
+  so `|theta (got - ref)| <= rtol |rmst|` and `|d/dtau - S(tau)| <= rtol`.
+  This sits two to three orders above the quoted review measurements and was
+  not tuned to any survjax output. The same scale is applied to `eta`
+  (already a log-scale parameter: scale `|rmst|`), and, as my own choice, to
+  second and third derivatives in the same log units (each variable,
+  `tau` included, multiplied by its own value; scale `|rmst|`). If the
+  measured factors are larger, change `helpers.rmst_rtol`.
+- **Depends:** `helpers.assert_log_parameter_derivative`,
+  `helpers.assert_cutoff_derivative`, `assert_higher_derivative` in
+  `test_a12_rmst_derivatives.py`, and the derivative checks in
+  `test_a12_rmst_policy.py`.
+
+## Q-053: must some Weibull shape Hessian raise? (spec 8.7, 12.1; rev 41)
+
+- **Status:** resolved by spec rev 45 (12.1; decision 0056): Weibull
+  Hessians in `k` (alone and through PH) raise `NotImplementedError` or return
+  the correct value, never a wrong value; no invocation is required to raise.
+  The tests already did this; retagged.
+- **Checked:** 8.7 (shape higher derivatives "raise `NotImplementedError` ...
+  Some differentiation orders, or tail branches that do not use `igamma`,
+  may instead return the correct value; they never return a wrong value"),
+  12.1 ("`NotImplementedError` from a Weibull Hessian in `k` (alone and
+  through PH)").
+- **Question:** 12.1 reads as requiring a raise; 8.7 permits a correct
+  value instead. Is an implementation that returns correct shape Hessians
+  everywhere conforming?
+- **Guess:** tests accept either a `NotImplementedError` or a value equal to
+  the mpmath reference (Q-052 scale), for interior, heavy-tail and both power
+  tails, all four mode compositions, alone and through PH. No test requires
+  at least one raise.
+- **Depends:** `test_weibull_shape_hessian_raises_or_is_correct`,
+  `test_weibull_full_hessian_raises_or_is_correct`,
+  `test_ph_weibull_shape_hessian_raises_or_is_correct`.
+
+## Q-054: "not provided" means absent (spec 8.7, 10.2; rev 41)
+
+- **Status:** resolved by spec rev 46 (8.7; decision 0057): "not
+  provided" means absent (`AttributeError`, no stubs; `SummaryOptions` and
+  `SummaryInfo` not exported from any public module); a non-broadcasting `tau`
+  raises `TypeError`; `tau` follows the 4.5 conversion and dtype rules. Adds
+  `test_cutoff_that_does_not_broadcast_is_rejected`,
+  `test_cutoff_with_a_non_numeric_dtype_is_rejected`,
+  `test_boolean_cutoff_is_rejected_during_tracing` and
+  `test_float64_cutoff_converts_without_warning_in_32_bit_mode`; the absence
+  test now expects `AttributeError` on access.
+- **Checked:** 8.7 ("`rmst_with_info`, `SummaryOptions` and `SummaryInfo`
+  are not provided"; "`sample` and `inverse_cumulative_hazard` are not
+  provided"; "There is no `rmst_grid`"), contrasted with "raise
+  `NotImplementedError`" for `mean`, `median`, `quantile`; 10.2 ("Result and
+  configuration types stay discoverable in their modules").
+- **Guess:** absent attributes: no such method on Exponential, Weibull or PH
+  instances; no `SummaryOptions`/`SummaryInfo` at top level, in
+  `survjax.diagnostics` or `survjax.distributions` (when importable). A stub
+  raising `NotImplementedError` would fail these tests.
+- **Not tested:** the error type for a `tau` that does not broadcast against
+  `batch_shape` (8.7 says only "ordinary trailing-axis rules"; 4.1's
+  `TypeError` is stated for direct methods), and the `tau` dtype rules
+  (boolean or complex `tau`).
+- **Depends:** `test_absent_first_release_methods`,
+  `test_summary_configuration_types_are_not_provided`,
+  `test_there_is_no_rmst_grid`.
