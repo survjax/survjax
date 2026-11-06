@@ -32,3 +32,25 @@ REVIEW.md records exact evidence. Independent review invocation and its one
 permitted no-round retry both hit the reviewer five-hour limit; no round file
 or verdict exists. Stop with independent review pending; do not start another
 implementation step. Metadata-only handoff records this external limitation.
+
+## Round-1 follow-up — F-1, F-2, N-1
+
+Maintainer approved the proposed fixes and will merge main into this branch
+later. B-1 remains deferred to that maintainer action; no merge/rebase here.
+Keep this within DOCS-WORKFLOW.1, no new API, dependency or protected edit.
+
+- F-1: move agent-specific browser, screenshot/review and sandbox escalation
+  guidance from docs/index.md to root CONTRIBUTING_DOCS.md. Keep public build,
+  identity, cache and ordinary viewing instructions; retain the public offline
+  MathJax limitation. No numerical or runner changes.
+- F-2: extend tests/tooling/test_build_docs.py with a pre-dirtied tracked file
+  that changes again during x64, keeping porcelain status unchanged. Verify
+  failed certification and detect a mutant with fingerprint checking removed.
+- N-1: log the stub's dtype calls under ignored bin/; assert exactly 0 then 1
+  on success and detect an x64-only-loop mutant.
+- Validate focused tooling tests in both dtype processes, the two mutants in
+  temporary fixtures (not the source runner), Ruff/mypy/bash/whitespace, direct
+  two-dtype scripts/build_docs.sh and changed-topic rendered inspection.
+  Record exact results in REVIEW.md, commit separately, request independent
+  review round 2/3, then stop under the skill verdict. No unrelated numerical
+  rerun or new feature step; B-1 may still require a maintainer verdict.

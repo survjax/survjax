@@ -104,27 +104,8 @@ path to avoid a different worktree's site, and reload after building. Local
 `file:///absolute/path/.../index.html` is sufficient for routine checks; no
 preview server or Quarto command is needed for this Sphinx/MyST-NB site.
 
-For agent inspection, use the currently documented computer-use APIs. Discover
-available browser surfaces first. If discovery reports the browser access host
-unavailable, native Chrome may still work: select `com.google.Chrome` with
-`cua.getApp`, read the returned documentation, open a new tab and navigate to
-the absolute local HTML URL using those APIs. Do not assume that either browser
-host access or native Chrome is available on every host. Close only the tab
-you created and record the actual capability failure if neither works.
-
-Inspect navigation, tables, code outputs and equations in both dtypes. Reading
-HTML, checking links or reading the accessibility tree verifies structure and
-content; capture and examine screenshots to assess layout, clipping and math
-rendering. Record pages inspected, checkout/build identity, screenshot findings
-and limits in the review. MathJax currently loads from a CDN, so offline HTML
-does not guarantee rendered equations.
-
-If a build reproduces a sandbox Jupyter/psutil process-inspection or child
-cleanup failure, retain its exact error and request the narrowly approved
-`scripts/build_docs.sh` escalation, invoking the script directly. Writable
-runtime directories do not repair process-inspection restrictions. Escalation
-availability depends on the host. Historical cleanup errors are not evidence
-that the current build failed; record the current command and outcome.
+MathJax currently loads from a CDN, so offline HTML does not guarantee
+rendered equations.
 
 For an editable notebook, run `uv run --locked --group docs jupyter lab
 docs/playground.ipynb`. JupyterLab uses the same locked environment as the

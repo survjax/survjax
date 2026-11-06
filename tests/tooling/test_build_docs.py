@@ -34,6 +34,7 @@ for name in JUPYTER_RUNTIME_DIR IPYTHONDIR MPLCONFIGDIR; do
   case "${!name}" in "$PWD"/docs/_build/*) ;; *) exit 7 ;; esac
 done
 test "$SURVJAX_EXAMPLES_DATA" = /explicit/mnist
+echo "$JAX_ENABLE_X64" >> bin/dtype-calls
 if [ "$JAX_ENABLE_X64" = 1 ]; then
   case "${ACTION-}" in
     fail) exit 9 ;;
@@ -68,6 +69,7 @@ def test_success_records_checkout_and_dirty_tree(checkout):
     assert result.returncode == 0, result.stderr
     record = (checkout / "docs/_build/build-identity.txt").read_text()
     assert record.endswith("state: success\n")
+    assert (checkout / "bin/dtype-calls").read_text().splitlines() == ["0", "1"]
     for field in ("commit:", "started_utc:", "completed_utc:", "dtypes: x32 x64"):
         assert field in record
     assert f"checkout: {checkout}" in record
@@ -80,6 +82,25 @@ def test_unsuccessful_rebuild_invalidates_old_success(checkout, action):
     assert run_build(checkout).returncode == 0
     result = run_build(checkout, action)
     assert result.returncode != 0
+    record = (checkout / "docs/_build/build-identity.txt").read_text()
+    assert "state: success" not in record
+    assert "state: failed" in record
+
+
+def test_further_edit_to_already_dirty_file_invalidates_success(checkout):
+    tracked = checkout / ".gitignore"
+    tracked.write_text(tracked.read_text() + "# dirty before build\n")
+    assert run_build(checkout).returncode == 0
+    status_before = subprocess.check_output(
+        ["git", "status", "--porcelain"], cwd=checkout, text=True
+    )
+    result = run_build(checkout, "edit")
+    status_after = subprocess.check_output(
+        ["git", "status", "--porcelain"], cwd=checkout, text=True
+    )
+    assert status_before == status_after
+    assert result.returncode != 0
+    assert "Checkout changed during build" in result.stderr
     record = (checkout / "docs/_build/build-identity.txt").read_text()
     assert "state: success" not in record
     assert "state: failed" in record

@@ -1,4 +1,62 @@
-Independent review: round 1/3 requested; pending (no round written)
+Independent review: round 2/3
+
+## Round-1 fixes for round 2
+
+Round 1 on 11b19c3 eventually completed with VERDICT: maintainer. The review
+is ../review/slices/DOCS-WORKFLOW.1.md. The prior usage-limit section below
+is historical. Maintainer approved F-1/F-2/N-1 fixes and explicitly deferred
+merging main into this branch until later. B-1 remains open for that merge;
+this round requests review of the fixes on the existing base, not approval
+of integration with main. No merge/rebase/protected edits or runner changes.
+
+Read PLAN.md's follow-up, CONTRIBUTING_DOCS.md, docs/index.md Local commands,
+then tests/tooling/test_build_docs.py. Original invariants/evidence below still
+apply. New evidence maps directly to findings:
+
+- F-1: agent computer-use, native Chrome fallback, screenshot/review guidance
+  and narrowly scoped escalation now live in root CONTRIBUTING_DOCS.md,
+  outside the Sphinx source tree. Public docs retain build/cache/identity,
+  ordinary browser viewing, offline MathJax and JupyterLab information.
+- F-2: test_further_edit_to_already_dirty_file_invalidates_success dirties
+  .gitignore before a successful baseline build, changes it again in x64,
+  verifies identical porcelain status before/after, and asserts failure/no
+  success. This isolates the fingerprint check from status detection.
+- N-1: stub uv logs its actual dtype invocations in ignored bin/dtype-calls;
+  successful-build test asserts exactly ["0", "1"].
+
+Validation on 2026-11-06 (this worktree, no escalation for these checks):
+
+- `JAX_ENABLE_X64=1 uv run --locked --group test pytest -q tests/tooling/test_build_docs.py --durations=5`:
+  5 passed in 4.76s, slowest call 0.51s.
+- Same command with JAX_ENABLE_X64=0: 5 passed in 2.62s, slowest call 0.52s.
+- `uv run --locked --group test python -` with temporary-checkout mutation
+  harness: M2 replaces only fingerprint comparison with false; the F-2 test
+  fails as expected. M4 replaces dtype loop with x64 only; the success test
+  fails as expected. Harness exits 0 with both mutants caught. No mutation
+  of source runner, tests or reviewer worktree, no persistent test assets.
+- `uv run ruff format --check .`: 166 already formatted;
+  `uv run ruff check .`: All checks passed; `uv run mypy src`: no issues
+  in 22 source files; `bash -n scripts/build_docs.sh` and `git diff --check`:
+  exit 0. No shellcheck or unrelated numerical rerun.
+- Direct `scripts/build_docs.sh`: exit 0, both strict fresh dtype builds
+  succeeded without escalation. Identity: this checkout, 11b19c3 dirty with
+  planned changes, 14:36:51Z–14:39:08Z, x32/x64, final state success.
+  Known IPKernelApp TCP warnings only; no Sphinx error or cleanup failure.
+  Warm default MNIST cache; no cold-cache claim.
+- Browser discovery again reports "Browsers: Error: The browser access host
+  is unavailable". Native Chrome worked. Opened one new tab using absolute
+  this-checkout local URLs, refreshed AX state after concurrent user activity,
+  inspected AX content and screenshots for x32 index.html#local-commands and
+  the x64 section's lower paragraphs. Readable wrapping/navigation, no overlap
+  or horizontal clipping at 1920x1003; agent instructions absent, public math
+  limitation retained. Closed only our tab. No full-site/math rendering audit.
+
+Current follow-up starts at 11b19c3; previous completed work/worktree base is
+still e6b3f9e. Remaining: maintainer integration with main (B-1) and review of
+that resulting tree; later feature candidates below are unstarted. Stop after
+this round's verdict; this fix-up does not claim B-1 resolved.
+
+---
 
 # DOCS-WORKFLOW.1 — Local build provenance and inspection
 
