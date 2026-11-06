@@ -1,303 +1,271 @@
-"""Batched Weibull PH simulations with summary and replicate CSV exports."""
+"""Run the Weibull demo: simulate, fit in batches, summarize and plot."""
 
 import argparse
+import json
+import os
+import platform
+import subprocess
+from functools import partial
+from importlib.metadata import version
 from pathlib import Path
 from time import perf_counter
-from typing import Literal, NamedTuple
 
 import jax
 import jax.numpy as jnp
 import numpy as np
-from jax.typing import ArrayLike
+import pandas as pd
 
 import survjax
 
 if __package__:
     from . import study
-    from ._evidence import write_evidence
     from ._plots import write_figures
-    from ._results import capture_metadata, write_metadata, write_results
-    from .study import FitResult, fit_replicate, generate_weibull
 else:
     import study
-    from _evidence import write_evidence
     from _plots import write_figures
-    from _results import capture_metadata, write_metadata, write_results
-    from study import FitResult, fit_replicate, generate_weibull
 
 ROOT_SEED = 20261025
 TRUE_LOG_HR = float(np.log(0.7))
 
 
-def prepare_scenario(
-    scenario_index: ArrayLike, n: int, replicates: int, censor_limit: ArrayLike
-) -> tuple[survjax.SurvivalData, jax.Array]:
-    """Generate and host-validate scalar or same-size (C,R,N) scenarios.
+@partial(jax.jit, static_argnames=("model",))
+def fit_batch(data, arm, *, model):
+    """Fit data with shape (censoring limit, trial, patient)."""
 
-    Args:
-        scenario_index: Nonnegative integer index or (C,) indices in n/limit order.
-        n: Positive even cohort size, half per arm.
-        replicates: Positive number R of independently split replicate keys.
-        censor_limit: Positive finite c or matching (C,) limits, prespecified.
-    Returns:
-        Validated (R,N) or (C,R,N) exact/right data and shared (N,) arm.
-    Raises:
-        ValueError: Invalid configuration or float64 is disabled.
-        survjax.InvalidDataError: Generated observations fail host validation.
-    """
-    if not jax.config.x64_enabled:
-        raise ValueError("simulation scenarios require JAX_ENABLE_X64=1")
-    indices, limits = np.asarray(scenario_index), np.asarray(censor_limit)
-    if indices.ndim > 1 or indices.shape != limits.shape or not indices.size:
-        raise ValueError(
-            "indices and limits must be matching scalars or nonempty vectors"
-        )
-    if n < 2 or n % 2 or replicates < 1:
-        raise ValueError("require even n>=2 and replicates>=1")
-    if not np.issubdtype(indices.dtype, np.integer) or np.any(indices < 0):
-        raise ValueError("require integer indices>=0")
-    if not np.all(np.isfinite(limits) & (limits > 0)):
-        raise ValueError("censor_limit must be positive and finite")
-    arm = jnp.repeat(jnp.arange(2), n // 2)
-    lp = TRUE_LOG_HR * arm
+    def fit(d):
+        return study.fit_replicate(d, arm, model=model)
 
-    def generate(index, limit):
-        key = jax.random.fold_in(jax.random.key(ROOT_SEED), index)
-        keys = jax.random.split(key, replicates)
-        return jax.vmap(
-            lambda k: generate_weibull(
-                k, study.DGP_SHAPE, study.DGP_SCALE, limit, log_hazard_ratio=lp
-            )
-        )(keys)
-
-    draws = jax.vmap(generate)(jnp.atleast_1d(indices), jnp.atleast_1d(limits))
-    data = survjax.SurvivalData(draws.time, event=draws.event)
-    if indices.ndim == 0:
-        data = data[0]
-    data.issues.raise_if_invalid()
-    return data, arm
+    return jax.vmap(jax.vmap(fit))(data)
 
 
-def _fit_batch(
-    data: survjax.SurvivalData,
-    arm: jax.Array,
-    *,
-    model: Literal["weibull", "exponential"],
-) -> FitResult:
-    """Fit prevalidated float64 (R,N) or (C,R,N) exact/right data.
-
-    Shared arm has shape (N,), model is static, output has leading R or C/R.
-    Model/precision errors propagate from fit_replicate.
-    """
-    fit = jax.vmap(lambda d: fit_replicate(d, arm, model=model))
-    return jax.vmap(fit)(data) if len(data.shape) == 3 else fit(data)
-
-
-fit_batch = jax.jit(_fit_batch, static_argnames=("model",))
-
-
-def failure_columns(fits: FitResult) -> dict[str, jax.Array]:
-    """Return (R,) or (C,R) independent reasons and the unique failed mask.
-
-    Args:
-        fits: Reviewed fit_replicate results stacked across R replicates.
-    Returns:
-        Boolean columns failed, solver, nonfinite, gradient, hessian and
-        unestimable. Reasons overlap (D-033); unattempted optimizer checks are
-        inapplicable to unestimable rows. Overall failed is authoritative.
-    """
-    eligible = fits.estimable
-    finite = jnp.all(jnp.isfinite(fits.theta), axis=-1) & jnp.isfinite(fits.objective)
-    score_ok = jnp.max(jnp.abs(fits.gradient), axis=-1) < study.GRADIENT_TOLERANCE
-    return {
-        "failed": ~fits.accepted,
-        "solver": eligible & ~fits.solver_success,
-        "nonfinite": eligible & ~finite,
-        "gradient": eligible & ~score_ok,
-        "hessian": eligible & ~fits.hessian_ok,
-        "unestimable": ~eligible,
+def summarize(fits):
+    """Summarize one scenario on the host, retaining all failure reasons."""
+    finite = np.all(np.isfinite(fits.theta), axis=-1) & np.isfinite(fits.objective)
+    reasons = {
+        "solver": fits.estimable & ~fits.solver_success,
+        "nonfinite": fits.estimable & ~finite,
+        "gradient": fits.estimable
+        & ~(np.max(np.abs(fits.gradient), axis=-1) < study.GRADIENT_TOLERANCE),
+        "hessian": fits.estimable & ~fits.hessian_ok,
+        "unestimable": ~fits.estimable,
     }
-
-
-def failure_counts(fits: FitResult) -> dict[str, jax.Array]:
-    """Count along the last replicate axis, retaining any scenario axes.
-
-    Args:
-        fits: (R,...) result fields from one model, including unestimable rows.
-    Returns:
-        JAX scalar or (C,) totals; reasons may sum above the unique failed total.
-        Attempted counts requested replicate assessments, including unestimable
-        ones; it is not the number of physical optimizer executions under vmap.
-    """
-    columns = failure_columns(fits)
-    # Fixed field schema is traced/unrolled; reductions batch all scenarios.
-    counts = {name: jnp.sum(mask, axis=-1) for name, mask in columns.items()}
-    return {
-        "attempted": jnp.full(fits.accepted.shape[:-1], fits.accepted.shape[-1]),
-        "accepted": jnp.sum(fits.accepted, axis=-1),
-        **counts,
+    gamma = fits.theta[fits.accepted, -1]
+    se = fits.log_hr_se[fits.accepted]
+    count = len(gamma)
+    empirical_se = gamma.std(ddof=1) if count > 1 else np.nan
+    row = {
+        "attempted": len(fits.accepted),
+        "accepted": count,
+        "failed": int((~fits.accepted).sum()),
+        **{name: int(mask.sum()) for name, mask in reasons.items()},
+        "bias": gamma.mean() - TRUE_LOG_HR if count else np.nan,
+        "bias_mcse": empirical_se / np.sqrt(count) if count else np.nan,
+        "empirical_se": empirical_se,
+        "empirical_se_mcse": empirical_se / np.sqrt(2 * (count - 1))
+        if count > 1
+        else np.nan,
+        "model_se": np.sqrt(np.mean(se**2)) if count else np.nan,
     }
-
-
-def performance(fits: FitResult, truth: float = TRUE_LOG_HR) -> dict[str, jax.Array]:
-    """Summarize accepted log-HR fits, reducing only the last replicate axis.
-
-    Args:
-        fits: Reviewed (R,...) or (C,R,...) fields; only accepted fits contribute.
-        truth: True log hazard ratio, scalar.
-    Returns:
-        Scalar or (C,) estimates/MCSEs. SD uses ddof=1; model SE is RMS.
-        Zero accepted gives NaN statistics; fewer than two gives NaN SD and
-        SD/bias MCSE. No model-SE MCSE is reported. Counts remain separate.
-    """
-    accepted = fits.accepted
-    dtype = fits.theta.dtype
-    count = jnp.sum(accepted.astype(dtype), axis=-1)
-    denominator = jnp.where(count > 0, count, 1.0)
-    # spec 7.2: replace rejected NaNs before subtracting, squaring or dividing.
-    gamma = jnp.where(accepted, fits.theta[..., -1], 0.0)
-    se = jnp.where(accepted, fits.log_hr_se, 1.0)
-    mean = jnp.sum(gamma, axis=-1) / denominator
-    centered = jnp.where(accepted, gamma - mean[..., None], 0.0)
-    variance = jnp.sum(centered**2, axis=-1) / jnp.where(count > 1, count - 1, 1.0)
-    sd = jnp.sqrt(jnp.where(count > 1, variance, 1.0))
-    model_variance = jnp.sum(jnp.where(accepted, se**2, 0.0), axis=-1) / denominator
-    result = {
-        "bias": jnp.where(count > 0, mean - truth, jnp.nan),
-        "bias_mcse": jnp.where(count > 1, sd / jnp.sqrt(denominator), jnp.nan),
-        "empirical_se": jnp.where(count > 1, sd, jnp.nan),
-        "empirical_se_mcse": jnp.where(
-            count > 1,
-            sd / jnp.sqrt(jnp.where(count > 1, 2 * (count - 1), 1.0)),
-            jnp.nan,
-        ),
-        "model_se": jnp.where(count > 0, jnp.sqrt(model_variance), jnp.nan),
-    }
-    covered = (gamma - 1.96 * se <= truth) & (truth <= gamma + 1.96 * se)
-    rejects = jnp.abs(gamma / se) > 1.96
-    # Two static output fields are unrolled at trace time, not scenario dispatch.
-    for name, indicator in (("coverage", covered), ("power", rejects)):
-        fraction = jnp.sum((accepted & indicator).astype(dtype), axis=-1) / denominator
-        result[name] = jnp.where(count > 0, fraction, jnp.nan)
-        result[name + "_mcse"] = jnp.where(
-            count > 0, jnp.sqrt(fraction * (1 - fraction) / denominator), jnp.nan
+    for name, indicator in (
+        ("coverage", np.abs(gamma - TRUE_LOG_HR) <= 1.96 * se),
+        ("power", np.abs(gamma / se) > 1.96),
+    ):
+        fraction = indicator.mean() if count else np.nan
+        row[name] = fraction
+        row[name + "_mcse"] = (
+            np.sqrt(fraction * (1 - fraction) / count) if count else np.nan
         )
-    return result
+    return row, reasons
 
 
-_summarize = jax.jit(
-    lambda fits: (failure_counts(fits), performance(fits), failure_columns(fits))
-)
+def run_config(config: str, out: Path) -> None:
+    """Run smoke (80 fits) or full (12,000 fits) and save tables and figures.
 
-
-class ModelRun(NamedTuple):
-    """One model's retained fits, counts, performance and synchronized timings."""
-
-    fits: FitResult
-    failures: dict[str, jax.Array]
-    performance: dict[str, jax.Array]
-    first_call_seconds: float
-    warm_seconds: float
-    fits_per_second: float
-    failure_masks: dict[str, jax.Array]
-
-
-class ScenarioRun(NamedTuple):
-    """One scenario's prespecified/realized censoring and both models."""
-
-    censor_limit: ArrayLike
-    realized_censoring: jax.Array
-    models: dict[str, ModelRun]
-
-
-def _time_model(
-    data: survjax.SurvivalData, arm: jax.Array, model: Literal["weibull", "exponential"]
-) -> tuple[FitResult, float, float]:
-    """Synchronize preparation, first call, and each of three warm calls."""
-    jax.block_until_ready((data, arm))
-    elapsed = []
-    # Host wall-clock measurements require four synchronized dispatches.
-    for _ in range(4):
-        start = perf_counter()
-        fits = fit_batch(data, arm, model=model)
-        jax.block_until_ready(fits)
-        elapsed.append(perf_counter() - start)
-    return fits, elapsed[0], float(np.median(elapsed[1:]))
-
-
-def run_scenario(
-    scenario_index: ArrayLike, n: int, replicates: int, censor_limit: ArrayLike
-) -> ScenarioRun:
-    """Prepare, fit and summarize both models across all same-size scenarios.
-
-    Args:
-        scenario_index: Nonnegative scalar or (C,) prescribed scenario indices.
-        n: Positive even cohort size N.
-        replicates: Positive R per scenario; throughput numerator is C*R (or R).
-        censor_limit: Scalar or (C,) positive limits prespecified for each scenario.
-    Returns:
-        Censoring/model records with (R,...) or (C,R,...) raw fit fields.
-        First-call seconds include compilation if not already cached; warm time
-        is median(3). Grouped calls share batch timings, not individual timings.
-    Raises:
-        ValueError: Invalid configuration or precision (prepare_scenario).
-        survjax.InvalidDataError: Generated observations fail host validation.
-    """
-    data, arm = prepare_scenario(scenario_index, n, replicates, censor_limit)
-    realized = jnp.mean((~data.exact).astype(data.lower.dtype), axis=(-2, -1))
-    models = {}
-    # Different parameter dimensions require distinct model graphs; both batch C/R.
-    for model in ("weibull", "exponential"):
-        fits, first, warm = _time_model(data, arm, model)
-        counts, measures, masks = _summarize(fits)
-        models[model] = ModelRun(
-            fits, counts, measures, first, warm, fits.accepted.size / warm, masks
-        )
-    return ScenarioRun(censor_limit, realized, models)
-
-
-def run_config(config: Literal["smoke", "full"], out: Path) -> None:
-    """Run the grid, retain raw diagnostics and write compact evidence/figures.
-
-    Args:
-        config: Smoke uses n=100,R=20; full uses n=100,300,1000,R=1000.
-        out: Output directory; CSVs, metadata, compact evidence and SVGs are replaced.
-    Raises:
-        ValueError: Unknown configuration or float64 disabled.
-        OSError: Output cannot be written. Validation errors propagate.
+    Requires float64. The output directory must be new or empty. All numerical
+    fitting is batched; Python loops vary sample size/model and format results.
     """
     if config not in ("smoke", "full"):
         raise ValueError("config must be smoke or full")
     if not jax.config.x64_enabled:
-        raise ValueError("simulation configurations require JAX_ENABLE_X64=1")
+        raise ValueError("enable float64 before running this study")
     out.mkdir(parents=True, exist_ok=True)
-    snapshot = capture_metadata(config, ROOT_SEED, TRUE_LOG_HR)
+    if any(out.iterdir()):
+        raise ValueError("choose a new or empty output directory")
     sizes, replicates = ((100,), 20) if config == "smoke" else ((100, 300, 1000), 1000)
     limits = (50.0, 20.0)
-    batches = []
-    # Changing n changes array shapes and requires a separate compiled batch.
+    rows, failures, illustration, samples = [], [], [], []
     for group, n in enumerate(sizes):
-        indices = np.arange(group * len(limits), (group + 1) * len(limits))
-        scenario = jax.device_get(
-            run_scenario(indices, n, replicates, np.array(limits))
+        arm = jnp.repeat(jnp.arange(2), n // 2)
+
+        def generate(index, limit, arm=arm):
+            keys = jax.random.split(
+                jax.random.fold_in(jax.random.key(ROOT_SEED), index), replicates
+            )
+            return jax.vmap(
+                lambda key: study.generate_weibull(
+                    key,
+                    study.DGP_SHAPE,
+                    study.DGP_SCALE,
+                    limit,
+                    log_hazard_ratio=TRUE_LOG_HR * arm,
+                )
+            )(keys)
+
+        draws = jax.vmap(generate)(
+            jnp.arange(2 * group, 2 * group + 2), jnp.array(limits)
         )
-        batches.append((indices, n, scenario))
-    write_results(out, limits, batches)
-    write_metadata(out, snapshot, limits, batches)
-    write_evidence(out, out)
+        data = survjax.SurvivalData(draws.time, event=draws.event)
+        data.issues.raise_if_invalid()
+        jax.block_until_ready(data)
+        models = {}
+        for model in ("weibull", "exponential"):
+            elapsed = []
+            for _ in range(4):
+                start = perf_counter()
+                fits = fit_batch(data, arm, model=model)
+                jax.block_until_ready(fits)
+                elapsed.append(perf_counter() - start)
+            models[model] = jax.device_get(fits)
+            for level, limit in enumerate(limits):
+                fit = jax.tree.map(lambda x, level=level: x[level], models[model])
+                measures, reasons = summarize(fit)
+                scenario = 2 * group + level
+                rows.append(
+                    {
+                        "scenario": scenario,
+                        "n": n,
+                        "censor_limit": limit,
+                        "realized_censoring": float(
+                            (~np.asarray(data.exact[level])).mean()
+                        ),
+                        "model": model,
+                        **measures,
+                        "timed_scenarios": 2,
+                        "first_call_seconds": elapsed[0],
+                        "warm_seconds": float(np.median(elapsed[1:])),
+                        "fits_per_second": 2
+                        * replicates
+                        / float(np.median(elapsed[1:])),
+                    }
+                )
+                samples.append((scenario, model, np.exp(fit.theta[fit.accepted, -1])))
+                for i in np.flatnonzero(~fit.accepted):
+                    failures.append(
+                        {
+                            "scenario": scenario,
+                            "model": model,
+                            "replicate": int(i),
+                            "failed": 1,
+                            **{name: int(mask[i]) for name, mask in reasons.items()},
+                            "max_abs_gradient": float(np.max(np.abs(fit.gradient[i]))),
+                            "log_hr": float(fit.theta[i, -1]),
+                        }
+                    )
+        if n == (300 if config == "full" else 100):
+            common = np.flatnonzero(
+                models["weibull"].accepted[1] & models["exponential"].accepted[1]
+            )
+            if len(common):
+                for model, fits in models.items():
+                    theta = fits.theta[1, common[0]]
+                    illustration.append(
+                        {
+                            "scenario": 2 * group + 1,
+                            "model": model,
+                            "replicate": int(common[0]),
+                            "parameter_count": len(theta),
+                            **{
+                                f"theta_{i}": float(value)
+                                for i, value in enumerate(theta)
+                            },
+                        }
+                    )
+
+    pd.DataFrame(rows).to_csv(out / "performance.csv", index=False)
+    failure_fields = "scenario model replicate failed solver nonfinite gradient hessian unestimable max_abs_gradient log_hr".split()
+    pd.DataFrame(failures, columns=failure_fields).to_csv(
+        out / "failures.csv", index=False
+    )
+    pd.DataFrame(
+        illustration,
+        columns="scenario model replicate parameter_count theta_0 theta_1 theta_2".split(),
+    ).to_csv(out / "illustration.csv", index=False)
+    pooled = np.concatenate([values for _, _, values in samples])
+    low = np.floor(pooled.min() / 0.025) * 0.025 if len(pooled) else 0.0
+    high = (
+        max(low + 0.025, np.ceil(pooled.max() / 0.025) * 0.025)
+        if len(pooled)
+        else 0.025
+    )
+    # Include extrema even if floating-point rounding places a bin edge inward.
+    edges = np.arange(low - 0.025, high + 0.05, 0.025)
+    histogram = {
+        "edges": edges.tolist(),
+        "series": [
+            {
+                "scenario": s,
+                "model": m,
+                "accepted": len(values),
+                "counts": np.histogram(values, edges)[0].tolist(),
+            }
+            for s, m, values in samples
+        ],
+    }
+    (out / "sampling_histograms.json").write_text(json.dumps(histogram))
+    cpu = (
+        subprocess.check_output(
+            ["sysctl", "-n", "machdep.cpu.brand_string"], text=True
+        ).strip()
+        if platform.system() == "Darwin"
+        else platform.processor()
+    )
+    metadata = {
+        "configuration": config,
+        "seed": ROOT_SEED,
+        "seed_scheme": "fold_in(scenario), split(replicates), split(event,censor)",
+        "sizes": sizes,
+        "replicates": replicates,
+        "censoring_limits": limits,
+        "dgp": {
+            "shape": study.DGP_SHAPE,
+            "baseline_scale": study.DGP_SCALE,
+            "log_hr": TRUE_LOG_HR,
+        },
+        "fitting": {
+            "solver": "BFGS",
+            "rtol": study.BFGS_RTOL,
+            "atol": study.BFGS_ATOL,
+            "max_steps": study.BFGS_MAX_STEPS,
+            "gradient_tolerance": study.GRADIENT_TOLERANCE,
+        },
+        "runtime": {
+            "cpu_model": cpu,
+            "platform": platform.platform(),
+            "x64_enabled": True,
+            "thread_environment": {
+                name: os.environ.get(name)
+                for name in (
+                    "XLA_FLAGS",
+                    "OMP_NUM_THREADS",
+                    "OPENBLAS_NUM_THREADS",
+                    "MKL_NUM_THREADS",
+                )
+            },
+            "packages": {
+                name: version(name)
+                for name in ("jax", "numpy", "optimistix", "survjax")
+            },
+        },
+        "timing": "Both censoring limits together; first call and median of three warm calls, synchronized",
+    }
+    (out / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
     write_figures(out, out)
 
 
-def main(argv: list[str] | None = None) -> None:
-    """Run the --config {smoke,full} --out DIR command in float64."""
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", choices=("smoke", "full"), required=True)
+    parser.add_argument("--config", choices=("smoke", "full"), default="full")
     parser.add_argument("--out", type=Path, required=True)
-    args = parser.parse_args(argv)
-    # Common demo convention: the runner selects x64; imports never change it.
+    args = parser.parse_args()
     jax.config.update("jax_enable_x64", True)
     run_config(args.config, args.out)
-
-
-if __name__ == "__main__":
-    main()

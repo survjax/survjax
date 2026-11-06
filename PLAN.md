@@ -1,3 +1,27 @@
+# SIM.notebook-cleanup — Interactive tutorial and lean demo
+
+Start/previous final: 8349e7f; original worktree base: 8757c0f.
+Preserve the maintainer's sample-method sentence. Add an executable notebook
+following the docs, with editable smoke/full configuration and freshly computed
+plots/results; add download/launch links and a short example README.
+
+The requested major cleanup removes the separate raw-CSV exporter, evidence
+reducer, six extensive check modules and stale dependency-probe document.
+Replace them with a compact pandas-based runner, retain the statistical fitter
+and the generator/calibration functions shared with MNIST/Bayes, and trim
+plotting to what the tutorial shows. Keep recorded failure reasons, performance
+measures, seeds, settings and timings required by use-case 01; no public API,
+dependencies or numerical model changes. Existing saved results remain usable.
+
+This authorized cleanup exceeds 300 changed lines because of deletions; split
+source cleanup from notebook/docs delivery in commits. Add two focused checks
+for the retained statistical behavior; execute a fresh smoke run, compare a
+full run against saved summaries, restart/run the notebook, and build both docs
+modes. No full suites or independent reviewer (existing waiver). No spec change
+is needed: the implementation loses audit infrastructure, not study outputs.
+
+---
+
 # SIM.docs-generation — Expose simulated observations
 
 Start/previous final: e33d4b5; original worktree base: 8757c0f.

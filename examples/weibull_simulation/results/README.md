@@ -25,19 +25,18 @@ successful solver status and positive-definite Hessians. They stay rejected.
 Weibull coverage at n=1000 is 94.26% and 93.60%, both within three observed
 Monte Carlo SEs of 95%; denominators include accepted fits only.
 
-Full per-fit diagnostics remain local and are ignored at this results path.
-To produce a fresh run and compact bundle from the repository root:
+The saved bundle retains its original provenance manifest. The simplified
+runner writes performance, failures, illustration parameters, histograms,
+metadata and figures directly; it does not export bulk optimizer diagnostics
+or build a separate audit manifest. To reproduce the study in a new directory:
 
 ```bash
-uv run --locked --group examples python examples/weibull_simulation/run.py --config full --out /tmp/survjax-weibull-full
-uv run --locked --group examples python examples/weibull_simulation/_evidence.py --results /tmp/survjax-weibull-full --out examples/weibull_simulation/results
-JAX_ENABLE_X64=1 uv run --locked --group examples python -c "from pathlib import Path; from examples.weibull_simulation._plots import write_figures; p = Path('examples/weibull_simulation/results'); write_figures(p, p)"
+uv run --group examples python -m examples.weibull_simulation.run --config full --out /tmp/my-weibull-study
 ```
 
 Figures: [survival](fig1_survival.svg), [HR sampling](fig2_sampling.svg),
 [coverage](fig3_coverage.svg). Survival colours identify arms; other panels
 use colours for models, as their legends state.
 
-The provenance check reads the reducer commit from local Git history.
 Timings change on reruns. Bitwise equality across machines is not promised.
 All data are synthetic.

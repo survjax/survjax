@@ -220,17 +220,10 @@ def negative_log_likelihood(
     *,
     model: Literal["weibull", "exponential"],
 ) -> jax.Array:
-    """Return the summed PH negative log likelihood for a single (N,) cohort.
+    """Summed negative log likelihood for a validated (N,) cohort.
 
-    Args:
-        theta: (log k, log b0, gamma) for Weibull; (log rate0, gamma) for Exponential.
-        data: Validated exact/right untruncated observations, shape (N,).
-        arm: Matching binary arm indicators, shape (N,).
-        model: Static model name, 'weibull' or 'exponential'.
-    Returns:
-        Scalar negative log likelihood, differentiable in theta.
-    Raises:
-        ValueError: Unknown model name.
+    Theta is (log k, log b0, gamma) for Weibull or (log rate0, gamma) for
+    Exponential. Arm is the matching (N,) binary predictor.
     """
     if model == "weibull":
         base = survjax.Weibull.from_log(log_shape=theta[0], log_scale=theta[1])
@@ -249,20 +242,11 @@ def fit_replicate(
     *,
     model: Literal["weibull", "exponential"],
 ) -> FitResult:
-    """Fit one float64 cohort with the use-case 01 BFGS/acceptance settings.
+    """Fit one (N,) cohort, returning estimates, uncertainty and failure flags.
 
-    Args:
-        data: Validated nonempty (N,) exact/right data without truncation.
-        arm: Matching binary indicators; no-event arms are unestimable.
-        model: Static model name. Starts use log mean observed time and gamma=0.
-    Returns:
-        Raw theta/gradient (P,), Hessian (P,P), scalar flags and SE, and HR
-        interval (2,). P=3 for Weibull, 2 for Exponential. Rejected fits retain
-        raw diagnostics; their inference is NaN. Unestimable fits skip fitting
-        and have NaN diagnostics. Supports jit/vmap; no derivative-through-fit
-        guarantee. Caller performs data.issues.raise_if_invalid() before JIT.
-    Raises:
-        ValueError: Unknown model or data not float64.
+    Use float64 and validate data before batching. Models are 'weibull' or
+    'exponential'; no-event arms are unestimable. Rejected fits retain their
+    diagnostics but have NaN inference. Supports jit/vmap.
     """
     import optimistix as optx
 

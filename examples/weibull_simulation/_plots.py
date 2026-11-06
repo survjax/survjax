@@ -1,44 +1,20 @@
 """Render the three simulation figures from compact evidence; never refit."""
 
 import csv
-import hashlib
-import io
 import json
 from pathlib import Path
 
 import numpy as np
 
 
-def _save_figure(figure, target: Path) -> None:
-    """Keep SVG text/vector geometry and remove only generated XML whitespace."""
-    from xml.etree import ElementTree as ET
-
-    buffer = io.BytesIO()
-    figure.savefig(buffer, format="svg", metadata={"Date": None})
-    root = ET.fromstring(buffer.getvalue())
-    ET.register_namespace("", "http://www.w3.org/2000/svg")
-    ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
-    # Serialization only: preserve coordinates and label text, compact path whitespace.
-    for node in root.iter():
-        if node.text is not None and not node.text.strip():
-            node.text = None
-        if node.tail is not None and not node.tail.strip():
-            node.tail = None
-        if "d" in node.attrib:
-            node.attrib["d"] = " ".join(node.attrib["d"].split())
-    target.write_bytes(
-        ET.tostring(root, encoding="utf-8", xml_declaration=True) + b"\n"
-    )
-
-
 def write_figures(results: Path, out: Path) -> None:
     """Write the three specified SVGs from compact evidence, without refitting.
 
     Args:
-        results: Complete compact evidence directory (hashes verified before plotting).
+        results: Directory containing the study tables and histograms.
         out: Destination for fig1_survival.svg, fig2_sampling.svg, fig3_coverage.svg.
     Raises:
-        ValueError: Evidence hash mismatch or float64 disabled.
+        ValueError: Float64 disabled.
         OSError: Input/output failure. Empty accepted sets are labelled explicitly.
     """
     import jax
@@ -50,11 +26,6 @@ def write_figures(results: Path, out: Path) -> None:
 
     if not jax.config.x64_enabled:
         raise ValueError("simulation figures require JAX_ENABLE_X64=1")
-    manifest = json.loads((results / "evidence.json").read_text())
-    # Host input checks and plot construction only; no scenario/generator/fit loop.
-    for name, digest in manifest["output_sha256"].items():
-        if hashlib.sha256((results / name).read_bytes()).hexdigest() != digest:
-            raise ValueError(f"evidence hash mismatch: {name}")
     with (results / "performance.csv").open(newline="") as handle:
         summary = list(csv.DictReader(handle))
     with (results / "illustration.csv").open(newline="") as handle:
@@ -196,4 +167,4 @@ def write_figures(results: Path, out: Path) -> None:
             ("fig2_sampling.svg", sampling),
             ("fig3_coverage.svg", coverage),
         ):
-            _save_figure(figure, out / name)
+            figure.savefig(out / name, format="svg", metadata={"Date": None})
