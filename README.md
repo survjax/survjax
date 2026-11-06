@@ -46,6 +46,20 @@ medians and quantiles remain planned.
 
 ## Installation
 
+- using uv:
+
+```sh
+uv add survjax
+```
+
+- using PyPI:
+
+```sh
+pip install survjax
+```
+
+- from source:
+
 From a local checkout, install the core package with:
 
 ```sh
