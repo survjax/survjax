@@ -38,8 +38,8 @@ Before publishing, confirm the agreed author list and canonical repository
 URL. Update `CITATION.cff` with the actual released version and release date
 when assigned, consistently with the package and release notes. DOI and ORCID
 fields are currently omitted; add identifiers only when assigned and verified.
-The next candidate is `0.0.1a2`. A candidate version is not evidence of
-PyPI publication or an assigned DOI.
+Version `0.0.1a2` was published on PyPI on 6 November 2026. The citation
+metadata records that version and date; no DOI is assigned.
 
 The [operator handoff](docs/releasing.md)
 records publisher setup, documentation hosting and remaining launch

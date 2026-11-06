@@ -67,3 +67,51 @@ been published by these preparation changes alone.
     starting with git tag". No tag created, pushed or prerelease published.
     Asked maintainer to create exactly this local tag; do not bypass the
     tool restriction through an alternate interface. Publication pending.
+
+17. Maintainer created local annotated v0.0.1a2. Verified tag object
+    75fe2b87cfeb299fb72135973e100eeb2d9e39b8 peels to the tested commit
+    56311e392eaf830058534264ebcea950c1045e1a; remote main matched.
+18. git push origin refs/tags/v0.0.1a2 succeeded. Published with:
+    gh release create v0.0.1a2 --repo survjax/survjax --verify-tag --prerelease
+    --title 'survjax 0.0.1a2' --notes-file /tmp/survjax-a2-release-notes.md
+    GitHub prerelease published at 2026-11-06T21:27:21Z:
+    https://github.com/survjax/survjax/releases/tag/v0.0.1a2
+19. PyPI workflow 42296861084 started on the exact tested commit and reached
+    full checks on its rebuilt artifacts. Await upload result before claiming
+    PyPI publication. Existing v0.0.1a1 remains unchanged.
+
+20. Workflow build job succeeded; full artifact checks completed at
+    2026-11-06T21:58:24Z. Uploaded python-distributions artifact downloaded
+    with gh run download into /tmp/survjax-a2-workflow-dist. Validator accepts
+    v0.0.1a2. Both SHA256 values match the local tested artifacts exactly
+    (see item 13). Thus no rebuild or replacement is needed.
+21. Publish job failed before any steps started. GitHub check annotations:
+    "Tag v0.0.1a2 is not allowed to deploy to pypi due to environment protection
+    rules." Environment has custom branch policies with only main (branch).
+    No upload attempted. gh --log-failed has no job log because no steps ran;
+    read check-run 128178552520 annotations to diagnose instead.
+22. Requested explicit authorization to add a tag deployment allow-rule and
+    retry only the failed publish job. Keep other environment rules intact.
+    GitHub prerelease remains live; PyPI publication is not yet complete.
+
+23. Maintainer explicitly selected "Allow release tags v* for future releases
+    and retry". POST environment deployment-branch-policies name=v* type=tag
+    created rule 65796432. Readback confirms main branch and v* tag allowed;
+    no other protections changed. gh run rerun 42296861084 --failed succeeded.
+24. Retry succeeded: both build and publish jobs green. PyPI upload times:
+    wheel 2026-11-06T22:02:49Z, sdist 22:02:51Z. Public PyPI JSON SHA256 values
+    match both workflow and local tested artifacts exactly (item 13).
+25. Fresh public-index install outside checkout:
+    uv venv --python 3.12 /tmp/survjax-a2-public-verify
+    uv pip install --python /tmp/survjax-a2-public-verify/bin/python
+      --index-url https://pypi.org/simple --only-binary :all: survjax==0.0.1a2
+    Resolved Python 3.12.9, JAX 0.12.0.1, NumPy 2.5.4. Temporary smoke script
+    first rejected /tmp versus /private/tmp prefix alias; resolved both paths
+    and reran. Both float64/float32 pass version, installed path, type marker,
+    absence of demo/test deps, eager/JIT exponential survival (exp(-0.5)).
+    This smoke is not a full compatibility-matrix test on these newer deps.
+26. Follow-up source docs record actual publication and date. Published tag
+    remains fixed at 56311e3; execution-record follow-up does not alter it.
+
+27. Final publication-status docs build passed both strict dtype sites with
+    success identity; rendered release status checked. Whitespace clean.

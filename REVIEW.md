@@ -42,3 +42,18 @@ blocker identified. Reviewer could not run tests due to sandbox uv access.
 N-1 double blank, N-2 candidate wording, N-3 root execution log are editorial;
 candidate wording is accurate until publication, and maintainer requested the
 execution log. D-048 remains formally open; no spec edit made.
+
+Independent review: round 2/3 (publication record follow-up)
+
+Read PLAN.md publication follow-up and RELEASE-A2-LOG.md items 17 onward,
+then citation/changelog/release guide status diffs. Maintainer explicitly
+approved v* environment tag rule and retry; publish job now succeeds.
+Public JSON artifact hashes match tested artifacts. Public isolated smoke
+passes both dtype modes with Python 3.12.9/JAX 0.12.0.1/NumPy 2.5.4; no broad
+compatibility claim. Only release record/prose/date changes since main.
+No protected/code/API/dependency edits in this follow-up, no tag movement.
+Direct both-dtype docs build is the validation for these status edits.
+
+Follow-up validation: direct escalated scripts/build_docs.sh passed both strict
+sites with success identity. Both rendered release pages contain publication
+status. git diff --check passed. No repeat numerical tests for prose/date/log.

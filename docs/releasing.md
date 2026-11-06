@@ -4,13 +4,16 @@ orphan: true
 
 # First release operator handoff
 
-This is the maintainer's procedure for a future public alpha release.
-Local preparation has added hosting configuration, package metadata and a
-publishing workflow. Read the Docs hosting and package publication still need
-verification. The preparation baseline is `0.0.1.dev0`; examples below use the
-proposed release **`0.0.1a2`**, Git tag **`v0.0.1a2`**. Confirm the version
-before following the release sequence. Account ownership is not established by
-the repository or documentation URLs.
+Version **`0.0.1a2`**, Git tag **`v0.0.1a2`**, was published on GitHub and
+PyPI on 6 November 2026. The earlier `v0.0.1a1` GitHub prerelease remains;
+its PyPI build failed before upload. The alpha-2 artifact checks passed and
+its upload succeeded after allowing release tags in the `pypi` environment.
+The public-index install smoke check passed in both dtype modes.
+
+This page retains the reusable release procedure. Examples use `0.0.1a2`;
+select a new version for the next release and never move an existing tag.
+See `RELEASE-A2-LOG.md` in the repository for the execution record. Read the
+Docs hosting and broader acceptance gates are not certified by this release.
 
 ## Complete the release prerequisites
 

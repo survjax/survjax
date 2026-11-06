@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — 0.0.1a2
+## 0.0.1a2 — 2026-11-06
 
 - Fix installed-version checks to follow project metadata after version bumps.
 - Prepare alpha 2 with matching package, lockfile and citation versions.
@@ -8,7 +8,6 @@
   build failed before the PyPI upload job ran.
 
 ## 0.0.1a1 — 2026-11-06 (GitHub prerelease)
-
 
 The first GitHub alpha prerelease was published, but its PyPI publishing
 workflow failed checks before upload. The preparation baseline was

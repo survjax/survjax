@@ -51,3 +51,11 @@ rendered topic, commit, independent review. Stop on check failures. Verify
 main worktree clean before fast-forward integration; never replace old tags.
 Record commands, results, commits, hosted CI and publishing/public-install
 outcomes. Use actual release date only at publication, no invented DOI.
+
+## RELEASE.A2 publication record follow-up
+
+Maintainer approved v* tag environment rule and failed-publish retry. Publish
+succeeded; public smoke passes. Update root execution log, changelog release
+date, citation date, citation prose and release-guide status; no code or tag
+changes. Direct docs build, whitespace and metadata checks, round-2 review,
+then integrate/push this record (published tag remains fixed at 56311e3).
