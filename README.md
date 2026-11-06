@@ -1,6 +1,6 @@
 # survjax
 
-[![GPU CI on NVIDIA T4 / CUDA 12: latest manual run on main](https://github.com/vanAmsterdam/survjax/actions/workflows/gpu.yml/badge.svg?branch=main&event=workflow_dispatch)](https://github.com/vanAmsterdam/survjax/actions/workflows/gpu.yml)
+[![GPU CI on NVIDIA T4 / CUDA 12: latest manual run on main](https://github.com/survjax/survjax/actions/workflows/gpu.yml/badge.svg?branch=main&event=workflow_dispatch)](https://github.com/survjax/survjax/actions/workflows/gpu.yml)
 
 **Survival analysis in JAX**
 

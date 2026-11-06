@@ -1,3 +1,42 @@
+# RELEASE.5d — Prepare organization identity in metadata and publishing guard
+
+Start / previous step: 9bffb535df46cff93511afc9578200ced49788e1.
+Original worktree base: 3cb4cd7fbba3313f00dfabed0028ee6f404384df.
+5c independent review round 1: merge, no required findings. Maintainer
+explicitly authorizes continuing reviewed local steps until actual transfer.
+
+Files: pyproject.toml, README.md (badge URLs only), CITATION.cff,
+.github/workflows/release.yml (repository equality only),
+tests/install/test_wheel.py (expected URLs), PLAN.md, REVIEW.md.
+No public API, dependency, version/lockfile, numerical, protected path or
+shared CI changes. Current spec revision 47: 10.1–10.3/13 packaging/release.
+Prepare intended survjax/survjax target before actual transfer; do not assert
+the transfer happened. No remote, account, namespace availability, transfer,
+visibility, tag/release/push/upload or hosting action.
+
+Change current-active package/citation/readme links consistently; release guard
+must accept only survjax/survjax, reject vanAmsterdam/survjax and other owners.
+Keep event, artifact path, tested-wheel flow, publisher filename/environment and
+OIDC permissions unchanged. The guard intentionally blocks old-namespace
+publication, even while transfer is pending. Retain author credit unchanged.
+Update existing artifact metadata test expectations; no new test abstraction.
+
+Checks: uv lock --check, build wheel/sdist locally; exact URLs/descriptions and
+runtime deps in both metadata, official CFF schema + project consistency;
+parsed workflow guard/event/permissions checks (existing docs tools), bash -n;
+touched install tests fully in both dtypes, required fast gate through A10
+with that exact wheel supplied; git diff --check. No hosted execution/upload.
+No docs build in this code/metadata step; no docs/ changes.
+
+Docs to-do: authorized RELEASE.5e immediately after independent review must
+synchronize CITING.md, CONTRIBUTING.md, docs/releasing.md and CHANGELOG.md to
+locally prepared new identity while stating actual transfer remains pending.
+Their old/current binding descriptions are transitional until that docs step;
+this intermediate commit alone is not ready for launch. Review Astra/low,
+max three rounds, then continue 5e as authorized and stop before transfer.
+
+---
+
 # RELEASE.5c — Write contribution guidance
 
 Start / previous step: 67fb851d517a919fbb0d0e6e2f88e56912b609c7.

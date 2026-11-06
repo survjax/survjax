@@ -5,5 +5,5 @@ title: "survjax: Survival analysis in JAX"
 authors:
   - family-names: "van Amsterdam"
     given-names: "Wouter A.C."
-repository-code: "https://github.com/vanAmsterdam/survjax"
+repository-code: "https://github.com/survjax/survjax"
 license: Apache-2.0

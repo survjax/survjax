@@ -1,70 +1,71 @@
 Independent review: round 1/3
 
-# RELEASE.5c — Contribution guidance
+# RELEASE.5d — Prepare organization identity
 
-Reviewer: independent Astra, low reasoning, maintainer-authorized.
-Maintainer explicitly authorizes continuing after each reviewed step until the
-actual transfer boundary; no need for intervening approval for 5d/5e.
+Reviewer Astra/low, authorized. Maintainer permits continuing separately
+reviewed local steps until actual transfer; 5c verdict merge is recorded in
+/tmp/survjax-RELEASE.5c-review-round1.md and its committed records.
 
 ## Read first
 
-1. PLAN.md RELEASE.5c and current spec revision 47, 10.1/10.3/10.5/13.
-2. CONTRIBUTING.md / docs/contributing.md: one prose source and orphan include.
-3. Existing scripts/check.sh, scripts/run_tests.sh, scripts/build_docs.sh,
-   pyproject.toml and .github/workflows/ci.yml (unchanged): verify commands.
-4. CHANGELOG.md status update.
+1. PLAN.md RELEASE.5d, current spec revision 47 10.1–10.3/13.
+2. pyproject.toml / README.md / CITATION.cff diff: namespace links only.
+3. .github/workflows/release.yml diff: owner equality only.
+4. tests/install/test_wheel.py diff: built-artifact URL expectations.
 
 ## Invariants
 
-- Contribution guidance covers actual setup, test tiers, executable docs,
-  public API typing/docstrings, synthetic reproducers and provenance.
-- Runtime remains JAX/NumPy only. No new dependency, API, policy agreement,
-  contributor identity, configuration, protected path or spec changes.
-- Separate dtype processes and touched tests without the fast filter. Current
-  A10 gate does not cover forthcoming A11/A12 acceptance. Independent acceptance
-  tests/gates stay protected; never weaken checks/tolerances to get a pass.
-- No patient data or fabricated fixture values. Existing fixture READMEs own
-  regeneration; ordinary tests need neither R nor network. Docs cold MNIST can
-  need network, explicitly stated; live execution retained.
-- Intended survjax/survjax link is qualified as transfer-pending. No remote,
-  transfer, account, tag, push/upload or publication action.
-- Root prose included at contributing.html/search, no navigation edits or
-  unfinished branches imported. Other agents' launch gates remain open.
+- Intended target is survjax/survjax, explicitly authorized for local preparation.
+  Transfer, availability and organization permissions remain unverified.
+- Package repository/issues URLs, citation repository and README badge links
+  use the new target. Author credit and Apache-2.0 unchanged. Version dev0,
+  lockfile, runtime requirements, public API and numerical code unchanged.
+- Release guard allows only intended new namespace, rejects old namespace and
+  forks. This intentionally blocks old-namespace publication while transfer is
+  pending. Trigger, artifact transfer, workflow filename/environment, pinned
+  actions, OIDC permission scope and all other workflow behavior unchanged.
+- No docs/ or shared CI edits in this code/metadata step. Current explanatory
+  docs still describe old bindings; explicitly authorized next docs step 5e
+  synchronizes those statements before final report/transfer. This intermediate
+  commit is not a publishable release or assertion of completed migration.
+- No git remote, account, transfer, hosting, visibility, push, tag/release or
+  upload actions; no protected path, dependency, module or spec changes.
 
-## Verification
+## Checks
 
-- bash -n on all contribution shell blocks: passed. Referenced touched test,
-  tolerance, gate, runner, build and CI paths exist; checked flags/config.
-  No {code-cell} directives added, no future operator commands executed.
-- scripts/check.sh --fast --through A10: exit 0, all gates passed.
-  Ruff 182 files formatted / checks passed; mypy 22 source files clean.
-  Implementer x64 1066 passed / 8 skipped; x32 1071 / 3; source doctests 4 each;
-  spec x64 2149 / 27; x32 2156 / 20. Fast gate deselects slow cases, no new unit
-  tests for prose and no redundant full numerical/install-suite rerun.
-- Direct scripts/build_docs.sh, approved escalation: exit 0; float32 and
-  float64 both report build succeeded with force execution/errors fatal.
-- Site audit: each mode 27 HTML pages, 1,705 local links/assets,
-  14 downloads, zero missing files/fragments/assets. Existing notebooks
-  match source, use-case images/navigation present. Shared execution tree:
-  18 notebooks / 153 code cells; logs show both-mode fresh execution.
-- Root contribution prose equals complete rendered HTML prose in both modes;
-  wrapper source bytes and search entries match. Changelog include audit passes.
-  Initial ad hoc text audit inserted spaces between syntax-highlighting spans;
-  corrected extraction to preserve complete preformatted code text, then passed.
-  No source change. Programmatic inspection, no browser visual-layout claim.
+- uv lock --check: exit 0, resolved 166 packages, lock unchanged.
+- uv build --out-dir /tmp/survjax-release5d-dist: exit 0; sdist then wheel from
+  sdist. Both still version 0.0.1.dev0. Metadata archive audit: URL fields,
+  version/deps/content type/classifiers/license agree; descriptions match exact
+  current README. Runtime ['jax>=0.11.2', 'numpy>=2.5.3'] unchanged.
+- Official CFF 1.2.0 schema + format validation using existing docs environment:
+  passed, URL equals new project repository; author unchanged.
+- Parsed release YAML with existing BaseLoader: release published only,
+  read-only workflow permissions and job-only OIDC unchanged. Exact guard
+  evaluated for intended target (true), old owner (false), fork (false).
+  Embedded run blocks bash -n passed; no old-owner strings in active changed
+  metadata/test/workflow/README/CFF files. No new test dependency added.
+- Full tests/install/test_wheel.py with the exact built SURVJAX_WHEEL:
+  JAX_ENABLE_X64=1: 4 passed in 41.75s; mode 0: 4 passed in 41.82s.
+  Includes runtime isolation, actual installed metadata, derivatives and typing.
+- SURVJAX_WHEEL=/tmp/survjax-release5d-dist/survjax-0.0.1.dev0-py3-none-any.whl
+  scripts/check.sh --fast --through A10: exit 0, all gates passed. Ruff 182
+  files formatted/all checks passed; mypy 22 files clean. Implementer x64
+  1066 passed/8 skipped; x32 1071/3. Source doctests 4 each. Spec x64 2149/27,
+  x32 2156/20. Fast gate excludes slow cases; touched install tests above full.
 - git diff --check: passed.
 
-## Remaining sequence and limits
+## Limits / next step
 
-Continue to separate reviewed code/metadata step RELEASE.5d, then docs
-synchronization RELEASE.5e. Code steps do not edit docs/. Stop before actual
-transfer, git remote, account, visibility, hosting, tag/release/push or upload.
-No hosted Linux/RTD run, publisher identity, public installation or overall
-release-readiness claim. Actual transfer and separately owned launch gates
-remain pending. Docs use existing warm datasets/results with live calculations.
+No hosted GitHub/RTD/Linux, OIDC, account/publisher, real destination, public
+package or badge access verified. Guard check is local expression validation,
+not remote workflow execution. No docs build in this code/metadata step; 5e
+updates prose and builds both modes immediately after independent review.
+Separately owned demo/docs/acceptance gates and final version selection remain.
+A10 is not A11/A12 certification. No full numerical tier-2 rerun for link edits.
 
 ## Commit trace
 
-Previous step / clean start: 67fb851d517a919fbb0d0e6e2f88e56912b609c7.
+Previous step / clean start: 9bffb535df46cff93511afc9578200ced49788e1.
 Original worktree base: 3cb4cd7fbba3313f00dfabed0028ee6f404384df.
-Commit/review this step before starting 5d, as authorized by maintainer.
+After commit/review continue authorized 5e, then stop before actual transfer.

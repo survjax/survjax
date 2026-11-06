@@ -144,9 +144,9 @@ def test_wheel_metadata_contains_readme_and_release_links(wheel):
     description = metadata.get_payload(decode=True).decode("utf-8")
     assert description == (ROOT / "README.md").read_text()
     assert set(metadata.get_all("Project-URL")) == {
-        "Repository, https://github.com/vanAmsterdam/survjax",
+        "Repository, https://github.com/survjax/survjax",
         "Documentation, https://survjax.readthedocs.io",
-        "Issues, https://github.com/vanAmsterdam/survjax/issues",
+        "Issues, https://github.com/survjax/survjax/issues",
     }
     assert set(metadata.get_all("Classifier")) == {
         "Development Status :: 3 - Alpha",
