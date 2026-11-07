@@ -1,6 +1,6 @@
 # B1a — Generic interval probability hooks
 
-Independent review: round 1/3
+Independent review: round 2/3
 
 Read PLAN.md, spec 4.2 and 7.1–7.3, distributions/_log_math.py,
 distributions/base.py, then tests/unit/test_interval_defaults.py.
@@ -36,3 +36,27 @@ No R fixtures regenerated and no docs build (code-only step).
 
 Remaining: B1 built-in overrides; B2 integration; B3 full reference/derivative
 matrix; B4 pruning and documentation. Generic defaults alone do not complete B1.
+
+## Round 1 findings and fix-up
+
+Reviewed commit: 45768c48ebd0dbf18c4014986d5fbedb39650f95. Verdict fix-first.
+F-1: added lower-tail, narrow and finite far-tail analytical cases in both dtypes.
+F-2: added NaN/negative parameter and NaN-endpoint cases; bounded uniform
+support distinguishes true zero probability from invalid results.
+F-3: added exact window boundaries, infinity endpoints, zero numerator with
+positive window mass, and zero denominator. Strict-boundary mutants may still
+produce the same exact zero by subtracting identical finite logs; the tests
+assert public values rather than forcing internal branch selection.
+N-1: mixed-row gradient coverage remains B3 work.
+N-2: narrow generic derivative cancellation remains a B1b override motivation;
+no tolerance was loosened.
+Touched tests: 9 passed in each dtype. Fast A10 fix-up gate: implementer
+1092 passed/8 skipped (x64), 1097/3 (x32); doctests 4 per mode; spec
+2112/28 (x64), 2119/21 (x32). All gates passed, Ruff/mypy clean.
+Regenerated the slow list because a new test exceeded one second: 687 entries.
+The timing-only refresh is committed separately because its machine-load-sensitive
+diff exceeds the implementation step size. Full duration runs observed: x64
+implementer 1321/8, spec 2332/28; x32 implementer 1326/3. The final x32 spec
+log was removed by the script; rely on the passed fast gate for that mode.
+Reviewer-owned temporary worktree cleanup is left to the maintainer; no changes
+made outside the allowed implementation checkout.
