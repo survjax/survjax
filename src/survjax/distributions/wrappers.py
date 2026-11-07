@@ -255,6 +255,7 @@ class AcceleratedFailureTime(SurvivalDistribution):
             a NaN predictor propagates as it does in the direct formulas.
         """
         limit = self.baseline.log_survival_at_infinity()
+        # spec 4.5: invalid predictors must retain arithmetic NaN precedence.
         return limit + jnp.zeros_like(self.log_time_ratio) * self.log_time_ratio
 
     def _rescale_time(self, t: ArrayLike) -> jax.Array:
@@ -268,7 +269,10 @@ class AcceleratedFailureTime(SurvivalDistribution):
         log_time = jnp.log(safe_time) - eta
         overflow = log_time >= jnp.log(jnp.finfo(log_time.dtype).max)
         scaled = jnp.exp(jnp.where(overflow, 0.0, log_time))
-        scaled = jnp.where(overflow, jnp.inf, scaled)
+        # spec 7.1: a positive interior time lost during rescaling is a
+        # numerical failure, not a true zero/infinity boundary of the model.
+        failed = ~boundary & ((scaled == 0) | overflow)
+        scaled = jnp.where(failed, jnp.nan, scaled)
         return jnp.where(boundary, time, scaled)
 
     def log_survival(self, t: ArrayLike) -> jax.Array:
@@ -278,7 +282,8 @@ class AcceleratedFailureTime(SurvivalDistribution):
             t: Real times broadcast against batch_shape.
         Returns:
             Broadcast log survival; zero at zero and the baseline limit at
-            infinity. Negative times give zero; NaN times give NaN.
+            infinity. Negative times give zero (spec 4.5); NaN times and
+            unrepresentable interior rescaled times give NaN.
         """
         return self.baseline.log_survival(self._rescale_time(t))
 
@@ -289,7 +294,8 @@ class AcceleratedFailureTime(SurvivalDistribution):
             t: Real times broadcast against batch_shape.
         Returns:
             Broadcast log density, -inf before zero and at infinity, NaN at
-            NaN times. The baseline supplies the density limit at zero.
+            NaN times or unrepresentable interior rescaled times. The baseline
+            supplies the density limit at zero.
         """
         return self.baseline.log_prob(self._rescale_time(t)) - self.log_time_ratio
 
@@ -300,6 +306,7 @@ class AcceleratedFailureTime(SurvivalDistribution):
             t: Real times broadcast against batch_shape.
         Returns:
             Broadcast log hazard; -inf before zero and NaN at NaN times.
-            Baseline overrides supply the zero and infinity limits.
+            Baseline overrides supply the zero and infinity limits; an
+            unrepresentable interior rescaled time gives NaN.
         """
         return self.baseline.log_hazard(self._rescale_time(t)) - self.log_time_ratio

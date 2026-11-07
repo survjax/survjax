@@ -1,6 +1,6 @@
 # AFT.1 — Registered wrapper and direct methods
 
-Independent review: round 1/3
+Independent review: round 2/3
 
 Read first: PLAN.md AFT.1; spec 4.4–4.5 and 7.1–7.3;
 wrappers.py AcceleratedFailureTime; exports; tests/unit/test_aft.py;
@@ -65,3 +65,36 @@ Remaining verification is AFT.2: extreme rescaling/tails, custom improper
 baseline, broader integration, likelihood identities and mixed derivatives.
 AFT.3 covers explanatory documentation. Current tests do not establish these
 broader claims; no PH derivative exception is claimed for AFT.
+
+
+Round 1 (b969eab): VERDICT fix-first, F-1/F-2 should-fix; N-1/N-2/N-3 nits.
+F-1: detect underflow/overflow of positive interior rescaled time and return
+NaN as numerical failure (7.1), rather than borrowing baseline boundaries.
+This is detection, not a claim of full log-time extreme-tail evaluation.
+F-2: add zero/negative/infinity survival parameter Jacobian/Hessian tests and
+helper-level zero/infinity predictor Jacobians so baseline masking cannot hide
+unsafe rescaling. N-1 comment explains NaN idiom; N-2 cites value policy.
+N-3 left unchanged: direct values for invalid infinite predictors follow
+formulas, not an inferred validity mask, per 4.5. No new invalid-value policy.
+The review's approximate F-1 expected number is incorrect: for k=.5,b=t=1,
+log f = log(.5)-.5*eta-exp(-.5*eta), about -400.693 at eta=800.
+Its diagnosis that the current +inf is incorrect remains valid.
+
+
+Fix-up validation: full touched tests/unit/test_aft.py in both dtype modes,
+-n 6: 44 passed x64 (5.21s), 44 passed x32 (5.60s). New boundary derivative
+cases exceed 1s, so the required timing script is rerunning.
+scripts/check.sh --fast --through A10 passed after the fixes: implementation
+x64 1040 passed/8 skipped (21.47s), x32 1045 passed/3 skipped (15.81s);
+source doctests 4 passed per mode; spec x64 1993 passed/27 skipped (28.19s),
+x32 2007 passed/13 skipped (33.23s). All formatting/lint/mypy gates passed.
+Direct scripts/build_docs.sh passed again, both strict sites with success
+identity. Both rendered API entries contain the numerical-failure wording.
+
+Timing regeneration finished: 793 slow tests written, including all three new
+boundary derivative cases. Generated-list diff is 269 lines in this fix-up;
+code/tests are 57 changed lines. During timing I inspected completed logs:
+implementation x64 1356 passed/8 skipped (311.03s), x32 1361 passed/3 skipped
+(344.87s), spec x64 2333 passed/27 skipped (247.16s). The script discarded
+its temporary logs before I captured the final full x32 spec summary, so no
+full x32 spec count or Tier 2 gate certification is claimed here.

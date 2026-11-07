@@ -178,3 +178,45 @@ def test_rmst_remains_explicitly_unsupported():
     """Staged AFT plan: generic summary integration belongs to another worktree."""
     with pytest.raises(NotImplementedError):
         AcceleratedFailureTime(baseline=Exponential(rate=1), log_time_ratio=0).rmst(1)
+
+
+@pytest.mark.parametrize("eta", [-1000.0, 1000.0])
+@pytest.mark.parametrize("name", ["log_survival", "log_prob", "log_hazard"])
+def test_unrepresentable_rescaling_is_numerical_failure(eta, name):
+    """Spec 7.1: lost positive times must not turn into baseline boundaries."""
+    dist = AcceleratedFailureTime(
+        baseline=Weibull(shape=0.5, scale=1), log_time_ratio=eta
+    )
+    # log u = -eta exceeds either end of both dtypes' exponent ranges.
+    assert jnp.isnan(jax.jit(getattr(dist, name))(1.0))
+
+
+@pytest.mark.parametrize("time", [-1.0, 0.0, jnp.inf])
+def test_policy_boundaries_have_finite_parameter_derivatives(time):
+    """Spec 4.5/7.2: inactive log/exp operands retain finite parameter tangents."""
+
+    def fn(p):
+        dist = AcceleratedFailureTime(
+            baseline=Weibull(shape=p[0], scale=p[1]), log_time_ratio=p[2]
+        )
+        return dist.survival(time)
+
+    p = jnp.array([1.4, 2.0, 0.3])
+    # S before/at zero is identically one; S(infinity) is identically zero.
+    for derivative in (jax.jacfwd, jax.jacrev, jax.hessian):
+        np.testing.assert_array_equal(
+            jax.jit(derivative(fn))(p), jnp.zeros_like(derivative(fn)(p))
+        )
+
+
+def test_rescaling_zero_and_infinity_retains_zero_predictor_tangents():
+    """Spec 7.2: the rescaling boundary substitution precedes log/exp."""
+
+    # Exercise the numerical helper directly: outer policy and built-in
+    # baselines independently mask boundaries, which can hide this invariant.
+    def fn(eta):
+        dist = AcceleratedFailureTime(baseline=Exponential(rate=1), log_time_ratio=eta)
+        return dist._rescale_time(jnp.array([0.0, jnp.inf]))
+
+    for derivative in (jax.jacfwd, jax.jacrev):
+        np.testing.assert_array_equal(jax.jit(derivative(fn))(0.3), [0.0, 0.0])
