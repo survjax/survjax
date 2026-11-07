@@ -1,68 +1,51 @@
-# RELEASE.A2 — Authorized alpha-2 completion
+# DEMO.E1 — Release-demo evidence audit
 
 Independent review: round 1/3
 
-Read PLAN.md RELEASE.A2, RELEASE-A2-LOG.md, scripts/check.sh diff, then
-release docs/citation/changelog diff. Start 61b7dcc, base 8794005.
-Maintainer explicitly authorized ALL listed release actions in conversation:
-protected guard exception, continuing beyond WHEEL.1 maintainer verdict,
-docs completion, main merge, new tag/push and GitHub prerelease publication.
-This supersedes previous stop, no-merge/tag and protected-path restrictions
-for this release. Do not infer permission from the reviewer role alone.
+Read first: PLAN.md; examples/RELEASE-EVIDENCE.md; spec 12.2 item 4,
+11.2–11.3 and all three use-case main/details; DEVIATIONS.md D-039/D-041,
+D-045–D-047; plans/mnist-showcase-instruction.md sections 3–5; then cited
+result metadata/CSV/NPZ and historical git objects. Starting/previous integrated
+step/original base cc0e30f; plan archive 86d4a56.
 
-Guard allows exactly test_a9_package.py and check.sh on patch-wheel-test;
-all other protected paths remain blocked. Main guard has an empty main...HEAD
-diff after integration. No spec, API, dependencies or numerical code changed.
-Version/test fixes previously committed as 2e4971d; D-048 remains formally open
-for maintainer resolution, with explicit test-change approval recorded.
-Citation version identifies candidate source; no release date/DOI invented.
-Old tag preserved; release docs name a2; historical example provenance kept.
+Only a demo-specific evidence index is added. No code, numerical outputs,
+protected paths, docs, shared release records or dependencies changed.
+Invariants: historical results retain their original versions/settings;
+maintainer-approved simplifications are not silently reversed; a smoke run is
+not full acceptance; no claim of A11/A12, hosting or independent review of
+historical steps. Unamended normative text and formal open deviations remain
+maintainer-owned. No new ambiguous implementation choice or deviation made.
 
-Full scripts/check.sh --through A10 PASSED: Ruff 193 formatted, lint clean;
-mypy 22 source files clean. Implementation x64 1312 passed/8 skipped;
-x32 1317 passed/3 skipped. Doctests 4 per mode. Spec x64 2333 passed/27 skipped;
-x32 2324 passed/36 skipped. Gate used its built wheel. Prior explicit a2
-wheel-from-sdist validation passes. bash -n and git diff --check pass.
-Direct docs build: first certification rejected changed checkout; stable
-sandbox attempt failed sysctl/psutil restrictions; escalated direct build
-passed both strict sites, success identity. Rendered release HTML checked in
-both modes for a2 tag and absence of a1. No visual-layout change.
+Validation performed:
+- scripts/check.sh --fast --through A10: exit 0, all gates passed.
+  Ruff 193 formatted/lint clean; mypy 22 source files clean.
+  Implementation x64 1072 passed/8 skipped; x32 1077 passed/3 skipped.
+  Doctests 4 passed per mode. Spec x64 2149 passed/27 skipped;
+  x32 2156 passed/20 skipped. Slow tests excluded by this prescribed tier.
+- uv run --group examples --group test pytest -q
+  tests/unit/check_mnist_run.py::test_full_results_meet_acceptance:
+  1 passed in 0.44s (03 cohort sizes, CNN vs intercept, shape tolerance).
+- Read-only Python artifact audit via uv run --group examples python:
+  five simulation output hashes match; 12 rows/12000 attempted/11863 accepted/
+  137 failures, per-group counts match; n1000 coverage distances .9860885 and
+  1.7853224 MCSE, both <3 (01 acceptance).
+  Bayesian NPZ loads without pickle: 300-row trial, 101 horizons, three
+  (4,1000) chains; all seven retained arrays exactly match 55565fd NPZ.
+  Saved R-hat/ESS/divergence/route/truth gates pass; tau_max >=5 (02).
+  git merge-base --is-ancestor verifies ac0fa01,8349e7f,36c290e,55565fd,
+  add507a,7a5670b,b757e88 are all in dispatch main.
+- Historical REVIEW.md/metadata inspected via git show, not rerun outcomes.
 
-Remaining execution: final integrated artifact build/validation, clean main
-fast-forward, hosted CI, tag and prerelease, inspect publishing results and
-public isolated install. Record failures honestly and do not publish on failed
-checks. This review is for prepared files, not a claim these actions occurred.
+Not run: full simulation, NUTS, MNIST training/download, docs build/browser,
+full slow gate, independent A11/A12, historical R/KM comparison. No need to
+repeat those for an index of already committed evidence. No new test code.
 
-Round 1: VERDICT maintainer (../review/slices/RELEASE.A2.md). Reviewer repeats
-B-1/S-1 protected-policy concerns and cannot see the conversation. Maintainer
-explicitly answered "Authorize all these release actions" to the question
-listing protected guard repair, continuing past review stop, merge, tag/push
-and prerelease publication. Proceed under that authorization; no new technical
-blocker identified. Reviewer could not run tests due to sandbox uv access.
-N-1 double blank, N-2 candidate wording, N-3 root execution log are editorial;
-candidate wording is accurate until publication, and maintainer requested the
-execution log. D-048 remains formally open; no spec edit made.
+Uncertainty/limits: lean metadata does not preserve all original runtime
+identity fields; records are not cryptographic attestation of execution.
+NumPyro ESS is not renamed bulk ESS; current Bayesian predictive/tail workflows
+were intentionally removed. Historical evidence is identified separately.
+Simulation regeneration 8349e7f explicitly lacked independent review.
 
-Independent review: round 2/3 (publication record follow-up)
-
-Read PLAN.md publication follow-up and RELEASE-A2-LOG.md items 17 onward,
-then citation/changelog/release guide status diffs. Maintainer explicitly
-approved v* environment tag rule and retry; publish job now succeeds.
-Public JSON artifact hashes match tested artifacts. Public isolated smoke
-passes both dtype modes with Python 3.12.9/JAX 0.12.0.1/NumPy 2.5.4; no broad
-compatibility claim. Only release record/prose/date changes since main.
-No protected/code/API/dependency edits in this follow-up, no tag movement.
-Direct both-dtype docs build is the validation for these status edits.
-
-Follow-up validation: direct escalated scripts/build_docs.sh passed both strict
-sites with success identity. Both rendered release pages contain publication
-status. git diff --check passed. No repeat numerical tests for prose/date/log.
-
-Round 2 outcome: VERDICT maintainer; no new findings. N-1/N-2 fixed.
-B-1/S-1 remain policy/spec-author decisions already covered by explicit
-maintainer release authorization; D-048 stays formally open. N-3 root log is
-retained because maintainer explicitly requested all steps documented.
-Reviewer read diff only; tests, docs, network and approvals not independently
-reproduced. Proceed with the authorized docs/log integration; no further
-implementation step or tag change. Last content commit 7c7c914; published tag
-and release source remain 56311e3; previous step/base 8794005.
+Remaining: independent review of this index; docs owner validates live/full
+rendering and hosting; maintainer reconciles formal spec/deviation status;
+independent acceptance remains separately owned. Do not start those steps here.
