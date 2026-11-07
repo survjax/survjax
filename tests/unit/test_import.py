@@ -8,6 +8,7 @@ def test_public_package_imports() -> None:
     assert set(survjax.__all__) == {
         "constraints",
         "Exponential",
+        "LogNormal",
         "Weibull",
         "ProportionalHazards",
         "SurvivalData",
@@ -52,6 +53,7 @@ def test_ph_public_imports_are_the_same_registered_family() -> None:
     assert distributions.ProportionalHazards is ProportionalHazards
     assert set(distributions.__all__) == {
         "Exponential",
+        "LogNormal",
         "Weibull",
         "ProportionalHazards",
         "SurvivalDistribution",

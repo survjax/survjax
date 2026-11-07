@@ -8,11 +8,13 @@ from survjax.distributions.base import (
     static,
 )
 from survjax.distributions.exponential import Exponential
+from survjax.distributions.lognormal import LogNormal
 from survjax.distributions.weibull import Weibull
 from survjax.distributions.wrappers import ProportionalHazards
 
 __all__ = [
     "Exponential",
+    "LogNormal",
     "Weibull",
     "ProportionalHazards",
     "SurvivalDistribution",
