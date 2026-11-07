@@ -86,3 +86,44 @@ not claimed. Runtime used: Python 3.12.9, JAX 0.11.2, NumPy 2.5.3.
   8 skipped); the explicit wheel reruns above verify the corrected inventory.
   Timing collection is not claimed as a successful full Tier 2 gate.
 - No R generator, docs build or full Tier 2 gate was run for this step.
+
+## Independent review round 1 — maintainer (incomplete)
+
+Reviewed commit: 2b70e8ca56259fd7562dd127ec52e96180f4372d.
+Review file: /Users/wamster3/dev/survjax/review/slices/D.LOGLOGISTIC.1.md.
+The reviewer could not check out the commit or execute tests because of sandbox
+permissions. Its archive's spec symlink was unavailable, so it did not read the
+spec. No independent gates or mutations ran. Final verdict: `maintainer`.
+No second review was requested: a round was written, so the skill prohibits a
+retry for a different verdict. Implementation and tests remain unchanged.
+
+F-1 (should-fix, disputed): the report reasons about raw softplus primitives at
+zero/infinity. Accepted spec 4.2/4.5 explicitly calls these primitives only at
+finite positive times. `register_family` wraps every direct method with
+`_survival_methods.apply_policy`: for log_survival/log_cdf, zero and infinity
+are substituted with stop-gradient reference times BEFORE raw family code is
+called. The wrapper then restores policy values, with zero parameter gradients
+for this proper family. Spec 4.5 even uses a naive softplus log-logistic custom
+family as the example of this guarantee. Repeating boundary policy in these
+primitives would duplicate the registered base's responsibility. The reviewer's
+proposed shape-gradient cases are useful additional coverage, but the asserted
+raw-boundary execution is prevented by the existing wrapper. No speculative
+family-code fix was made; the maintainer can review this disagreement.
+
+F-2 (should-fix, open): the repository requires running the full duration script
+when new tests exceed one second and committing its generated list. The script
+measures every implementer/spec test in both modes, not just this family's
+entries, and says not to edit its output by hand. This full measurement overlapped
+our fast gate, touched tests and wheel runs; concurrent load may inflate timings.
+The generated list grew from 424 to 1023 entries, so later fast gates deselect
+more existing tests. Our successful A12 fast gate used the PREVIOUS list and did
+not gain a weaker selection from this change. The maintainer should decide
+whether to accept the generated calibration or regenerate it on an otherwise
+idle machine / authorize a narrower metadata update. No handmade filtering was
+applied to conceal the measured results.
+
+N-1: size exception is explicitly approved above. N-2: blank lines in the
+from_log docstring are cosmetic; static checks pass. No implementation changes
+were made after the maintainer verdict. Remaining work is review-environment
+repair, disposition of F-1/F-2, integration with LogNormal and the separate docs
+follow-up; no next family substep has been started.
