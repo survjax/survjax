@@ -48,3 +48,5 @@ Imported verbatim; old status/next-step instructions are historical only.
 - `incoming-main-docs-workflow.md`: verbatim incoming main PLAN.md at d9832ba, retained during docs-workflow merge resolution.
 
 - [Pre-wheel-fix records](pre-patch-wheel-test.md): preserved prior plan verbatim.
+
+- [Alpha 2 release](release-a2.md): verbatim incoming release and wheel-fix records at cc0e30f.
