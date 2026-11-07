@@ -13,7 +13,12 @@ from jax.typing import ArrayLike
 
 from survjax._dtypes import normalize_parameters
 from survjax.data import SurvivalData
-from survjax.distributions import _grid_methods, _parameter_issues, _survival_methods
+from survjax.distributions import (
+    _grid_methods,
+    _log_math,
+    _parameter_issues,
+    _survival_methods,
+)
 
 
 def param(
@@ -146,6 +151,8 @@ class SurvivalDistribution:
     parameter_constraints: ClassVar[Mapping[str, Callable[[jax.Array], jax.Array]]] = (
         MappingProxyType({})
     )
+    log_interval_prob = _log_math.log_interval_prob
+    log_conditional_interval_prob = _log_math.log_conditional_interval_prob
     survival = _survival_methods.survival
     log_cdf = _survival_methods.log_cdf
     cumulative_hazard = _survival_methods.cumulative_hazard

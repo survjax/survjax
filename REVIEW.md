@@ -1,68 +1,38 @@
-# RELEASE.A2 — Authorized alpha-2 completion
+# B1a — Generic interval probability hooks
 
 Independent review: round 1/3
 
-Read PLAN.md RELEASE.A2, RELEASE-A2-LOG.md, scripts/check.sh diff, then
-release docs/citation/changelog diff. Start 61b7dcc, base 8794005.
-Maintainer explicitly authorized ALL listed release actions in conversation:
-protected guard exception, continuing beyond WHEEL.1 maintainer verdict,
-docs completion, main merge, new tag/push and GitHub prerelease publication.
-This supersedes previous stop, no-merge/tag and protected-path restrictions
-for this release. Do not infer permission from the reviewer role alone.
+Read PLAN.md, spec 4.2 and 7.1–7.3, distributions/_log_math.py,
+distributions/base.py, then tests/unit/test_interval_defaults.py.
 
-Guard allows exactly test_a9_package.py and check.sh on patch-wheel-test;
-all other protected paths remain blocked. Main guard has an empty main...HEAD
-diff after integration. No spec, API, dependencies or numerical code changed.
-Version/test fixes previously committed as 2e4971d; D-048 remains formally open
-for maintainer resolution, with explicit test-change approval recorded.
-Citation version identifies candidate source; no release date/DOI invented.
-Old tag preserved; release docs name a2; historical example provenance kept.
+Start / previous step / original worktree base: cc0e30f.
+Archive commit: 2813892.
 
-Full scripts/check.sh --through A10 PASSED: Ruff 193 formatted, lint clean;
-mypy 22 source files clean. Implementation x64 1312 passed/8 skipped;
-x32 1317 passed/3 skipped. Doctests 4 per mode. Spec x64 2333 passed/27 skipped;
-x32 2324 passed/36 skipped. Gate used its built wheel. Prior explicit a2
-wheel-from-sdist validation passes. bash -n and git diff --check pass.
-Direct docs build: first certification rejected changed checkout; stable
-sandbox attempt failed sysctl/psutil restrictions; escalated direct build
-passed both strict sites, success identity. Rendered release HTML checked in
-both modes for a2 tag and absence of a1. No visual-layout change.
+Invariants: pointwise family methods own support boundaries; interval arithmetic
+uses safe operands before log differences. Equal endpoints give zero mass;
+unresolved equal finite logs give NaN rather than inventing zero mass.
+Conditional inputs intersect before evaluation; inactive numerators use the
+window. Structural coverage gives exact zero only with finite log window mass.
+No likelihood modes have been enabled yet. Built-in cancellation-resistant
+formulas are the next B1 substep; generic subtraction is not tail evidence for
+those formulas. No new module, dependency, protected path or docs change.
 
-Remaining execution: final integrated artifact build/validation, clean main
-fast-forward, hosted CI, tag and prerelease, inspect publishing results and
-public isolated install. Record failures honestly and do not publish on failed
-checks. This review is for prepared files, not a claim these actions occurred.
+Tests map:
+- interval values and transformations: spec 4.2 tail selection, 7.3 jit/vmap;
+- endpoint policy: spec 7.1 equality and invalid order;
+- conditional intersections: spec 7.1 partial/empty/full sets;
+- parameter derivatives: spec 7.3 second-order forward/reverse interiors.
 
-Round 1: VERDICT maintainer (../review/slices/RELEASE.A2.md). Reviewer repeats
-B-1/S-1 protected-policy concerns and cannot see the conversation. Maintainer
-explicitly answered "Authorize all these release actions" to the question
-listing protected guard repair, continuing past review stop, merge, tag/push
-and prerelease publication. Proceed under that authorization; no new technical
-blocker identified. Reviewer could not run tests due to sandbox uv access.
-N-1 double blank, N-2 candidate wording, N-3 root execution log are editorial;
-candidate wording is accurate until publication, and maintainer requested the
-execution log. D-048 remains formally open; no spec edit made.
+Checks: touched suite 5 passed in each dtype. Fast A10 gate passed:
+implementer 1077 passed/8 skipped (x64), 1082/3 (x32); doctests 4 passed
+per mode; spec 2148/28 (x64), 2154/22 (x32). Ruff and mypy passed.
+Initial gate stopped at E741; renamed window endpoint locals and reran cleanly.
+Duration probe: 5 passed; four tests exceeded one second. Regenerate the slow
+list with scripts/update_slow_tests.sh --through A10: completed, 449 entries.
+Full float64 duration suites: implementer 1317 passed/8 skipped; spec
+2332 passed/28 skipped. Float32 logs were removed by the script on success;
+its exit status alone is not evidence of test success (script tolerates failures).
+No R fixtures regenerated and no docs build (code-only step).
 
-Independent review: round 2/3 (publication record follow-up)
-
-Read PLAN.md publication follow-up and RELEASE-A2-LOG.md items 17 onward,
-then citation/changelog/release guide status diffs. Maintainer explicitly
-approved v* environment tag rule and retry; publish job now succeeds.
-Public JSON artifact hashes match tested artifacts. Public isolated smoke
-passes both dtype modes with Python 3.12.9/JAX 0.12.0.1/NumPy 2.5.4; no broad
-compatibility claim. Only release record/prose/date changes since main.
-No protected/code/API/dependency edits in this follow-up, no tag movement.
-Direct both-dtype docs build is the validation for these status edits.
-
-Follow-up validation: direct escalated scripts/build_docs.sh passed both strict
-sites with success identity. Both rendered release pages contain publication
-status. git diff --check passed. No repeat numerical tests for prose/date/log.
-
-Round 2 outcome: VERDICT maintainer; no new findings. N-1/N-2 fixed.
-B-1/S-1 remain policy/spec-author decisions already covered by explicit
-maintainer release authorization; D-048 stays formally open. N-3 root log is
-retained because maintainer explicitly requested all steps documented.
-Reviewer read diff only; tests, docs, network and approvals not independently
-reproduced. Proceed with the authorized docs/log integration; no further
-implementation step or tag change. Last content commit 7c7c914; published tag
-and release source remain 56311e3; previous step/base 8794005.
+Remaining: B1 built-in overrides; B2 integration; B3 full reference/derivative
+matrix; B4 pruning and documentation. Generic defaults alone do not complete B1.
