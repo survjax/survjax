@@ -9,6 +9,7 @@ def test_public_package_imports() -> None:
         "constraints",
         "Exponential",
         "Weibull",
+        "LogLogistic",
         "ProportionalHazards",
         "SurvivalData",
         "InvalidDataError",
@@ -53,6 +54,7 @@ def test_ph_public_imports_are_the_same_registered_family() -> None:
     assert set(distributions.__all__) == {
         "Exponential",
         "Weibull",
+        "LogLogistic",
         "ProportionalHazards",
         "SurvivalDistribution",
         "register_family",

@@ -5,6 +5,7 @@ from survjax.data import SurvivalData
 from survjax.diagnostics import InvalidDataError, InvalidParameterError
 from survjax.distributions import (
     Exponential,
+    LogLogistic,
     ProportionalHazards,
     SurvivalDistribution,
     Weibull,
@@ -19,6 +20,7 @@ __all__ = [
     "constraints",
     "Exponential",
     "Weibull",
+    "LogLogistic",
     "ProportionalHazards",
     "SurvivalData",
     "InvalidDataError",
