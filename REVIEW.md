@@ -1,3 +1,47 @@
+# A12.GATE — PH/RMST acceptance integration
+
+Independent review: round 1/3
+
+Read PLAN.md, .github/workflows/ci.yml, .github/workflows/release.yml,
+then tests/spec/TESTMAP.md A11/A12 and the existing independent suites.
+Start / previous step / original worktree base: cc0e30f.
+Plan archive: e944567. No API, dependency, numerical or protected-path edits.
+
+Both hosted gates previously stopped at A10 despite integrated PH/RMST code
+and independent acceptance suites. Advance the cumulative selection to A12.
+CI retains its OS/dtype matrix, offline setup and exact built-wheel input;
+release retains both dtypes and its validated wheel. Neither workflow uses
+--fast: full tests remain required there. The generic runner already supports
+A12. No test assertions, markers or tolerance changes are needed.
+
+Evidence: scripts/check.sh --fast --through A12 exited 0:
+- guard ok; Ruff 192 formatted, lint clean; mypy 22 source files clean;
+- implementation x64: 1072 passed, 8 skipped; x32: 1077 passed, 3 skipped;
+- source doctests: 4 passed per dtype;
+- independent acceptance x64: 3396 passed, 33 skipped;
+  x32: 3389 passed, 40 skipped.
+- Each acceptance run emitted two RuntimeWarnings from NumPy expected-value
+  arithmetic at t=0 in test_a11_ph_direct_methods.py:78; no failures.
+- git diff --check passed.
+
+A11 tests cover PH construction, diagnostics, methods/grids, identities,
+likelihood, ordinary supported derivatives and invalid-entry isolation.
+A12 tests cover staged RMST policy, values, independent references and
+supported derivatives. See their TESTMAP entries for detailed requirements.
+The fast gate omits the registered slow tests; the full merge gate and hosted
+workflow execution were not run here. Docs/demos and the full first-release
+completion audit are not certified by these tests. No docs changed.
+
+Roadmap handoff: ../ROADMAP.md is stale (A10 underway, PH/RMST not started).
+The maintainer should record integrated implementations and this local A12
+fast-gate evidence, retaining separate docs/demo/full-gate closure requirements.
+No ambiguity or new deviation identified. Remaining substeps: independent
+review, then maintainer full merge gate/hosted execution. Stop after review.
+
+---
+
+## Preserved incoming demo audit record
+
 # DEMO.E1 — Release-demo evidence audit
 
 Independent review: round 1/3
