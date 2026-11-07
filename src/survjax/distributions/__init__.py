@@ -9,9 +9,10 @@ from survjax.distributions.base import (
 )
 from survjax.distributions.exponential import Exponential
 from survjax.distributions.weibull import Weibull
-from survjax.distributions.wrappers import ProportionalHazards
+from survjax.distributions.wrappers import AcceleratedFailureTime, ProportionalHazards
 
 __all__ = [
+    "AcceleratedFailureTime",
     "Exponential",
     "Weibull",
     "ProportionalHazards",

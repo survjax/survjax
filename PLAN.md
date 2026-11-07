@@ -4,7 +4,8 @@ Starting commit / previous work / original worktree base: cc0e30f.
 Plan archival commit: 64b8393. Branch: aft.
 Maintainer scope: this worktree targets AFT only. Generic RMST, other families,
 summary derivative infrastructure and later overrides are owned elsewhere.
-This is planning only; no implementation step has started.
+AFT.1 starts from approved-plan commit 7b5b70f; previous completed work is
+cc0e30f, also the original worktree base. AFT.1 implementation and validation are complete; independent review pending.
 
 ## AFT.1 — Registered wrapper and direct methods
 
@@ -12,6 +13,10 @@ Files:
 - src/survjax/distributions/wrappers.py
 - src/survjax/distributions/__init__.py and src/survjax/__init__.py
 - tests/unit/test_aft.py
+- tests/unit/test_import.py and tests/install/test_wheel.py (public export lists)
+- docs/api.md (single autodoc entry explicitly authorized during AFT.1)
+- tests/slow_tests.txt (required full timing regeneration; maintainer explicitly
+  allows its 310 changed lines in the single AFT.1 commit)
 - PLAN.md and REVIEW.md
 
 Public API: AcceleratedFailureTime(baseline=..., log_time_ratio=...).
@@ -92,4 +97,5 @@ this worktree. AFT completion does not claim full Slice D or summary support.
 
 AFT.3 closes the direct-wrapper documentation topic after the code steps.
 
-Remaining: AFT.1, AFT.2 and AFT.3. No implementation or checks run yet.
+AFT.1 implemented and validated; independent review pending.
+Remaining after AFT.1: AFT.2 and AFT.3.

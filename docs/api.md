@@ -82,6 +82,13 @@ broadcasting and the first-release derivative limits.
    :members: log_survival, log_cdf, log_prob, log_hazard, reference_time, rmst
 ```
 
+## Accelerated failure time
+
+```{eval-rst}
+.. autoclass:: survjax.AcceleratedFailureTime
+   :members: log_survival, log_prob, log_hazard, reference_time
+```
+
 ## Writing your own family
 
 ```{eval-rst}
