@@ -13,6 +13,29 @@ spec ambiguity or changes over about 300 lines. Commit, independent review,
 then stop. Roadmap is outside this repo; report its stale status for maintainer
 update rather than editing it here.
 
-Remaining substeps: resolve any acceptance failures in separately reviewed
-steps; full merge gate belongs to the maintainer. Demo and final release
-completion are separate from passing this PH/RMST gate.
+Status: complete and maintainer-approved (7 November 2026). Implementation
+commit 120c750; independent review round 1/3: VERDICT merge, no findings,
+../review/slices/A12.GATE.md. Reviewer independently reproduced the fast
+through-A12 gate in both dtypes. No acceptance failures required code changes.
+Remaining verification: full merge gate and hosted workflow execution.
+Docs/demo/release closure is separate; do not reimplement PH or staged RMST.
+
+## A12.GATE.RECORD — Close bookkeeping after approval
+
+Start / previous step: 120c750; original worktree base: cc0e30f.
+Files: PLAN.md, REVIEW.md, plans/release-agents/README.md and workspace
+../ROADMAP.md (maintainer explicitly requests current bookkeeping).
+Record approval and review outcome; mark prospective PH/RMST handoffs as
+historical. Update the roadmap checkpoint and PH/RMST acceptance status,
+without asserting full-gate, hosted CI or demo closure. No docs/, API,
+dependency, spec or numerical changes. Validate whitespace and status strings;
+commit repository records and run independent review, then stop.
+
+## Rebase integration record
+
+Rebased onto e461c1f (incoming demo evidence audit). Preserve that audit plan
+verbatim in plans/demo-e1.md and its review below the current A12 review.
+Original release plans were already archived by incoming commit 86d4a56;
+the replayed archive must not label the demo plan as alpha-2 release history.
+Original commit IDs above identify pre-rebase review evidence. A12 gate
+implementation replayed as 3fbaa96; no numerical/test changes in resolution.

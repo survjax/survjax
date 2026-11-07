@@ -35,8 +35,25 @@ completion audit are not certified by these tests. No docs changed.
 Roadmap handoff: ../ROADMAP.md is stale (A10 underway, PH/RMST not started).
 The maintainer should record integrated implementations and this local A12
 fast-gate evidence, retaining separate docs/demo/full-gate closure requirements.
-No ambiguity or new deviation identified. Remaining substeps: independent
-review, then maintainer full merge gate/hosted execution. Stop after review.
+No ambiguity or new deviation identified.
+
+Outcome: round 1/3 VERDICT merge, no findings. Review file:
+../review/slices/A12.GATE.md. Reviewer independently reproduced the fast gate
+with the same results. Maintainer approved this step on 7 November 2026.
+Implementation is complete at 120c750; full merge gate/hosted execution remain.
+
+# A12.GATE.RECORD — Bookkeeping closure
+
+Independent review: round 1/3
+
+Read PLAN.md status and record section, then plans/release-agents/README.md.
+Start/previous step 120c750; worktree base cc0e30f. Only status records change.
+The workspace roadmap update is explicitly requested by the maintainer and
+keeps implementation, fast-gate evidence and outstanding closure distinct.
+Old release-agent launch instructions are historical, not new assignments.
+No numerical checks repeated for status-only edits; git diff --check is the
+validation. The previous gate numbers above remain the evidence, not a new run.
+No API, dependencies, protected files or docs/ changes. No open uncertainty.
 
 ---
 

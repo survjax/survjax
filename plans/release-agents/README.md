@@ -1,5 +1,14 @@
 # First-release worktree handoffs
 
+> Historical launch packet, superseded by integrated implementations.
+> As of 7 November 2026, PH (A11) and staged RMST (A12) are implemented.
+> Commit 120c750 advances CI and release selection through A12; the local
+> fast gate passes both dtypes, independently reviewed (merge) and approved.
+> Do not launch PH/RMST implementation from the assignments below. Check the
+> current PLAN.md and workspace ROADMAP.md for remaining work. Full merge-gate,
+> hosted execution and final docs/demo closure are separate evidence items.
+
+
 Prepared 2026-10-29; assumes A10.4 and acceptance fixtures are merged.
 The maintainer already assigned all remaining A9 work to another agent.
 No agents, branches or worktrees are created by these plans.
