@@ -50,6 +50,8 @@ branch="$(git rev-parse --abbrev-ref HEAD)"
 allowed=""
 case "$branch" in
   spectests-*) allowed='^tests/spec/' ;;
+  # Maintainer-authorized post-release feature staging workflow.
+  test-staging) allowed='^scripts/check\.sh$' ;;
   # Maintainer-approved alpha-2 repair; other protected paths remain blocked.
   patch-wheel-test) allowed='^(tests/spec/test_a9_package\.py|scripts/check\.sh)$' ;;
   meta-*)      allowed='^(CLAUDE\.md$|AGENTS\.md$|scripts/check\.sh$|scripts/sync_spec_tests\.sh$|\.agents/|\.workmux\.yaml$)' ;;
@@ -106,9 +108,12 @@ for x64 in $modes; do
 done
 
 # --- 5. spec tests, one process per dtype mode ----------------------------
+# The committed list is the gate's feature selection, including when empty.
+SPEC_FEATURES="$(sed 's/#.*//; s/^[[:space:]]*//; s/[[:space:]]*$//; /^[[:space:]]*$/d' scripts/spec-features.txt | paste -sd, -)"
+export SPEC_FEATURES
 # pytest exit code 5 means "no tests collected": fine while tests/spec is empty.
 for x64 in $modes; do
-  echo "spec tests through $through, JAX_ENABLE_X64=$x64${fast:+, fast}"
+  echo "spec tests through $through, features=${SPEC_FEATURES:-none}, JAX_ENABLE_X64=$x64${fast:+, fast}"
   set +e
   JAX_ENABLE_X64=$x64 SPEC_THROUGH="$through" uv run --group test pytest tests/spec -q -n "$workers" -m "$marker"
   rc=$?
