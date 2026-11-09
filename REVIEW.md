@@ -1,6 +1,6 @@
 # B1c.1 — Weibull interval override
 
-Independent review: round 1/3
+Independent review: round 2/3
 
 Read PLAN.md, spec 4.2 and 7.1–7.3, distributions/_weibull_intervals.py,
 its binding in weibull.py, then tests/unit/test_weibull_intervals.py.
@@ -48,3 +48,10 @@ Remaining: B1c.2 conditional Weibull; B2 likelihood integration; B3 full
 reference/numerical matrix; B4 measured metadata pruning and docs. The generic
 conditional method still subtracts absolute log probabilities and is not
 claimed to handle far-tail cancellation until B1c.2.
+
+## Authorized review retry
+
+Maintainer requested another reviewer attempt. Round 1 at e0fc2f1 performed
+no review because checkout permissions blocked it; no findings were issued.
+Implementation and tests are unchanged. Retry uses the recorded previous SHA
+and finding IDs `none`.
