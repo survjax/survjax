@@ -50,3 +50,5 @@ Imported verbatim; old status/next-step instructions are historical only.
 - [Pre-wheel-fix records](pre-patch-wheel-test.md): preserved prior plan verbatim.
 
 - [Alpha 2 release](release-a2.md): verbatim incoming release and wheel-fix records at cc0e30f.
+
+- [B1a](B1a.md): generic interval hooks and docstring follow-ups, through 8f9eb95.
