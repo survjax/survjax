@@ -1,3 +1,10 @@
+# B1a docstring clarification — Survival-function ratio
+
+Start / previous step: bd9e60c; original worktree base: cc0e30f.
+Replace the dense probability expression with S(t), separately defined
+intersection endpoints, and a numerator/denominator explanation. Same files
+and prose-only validation as the preceding follow-up; review waiver continues.
+
 # B1a docstring follow-up — Conditional probability formula
 
 Start / previous step: 84bd9bb; original worktree base: cc0e30f.

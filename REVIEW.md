@@ -1,3 +1,9 @@
+## Survival-function notation clarification
+
+Rewrote the requested formula using S(t), defined the intersected endpoints,
+and explained numerator and denominator. No behavior change. Formatting and
+whitespace checks only; no numerical tests or independent review rerun.
+
 ## B1a docstring follow-up
 
 Added the conditional interval formula from spec 4.2; no behavior change.

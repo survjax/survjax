@@ -86,8 +86,15 @@ def log_conditional_interval_prob(
 ) -> jax.Array:
     """Return log interval mass conditional on (left_trunc, right_trunc].
 
-    With L = left_trunc and U = right_trunc, this is
-    log P(max(lower, L) < T <= min(upper, U)) - log P(L < T <= U).
+    Let S(t) = P(T > t), and let (L, U] be the truncation window.
+    First intersect the requested interval with that window:
+    a = max(lower, L), b = min(upper, U). For a < b, the result is
+
+        log((S(a) - S(b)) / (S(L) - S(U)))
+
+    The numerator is the probability of the intersected interval; the
+    denominator is the probability of the truncation window. Computation
+    uses stable log-space differences rather than this literal ratio.
 
     Args:
         lower: Nonnegative lower endpoints.
