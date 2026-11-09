@@ -143,7 +143,7 @@ def test_wheel_metadata_contains_readme_and_release_links(wheel):
         metadata = BytesParser().parsebytes(archive.read(metadata_paths[0]))
     assert metadata["Description-Content-Type"] == "text/markdown"
     description = metadata.get_payload(decode=True).decode("utf-8")
-    assert description == (ROOT / "README.md").read_text()
+    assert description == (ROOT / "README.md").read_text(encoding="utf-8")
     assert set(metadata.get_all("Project-URL")) == {
         "Repository, https://github.com/survjax/survjax",
         "Documentation, https://survjax.readthedocs.io",
