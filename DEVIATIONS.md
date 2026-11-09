@@ -1135,4 +1135,8 @@ Entries are added by the implementer and resolved by the maintainer.
   assertions. Request independent-author acceptance updates and synchronization
   for staged Slice B support, retaining checks for modes still unimplemented.
   Do not edit, skip or xfail protected tests from this implementation branch.
-- Status: open.
+- Status: resolved (maintainer, 2026-11-09).
+- Resolution: spec tests are staged by feature (`observation.censoring`,
+  `observation.truncation`), synced in 4239d61. B2.1 enables
+  `observation.censoring` in scripts/spec-features.txt; truncation remains
+  for B2.2.

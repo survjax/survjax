@@ -181,8 +181,6 @@ def test_zero_censoring_has_zero_parameter_gradient_and_hessian():
 @pytest.mark.parametrize(
     "lower,upper,exact,left,right",
     [
-        (0, 3, False, 0, np.inf),
-        (1, 3, False, 0, np.inf),
         (2, 2, True, 1, np.inf),
         (2, np.inf, False, 1, np.inf),
         (2, 2, True, 0, 5),

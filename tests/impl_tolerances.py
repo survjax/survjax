@@ -46,3 +46,8 @@ SIMULATION_SIGMAS = 6
 # score bound 1e-5 implies <=1.5e-5 log-parameter error locally; 2e-5 allows
 # the O(score**2) remainder. This is solver accuracy, not value/AD accuracy.
 SIMULATION_FIT_ATOL = 2e-5
+
+# Mixed censoring at rate .5 has O(1/r^3) third derivatives. A smaller
+# x64 finite-difference step keeps truncation error below 1e-7 in random
+# projections; x32 retains 1e-3 to control cancellation at its precision.
+CENSORING_GRAD_EPS = {True: 1e-5, False: 1e-3}

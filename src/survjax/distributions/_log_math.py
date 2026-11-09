@@ -71,10 +71,14 @@ def log_interval_prob(
     safe_low = jnp.where(resolved, low, -1.0)
     value = safe_high + safe_log1mexp(safe_low - safe_high)
     # spec 7.1: rounded equal finite logs are not evidence of true zero mass.
-    value = jnp.where(resolved, value, jnp.where(jnp.isneginf(high), -jnp.inf, jnp.nan))
+    zero_mass = jnp.isneginf(high)
+    value = jnp.where(resolved, value, -jnp.inf)
     value = jnp.where(a == 0, fb, value)
     value = jnp.where(jnp.isposinf(b), sa, value)
-    return jnp.where(valid, jnp.where(empty, -jnp.inf, value), jnp.nan)
+    # Delay failure selection until endpoint/empty cases are resolved: an
+    # inactive NaN intermediate would also fail eager debug_nans (spec 7.2).
+    known = empty | (a == 0) | jnp.isposinf(b) | resolved | zero_mass
+    return jnp.where(valid & known, jnp.where(empty, -jnp.inf, value), jnp.nan)
 
 
 def log_conditional_interval_prob(

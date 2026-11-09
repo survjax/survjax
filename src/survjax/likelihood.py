@@ -1,4 +1,4 @@
-"""Exact and right-censored likelihood contributions."""
+"""Exact and censored likelihood contributions without truncation."""
 
 import jax
 import jax.numpy as jnp
@@ -20,11 +20,7 @@ def _unusable_data_rows(data: SurvivalData, shape: tuple[int, ...]) -> jax.Array
 
 def _supported_rows(data: SurvivalData, shape: tuple[int, ...]) -> jax.Array:
     """Read current mode support, independent of diagnostics/metadata."""
-    supported = (
-        (data.left_trunc == 0)
-        & jnp.isposinf(data.right_trunc)
-        & (data.exact | jnp.isposinf(data.upper))
-    )
+    supported = (data.left_trunc == 0) & jnp.isposinf(data.right_trunc)
     return jnp.broadcast_to(supported, shape)
 
 
@@ -34,7 +30,7 @@ def _evaluate(
     bad: jax.Array,
     common: DTypeLike,
 ) -> jax.Array:
-    """Evaluate exact/right pieces with safe inactive operands."""
+    """Evaluate exact/censored pieces with safe inactive operands."""
     exact_rows = jnp.broadcast_to(data.exact, bad.shape)
     # spec 3.3: stored times may be narrower than the promoted parameters.
     time = jnp.asarray(data.lower, dtype=common)
@@ -44,14 +40,20 @@ def _evaluate(
         jnp.asarray(prepared.reference_time(), dtype=common)
     )
     # spec 7.2: keep likelihood-level substitution even though direct methods
-    # also guard their inputs under 4.5. Inactive survival uses window (0,inf].
+    # also guard their inputs under 4.5. Inactive set probability uses window (0,inf].
     density_time = jnp.where(~bad & exact_rows, time, reference)
-    survival_time = jnp.where(~bad & ~exact_rows, time, jnp.zeros((), dtype=common))
+    active_set = ~bad & ~exact_rows
+    lower = jnp.where(active_set, time, jnp.zeros((), dtype=common))
+    upper = jnp.where(
+        active_set,
+        jnp.asarray(data.upper, dtype=common),
+        jnp.full((), jnp.inf, dtype=common),
+    )
     density = prepared.log_prob(density_time)
-    survival = prepared.log_survival(survival_time)
+    interval = prepared.log_interval_prob(lower, upper)
     # spec 3.3: custom overrides can return fixed lower-precision arrays even
     # after their inputs are promoted; contributions still use the common dtype.
-    values = jnp.asarray(jnp.where(exact_rows, density, survival), dtype=common)
+    values = jnp.asarray(jnp.where(exact_rows, density, interval), dtype=common)
     return jnp.where(bad, jnp.nan, values)
 
 

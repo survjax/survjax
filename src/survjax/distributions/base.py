@@ -223,10 +223,11 @@ class SurvivalDistribution:
         time: ArrayLike | None = None,
         event: ArrayLike | None = None,
     ) -> jax.Array:
-        """Return unsummed exact/right log contributions without truncation.
+        """Return unsummed exact/censored log contributions without truncation.
 
         Args:
-            data: Prepared SurvivalData, supplied instead of time and event.
+            data: Prepared SurvivalData for exact, right-, left- or interval-
+                censored observations, supplied instead of time and event.
             time: Raw exact/right-censoring times; requires event. Event inputs
                 must broadcast to time.shape without enlarging it.
             event: 1/True for exact and 0/False for right censoring; requires time.
@@ -235,7 +236,7 @@ class SurvivalDistribution:
             An array with the trailing-axis broadcast shape of the data and
             distribution batch shapes, in their common floating dtype. There is
             no time-grid axis, reduction or weighting. Invalid data/parameter
-            rows and modes unsupported in Slice A give NaN, eagerly and under
+            rows and truncation (not yet supported) give NaN, eagerly and under
             jit/vmap; supported rows retain their contributions. True zero
             likelihood and log contributions below the dtype's finite range
             give -inf.

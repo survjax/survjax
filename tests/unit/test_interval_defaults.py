@@ -156,3 +156,27 @@ def test_conditional_window_boundaries_and_infinity(x64_enabled):
     np.testing.assert_allclose(
         result, -0.36, atol=ATOL[x64_enabled], rtol=RTOL[x64_enabled]
     )
+
+
+def test_generic_mixed_censoring_is_safe_under_debug_nans(x64_enabled):
+    """Spec 7.2: endpoint fallback must not create an inactive NaN."""
+    from survjax import SurvivalData
+
+    data = SurvivalData.from_bounds(
+        [1.0, 2.0, 0.0, 1.0, 0.0],
+        [1.0, np.inf, 2.0, 3.0, np.inf],
+        exact=[True, False, False, False, False],
+    )
+    # r=.5, width=2: both finite censoring probabilities contain 1-exp(-1).
+    expected = [
+        np.log(0.5) - 0.5,
+        -1,
+        np.log(-np.expm1(-1)),
+        -0.5 + np.log(-np.expm1(-1)),
+        0,
+    ]
+    with jax.debug_nans(True):
+        actual = GenericIntervalExponential(rate=0.5).log_likelihood(data)
+    np.testing.assert_allclose(
+        actual, expected, atol=ATOL[x64_enabled], rtol=RTOL[x64_enabled]
+    )
