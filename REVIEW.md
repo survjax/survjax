@@ -1,6 +1,6 @@
 # AFT.1 — Registered wrapper and direct methods
 
-Independent review: round 2/3
+Independent review: round 3/3
 
 Read first: PLAN.md AFT.1; spec 4.4–4.5 and 7.1–7.3;
 wrappers.py AcceleratedFailureTime; exports; tests/unit/test_aft.py;
@@ -98,3 +98,10 @@ implementation x64 1356 passed/8 skipped (311.03s), x32 1361 passed/3 skipped
 (344.87s), spec x64 2333 passed/27 skipped (247.16s). The script discarded
 its temporary logs before I captured the final full x32 spec summary, so no
 full x32 spec count or Tier 2 gate certification is claimed here.
+
+
+Round 2 (e01c42d): VERDICT maintainer. F-1/F-2 addressed on reading,
+N-1/N-2 fixed, N-3 reasoning accepted; no new findings. Reviewer could not
+execute checkout, tests or mutants because of headless permission restrictions.
+Maintainer explicitly requested a retry on 2026-11-09. Round 3 retries execution
+verification of the same implementation; only this review record changed.
