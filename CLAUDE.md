@@ -85,10 +85,13 @@ The maintainer reviews all code, so optimise for reviewability over speed.
    author from the spec alone and is read-only for you (see "Spec tests"
    below). If one fails and you think the test is wrong, add a step `DEVIATIONS.md`
    entry. Do not edit, skip or xfail it.
-10. **The review is not yours.** The `independent-review` skill allows exactly
-    two things outside this repo: running the `claude` command it gives, in
-    the reviewer's checkout `../review/code-<branch>`, and reading the review
-    file `../review/slices/<step>.md`. Never edit anything in `review/`, never
+10. **The review is not yours.** The `independent-review` skill permits only
+    mechanical creation of a missing detached reviewer checkout and its
+    read-only setup checks, running the `claude` command it gives in that
+    checkout, and reading the review file `../review/slices/<step>.md`.
+    Follow the skill's setup procedure; this exception does not authorize
+    changing reviewer roles, settings, prompts or existing checkouts.
+    Apart from that missing-checkout creation, never edit anything in `review/`, never
     add context or instructions to the reviewer prompt, and never re-run a
     review to get a different verdict (one retry only when no new round was
     written). If you disagree with a finding, give your reasons in the step’s `REVIEW.md`
