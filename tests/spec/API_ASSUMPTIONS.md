@@ -947,3 +947,64 @@ on it. Guessed exception types and call shapes are centralised in
   `test_summary_quantile_surface.py`, `_values.py`, `_policy.py`
   (`test_inverse_cumulative_hazard_grid_with_explicit_axes`) and
   `_derivatives.py`.
+
+## Q-064: the triage recipe's support check after Slice B (spec 7.1, 12.2; rev 51)
+
+- **Checked:** 7.1 ("The documentation shows this **Slice A** recipe";
+  "Its mask expands as later slices implement more modes"), 12.2 (Slice B:
+  "Left and interval censoring; all truncation combinations").
+- **Question:** the spec gives only the Slice A form of `supported_mode`. Once
+  Slice B is in, is the support check simply all-true (every v0 observation
+  mode implemented), and does the documented recipe keep a `supported_mode`
+  term at all?
+- **Guess:** `helpers.supported_mode` drops the kind condition when
+  `observation.censoring` is enabled and the truncation condition when
+  `observation.truncation` is enabled (`SPEC_FEATURES`), so with both enabled
+  every row is supported and every unexplained NaN is `other` (`Z=0` or
+  numerical failure).
+- **Depends:** `helpers.supported_mode`, `helpers.nan_causes`,
+  `helpers.unsupported_nan`, and the Slice B feature tests that triage NaN
+  rows.
+
+## Q-065: calling `log_interval_prob` directly (spec 4.2, 4.5, 7.1, 12.2; rev 51)
+
+- **Checked:** 4.2 (member table: "`log_interval_prob(lower, upper)` | Stable
+  log difference with tail selection ..."; overrides "receive endpoints `0`
+  and `+inf`"), 4.5 (direct methods "never raise on values and carry no issue
+  masks"), 7.1 ("Direct interval probability with equal endpoints is zero;
+  reversed endpoints are invalid"), 12.2 (Slice B lists only the
+  `log_conditional_interval_prob` hook).
+- **Question:** is `dist.log_interval_prob` a public callable method of every
+  registered family, and in which feature does it land? How do its endpoints
+  broadcast? What value does it return for reversed endpoints (`lower >
+  upper`): NaN, or something else, given that it cannot raise or set an issue?
+  Which member does the likelihood use for an untruncated censored row?
+- **Guess (tested):** a public method on every family, called positionally
+  `(lower, upper)`; endpoints broadcast against `batch_shape` like a
+  direct-method `t`; enabled with `observation.censoring`; equal endpoints
+  give `-inf`; reversed endpoints give NaN. Nothing is asserted about which
+  member the likelihood dispatches to.
+- **Depends:** `test_observation_censoring_interval_prob.py`.
+
+## Q-066: calling `log_conditional_interval_prob` and its use by the likelihood (spec 4.2, 12.2; rev 51)
+
+- **Checked:** 4.2 ("`log_conditional_interval_prob(lower, upper, left_trunc,
+  right_trunc)` | Generic `log P(max(lower,L)<T<=min(upper,U)) - log Z`.
+  Families override it ... The likelihood never dispatches on family type";
+  "a family shapes the likelihood only through the members above"), 12.2
+  (Slice B: "`log_conditional_interval_prob` hook").
+- **Question:** is the hook a public callable on every registered family,
+  and do its four arguments broadcast against `batch_shape`? Which rows does
+  the likelihood evaluate through it: every censored row, only truncated
+  censored rows, or also `log Z` for exact rows? Does a family's override
+  replace the generic path for all of them? Which feature enables it
+  (it is needed only with truncation, but the test rows include interval
+  sets)?
+- **Guess (tested):** a public method on every family, called positionally
+  `(lower, upper, left_trunc, right_trunc)`, broadcasting like a direct-method
+  argument; enabled when both Slice B features are enabled; its value is the
+  4.2 definition, `0` on the whole window, and equal to the corresponding
+  censored row's likelihood contribution. A correct custom override leaves
+  the likelihood equal to the closed form; nothing asserts that the
+  likelihood calls the override.
+- **Depends:** `test_observation_truncation_hook.py`.

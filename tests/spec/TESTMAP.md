@@ -130,7 +130,15 @@ into post-release feature tests (`test_summary_<feature>_*.py`, marked
 rejection and absence tests the A13 batch had removed are restored under
 `step("A12")` with `until(<feature>)`, so they run until the lifting feature is
 enabled (`SPEC_FEATURES`). A12 value and first-derivative regressions are
-unchanged. The mpmath references
+unchanged. Slice B observation support (12.2) is staged, at the unchanged
+revision 51, as the maintainer's features `observation.censoring` and
+`observation.truncation` (2026-11-09): the first-release NaN assertions for
+those modes in `test_a6_unsupported_modes.py` and `test_a11_ph_likelihood.py`
+keep `step(...)` and gain `until(<feature>)` per case, and
+`helpers.supported_mode` (the 7.1 recipe's support check) expands with the
+enabled features (Q-064). The A10 concordance `unsupported` rows are a
+permanent v0 rule of 9.1 ("Supported observations are exact and
+right-censored rows"), not a Slice A restriction, and are not staged. The mpmath references
 need `mpmath`, and the A10 property tests `hypothesis`, in the test environment. Tests are static acceptance tests and have never
 been executed against survjax. Test names below are relative to `tests/spec/`.
 
@@ -1366,12 +1374,21 @@ Invalid-data and parameter-issue NaN rows through the method are in
 Cases: left, interval, bounds-left, bounds-interval, left-truncated exact and
 right, right-truncated exact; row 0 is a supported exact row.
 
+Slice B staging: tests marked **(staged)** below carry, per case,
+`until("observation.censoring")` (left, interval, bounds-left,
+bounds-interval) or `until("observation.truncation")` (the three truncated
+cases), so no NaN or mode-support assertion runs once its mode is enabled.
+The other tests assert only facts that stay true after Slice B (the rows are
+valid data; the exact row keeps its value and derivatives) and run
+unconditionally.
+
 | Spec section | Requirement covered | Test |
 | --- | --- | --- |
-| 3.2/7.1 | the rows are valid data and add no data or parameter issue. | `test_unsupported_row_is_valid_data`, `test_unsupported_row_adds_no_parameter_issue` |
-| 7.1/12.2 | NaN on the row without an exception; the supported row keeps its value. | `test_unsupported_row_is_nan`, `test_supported_row_keeps_its_value` |
-| 7.1/12.2 | the same under `jit` (prepared data), traced construction and `vmap` over draws. | `test_unsupported_row_is_nan_under_jit`, `test_unsupported_mode_from_traced_construction_is_nan`, `test_unsupported_row_is_nan_under_vmap` |
-| 7.1/12.2 | the Slice A triage recipe attributes the row to mode support (`unsupported_nan`), not `other`. | `test_triage_recipe_attributes_row_to_mode_support` |
+| 3.2/7.1 | the rows are valid data and add no data issue. | `test_unsupported_row_is_valid_data` |
+| 7.1 | the NaN row adds no parameter issue **(staged)**. | `test_unsupported_row_adds_no_parameter_issue` |
+| 7.1/12.2 | NaN on the row without an exception **(staged)**; the supported row keeps its value. | `test_unsupported_row_is_nan`, `test_supported_row_keeps_its_value` |
+| 7.1/12.2 | the same under `jit` (prepared data), traced construction and `vmap` over draws **(staged)**. | `test_unsupported_row_is_nan_under_jit`, `test_unsupported_mode_from_traced_construction_is_nan`, `test_unsupported_row_is_nan_under_vmap` |
+| 7.1/12.2 | the Slice A triage recipe attributes the row to mode support (`unsupported_nan`), not `other` **(staged)**. | `test_triage_recipe_attributes_row_to_mode_support` |
 | 7.1/7.3 | the supported row keeps its first and second rate derivatives, per-row (Jacobian both modes, Hessian, `jit`) and with a shared rate. | `test_supported_row_keeps_its_gradient_per_row`, `test_supported_row_keeps_its_hessian_per_row`, `test_supported_row_keeps_its_gradient_with_shared_rate`, `test_supported_row_keeps_its_gradient_under_jit` |
 
 ### `test_a6_likelihood_gradient_isolation.py`: isolation of rows without parameter issues (rev 32)
@@ -1394,11 +1411,13 @@ function of the same flat parameter vector.
   authors; whether registration rejects an override is not specified.
 - **`Z=0` NaN rows** (the recipe's `other`): `Z=0` needs truncation, Slice B;
   the bounded-support zero-numerator versus zero-denominator case of 12.1 is
-  Slice B for the same reason.
+  Slice B for the same reason. Now covered by `observation.truncation`
+  (`test_observation_truncation_diagnostics.py`).
 - **Invalid rows whose normalized kind may be left or interval** (conflicting
   flags, equal non-exact bounds): rev 31 makes them NaN either way, but the
   triage of such rows (both invalid data and possibly unsupported) is left
-  to Slice B with the modes themselves.
+  to Slice B with the modes themselves. Now covered by
+  `observation.censoring` (`test_observation_censoring_diagnostics.py`).
 - **Inactive-input substitution** (7.2: own window for exact rows,
   `reference_time()` for censored rows, `stop_gradient`): not observable on
   valid exact/right data beyond finite values and gradients; A7
@@ -1772,7 +1791,7 @@ is ordinary range (7.3 exception).
 | 5 | `(N,)`, `(D,1)` x `(N,)`, `(S, 2)` x `(2,)`; mismatch `TypeError` | `test_scalar_wrapper_against_observations`, `test_draw_column_against_observations`, `test_draw_by_arm_batch_against_paired_arms`, `test_mismatched_batch_and_data_lengths_are_rejected` |
 | 6.1/12.1 | raw form equals data form in values, gradients, Hessians; `jit`, `vmap`, traced construction | `test_raw_form_equals_data_form_in_values_and_derivatives`, `test_likelihood_agrees_under_jit`, `test_likelihood_agrees_under_vmap_over_predictor_draws`, `test_traced_construction_and_likelihood_inside_jit` |
 | 7.1 | NaN rows for invalid data, non-finite `eta`, invalid baseline, nested custom condition; triage attributes them | `test_invalid_data_rows_are_nan_and_others_kept`, `test_non_finite_predictor_row_is_nan`, `test_invalid_baseline_row_is_nan`, `test_custom_baseline_condition_row_is_nan` |
-| 7.1/12.2 | unsupported modes (left, interval, left/right truncation) NaN eagerly and under `jit`, supported rows keep values and derivatives, no issue added | `test_unsupported_mode_row_is_nan_and_supported_row_kept`, `test_unsupported_row_leaves_supported_row_derivatives` |
+| 7.1/12.2 | unsupported modes (left, interval, left/right truncation) NaN eagerly and under `jit`, supported rows keep values, no issue added (staged per case: `until("observation.censoring")` / `until("observation.truncation")`); supported-row derivatives next to a left-censored row (unconditional) | `test_unsupported_mode_row_is_nan_and_supported_row_kept`, `test_unsupported_row_leaves_supported_row_derivatives` |
 
 ### `test_a11_ph_isolation.py`
 
@@ -1941,6 +1960,94 @@ Weibull RMST use the 12.1 scales; generic quadrature/solver paths use
 | 4.5/8.7/8.8 | `p` policy: NaN outside `[0,1]` (eager, `jit`), valid entries kept; dtype `TypeError` (eager, traced); float64 conversion; shapes (scalar, `p_grid[:, None, None]`, non-broadcasting `TypeError`); `e_grid` axes; violations NaN for quantile and median; default-limit convergence far from `reference_time()`; `jit`/`vmap` incl. median and `H⁻¹`; `vmap` over `p` | `test_invalid_probability_gives_nan`, `test_invalid_probability_entries_leave_valid_entries`, `test_probability_with_a_non_numeric_dtype_is_rejected`, `test_boolean_probability_is_rejected_during_tracing`, `test_float64_probability_converts_without_warning_in_32_bit_mode`, `test_scalar_probability_against_draws_by_arms`, `test_probability_grid_with_explicit_axes`, `test_probability_that_does_not_broadcast_is_rejected`, `test_inverse_cumulative_hazard_grid_with_explicit_axes`, `test_parameter_violations_give_nan_quantile`, `test_far_reference_quantile_converges_with_default_limits`, `test_quantile_agrees_under_jit_and_vmap`, `test_quantile_agrees_under_vmap_over_probabilities` (policy) |
 | 8.2/8.5 (+ containers) | invalid `p` and violations not `converged`; `_with_info` dtype and broadcast `TypeError`; info grid shapes; bracket limit; default-limit `converged`; counts; `jit`/`vmap` of info | `test_invalid_probability_is_not_reported_converged`, `test_probability_with_a_non_numeric_dtype_is_rejected_with_info`, `test_probability_grid_info_has_the_broadcast_shape`, `test_probability_that_does_not_broadcast_is_rejected_with_info`, `test_parameter_violations_are_not_reported_converged`, `test_bracket_limit_failure_is_reported`, `test_far_reference_quantile_reports_converged_with_default_limits`, `test_generic_quantile_counts`, `test_quantile_with_info_agrees_under_jit_and_vmap` (policy) |
 | 8.4 | built-in quantile and `H⁻¹` first derivatives (`dq/dp = 1/f(q)`, `dt/de = 1/h(t)`), Hessian; median = quantile derivative; PH chain rule; generic first derivatives (quantile, `H⁻¹`) and Hessian; `check_grads`; `jit`/`vmap`; isolation; non-finite `quantile(1)` tangent | `test_exponential_quantile_derivatives`, `test_weibull_quantile_derivatives`, `test_weibull_quantile_hessian`, `test_weibull_inverse_cumulative_hazard_derivatives`, `test_median_derivatives_equal_the_half_quantile_derivatives`, `test_ph_weibull_quantile_gradient_equals_the_equivalent_weibull`, `test_generic_quantile_first_derivatives`, `test_generic_inverse_cumulative_hazard_derivatives`, `test_generic_quantile_hessian`, `test_check_grads_order_two_quantile`, `test_generic_quantile_gradient_agrees_under_jit_and_vmap`, `test_generic_quantile_isolates_invalid_probabilities`, `test_upper_endpoint_quantile_has_a_non_finite_tangent` (derivatives) |
+
+### `observation.censoring`: `test_observation_censoring_*.py` (Slice B, rev 51)
+
+Left- and interval-censored rows without truncation. References: hand
+algebra in the module docstrings (Exponential and Weibull closed forms of
+`log F` and `log(S(a) - S(b))`), and `observation_reference` (50-digit mpmath
+of the spec 2 table, values and `mpmath.diff` derivatives). Row builder
+`helpers.flag_data`.
+
+| Spec | Requirement | Tests |
+| --- | --- | --- |
+| 2/7.1 | left `log F(c)`, interval `log(S(a)-S(b))`, Exponential and Weibull (`k<1`, `=1`, `>1`), hand-derived; hand formulas equal mpmath | `test_exponential_left_censored_row_is_hand_derived`, `test_exponential_interval_censored_row_is_hand_derived`, `test_weibull_left_censored_row_is_hand_derived`, `test_weibull_interval_censored_row_is_hand_derived`, `test_hand_values_agree_with_mpmath` (values) |
+| 1/2/3.1/12.1 | mixed exact/right/left/interval batches; bounds form equals flag form; `time2` ignored on left rows; finite negative values | `test_weibull_mixed_batch_with_exact_and_right_rows`, `test_exponential_mixed_batch_with_exact_and_right_rows`, `test_bounds_form_equals_flag_form`, `test_time2_is_ignored_on_left_rows`, `test_censored_rows_are_finite_and_negative` (values) |
+| 3.2/5 | `(D,1)` draws, per-row pairing, 2-D observations | `test_draw_column_against_censored_observations`, `test_per_row_parameters_pair_with_censored_rows`, `test_two_dimensional_censored_data` (values) |
+| 2/4.2 | generic defaults (`power_hazard`) equal Weibull; improper `mixture_cure` left/interval | `test_custom_family_on_generic_defaults_matches_weibull`, `test_improper_family_left_and_interval_rows` (values) |
+| 7.1/12.1 | zero model mass gives `-inf` (bounded support, untruncated half of the zero-numerator/zero-denominator pair); overflowing interval contribution `-inf`, not NaN | `test_interval_beyond_bounded_support_is_minus_infinity`, `test_overflowing_interval_contribution_is_minus_infinity` (values) |
+| 3.1/3.3/6.2/7.1 | invalid left/interval rows (left at `+inf`, negative, NaN; reversed, equal, NaN and negative `time2`; conflicting flags; bounds equal, NaN and negative upper) are NaN exactly on `invalid_rows`, triaged to data, rule masks where 6.2 fixes them; eager, `jit`, traced construction, indexing | `test_invalid_censored_row_is_nan_and_attributed_to_data`, `test_invalid_censored_row_under_jit`, `test_invalid_censored_row_from_traced_construction`, `test_indexing_keeps_issues_of_censored_rows` (diagnostics) |
+| 6.2/7.1 | valid mixed batch: no NaN, empty triage masks (Q-064); valid censored rows add no issue and are not `uninformative`; parameter violations NaN on censored rows, triaged to parameters | `test_valid_mixed_batch_has_no_nan_and_no_triage_mask`, `test_valid_censored_rows_add_no_issue`, `test_parameter_issue_on_a_censored_row_is_nan` (diagnostics) |
+| 3.2/6.2/7.2/12.1 | eager/`jit`/`vmap` agreement: prepared data, traced flag and bounds construction, metadata-pruning invariance, `vmap` over draws and datasets, `jit(vmap)`, indexing and `tree.map` slicing, compilation reuse (prepared and traced), compiled composition with gradient | `test_prepared_data_under_jit_matches_eager`, `test_traced_flag_construction_inside_jit_matches_eager`, `test_traced_bounds_construction_inside_jit_matches_eager`, `test_concrete_metadata_without_left_rows_does_not_change_values`, `test_vmap_over_parameter_draws`, `test_vmap_over_datasets`, `test_jit_of_vmap_over_draws_matches_eager_batch`, `test_indexed_censored_data_keeps_row_values`, `test_new_censored_values_reuse_compilation`, `test_traced_censored_construction_reuses_compilation`, `test_censored_rows_compose_inside_one_compiled_objective` (transformations) |
+| 7.3/12.1 | first and second derivatives: Exponential hand-derived (per-row Jacobians both modes, second derivatives three ways, shared-rate mixed batch); Weibull gradients and Hessians against mpmath; four fwd/rev Hessian compositions; `jit`, `vmap` over draws and datasets; `check_grads(order=2)` (float64) on Exponential, Weibull shared/per-row/`from_log`, `jit`/`vmap`, custom family; custom Hessian | `test_exponential_per_row_jacobian_is_hand_derived`, `test_exponential_left_and_interval_second_derivatives_are_hand_derived`, `test_exponential_shared_rate_mixed_batch_derivatives_are_hand_derived`, `test_weibull_left_and_interval_gradients_match_mpmath`, `test_weibull_mixed_batch_hessian_matches_mpmath`, `test_weibull_mixed_batch_gradient_matches_mpmath`, `test_forward_and_reverse_hessians_agree_with_mpmath`, `test_hessian_under_jit_matches_eager`, `test_hessian_under_vmap_over_parameter_draws`, `test_gradient_under_vmap_over_datasets`, `test_check_grads_*`, `test_custom_family_hessian_matches_mpmath` (derivatives) |
+| 7.1/7.2/7.3 | isolation of rows without parameter issues on censored rows (zero, negative, NaN, `+inf` scale), both modes, to second order; reference-input isolation for censored rows | `test_rows_without_parameter_issues_keep_derivatives`, `test_reference_input_does_not_reach_censored_row_gradients` (derivatives) |
+| 12.1 | cross-kind identities (hypothesis): interval `(c,+inf]` = right; `from_bounds(0,c)` = left; `logaddexp` of adjacent sets equals the union (left+interval, interval+interval, interval+right); left+right = 0; full coverage exactly zero | `test_interval_to_infinity_equals_right_censoring`, `test_bounds_from_zero_equals_left_censoring`, `test_left_plus_adjacent_interval_is_the_larger_left`, `test_adjacent_intervals_add_to_their_union`, `test_interval_plus_right_tail_is_the_earlier_right`, `test_left_plus_right_at_the_same_time_covers_everything`, `test_full_coverage_is_exactly_zero` (properties) |
+| 4.1/7.2/12.1/12.2 | tiny masses (left at `1e-30`, Weibull `H` underflow, tiny intervals); upper tails (left `log F ~ -S` at `H` = 20, 33, 55, 70/600; intervals with `H(a)` = 900–1000); narrow intervals (`2**-20`, `2**-40`) and Weibull increments; eager `jax_debug_nans` on valid mixed censored batches (Exponential, Weibull, per-row, custom, bounds form) | `test_exponential_left_row_at_tiny_time_keeps_relative_precision`, `test_weibull_left_row_where_the_cumulative_hazard_underflows`, `test_exponential_interval_at_tiny_times`, `test_weibull_interval_at_tiny_times`, `test_exponential_left_row_in_the_upper_tail`, `test_weibull_left_row_in_the_upper_tail`, `test_exponential_interval_deep_in_the_upper_tail`, `test_weibull_interval_deep_in_the_upper_tail`, `test_exponential_narrow_interval`, `test_weibull_narrow_interval_uses_cumulative_hazard_increments`, `test_*_under_debug_nans` (numerics) |
+| 4.2/7.1 | `log_interval_prob(lower, upper)` (Q-065): values; `+inf` upper is `log_survival`; `0` lower is `log_cdf`; `(0,+inf]` is `0`; equal endpoints `-inf`; reversed NaN; improper `(c,+inf]` = `log S(c)`; broadcasting; agrees with the interval row; `jit` and gradient | `test_finite_interval_matches_reference`, `test_upper_infinite_endpoint_is_log_survival`, `test_zero_lower_endpoint_is_log_cdf`, `test_whole_line_is_log_one`, `test_equal_endpoints_give_zero_probability`, `test_reversed_endpoints_are_nan`, `test_improper_family_interval_to_infinity_includes_the_cure_mass`, `test_endpoints_broadcast_against_the_batch`, `test_member_agrees_with_the_interval_row_contribution`, `test_member_under_jit_and_its_gradient` (interval_prob) |
+
+Not tested for `observation.censoring`:
+
+- **Left-censored at `c = 0`** (`(0, 0]`): collapsed and presumably invalid
+  (7.1 "Input intervals of collapsed width are invalid"), but 3.3 and 6.2 do
+  not say which mask the flag form sets for it; covered for the bounds form
+  only (`bounds-equal`).
+- **Untruncated `uninformative` left/interval rows:** impossible without
+  truncation (a left or finite interval set cannot cover `(0, +inf]`); they
+  are `observation.truncation` cases.
+- **Which member the evaluator calls** (`log_interval_prob`,
+  `log_conditional_interval_prob` or `log_cdf`) for an untruncated censored
+  row: unspecified; tested only through values (Q-065).
+- **Static-metadata pruning itself:** optional (7.2); only its invariance is
+  tested.
+- **R fixtures (flexsurv, every kind):** 12.2 Slice B gate, but fixtures are
+  maintainer-supplied and none are committed yet.
+- **Derivatives at `-inf` or overflowing rows, at support-change boundaries,
+  and in data times:** outside 7.3's guarantee.
+
+### `observation.truncation`: `test_observation_truncation_*.py` (Slice B, rev 51)
+
+Left, right and two-sided truncation with every censoring kind. Tests with
+only exact/right rows carry `feature("observation.truncation")`; tests with
+left or interval rows carry `feature("observation.censoring",
+"observation.truncation")` ("+ censoring" below). Hand algebra: every row is
+`g(H(lo), H(hi)) - g(H(L), H(U))` with `g(x, y) = -x + log(-expm1(-(y-x)))`
+(exact rows `log f(t) - g(H(L), H(U))`), cross-checked against
+`observation_reference`.
+
+| Spec | Requirement | Tests |
+| --- | --- | --- |
+| 2/7.1 | exact/right rows under left, right, two-sided truncation (Exponential, Weibull `k>1`, `k<1`), hand-derived; memorylessness; right with finite `U`; per-row windows; bounds = flag form; scalar truncation broadcast; `(D,1)` draws; hand helper = mpmath | `test_truncated_exact_and_right_rows_are_hand_derived`, `test_exponential_left_truncation_is_memoryless_by_hand`, `test_right_censored_beyond_entry_with_right_truncation_by_hand`, `test_per_row_truncation_windows`, `test_bounds_form_with_truncation_equals_flag_form`, `test_scalar_truncation_broadcasts_to_rows`, `test_draw_column_against_truncated_observations`, `test_hand_values_agree_with_mpmath` (values) |
+| 1/2/4.2/12.1 (+ censoring) | left/interval rows with partial overlap at `L` and `U`; full matrix in one batch; mixed kinds and windows; generic defaults; improper family keeps the cure mass | `test_truncated_left_and_interval_rows_are_hand_derived`, `test_full_mixed_matrix_in_one_batch`, `test_mixed_kinds_and_mixed_windows_in_one_batch`, `test_custom_family_on_generic_defaults_matches_weibull`, `test_improper_family_with_right_truncation` (values) |
+| 4.4 | PH-Weibull likelihood equals `Weibull(k, b0 exp(-eta/k))` on truncated exact/right rows; on the full matrix (+ censoring) | `test_ph_weibull_truncated_likelihood_equals_the_equivalent_weibull`, `test_ph_weibull_full_matrix_equals_the_equivalent_weibull` (values) |
+| 2/3.3/7.1 | right at entry exactly zero and `uninformative` (finite/infinite `U`, `c=L=0` with finite `U`, `from_bounds(0, inf)` with `L=0`); host checkpoint passes | `test_right_censored_at_entry_is_exactly_zero_and_uninformative` (diagnostics) |
+| 2/7.1 (+ censoring) | left at `c>=U`, intervals equal to or containing the window, interval-flag `(L, +inf]`: exactly zero, `uninformative`; zero also where `Z` is tiny | `test_censored_set_covering_the_window_is_exactly_zero_and_uninformative`, `test_covering_rows_are_zero_for_extreme_parameters` (diagnostics) |
+| 2/3.3/6.2/7.1 | invalid: exact at/before entry and after `U` (`exact_outside_truncation`), right before entry (`censored_before_entry`), right at/after `U`, invalid windows (`invalid_truncation`: negative, infinite, NaN `L`; NaN `U`; `L>=U`), bounds `(0, inf]` after entry; NaN on exactly `invalid_rows`, triaged to data; under `jit` and traced construction; parameter issues on truncated rows; valid batch triages clean | `test_invalid_truncated_exact_or_right_row_is_nan`, `test_invalid_truncation_under_jit_and_traced_construction`, `test_parameter_issue_on_a_truncated_row_is_nan`, `test_valid_truncated_batch_has_no_nan_and_no_triage_mask` (diagnostics) |
+| 2/6.2/7.1 (+ censoring) | empty intersections of left/interval rows (ending at/before `L`, starting at `U`, left at/before `L`); interval-flag `(c, +inf]` before entry is `censored_before_entry` | `test_invalid_truncated_censored_row_is_nan` (diagnostics) |
+| 7.1/12.1 | `Z=0` is NaN with valid data and parameters, triaged as `other` (Q-064); zero numerator `-inf` vs zero denominator NaN in one bounded-support batch (+ censoring) | `test_zero_denominator_is_nan_and_triaged_as_other`, `test_bounded_support_separates_zero_numerator_from_zero_denominator` (diagnostics) |
+| 3.2/6.2/7.2/12.1 | eager/`jit`/`vmap` agreement: prepared data, traced flag construction, traced bounds full matrix (+ censoring), pruning invariance for untruncated rows, `vmap` over draws and over datasets with different windows, indexing, compilation reuse (prepared and traced), `jit(vmap)` full matrix (+ censoring) | `test_prepared_truncated_data_under_jit_matches_hand_values`, `test_traced_construction_with_truncation_matches_eager`, `test_traced_bounds_construction_of_the_full_matrix_matches_eager`, `test_untruncated_rows_agree_with_and_without_truncation_metadata`, `test_vmap_over_draws_and_datasets`, `test_indexing_truncated_data_keeps_windows`, `test_new_truncation_values_reuse_compilation`, `test_traced_construction_with_truncation_reuses_compilation`, `test_full_matrix_under_jit_of_vmap` (transformations) |
+| 7.1/7.3/12.1 | first and second derivatives with `log Z`: Exponential hand-derived per window (exact/right; full matrix + censoring), per-row windows Jacobian both modes; Weibull vs mpmath (exact/right; full matrix + censoring); four Hessian compositions (+ censoring); `jit`/`vmap` Hessians; `vmap` over datasets with different windows; `check_grads` (float64) per window, full-matrix per-row (+ censoring), Exponential and `from_log` under `jit`; isolation of rows without parameter issues (four violation classes, both modes, second order); uninformative row has zero derivatives | `test_exponential_exact_right_derivatives_are_hand_derived`, `test_exponential_full_matrix_derivatives_are_hand_derived`, `test_exponential_per_row_jacobian_with_per_row_windows`, `test_weibull_exact_right_hessian_matches_mpmath`, `test_weibull_full_matrix_hessian_matches_mpmath`, `test_forward_and_reverse_hessians_agree_with_mpmath`, `test_hessian_under_jit_and_vmap`, `test_gradient_under_vmap_over_datasets_with_different_windows`, `test_check_grads_*`, `test_rows_without_parameter_issues_keep_derivatives`, `test_uninformative_row_has_zero_derivatives` (derivatives) |
+| 2/12.1 | properties (hypothesis): left truncation = untruncated minus `log S(L)`; Exponential memorylessness; right at entry exactly zero; two-sided conditioning for every kind incl. partial overlaps (+ censoring); left+right partition the window (+ censoring); covering sets exactly zero (+ censoring) | `test_left_truncation_conditions_on_survival_to_entry`, `test_exponential_left_truncation_is_memoryless`, `test_right_censoring_at_entry_is_exactly_zero`, `test_two_sided_truncation_conditions_on_the_window`, `test_left_and_right_at_the_same_time_partition_the_window`, `test_censored_sets_covering_the_window_are_exactly_zero` (properties) |
+| 7.1/7.2/12.1/12.2 | tiny `Z` in log space (entry where `e**-L` underflows, Weibull `Z ~ e**-900`, tiny upper truncation with a large positive contribution), narrow two-sided windows, censored rows in a deep window (+ censoring); eager `jax_debug_nans` on truncated batches (Weibull, Exponential, custom) and on the full matrix (+ censoring) | `test_exponential_entry_deep_in_the_tail_is_evaluated_in_log_space`, `test_weibull_entry_deep_in_the_tail`, `test_tiny_upper_truncation_gives_a_large_positive_contribution`, `test_weibull_tiny_upper_truncation`, `test_narrow_two_sided_window`, `test_censored_rows_in_a_deep_window`, `test_*_under_debug_nans` (numerics) |
+| 4.2/12.2 (+ censoring) | `log_conditional_interval_prob` hook (Q-066): spec definition on inside, partial, one-sided and untruncated sets (built-ins, generic default); untruncated = `log_interval_prob`; whole window = 0; equals censored row contributions; Weibull narrow deep window; broadcasting; `jit(grad)`; a correct custom override gives the Exponential likelihood | `test_hook_values_match_the_spec_definition`, `test_untruncated_hook_is_the_interval_probability`, `test_hook_on_the_whole_window_is_zero`, `test_hook_agrees_with_censored_row_contributions`, `test_weibull_hook_keeps_precision_for_a_narrow_deep_window`, `test_hook_broadcasts_against_the_batch`, `test_hook_gradient_under_jit`, `test_a_correct_override_gives_the_exponential_likelihood` (hook) |
+
+Not tested for `observation.truncation`:
+
+- **Which mask an empty intersection sets** (`empty_observation` is the
+  likely one, but 2 says only "invalid data"): only `invalid_rows` is
+  asserted. Exact-time rows outside the window are asserted as
+  `exact_outside_truncation`, invalid windows as `invalid_truncation`.
+- **Whether the likelihood routes rows through an overridden
+  `log_conditional_interval_prob`** (4.2 says families shape the likelihood
+  "only through the members above", but not which rows use which member):
+  only a correct override is tested, by values (Q-066).
+- **Static-metadata pruning and separate compilation for different
+  truncation flags:** optional and permitted (7.2); only invariance and reuse
+  for equal metadata are tested.
+- **Truncation-conditioned sampling** (8.6): feature `sampling`.
+- **R fixtures (flexsurv, every kind and truncation):** maintainer-supplied;
+  none committed yet.
+- **Derivatives in truncation endpoints:** outside 7.3's guarantee.
+- **AFT wrapper under truncation:** Slice D.
 
 ### Post-release features: deliberately not tested
 

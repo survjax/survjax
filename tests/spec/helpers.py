@@ -247,16 +247,50 @@ def ll(dist, data=None, **raw):
     return np.asarray(dist.log_likelihood(data, **raw))
 
 
-def supported_mode(data):
-    """The Slice A mode-support view of the spec 7.1 (rev 31) triage recipe, as a NumPy bool array.
+def enabled_features():
+    """Post-release features enabled by ``SPEC_FEATURES`` (parsed as in conftest; conftest validates the names)."""
+    import os
 
-    Exact or right-censored (``upper=+inf``) rows without truncation; a view of
-    normalized fields, not a public container.
+    raw = os.environ.get("SPEC_FEATURES", "")
+    return frozenset(part.strip() for part in raw.split(",") if part.strip())
+
+
+def supported_mode(data):
+    """The mode-support view of the spec 7.1 (rev 31) triage recipe, as a NumPy bool array.
+
+    Slice A: exact or right-censored (``upper=+inf``) rows without truncation;
+    a view of normalized fields, not a public container. 7.1: "Its mask
+    expands as later slices implement more modes": with
+    ``observation.censoring`` enabled every censoring kind is supported, and
+    with ``observation.truncation`` enabled truncation is supported, so the
+    view follows ``SPEC_FEATURES`` (Q-064).
     """
-    return (
-        (np.asarray(data.left_trunc) == 0)
-        & np.isposinf(np.asarray(data.right_trunc))
-        & (np.asarray(data.exact).astype(bool) | np.isposinf(np.asarray(data.upper)))
+    features = enabled_features()
+    kind_ok = np.asarray(data.exact).astype(bool) | np.isposinf(np.asarray(data.upper))
+    if "observation.censoring" in features:
+        kind_ok = np.ones_like(kind_ok)
+    window_ok = (np.asarray(data.left_trunc) == 0) & np.isposinf(np.asarray(data.right_trunc))
+    if "observation.truncation" in features:
+        window_ok = np.ones_like(window_ok)
+    return kind_ok & window_ok
+
+
+def flag_data(kinds, time, time2=None, **truncation):
+    """``SurvivalData`` through the flag form from per-row kinds ``"exact"``, ``"right"``, ``"left"``, ``"interval"`` (spec 3.1).
+
+    Explicit censoring flags select each row's kind (all false: exact);
+    ``time2`` defaults to NaN, which is ignored on non-interval rows.
+    ``truncation`` passes ``left_trunc`` / ``right_trunc`` through.
+    """
+    kinds = list(kinds)
+    time2 = [NAN] * len(kinds) if time2 is None else time2
+    return survjax.SurvivalData(
+        f(time),
+        right_censored=b([k == "right" for k in kinds]),
+        left_censored=b([k == "left" for k in kinds]),
+        interval_censored=b([k == "interval" for k in kinds]),
+        time2=f(time2),
+        **{name: f(value) for name, value in truncation.items()},
     )
 
 
