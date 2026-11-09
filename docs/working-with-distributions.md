@@ -62,6 +62,96 @@ Shape is dimensionless; scale and evaluation times must use the same units.
 Constructors store parameters without fitting them. `from_log` accepts
 unconstrained log parameters, useful for optimizers and neural networks.
 
+## Probabilities over intervals
+
+`log_interval_prob(a, b)` gives the log probability that an event occurs
+in $(a,b]$. In terms of survival or cumulative probability,
+
+$$
+P(a<T\le b)=S(a)-S(b)=F(b)-F(a).
+$$
+
+For example, calculate the probability of progression between months 6 and 12:
+
+```{code-cell} ipython3
+log_interval = model.log_interval_prob(6.0, 12.0)
+jnp.exp(log_interval)
+```
+
+The method computes in log space. Exponential and Weibull use stable
+cumulative-hazard increments, so narrow intervals do not require subtracting
+nearly equal survival probabilities. Keep the result in log space when the
+probability is very small; exponentiating it can underflow to zero.
+
+### Conditioning on an inclusion window
+
+Suppose inclusion requires an event time in $(L,U]$. To calculate an interval
+probability within that population, use `log_conditional_interval_prob`.
+First intersect the requested interval with the inclusion window:
+
+$$
+a=\max(\mathrm{lower},L),\qquad b=\min(\mathrm{upper},U).
+$$
+
+For a nonempty intersection and positive window probability, the result is
+
+$$
+\log\frac{S(a)-S(b)}{S(L)-S(U)}.
+$$
+
+The numerator is the probability of the intersected interval. The denominator
+is the probability of the inclusion window. Exponential and Weibull cancel
+the common truncation term before evaluation rather than subtracting large,
+nearly equal log probabilities.
+
+Here the requested interval is months 6 to 12 and the inclusion window is
+months 3 to 18:
+
+```{code-cell} ipython3
+log_conditional = model.log_conditional_interval_prob(
+    6.0, 12.0, left_trunc=3.0, right_trunc=18.0
+)
+jnp.exp(log_conditional)
+```
+
+For an Exponential distribution, conditioning on survival past month 3
+resets the waiting-time distribution. The probability of an event by month 6
+is therefore the probability of an event in the next three months:
+
+```{code-cell} ipython3
+constant_hazard = survjax.Exponential(rate=0.1)
+conditional = constant_hazard.log_conditional_interval_prob(
+    0.0, 6.0, left_trunc=3.0, right_trunc=jnp.inf
+)
+# Memorylessness: both equal log(1 - exp(-0.1 * 3)).
+conditional, constant_hazard.log_cdf(3.0)
+```
+
+### Boundaries and current scope
+
+Endpoints broadcast against the distribution batch, using the same trailing-axis
+rules as other methods. A lower endpoint of zero gives a left-tail probability;
+an upper endpoint of `jnp.inf` gives a right-tail probability.
+
+- Equal interval endpoints give `-inf` (zero probability); reversed or negative
+  endpoints and NaN endpoints give NaN.
+- A conditional interval covering the whole valid window gives exactly zero
+  in log space. An empty intersection gives `-inf`.
+- A truncation window requires finite $L\ge0$ and $U>L$; $U=+\infty$ is allowed.
+  Invalid windows give NaN. Conditioning on zero model mass also gives NaN.
+
+These methods also have generic defaults for custom families. Built-in
+Exponential and Weibull overrides provide the stable increment calculations
+above; custom families can override the methods for their own tails.
+
+```{note}
+The interval methods are available directly on distributions. Integration into
+`log_likelihood(data)` is still pending: that method currently supports exact
+and right-censored observations without truncation. Also, an empty intersection
+is invalid observation data, even though the direct conditional-probability
+method returns `-inf`. See [Log likelihoods](likelihood.md).
+```
+
 ## Many distributions at once
 
 Parameters can be arrays. Each entry along the leading axes is a separate

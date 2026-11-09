@@ -1,3 +1,16 @@
+# B1.d1 — Document interval probabilities
+
+Previous implementation step: 535b854; original worktree base: cc0e30f.
+Maintainer requested useful work while the independent spec-test author handles
+D-049. One docs topic in docs/working-with-distributions.md: interval mass,
+conditioning on a truncation window, readable S/F formulas, executable examples,
+boundary policy and the current likelihood-integration limitation.
+No code/API/dependency/protected-path changes. Spec 4.2, 7.1–7.3 and 12.2.
+Use already-implemented Exponential/Weibull hooks; do not imply likelihood
+support is enabled. Run scripts/build_docs.sh directly in both dtype modes,
+check rendered topic, write REVIEW.md, commit, independent review, then stop.
+B2 remains pending below; docs do not resolve D-049.
+
 # B2.1 — Untruncated left/interval likelihood integration (blocked on D-049)
 
 Start / previous step: 535b854; original worktree base: cc0e30f.
