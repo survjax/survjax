@@ -1,6 +1,6 @@
 # D.LOGLOGISTIC.1 — LogLogistic implementation handoff
 
-Independent review: round 1/3
+Independent review: round 2/3
 
 ## Read first
 
@@ -127,3 +127,10 @@ from_log docstring are cosmetic; static checks pass. No implementation changes
 were made after the maintainer verdict. Remaining work is review-environment
 repair, disposition of F-1/F-2, integration with LogNormal and the separate docs
 follow-up; no next family substep has been started.
+
+## Maintainer-authorized retry
+
+The maintainer requested another review after updating permissions on
+2026-11-09. Round 2 reviews this committed handoff and the unchanged
+implementation; previous reviewed commit 2b70e8ca56259fd7562dd127ec52e96180f4372d,
+finding IDs F-1, F-2, N-1, N-2. No implementation changes or new test claims.
