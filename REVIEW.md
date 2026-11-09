@@ -1,41 +1,33 @@
-# B1.d1 — Document interval probabilities
+# B1.d2 — Applications and truncation terminology
 
 Independent review: round 1/3
 
-Read PLAN.md B1.d1, then the new "Probabilities over intervals" section of
- docs/working-with-distributions.md (including its scope note). Compare spec
-4.2, 7.1–7.3 and the implemented interval hooks where needed.
-Start commit: 218621e (B2 blocker record); previous implementation step: 535b854;
-original worktree base: cc0e30f. D-049 remains open; the maintainer says the
-independent spec-test author is working on it. This docs work is independent.
+Read PLAN.md B1.d2, then the added application paragraphs in
+ docs/working-with-distributions.md, under "Probabilities over intervals" and
+"Conditioning on an inclusion window". Spec 2, 4.2 and 12.2.
+Start / previous step: e0cdde2; original worktree base: cc0e30f.
 
-One topic, one docs page, no implementation or API change. Explain interval
-mass using S/F; define intersected endpoints separately before the conditional
-ratio; explain numerator and denominator; demonstrate interval mass, finite
-conditioning and Exponential memorylessness. Distinguish direct-hook empty
-intersection (-inf) from invalid observation data. Explicitly state that
-likelihood integration is pending. No promise of generic-family tail precision
-matching the built-in overrides.
+One topic on one docs page, 25 changed lines; no code, API, examples or
+protected paths changed. Periodic assessment/inspection motivates interval
+censoring; delayed recruitment while event-free motivates left truncation
+(delayed entry) without resetting the time origin. An events-only retrospective
+registry motivates right truncation and contrasts with retained right-censored
+follow-up. Two-sided truncation combines the inclusion restrictions.
+The existing scope note continues to state that likelihood integration is
+pending. B2.1 adds left/interval censoring; B2.2 adds truncation. D-049 remains
+open while the independent spec-test author prepares acceptance updates.
 
-Validation:
-- scripts/build_docs.sh directly: first sandboxed run failed (exit 2) because
-  the existing Weibull-simulation notebook's sysctl CPU query was denied;
-  ipykernel process inspection also reported sandbox errors.
-- Reran the identical script with approved escalation: exit 0, both x32 and x64
-  Sphinx builds succeeded and all notebooks executed. build-identity.txt records
-  success for source at 218621e plus the then-dirty PLAN/docs edits. Subsequent
-  changes are review bookkeeping only; the built page source is unchanged.
-- Inspected generated HTML text, math delimiters and executed outputs in both
-  dtypes. Interval probability ~0.334309; conditional probability ~0.462250;
-  memorylessness pair matches (~-1.350226). This is content inspection, not a
-  browser rendering check. CUA browser host was unavailable; no screenshot or
-  visual-layout verification is claimed. Temporary HTTP preview server stopped.
-- scripts/check.sh --fast --through A10: all gates passed. Implementer x64
-  1081 passed/8 skipped; x32 1086/3; doctests 4 each; spec x64 2155/27, x32
-  2160/22. Ruff/mypy and git diff --check passed. No new tests required for prose
-  and executed examples; no full non-fast test gate rerun.
+Checks:
+- scripts/build_docs.sh run directly with the previously required escalation:
+  exit 0; both x32 and x64 Sphinx builds succeeded and notebooks executed.
+- Inspected generated HTML text for both modes: the new applications, names,
+  time-origin explanation and formulas are present. Executable outputs unchanged.
+  No browser visual-layout inspection claimed (browser host unavailable earlier).
+- scripts/check.sh --fast --through A10: exit 0, all gates passed (includes
+  Ruff, mypy, implementer tests, doctests and spec tests in both dtypes).
+- git diff --check: passed. No new numerical tests for this prose-only change;
+  full non-fast test gate not rerun.
 
-Remaining: independent acceptance-test transition for B2 (D-049), then left/
-interval likelihood integration and truncation, B3 full numerical/reference
-matrix, B4 pruning and remaining docs. This step does not resolve D-049 or
-claim that broader observation likelihoods are available.
+Remaining: B2 acceptance transition and likelihood integration; B3 full
+numerical/reference matrix; B4 pruning and remaining docs. This docs step
+neither resolves the acceptance blocker nor enables new likelihood modes.

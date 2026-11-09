@@ -1,3 +1,16 @@
+# B1.d2 — Explain applications and truncation terminology
+
+Start / previous step: e0cdde2; original worktree base: cc0e30f.
+Maintainer requested short practical applications for interval probabilities
+and conditioning, using left truncation/delayed entry terminology. Edit only
+docs/working-with-distributions.md plus PLAN.md/REVIEW.md. No code/API changes.
+Use periodic assessment as interval censoring; event-free delayed recruitment
+as left truncation; an events-only registry cutoff as right truncation.
+Clarify time origin and distinguish truncation from retained censored follow-up.
+Spec 2, 4.2, 12.2. Keep likelihood integration pending (B2.1 then B2.2).
+Run scripts/build_docs.sh directly, fast A10 gate and whitespace checks; inspect
+generated HTML; commit and independent review, then stop. No new numerical tests.
+
 # B1.d1 — Document interval probabilities
 
 Previous implementation step: 535b854; original worktree base: cc0e30f.

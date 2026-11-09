@@ -71,6 +71,14 @@ $$
 P(a<T\le b)=S(a)-S(b)=F(b)-F(a).
 $$
 
+Interval probabilities are useful when events are detected at periodic visits
+or inspections. If a patient was progression free at month 6 and progression
+was first detected at month 12, the event time is known only to lie in $(6,12]$.
+This is **interval censoring**. The same idea applies to a machine that worked
+at one inspection and was found broken at the next. You can also use interval
+probabilities for prediction, such as the chance of progression during the next
+six months.
+
 For example, calculate the probability of progression between months 6 and 12:
 
 ```{code-cell} ipython3
@@ -85,7 +93,22 @@ probability is very small; exponentiating it can underflow to zero.
 
 ### Conditioning on an inclusion window
 
-Suppose inclusion requires an event time in $(L,U]$. To calculate an interval
+Truncation arises when event time determines who can enter a dataset:
+
+- **Left truncation**, often called **delayed entry**: follow-up starts after
+  the event-time origin. For example, time is measured from diagnosis, but a
+  patient joins the study at month 3 only if still progression free. Inclusion
+  requires $T>3$, so use $L=3$ and $U=+\infty$. Times remain measured from
+  diagnosis; recruitment does not reset the clock.
+- **Right truncation**: only events occurring by a cutoff are sampled. For
+  example, a retrospective registry contains only completed failures by month
+  18, excluding machines whose failure times are later. Here $L=0$ and $U=18$.
+  With **right censoring**, machines still working at month 18 remain in the
+  dataset with their event-free follow-up recorded.
+- **Two-sided truncation** combines both restrictions, retaining event times
+  only in $(L,U]$. Entry times and cutoffs may differ between individuals.
+
+In these applications, inclusion requires an event time in $(L,U]$. To calculate an interval
 probability within that population, use `log_conditional_interval_prob`.
 First intersect the requested interval with the inclusion window:
 
