@@ -43,3 +43,9 @@ Full timing refresh is still running at this checkpoint: x64 implementation
 D-B2.1-001 failure and two PH reference warnings. Float32 is in progress.
 The generated timing list will be checkpointed separately after it finishes;
 its script tolerates failures and does not constitute a passing gate.
+
+Timing refresh completed: 767 slow tests recorded. Full x32 implementation
+1353 passed/3 skipped; full x32 acceptance 3775 passed/70 skipped, one known
+D-B2.1-001 failure and two PH reference warnings. Both full acceptance runs
+have only that reference failure. Generated timings are in a separate follow-up
+commit; no code or test assertion changed after the review checkpoint.
