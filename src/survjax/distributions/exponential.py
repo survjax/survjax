@@ -207,6 +207,34 @@ class Exponential(SurvivalDistribution):
         """
         return log_cdf_from_log_cumulative_hazard(self._log_cumulative_hazard(t))
 
+    def log_interval_prob(self, lower: ArrayLike, upper: ArrayLike) -> jax.Array:
+        """Return log P(lower < T <= upper) from the interval width.
+
+        For endpoints a < b, this is -rate*a + log(1-exp(-rate*(b-a))).
+        The width term is evaluated through the stable log CDF, avoiding
+        subtraction of nearly equal survival probabilities.
+
+        Args:
+            lower: Nonnegative lower endpoints.
+            upper: Upper endpoints, possibly +inf. Both endpoints broadcast
+                against batch_shape; add trailing singleton axes for grids.
+        Returns:
+            Broadcast log probabilities. Equal endpoints give -inf; invalid
+            endpoints or rates give NaN. Positive mass is retained in log space
+            even when rate times the interval width underflows.
+        Raises:
+            ValueError: If endpoint shapes cannot broadcast.
+        """
+        a, b = jnp.broadcast_arrays(jnp.asarray(lower), jnp.asarray(upper))
+        valid = (a >= 0) & (b >= a) & ~self.parameter_issues().invalid_entries
+        empty = a == b
+        active = valid & ~empty
+        # spec 7.2: in particular, never subtract inf-inf for an empty interval.
+        a = jnp.where(active, a, 0.0)
+        b = jnp.where(active, b, 1.0)
+        value = -self.rate * a + self.log_cdf(b - a)
+        return jnp.where(valid, jnp.where(empty, -jnp.inf, value), jnp.nan)
+
     def log_prob(self, t: ArrayLike) -> jax.Array:
         """Return the log density, ``log f(t) = log(rate) - rate * t``.
 
