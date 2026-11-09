@@ -9,6 +9,40 @@ cc0e30f, also the original worktree base. AFT.1 implementation and validation ar
 rounds concluded with maintainer disposition of F-2: remove the redundant
 boundary substitution; follow-up checks passed.
 
+## AFT.2 — AFT numerical and integration verification
+
+Active step, starting/previous-step commit 09148c5; original worktree base
+cc0e30f. Implementation complete: 283 lines of tests, no library changes.
+Full timing regeneration changes 450 generated lines (36 additions/414
+removals); keep that generated metadata in this step, following the maintainer's
+previous preference to include the regenerated list in the same commit.
+ Implement focused tests in tests/unit/test_aft_integration.py (about
+300 lines); wrappers.py only if these expose a settled-contract defect.
+Test large finite predictors with representable transformed times, a custom
+improper baseline and generic derivatives, nested wrapper grids, mixed
+invalid likelihood rows, and built-in likelihood values/Jacobians/mixed
+Hessians against explicit formulas. Reuse existing tolerances. Add no API,
+dependencies or documentation. Record validation and review in REVIEW.md;
+regenerate tests/slow_tests.txt if newly measured cases exceed one second.
+
+Files: wrappers.py if corrections are required; focused implementation-owned
+AFT test files; tests/impl_tolerances.py only for justified new tolerances;
+PLAN.md and REVIEW.md. No additional public API.
+Spec: 4.4–4.5, 5, 6.3, 7.1–7.3, 12.1.
+Extend coverage to:
+- large finite predictors and rescaling tails, including representable results
+  where forming exp(-eta) alone overflows or underflows;
+- a custom baseline, including an improper infinity limit;
+- time-first grids, nested batch shapes and mixed valid/invalid entries;
+- likelihood equivalence to Weibull with scale b * exp(eta), and Exponential
+  with rate r * exp(-eta), in numerically suitable identity cases;
+- first/second baseline and predictor derivatives, including mixed Hessians,
+  checked against analytical identities or mpmath, with jit/vmap agreement.
+AFT.1 must already obey the numerical contract; AFT.2 broadens evidence.
+Do not extend the PH-specific derivative exception to AFT. Log any unresolved
+spec issue and stop rather than introducing clipping or weaker guarantees.
+Keep this step within approximately 300 changed lines; split if needed.
+
 ## AFT.1 — Registered wrapper and direct methods
 
 Maintainer follow-up (2026-11-09, F-2): remove the redundant pre-log time
@@ -52,26 +86,6 @@ shared generic backend lands. No mean, quantile, inverse-hazard or sampling work
 Keep wrappers.py around 300 lines and the implementation diff around 300 lines;
 if it cannot fit, propose a smaller step or module split before proceeding.
 
-## AFT.2 — AFT numerical and integration verification
-
-Files: wrappers.py if corrections are required; focused implementation-owned
-AFT test files; tests/impl_tolerances.py only for justified new tolerances;
-PLAN.md and REVIEW.md. No additional public API.
-Spec: 4.4–4.5, 5, 6.3, 7.1–7.3, 12.1.
-Extend coverage to:
-- large finite predictors and rescaling tails, including representable results
-  where forming exp(-eta) alone overflows or underflows;
-- a custom baseline, including an improper infinity limit;
-- time-first grids, nested batch shapes and mixed valid/invalid entries;
-- likelihood equivalence to Weibull with scale b * exp(eta), and Exponential
-  with rate r * exp(-eta), in numerically suitable identity cases;
-- first/second baseline and predictor derivatives, including mixed Hessians,
-  checked against analytical identities or mpmath, with jit/vmap agreement.
-AFT.1 must already obey the numerical contract; AFT.2 broadens evidence.
-Do not extend the PH-specific derivative exception to AFT. Log any unresolved
-spec issue and stop rather than introducing clipping or weaker guarantees.
-Keep this step within approximately 300 changed lines; split if needed.
-
 ## AFT.3 — AFT documentation
 
 One bounded topic in the existing distribution documentation, plus PLAN.md and
@@ -109,4 +123,5 @@ AFT.3 closes the direct-wrapper documentation topic after the code steps.
 
 AFT.1 implemented and validated; review rounds complete, F-2 disposed by
 maintainer-directed removal with passing follow-up checks.
-Remaining after AFT.1: AFT.2 and AFT.3.
+AFT.2 implementation and validation complete; independent review pending.
+Remaining after AFT.2: AFT.3.
