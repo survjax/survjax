@@ -1,3 +1,11 @@
+## B1a docstring follow-up
+
+Added the conditional interval formula from spec 4.2; no behavior change.
+Read the log_conditional_interval_prob docstring in distributions/_log_math.py.
+Independent review waived explicitly by the maintainer for this edit.
+Validation: Ruff formatting check and git diff --check; numerical tests not
+rerun for a prose-only edit. Prior implementation review follows unchanged.
+
 # B1a — Generic interval probability hooks
 
 Independent review: round 2/3

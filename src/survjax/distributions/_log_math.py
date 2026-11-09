@@ -86,6 +86,9 @@ def log_conditional_interval_prob(
 ) -> jax.Array:
     """Return log interval mass conditional on (left_trunc, right_trunc].
 
+    With L = left_trunc and U = right_trunc, this is
+    log P(max(lower, L) < T <= min(upper, U)) - log P(L < T <= U).
+
     Args:
         lower: Nonnegative lower endpoints.
         upper: Upper endpoints, possibly +inf.

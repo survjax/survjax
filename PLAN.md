@@ -1,3 +1,10 @@
+# B1a docstring follow-up — Conditional probability formula
+
+Start / previous step: 84bd9bb; original worktree base: cc0e30f.
+Add the spec 4.2 conditional interval formula to the existing docstring in
+src/survjax/distributions/_log_math.py. No behavior or API change; no new tests.
+Check formatting and whitespace. Maintainer explicitly waived independent review.
+
 # B1a — Generic interval probability hooks
 
 Start / previous step / original worktree base: cc0e30f.
