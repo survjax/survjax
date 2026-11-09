@@ -99,7 +99,7 @@ class LogLogistic(SurvivalDistribution):
         Args:
             t: Real times broadcasting with ``batch_shape``.
         Returns:
-            Broadcast log hazard. At zero: +inf, -log(alpha), -inf for
+            Broadcast log hazard. At zero it is +inf, -log(alpha), or -inf for
             beta<1, beta=1, beta>1; at +inf or negative times: -inf.
             NaN inputs propagate. Finite boundary limits retain parameter
             derivatives; the shape derivative at beta=1, t=0 is undefined.

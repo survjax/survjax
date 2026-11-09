@@ -12,7 +12,7 @@ kernelspec:
 survjax provides the
 [exponential](https://en.wikipedia.org/wiki/Exponential_distribution) and the
 [Weibull](https://en.wikipedia.org/wiki/Weibull_distribution) distributions,
-and the log-normal family described below.
+and the log-normal and log-logistic families described below.
 They have the same methods as the families you write yourself (see
 [Writing a survival distribution](distributions.md) for what each method
 means), with family-specific formulas for the direct methods.
@@ -192,6 +192,73 @@ log_tails
 
 Both float32 and float64 are supported; float64 is recommended for tail and
 reference work. See [Numerical behaviour](numerical-behaviour.md#precision-in-both-tails).
+
+## The log-logistic: logistic log time
+
+The log-logistic family has dimensionless shape $\beta>0$ and time scale
+$\alpha>0$, both finite. Its survival and hazard are
+
+$$
+S(t) = \frac{1}{1+(t/\alpha)^\beta},
+\qquad
+h(t) = \frac{\beta}{\alpha}
+       \frac{(t/\alpha)^{\beta-1}}{1+(t/\alpha)^\beta}.
+$$
+
+At $t=\alpha$, survival is one half for every shape: the scale is the
+mathematical median. With $\beta\leq1$ the hazard decreases; with $\beta>1$
+it first rises, then falls. These parameters match flexsurv's
+`llogis(shape=beta, scale=alpha)`. Equivalently, log time has a logistic
+distribution with location $\mu=\log\alpha$ and scale $s=1/\beta$.
+For example, log-time location $\log 10$ and scale $0.5$ give
+`LogLogistic(shape=2, scale=10)`:
+
+```{code-cell} ipython3
+loglogistic = survjax.LogLogistic(shape=2.0, scale=10.0)
+assert round(float(loglogistic.survival(10.0)), 6) == 0.5
+assert round(float(loglogistic.survival(20.0)), 6) == 0.2
+loglogistic.survival(jnp.array([0.0, 10.0, 20.0, jnp.inf]))
+```
+
+`from_log(log_shape=..., log_scale=...)` exponentiates both inputs and stores
+ordinary shape and scale leaves. It does not retain a log-space representation.
+As with other families, invalid values are stored without automatic raising;
+inspect `parameter_issues()` to diagnose them. Exponentiation can overflow or
+underflow to an invalid natural parameter.
+
+```{code-cell} ipython3
+loglogistic_groups = survjax.LogLogistic.from_log(
+    log_shape=jnp.log(jnp.array([0.5, 1.0, 2.0])), log_scale=jnp.log(10.0)
+)
+loglogistic_times = jnp.array([0.0, 10.0, 20.0, jnp.inf])
+loglogistic_curves = loglogistic_groups.survival_grid(loglogistic_times)
+assert loglogistic_curves.shape == (4, 3)  # time first, then batch
+assert bool(jnp.all(loglogistic_curves[0] == 1.0))
+assert bool(jnp.all(loglogistic_curves[-1] == 0.0))
+assert bool(jnp.all(jnp.round(loglogistic_curves[1], 6) == 0.5))
+loglogistic_curves
+```
+
+At zero, hazard and density have limits $+\infty$, $1/\alpha$ or $0$ for
+$\beta<1$, $\beta=1$ or $\beta>1$, respectively. The hazard tends to zero
+at infinity for every valid shape. The zero-time log density changes
+discontinuously in shape at $\beta=1$, so its shape derivative there is outside
+the guarantee. Its scale derivative is defined. Direct times can include zero;
+exact event observations must remain strictly positive.
+
+Use `log_survival` and `log_cdf` directly in the tails. They evaluate opposite
+softplus tails of $z=\beta(\log t-\log\alpha)$, preserving small negative log
+probabilities that would disappear by logging a probability rounded to one.
+The following tails remain negative in both float32 and float64:
+
+```{code-cell} ipython3
+loglogistic_tails = jnp.stack([
+    loglogistic.log_survival(1e-10),
+    loglogistic.log_cdf(1e10),
+])
+assert bool(jnp.all(loglogistic_tails < 0.0))
+loglogistic_tails
+```
 
 ## Unconstrained parameters: `from_log`
 

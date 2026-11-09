@@ -77,6 +77,11 @@ These families also have every method of `SurvivalDistribution` listed under
    :members: from_log, log_survival, log_cdf, log_prob, log_hazard, reference_time
 ```
 
+```{eval-rst}
+.. autoclass:: survjax.LogLogistic
+   :members: from_log, log_survival, log_cdf, log_prob, log_hazard, reference_time
+```
+
 ## Proportional hazards
 
 See [Proportional hazards](proportional-hazards.md) for executable examples,
