@@ -46,3 +46,13 @@ later docs step, including flexsurv llogis correspondence and from_log example.
 The maintainer approved a size exception for the complete formatted draft
 (343 changed implementation/test lines, excluding generated timing metadata).
 Keep D.LOGLOGISTIC.1 as one step; no D.LOGLOGISTIC.2 split is planned.
+
+## F-2 timing follow-up
+
+After round 2, the maintainer asked to continue with the remaining item.
+Regenerate tests/slow_tests.txt through A12 with six workers and the standard
+shared persistent JAX cache used by check.sh. Run this alone, without overlapping
+our other test commands. Do not edit or filter generated entries by hand.
+Record measured changes and the round-2 F-1 withdrawal in the handoff, run the
+Tier 1 gate after regeneration, then commit the fix and request round 3.
+No distribution code, dependencies, public API or protected paths change.

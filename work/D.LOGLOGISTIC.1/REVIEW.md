@@ -1,6 +1,6 @@
 # D.LOGLOGISTIC.1 — LogLogistic implementation handoff
 
-Independent review: round 2/3
+Independent review: round 3/3
 
 ## Read first
 
@@ -134,3 +134,62 @@ The maintainer requested another review after updating permissions on
 2026-11-09. Round 2 reviews this committed handoff and the unchanged
 implementation; previous reviewed commit 2b70e8ca56259fd7562dd127ec52e96180f4372d,
 finding IDs F-1, F-2, N-1, N-2. No implementation changes or new test claims.
+
+## Independent review round 2 — maintainer
+
+Reviewed commit: cd3cb7cda026598a170310d40d93bbfa4685e6be.
+Checkout and test execution succeeded with the updated permissions.
+The reviewer withdrew F-1 after executing boundary shape-gradient probes: the
+registered policy substitutes inputs correctly, and the checked gradients were
+finite zeros. F-2 was downgraded to a nonblocking maintainer decision about the
+timing list. The reviewer independently passed the A12 fast gate and 27 touched
+tests in each dtype mode. Full non-fast gate and docs build were not run.
+
+N-3 is an optional coverage nit: two mutants dropping hazard time/scale
+substitutions survived parameter-gradient tests. Time derivatives are outside
+our parameter-derivative guarantee; retain the defensive substitutions. No
+numerical code or tests are changed for this nit.
+
+## F-2 recalibration follow-up
+
+The maintainer asked to continue. Regenerate the list with six workers and the
+same persistent JAX cache as the normal gate, with no overlapping test commands
+from this agent. The old measurement used eight workers, lacked explicit cache
+configuration and overlapped several test runs. Comparing through A12 to the
+old A10-era list also legitimately adds A11/A12 tests. Report the newly measured
+list and gate results below; do not manually filter generated entries.
+
+### Recalibration results
+
+Command: `PYTEST_WORKERS=6 JAX_COMPILATION_CACHE_DIR=/Users/wamster3/dev/survjax/dev/.git/survjax-jax-cache JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS=0 scripts/update_slow_tests.sh --through A12`.
+Exit 0. No other test commands from this agent overlapped the measurement.
+The unedited generated list now has 122 entries (previous run: 1023;
+pre-feature list: 424). Summed measured time is 719s, with 311s in the slow
+entries (previous run: 5438s total, 4834s slow). The cache/worker configuration
+now matches check.sh, and timing contention from our own runs was removed.
+This is a timing calibration, not a promise about an otherwise idle machine.
+
+Captured complete profiling summaries before the script deleted its logs:
+
+- float64 implementer: 1335 passed, 8 skipped, 92.68s.
+- float64 spec through A12: 3580 passed, 33 skipped, 2 warnings, 49.25s.
+- float32 implementer: 1340 passed, 3 skipped, 66.45s.
+- float32 spec through A12: 3557 passed, 56 skipped, 2 warnings, 50.10s.
+
+No LogLogistic tests exceeded one second in this calibration, so the generated
+list does not exclude them. Compared with both previous lists, fewer tests are
+deselected; the recalibrated fast gate exercises more tests. No assertions,
+markers, numerical code, dependencies or protected paths changed. F-2 is
+submitted for reviewer closure based on reproducible command/configuration and
+successful full profiling collections. No full non-fast check.sh claim is made.
+
+Round 3 reviews this metadata fix against prior reviewed commit
+cd3cb7cda026598a170310d40d93bbfa4685e6be, finding IDs F-1, F-2, N-1, N-2, N-3.
+Post-calibration `scripts/check.sh --fast --through A12`: exit 0.
+Ruff format/lint and mypy passed; 201 files formatted, 23 source files typed.
+Implementer tests: float64 1235 passed / 8 skipped (20.59s), float32 1240
+passed / 3 skipped (20.92s). Source doctests: 4 passed each mode.
+Spec tests: float64 3558 passed / 33 skipped (37.40s), float32 3544 passed /
+47 skipped (37.22s). Each spec mode reports the same two existing NumPy
+warnings at test_a11_ph_direct_methods.py:78. No test failures.
+`git diff --check` passed. No docs build or separate full non-fast gate run.
