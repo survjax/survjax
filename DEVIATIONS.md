@@ -1120,3 +1120,19 @@ Entries are added by the implementer and resolved by the maintainer.
   version check to compare installed and project metadata. Implemented that
   change; no spec edit. Entry remains open for formal maintainer resolution.
 - Status: open
+
+## D-049 Slice A unsupported-mode acceptance checks block Slice B integration
+- Step: B2.1.
+- Spec: 7.1 and 12.2 (Slice B full observation support).
+- Spec says: left/interval censoring and all truncation combinations are Slice B;
+  only observation modes not yet implemented return NaN. The maintainer has
+  explicitly authorized implementing Slice B in this conversation.
+- Did / propose: no likelihood changes yet. The protected acceptance suite
+  tests/spec/test_a6_unsupported_modes.py unconditionally requires these modes
+  to yield NaN, including eager/jit/vmap and diagnostic triage. Neither that file,
+  its conftest nor scripts/check.sh contains a SPEC_FEATURES transition switch.
+  Enabling the requested modes would intentionally violate those Slice A-only
+  assertions. Request independent-author acceptance updates and synchronization
+  for staged Slice B support, retaining checks for modes still unimplemented.
+  Do not edit, skip or xfail protected tests from this implementation branch.
+- Status: open.
