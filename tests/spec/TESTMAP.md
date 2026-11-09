@@ -1567,7 +1567,7 @@ Hessians are in the docstring of `test_a9_likelihood_derivatives.py`.
 | Spec section | Requirement covered | Test |
 | --- | --- | --- |
 | 10.2 | top-level re-exports of the Slice A data object, distributions and error classes (no likelihood function since rev 35; its absence is `test_no_top_level_log_likelihood`). | `test_slice_a_names_are_exported_at_top_level[name]` |
-| 10.2/10.3 | `py.typed`; metadata `Name`, `Requires-Python >=3.12`, initial version, Apache license (Q-041). | `test_package_has_type_marker`, `test_distribution_name_is_survjax`, `test_distribution_requires_python_312`, `test_distribution_version_is_initial_development_version`, `test_distribution_license_metadata_is_apache` |
+| 10.2/10.3 | `py.typed`; metadata `Name`, `Requires-Python >=3.12`, version a PEP 440 version no earlier than the initial `0.0.1.dev0`, Apache license (Q-041). | `test_package_has_type_marker`, `test_distribution_name_is_survjax`, `test_distribution_requires_python_312`, `test_distribution_version_is_not_before_the_initial_version`, `test_distribution_license_metadata_is_apache` |
 | 10.3/12.1 | "core code imports and runs without NumPyro, Equinox, Optax, Optimistix ... or plotting libraries" (fresh interpreter, imports blocked). | `test_core_imports_and_runs_without_demo_dependencies` |
 
 ### `test_a9_wheel_smoke.py`

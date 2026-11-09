@@ -526,11 +526,15 @@ on it. Guessed exception types and call shapes are centralised in
 
 - **Checked:** 10.1 ("matching metadata"), 10.2 ("Initial version
   `0.0.1.dev0`", compatibility policy).
-- **Guess:** until the first release, the installed distribution's version is
-  exactly `0.0.1.dev0`; a release bump updates this one test. The license
+- **Guess:** the spec fixes only the *initial* version, so the installed
+  version must be a valid PEP 440 version `>= 0.0.1.dev0`. (Until
+  2026-11-09 the test pinned exactly `0.0.1.dev0` "until the first release";
+  the release bump to `0.0.1a2` failed the A12 gate, and the spec does not
+  require the pin.) Should the spec state a version scheme for releases
+  (for example 0.0.x pre-releases), tighten this test. The license
   metadata contains "Apache" in `License-Expression`, `License` or a
   classifier (the field is not fixed by the spec).
-- **Depends:** `test_distribution_version_is_initial_development_version`,
+- **Depends:** `test_distribution_version_is_not_before_the_initial_version`,
   `test_distribution_license_metadata_is_apache`.
 
 ## Q-042: module placement of the concordance API (spec 9.2, 10.2; rev 34)

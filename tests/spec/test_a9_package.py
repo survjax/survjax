@@ -60,9 +60,16 @@ def test_distribution_requires_python_312():
 
 
 @pytest.mark.step("A9")
-def test_distribution_version_is_initial_development_version():
-    """spec 10.2, rev 4: "Initial version `0.0.1.dev0`" (Slice A precedes any release; Q-041)."""
-    assert importlib.metadata.version("survjax") == "0.0.1.dev0"
+def test_distribution_version_is_not_before_the_initial_version():
+    """spec 10.2, rev 4: "Initial version `0.0.1.dev0`": the installed version is a valid PEP 440 version no earlier than `0.0.1.dev0` (release bumps such as `0.0.1a2` are allowed; Q-041)."""
+    from packaging.version import InvalidVersion, Version
+
+    raw = importlib.metadata.version("survjax")
+    try:
+        version = Version(raw)
+    except InvalidVersion:
+        pytest.fail(f"survjax version {raw!r} is not a PEP 440 version")
+    assert version >= Version("0.0.1.dev0"), raw
 
 
 @pytest.mark.step("A9")
