@@ -9,6 +9,14 @@ observation "does not add a data or parameter issue". The triage recipe
 (``helpers.nan_causes``, ``helpers.unsupported_nan``) attributes those rows to
 mode support, not to ``Z=0`` or numerical failure.
 
+Slice B lifts these restrictions (12.2: "Left and interval censoring; all
+truncation combinations"), staged as the post-release features
+``observation.censoring`` and ``observation.truncation``. Every case carries
+``until(<feature>)`` on the tests that assert NaN or attribute the row to mode
+support, so those assertions stop once the case's mode is enabled. Tests that
+assert only the supported row's value and derivatives, or that the rows are
+valid data, stay true after Slice B and carry no ``until``.
+
 Row 0 of every case is a supported exact row at ``t=1``; row 1 is the
 unsupported one. Exponential (spec 2, 4.1): ``log f(t) = log r - r t``, so with
 ``r = 0.5`` row 0 is ``log 0.5 - 0.5``; ``d/dr = 1/r - t = 1`` and
@@ -74,6 +82,24 @@ CASES = {
     "right-truncated-exact": _right_truncated_exact,
 }
 
+# The post-release feature that implements each case's mode (spectest CLAUDE.md,
+# "Post-release features"): left/interval censoring without truncation, and
+# truncation of exact/right rows.
+LIFTED_BY = {
+    "left-censored": "observation.censoring",
+    "interval-censored": "observation.censoring",
+    "bounds-left": "observation.censoring",
+    "bounds-interval": "observation.censoring",
+    "left-truncated-exact": "observation.truncation",
+    "left-truncated-right": "observation.truncation",
+    "right-truncated-exact": "observation.truncation",
+}
+
+# Cases for assertions that hold only while the mode is unsupported.
+STAGED = [
+    pytest.param(case, marks=pytest.mark.until(LIFTED_BY[case]), id=case) for case in CASES
+]
+
 
 # ------------------------------------------------------------ input diagnostics
 
@@ -88,7 +114,7 @@ def test_unsupported_row_is_valid_data(case):
 
 
 @pytest.mark.step("A6")
-@pytest.mark.parametrize("case", list(CASES))
+@pytest.mark.parametrize("case", STAGED)
 def test_unsupported_row_adds_no_parameter_issue(case):
     """spec 7.1, rev 31: an unsupported mode "is not ... an invalid parameter; it does not add a ... parameter issue"."""
     data = CASES[case]()
@@ -102,7 +128,7 @@ def test_unsupported_row_adds_no_parameter_issue(case):
 
 
 @pytest.mark.step("A6")
-@pytest.mark.parametrize("case", list(CASES))
+@pytest.mark.parametrize("case", STAGED)
 def test_unsupported_row_is_nan(case):
     """spec 7.1 and 12.2, rev 35: `dist.log_likelihood` returns NaN on the unsupported row, without an exception."""
     value = ll(_dist(), CASES[case]())
@@ -122,7 +148,7 @@ def test_supported_row_keeps_its_value(case):
 
 
 @pytest.mark.step("A6")
-@pytest.mark.parametrize("case", list(CASES))
+@pytest.mark.parametrize("case", STAGED)
 def test_unsupported_row_is_nan_under_jit(case):
     """spec 7.1, rev 31: prepared data passed into `jit` gives the eager result, NaN on the unsupported row."""
     data = CASES[case]()
@@ -133,7 +159,7 @@ def test_unsupported_row_is_nan_under_jit(case):
 
 
 @pytest.mark.step("A6")
-@pytest.mark.parametrize("case", list(CASES))
+@pytest.mark.parametrize("case", STAGED)
 def test_unsupported_mode_from_traced_construction_is_nan(case):
     """spec 3.2, 6.1 and 7.1, rev 31: with traced construction the unsupported row is NaN and row 0 keeps its value.
 
@@ -159,7 +185,7 @@ def test_unsupported_mode_from_traced_construction_is_nan(case):
 
 
 @pytest.mark.step("A6")
-@pytest.mark.parametrize("case", list(CASES))
+@pytest.mark.parametrize("case", STAGED)
 def test_unsupported_row_is_nan_under_vmap(case):
     """spec 7.1, rev 31: `vmap` over parameter draws: every draw has NaN on row 1 and `log r - r` on row 0."""
     data = CASES[case]()
@@ -178,7 +204,7 @@ def test_unsupported_row_is_nan_under_vmap(case):
 
 
 @pytest.mark.step("A6")
-@pytest.mark.parametrize("case", list(CASES))
+@pytest.mark.parametrize("case", STAGED)
 def test_triage_recipe_attributes_row_to_mode_support(case):
     """spec 7.1, rev 31: the Slice A recipe puts the row in `unsupported_nan`, not in `other` ("`Z=0` or numerical failure")."""
     data = CASES[case]()

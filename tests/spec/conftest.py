@@ -43,6 +43,8 @@ FEATURES = frozenset(
         "summary.mean",
         "summary.quantile",
         "sampling",
+        "observation.censoring",
+        "observation.truncation",
     }
 )
 
