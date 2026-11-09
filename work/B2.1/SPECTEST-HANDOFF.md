@@ -16,10 +16,11 @@ Independent reproduction (no survjax calls):
 
 ```python
 import mpmath as mp
+
 with mp.workdps(50):
-    h = (mp.mpf('1e-30') / 2) ** mp.mpf('2.5')
-    print(mp.log(1 - mp.exp(-h)))    # -inf: reference cancellation
-    print(mp.log(-mp.expm1(-h)))     # -174.426749925953289574892439405...
+    h = (mp.mpf("1e-30") / 2) ** mp.mpf("2.5")
+    print(mp.log(1 - mp.exp(-h)))  # -inf: reference cancellation
+    print(mp.log(-mp.expm1(-h)))  # -174.426749925953289574892439405...
 ```
 
 Please use a stable reference expression, or sufficient precision for this
