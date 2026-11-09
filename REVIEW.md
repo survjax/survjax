@@ -105,3 +105,34 @@ N-1/N-2 fixed, N-3 reasoning accepted; no new findings. Reviewer could not
 execute checkout, tests or mutants because of headless permission restrictions.
 Maintainer explicitly requested a retry on 2026-11-09. Round 3 retries execution
 verification of the same implementation; only this review record changed.
+
+
+Round 3 (1844b31): VERDICT maintainer. Gate and AFT tests passed; F-1
+verified fixed by mutation tests. F-2 remained a deferrable coverage question:
+removing the pre-log boundary substitution still passed all 44 AFT tests.
+Maintainer decision (2026-11-09): "remove the defensive boundary as no
+ demonstrated benefit". Remove just those time/predictor substitutions;
+preserve the other numerical guards and all test assertions. Correct the
+helper test explanation so it describes the observable result rather than
+claiming to prove the removed substitution. This is an AFT.1 follow-up from
+1844b31; original step start 7b5b70f, previous work/base cc0e30f.
+All three review rounds have been used; do not start an unauthorized fourth.
+
+Follow-up verification (2026-11-09):
+- Removed only pre-log time/predictor substitution in _rescale_time. Restored
+  boundaries, guarded exp and underflow/overflow failure detection remain.
+- All 44 AFT tests pass in each dtype: x64 5.88s, x32 5.19s, using
+  JAX_ENABLE_X64=1/0 uv run --group test pytest -n 6 tests/unit/test_aft.py.
+  Every test assertion retained. The helper test explanation no longer claims
+  it establishes the removed boundary substitution's necessity.
+- scripts/check.sh --fast --through A10: all gates passed. Implementation
+  x64 945 passed/8 skipped (6.91s), x32 950 passed/3 skipped (6.70s);
+  source doctests 4 passed per mode; spec x64 1951 passed/27 skipped (8.12s),
+  x32 1965 passed/13 skipped (8.11s).
+- Ruff format: 194 files already formatted; Ruff check: All checks passed;
+  mypy: Success: no issues found in 22 source files; git diff --check passed.
+- No new tests, docstrings, docs or timing-list edits; no timing regeneration
+  or docs rebuild needed for this deletion and test-comment correction.
+- No fourth independent review: all three allowed rounds are used. Last
+  reviewer verdict remains maintainer; this commit executes that maintainer's
+  explicit F-2 decision. Remaining sub-steps: AFT.2 and AFT.3.

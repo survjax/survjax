@@ -5,9 +5,19 @@ Plan archival commit: 64b8393. Branch: aft.
 Maintainer scope: this worktree targets AFT only. Generic RMST, other families,
 summary derivative infrastructure and later overrides are owned elsewhere.
 AFT.1 starts from approved-plan commit 7b5b70f; previous completed work is
-cc0e30f, also the original worktree base. AFT.1 implementation and validation are complete; independent review pending.
+cc0e30f, also the original worktree base. AFT.1 implementation and validation are complete. Three independent review
+rounds concluded with maintainer disposition of F-2: remove the redundant
+boundary substitution; follow-up checks passed.
 
 ## AFT.1 — Registered wrapper and direct methods
+
+Maintainer follow-up (2026-11-09, F-2): remove the redundant pre-log time
+and predictor substitutions from _rescale_time. Keep boundary restoration,
+the pre-exp overflow guard and numerical-failure detection. Files: wrappers.py,
+test_aft.py (correct the helper test's explanation; keep every assertion),
+PLAN.md and REVIEW.md. No API changes. Spec 4.4–4.5 and 7.1–7.3.
+Run all AFT tests in both dtype modes and the fast A10 gate. All three review
+rounds are used; this implements the maintainer's explicit disposition of F-2.
 
 Files:
 - src/survjax/distributions/wrappers.py
@@ -97,5 +107,6 @@ this worktree. AFT completion does not claim full Slice D or summary support.
 
 AFT.3 closes the direct-wrapper documentation topic after the code steps.
 
-AFT.1 implemented and validated; independent review pending.
+AFT.1 implemented and validated; review rounds complete, F-2 disposed by
+maintainer-directed removal with passing follow-up checks.
 Remaining after AFT.1: AFT.2 and AFT.3.

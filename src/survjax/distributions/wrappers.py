@@ -262,11 +262,7 @@ class AcceleratedFailureTime(SurvivalDistribution):
         time = jnp.asarray(t)
         boundary = (time == 0) | jnp.isposinf(time)
         # spec 4.4/7.2: log-space scaling avoids exp(-eta) overflow and 0*inf.
-        safe_time = jnp.where(boundary, jnp.ones_like(time), time)
-        eta = jnp.where(
-            boundary, jnp.zeros_like(self.log_time_ratio), self.log_time_ratio
-        )
-        log_time = jnp.log(safe_time) - eta
+        log_time = jnp.log(time) - self.log_time_ratio
         overflow = log_time >= jnp.log(jnp.finfo(log_time.dtype).max)
         scaled = jnp.exp(jnp.where(overflow, 0.0, log_time))
         # spec 7.1: a positive interior time lost during rescaling is a

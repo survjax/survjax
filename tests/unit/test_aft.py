@@ -210,10 +210,9 @@ def test_policy_boundaries_have_finite_parameter_derivatives(time):
 
 
 def test_rescaling_zero_and_infinity_retains_zero_predictor_tangents():
-    """Spec 7.2: the rescaling boundary substitution precedes log/exp."""
+    """Spec 4.5/7.2: restored rescaling boundaries have zero eta tangents."""
 
-    # Exercise the numerical helper directly: outer policy and built-in
-    # baselines independently mask boundaries, which can hide this invariant.
+    # Exercise the helper independently of outer policy and baseline masks.
     def fn(eta):
         dist = AcceleratedFailureTime(baseline=Exponential(rate=1), log_time_ratio=eta)
         return dist._rescale_time(jnp.array([0.0, jnp.inf]))
