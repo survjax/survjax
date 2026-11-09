@@ -136,7 +136,16 @@ revision 51, as the maintainer's features `observation.censoring` and
 those modes in `test_a6_unsupported_modes.py` and `test_a11_ph_likelihood.py`
 keep `step(...)` and gain `until(<feature>)` per case, and
 `helpers.supported_mode` (the 7.1 recipe's support check) expands with the
-enabled features (Q-064). The A10 concordance `unsupported` rows are a
+enabled features (Q-064). Revision 52 (8.3, 8.5) defines quadrature
+convergence as one adjacent pair of summed combined estimates, `num_levels`
+as rounds per entry and `error_estimate` as the last difference: the RMST and
+mean policy count, work-exhaustion and error-estimate tests are retagged
+`rev 52` and tightened, eight tests are new, and Q-061 is narrowed. Revision
+53 (8.3) states that a converged quadrature entry returns `Q_l` of the
+converging pair and a failure status returns NaN: the RMST and mean NaN-value
+tests for `non_finite_arithmetic` and `work_exhausted` and
+`test_error_estimate_is_in_time_units` are retagged `rev 53` with unchanged
+assertions, and Q-061 is narrowed to the bracket-limit status. The A10 concordance `unsupported` rows are a
 permanent v0 rule of 9.1 ("Supported observations are exact and
 right-censored rows"), not a Slice A restriction, and are not staged. The mpmath references
 need `mpmath`, and the A10 property tests `hypothesis`, in the test environment. Tests are static acceptance tests and have never
@@ -1890,7 +1899,7 @@ in log units (rev 44).
 - **Executable documentation of the derivative limitation**: a
   documentation gate, not a test.
 
-## Post-release features (spec 4.2, 4.4, 4.5, 8.1-8.5, 8.7, 8.8, 12.1; rev 51)
+## Post-release features (spec 4.2, 4.4, 4.5, 8.1-8.5, 8.7, 8.8, 12.1; rev 51, 52)
 
 Section 8.8 (rev 51) enables each section 8.1 method, and the two containers,
 by its own step in any order, under the full contract of 8.1–8.6; 8.7's tail
@@ -1930,6 +1939,7 @@ Weibull RMST use the 12.1 scales; generic quadrature/solver paths use
 | 8.3/8.8 | generic fallbacks: constant and power hazards, batched; PH without closure; bounded support; improper finite RMST; heavy tail; scale changes; dtype | `test_generic_rmst_of_a_constant_hazard`, `test_generic_rmst_of_a_power_hazard_matches_quadrature`, `test_generic_rmst_is_vectorized_over_a_batch`, `test_ph_rmst_on_a_baseline_without_closure_matches_the_physical_law`, `test_bounded_support_rmst_is_hand_derived`, `test_improper_family_has_finite_rmst`, `test_heavy_tail_generic_rmst`, `test_generic_rmst_scales_with_the_time_scale`, `test_generic_rmst_is_in_the_parameter_dtype` (values) |
 | 4.5/8.7 | 8.7 `tau` policy on generic paths: NaN, `rmst(0)=0`, dtype `TypeError` (eager, traced), float64 conversion; `tau_grid[:, None, None]`; non-broadcasting `tau`; parameter violations NaN | `test_generic_invalid_cutoff_gives_nan`, `test_generic_rmst_at_zero_is_zero`, `test_generic_cutoff_with_a_non_numeric_dtype_is_rejected`, `test_generic_boolean_cutoff_is_rejected_during_tracing`, `test_generic_float64_cutoff_converts_without_warning_in_32_bit_mode`, `test_generic_cutoff_grid_with_explicit_axes`, `test_generic_cutoff_that_does_not_broadcast_is_rejected`, `test_parameter_violations_give_nan_rmst`, `test_non_finite_integrand_gives_nan_rmst`, `test_rmst_agrees_under_jit_and_vmap` (policy) |
 | 8.3/8.5 (+ containers) | invalid `tau` and violations not `converged` (also `jit`); info shapes on grids; `non_finite_arithmetic` per entry; `work_exhausted`; counts; error estimate in time units; `jit`/`vmap` of info; options into `jit` | `test_generic_invalid_cutoff_is_not_reported_converged`, `test_cutoff_grid_with_info_against_draws_by_arms`, `test_parameter_violations_are_not_reported_converged`, `test_parameter_violation_status_under_jit`, `test_non_finite_integrand_is_a_failure_status`, `test_quadrature_work_exhaustion_is_reported`, `test_generic_rmst_counts`, `test_error_estimate_is_in_time_units`, `test_rmst_with_info_agrees_under_jit_and_vmap`, `test_options_cross_jit_into_a_generic_rmst` (policy) |
+| 8.3/8.5 rev 52 (+ containers) | "one adjacent pair ... No second successful pair is required; one evaluated level alone cannot establish convergence" (converged `num_levels` in `[2, max_levels]`, loose `atol` converges at 2); "`num_levels` counts the rounds ... not the sum of counts over split intervals" (exhaustion at `max_levels=3` across the `s` split gives 3); "`error_estimate` is the last absolute difference ... including on work exhaustion" (finite, positive), "NaN if fewer than two estimates exist" (`max_levels=1`) "or if a non-finite integrand"; rev 53: "A converged entry returns `Q_l` of the converging pair" (error estimate within `atol + rtol*abs(value)`), a failure status "returns NaN" | `test_one_adjacent_pair_suffices_for_convergence`, `test_work_exhaustion_counts_rounds_not_split_intervals`, `test_single_level_reports_one_round_and_a_nan_error_estimate`, `test_non_finite_integrand_has_a_nan_error_estimate`, `test_generic_rmst_counts`, `test_non_finite_integrand_is_a_failure_status`, `test_error_estimate_is_in_time_units`, `test_quadrature_work_exhaustion_is_reported`, `test_non_finite_integrand_gives_nan_rmst` (policy); `test_non_converged_entry_has_a_nan_tangent` (derivatives, premise only) |
 | 8.4/8.8 | Weibull and PH-Weibull shape Hessians correct (interior, heavy, both power tails), four compositions; `check_grads` with the shape direction | `test_weibull_rmst_shape_second_derivative_is_correct`, `test_weibull_rmst_full_hessian_is_correct`, `test_ph_weibull_rmst_hessian_with_shape_is_correct`, `test_check_grads_order_two_weibull_rmst_with_shape`, `test_check_grads_order_two_ph_weibull_rmst_with_shape` (derivatives) |
 | 8.4 | `tau=0` first derivatives (parameters 0, `tau` 1) on every kind of family (rev 51, family-neutral) | `test_rmst_first_derivatives_at_zero_cutoff` (derivatives) |
 | 8.4 | generic tangents: first derivatives, Hessian, PH without closure, `check_grads`, `jit`/`vmap` | `test_generic_rmst_first_derivatives_match_quadrature`, `test_generic_rmst_hessian`, `test_ph_rmst_without_closure_derivatives_match_the_physical_law`, `test_check_grads_order_two_generic_rmst`, `test_generic_rmst_gradient_agrees_under_jit_and_vmap` (derivatives) |
@@ -1946,6 +1956,7 @@ Weibull RMST use the 12.1 scales; generic quadrature/solver paths use
 | 8.1 (+ containers) | improper family: never finite; `+inf` only with `known_infinite`, else NaN not `converged`; `mean()` equals the info value; `beta` near 1 correct or unresolved, never `+inf` | `test_improper_family_mean_is_never_finite`, `test_heavy_tail_near_one_mean_is_correct_or_reported_unresolved` (values) |
 | 8.3/8.7 | `batch_shape`; parameter violations NaN; non-finite integrand NaN; `jit`/`vmap` | `test_mean_has_the_batch_shape`, `test_parameter_violations_give_nan_mean`, `test_non_finite_integrand_gives_nan_mean`, `test_mean_agrees_under_jit_and_vmap` (policy) |
 | 8.3/8.5 (+ containers) | info shapes; violations not `converged`; `non_finite_arithmetic`; `work_exhausted`; counts; `jit`/`vmap` of info | `test_mean_info_has_the_batch_shape`, `test_parameter_violations_are_not_reported_converged`, `test_non_finite_integrand_in_the_mean_is_a_failure_status`, `test_quadrature_work_exhaustion_of_the_mean_is_reported`, `test_generic_mean_counts`, `test_mean_with_info_agrees_under_jit_and_vmap` (policy) |
+| 8.3/8.5 rev 52 (+ containers) | the same quadrature stopping rules on the mean: one pair suffices; `[0, s]` and `[s, +inf)` share rounds; last-difference error estimate, NaN with one level or a non-finite integrand; rev 53: a failure status "returns NaN" | `test_one_adjacent_pair_suffices_for_mean_convergence`, `test_mean_work_exhaustion_counts_rounds_not_split_intervals`, `test_single_level_mean_reports_one_round_and_a_nan_error_estimate`, `test_non_finite_integrand_in_the_mean_has_a_nan_error_estimate`, `test_generic_mean_counts`, `test_quadrature_work_exhaustion_of_the_mean_is_reported`, `test_non_finite_integrand_in_the_mean_is_a_failure_status`, `test_non_finite_integrand_gives_nan_mean` (policy) |
 | 8.4 | built-in first derivatives and Hessian; PH chain rule; generic first derivatives and Hessian; `check_grads`; `jit`/`vmap`; isolation; non-finite tangent of the improper mean | `test_exponential_mean_derivative`, `test_weibull_mean_derivatives`, `test_weibull_mean_hessian`, `test_ph_weibull_mean_gradient_equals_the_equivalent_weibull`, `test_generic_mean_first_derivatives`, `test_generic_mean_hessian`, `test_check_grads_order_two_mean`, `test_generic_mean_gradient_agrees_under_jit_and_vmap`, `test_mean_isolates_failing_entries_with_shared_scale`, `test_improper_mean_has_a_non_finite_tangent` (derivatives) |
 
 ### `summary.quantile`: `test_summary_quantile_*.py`
@@ -2066,9 +2077,17 @@ Not tested for `observation.truncation`:
 - **Tangents at `p=0` and at a bounded support end, and for invalid-input
   entries:** 8.4's "endpoint quantiles ... NaN or infinite tangents" reads
   oddly where the true derivative is finite (Q-062).
-- **Exact `num_levels` upper bound, split-interval accounting, and which of
-  `failed_bracket`/`work_exhausted` a bracket limit reports:** unspecified
-  (Q-061).
+- **Which of `failed_bracket`/`work_exhausted` a bracket limit reports:**
+  unspecified (Q-061; rev 52 settled the `num_levels` bound and
+  split-interval accounting, rev 53 the returned quadrature value).
+- **"All subintervals of a broadcast entry share the same refinement round"
+  beyond counts, and the arithmetic-failure NaN error estimate (8.3/8.5,
+  rev 52):** only observable through `num_levels` (tested); no public family
+  in reach produces an arithmetic failure distinct from a non-finite
+  integrand.
+- **The exact `num_levels` of a converged default-tolerance case:** depends
+  on the node layout, which the spec leaves open; only `[2, max_levels]` is
+  asserted.
 - **`inverse_cumulative_hazard` for negative, NaN, infinite or non-numeric `e`;
   `options` or a `_with_info` variant for it:** unspecified (Q-063).
 - **`sample`:** feature `sampling`, not requested yet; its absence stays

@@ -280,7 +280,7 @@ def test_weibull_rmst_hessian_isolation_with_shared_parameters(mode):
 
 @RMST_INFO
 def test_non_converged_entry_has_a_nan_tangent():
-    """spec 8.4, rev 51: "Entries that failed or did not converge get NaN tangents, never zeros" (work exhaustion)."""
+    """spec 8.4, rev 51; 8.3/8.5, rev 52 (`max_levels=1` evaluates one level, which cannot converge): "Entries that failed or did not converge get NaN tangents, never zeros" (work exhaustion)."""
     opts = survjax.SummaryOptions(rtol=f(1e-30), atol=f(1e-30), max_levels=1)
     _, tangent = jax.jvp(lambda r: fam.const_hazard()(rate=r).rmst(f(3.0), options=opts), (f(0.5),), (f(1.0),))
     assert np.isnan(np.asarray(tangent))

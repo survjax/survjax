@@ -19,6 +19,7 @@ on it. Guessed exception types and call shapes are centralised in
   it only through the specified `data.issues` property.
 - **Depends:** `helpers.field`, `helpers.assert_fields`, and the field checks
   throughout A1–A3.
+- **Status:** confirmed by the maintainer against the implementation (dev/main 4239d61, full gate in both dtype modes), 2026-11-09.
 ## Q-003: exception types and host checkpoint
 
 - **Checked:** 3.3 and 6.2, revisions 8–9.
@@ -42,6 +43,7 @@ on it. Guessed exception types and call shapes are centralised in
   `test_repeated_calls_from_one_call_site_warn_once`,
   `test_two_call_sites_warn_once_each`, and for distribution parameters
   (spec 3.3 bullet 4) `test_float64_parameters_warn_once_per_call`.
+- **Status:** confirmed by the maintainer against the implementation (dev/main 4239d61, full gate in both dtype modes), 2026-11-09.
 
 ## Q-005: immutability error
 
@@ -49,6 +51,7 @@ on it. Guessed exception types and call shapes are centralised in
 - **Guess:** assigning an attribute raises `AttributeError` (as a frozen
   dataclass does; `helpers.IMMUTABLE`).
 - **Depends:** `test_data_is_immutable`.
+- **Status:** confirmed by the maintainer against the implementation (dev/main 4239d61, full gate in both dtype modes), 2026-11-09.
 
 ## Q-006: `time2` on rows that are not interval censored
 
@@ -115,6 +118,7 @@ on it. Guessed exception types and call shapes are centralised in
 - **Depends:** the tests in `test_a3_data_issues.py` whose docstrings cite
   Q-010, plus `test_distinct_rules_on_distinct_rows_decode_independently` and
   `test_two_rules_on_one_row_are_both_decoded`.
+- **Status:** confirmed by the maintainer against the implementation (dev/main 4239d61, full gate in both dtype modes), 2026-11-09.
 
 ## Q-011: meaning of `ok`
 
@@ -184,6 +188,7 @@ on it. Guessed exception types and call shapes are centralised in
 - **Guess:** the required count and first offending index appear as decimal
   integers in `str(InvalidDataError)`. No words or punctuation are asserted.
 - **Depends:** `test_host_checkpoint_reports_count_and_first_offending_index`.
+- **Status:** confirmed by the maintainer against the implementation (dev/main 4239d61, full gate in both dtype modes), 2026-11-09.
 
 ## Q-018: observing host callbacks and transfers (spec 7.2)
 
@@ -200,6 +205,7 @@ on it. Guessed exception types and call shapes are centralised in
 - **Depends:** `test_compiled_construction_and_diagnostics_install_no_host_callback`,
   `test_warm_compiled_construction_and_diagnostics_make_no_host_transfer`,
   `test_compiled_construction_reuses_compilation_for_new_observation_values`.
+- **Status:** confirmed by the maintainer against the implementation (dev/main 4239d61, full gate in both dtype modes), 2026-11-09.
 
 ## Q-019: does the base enforce spec 4.5 for custom families?
 
@@ -422,6 +428,7 @@ on it. Guessed exception types and call shapes are centralised in
 - **Guess:** "a read-only mapping" rejects item assignment with `TypeError`,
   as `types.MappingProxyType` and every `Mapping` without `__setitem__` do.
 - **Depends:** `test_parameter_constraints_is_read_only`.
+- **Status:** confirmed by the maintainer against the implementation (dev/main 4239d61, full gate in both dtype modes), 2026-11-09.
 
 ## Q-035: delivery step of the section 4.7 tests
 
@@ -451,6 +458,7 @@ on it. Guessed exception types and call shapes are centralised in
 - **Depends:** `test_register_family_rejects_*`,
   `test_parameter_constraints_*`, `test_numpyro_constraint_object_is_accepted`,
   `test_built_in_constraints_behave_as_positive`.
+- **Status:** confirmed by the maintainer against the implementation (dev/main 4239d61, full gate in both dtype modes), 2026-11-09.
 
 ## Q-037: how Slice A fails explicitly for unimplemented modes (spec 12.2, rev 28) — resolved by rev 31
 
@@ -521,6 +529,7 @@ on it. Guessed exception types and call shapes are centralised in
   directory is empty; runtime dependencies come from the test environment.
   The wheel is expected to be `py3-none-any` (10.2: no compiled extensions).
 - **Depends:** every test in `test_a9_wheel_smoke.py`.
+- **Status:** confirmed by the maintainer against the implementation (dev/main 4239d61, full gate in both dtype modes), 2026-11-09.
 
 ## Q-041: version and license metadata (spec 10.1, 10.2; rev 4)
 
@@ -536,6 +545,7 @@ on it. Guessed exception types and call shapes are centralised in
   classifier (the field is not fixed by the spec).
 - **Depends:** `test_distribution_version_is_not_before_the_initial_version`,
   `test_distribution_license_metadata_is_apache`.
+- **Status:** confirmed by the maintainer against the implementation (dev/main 4239d61, full gate in both dtype modes), 2026-11-09.
 
 ## Q-042: module placement of the concordance API (spec 9.2, 10.2; rev 34)
 
@@ -551,6 +561,7 @@ on it. Guessed exception types and call shapes are centralised in
   `test_concordance_info_is_discoverable_in_its_module`, every
   `isinstance(..., concordance_info_class())` check in
   `test_a10_concordance_api.py`.
+- **Status:** confirmed by the maintainer against the implementation (dev/main 4239d61, full gate in both dtype modes), 2026-11-09.
 
 ## Q-043: field names of `ConcordanceInfo` (spec 9.2; rev 34)
 
@@ -561,6 +572,7 @@ on it. Guessed exception types and call shapes are centralised in
   masks `invalid`, `unsupported`, `no_comparable_pairs`
   (`helpers.CONCORDANCE_COUNTS`, `helpers.CONCORDANCE_MASKS`).
 - **Depends:** every A10 test that reads the info.
+- **Status:** confirmed by the maintainer against the implementation (dev/main 4239d61, full gate in both dtype modes), 2026-11-09.
 
 ## Q-044: how an exact count is read from `ConcordanceInfo` (spec 9.1; rev 34)
 
@@ -574,6 +586,7 @@ on it. Guessed exception types and call shapes are centralised in
   (one entry per concordance value). Counts of results that are NaN because
   of invalid or unsupported rows are not asserted.
 - **Depends:** every A10 test that calls `count`.
+- **Status:** confirmed by the maintainer against the implementation (dev/main 4239d61, full gate in both dtype modes), 2026-11-09.
 
 ## Q-045: shape of the `invalid` and `unsupported` masks (spec 9.1, 9.2; rev 34)
 
@@ -593,6 +606,7 @@ on it. Guessed exception types and call shapes are centralised in
 - **Depends:** `test_a10_concordance_diagnostics.py`, the mask checks in
   `test_a10_concordance_api.py`, `test_a10_concordance_values.py`,
   `test_a10_concordance_shapes.py` and `test_a10_concordance_properties.py`.
+- **Status:** confirmed by the maintainer against the implementation (dev/main 4239d61, full gate in both dtype modes), 2026-11-09.
 
 ## Q-046: name and schema of the concordance R fixture (spec 9.2, 10.4, 12.1; rev 34)
 
@@ -610,6 +624,7 @@ on it. Guessed exception types and call shapes are centralised in
   `tied_score = tied.x`, `comparable = concordant + discordant + tied.x`.
   A missing fixture fails the tests.
 - **Depends:** every test in `test_a10_concordance_fixtures.py`.
+- **Status:** confirmed by the maintainer against the implementation (dev/main 4239d61, full gate in both dtype modes), 2026-11-09.
 
 ## Q-047: step A10 and its source (maintainer replan, 2026-10-23)
 
@@ -624,6 +639,7 @@ on it. Guessed exception types and call shapes are centralised in
   accepted, the role file's table should gain the A10 row; the tests'
   revision tags will be updated only if 9.1–9.2 change.
 - **Depends:** every `test_a10_*.py`.
+- **Status:** confirmed by the maintainer against the implementation (dev/main 4239d61, full gate in both dtype modes), 2026-11-09.
 
 ## Q-048: step for `data.shape`, `len(data)` and `bool(data)` (spec 3.2, rev 36)
 
@@ -635,6 +651,7 @@ on it. Guessed exception types and call shapes are centralised in
   Missing attributes are tested with `hasattr` (that is, `AttributeError`),
   as for Q-021.
 - **Depends:** every test in `test_a3_shape_and_len.py`.
+- **Status:** confirmed by the maintainer against the implementation (dev/main 4239d61, full gate in both dtype modes), 2026-11-09.
 
 ## Q-049: steps for the rev 37 first-release items (spec 4.4, 8.7, 12.2)
 
@@ -844,8 +861,9 @@ on it. Guessed exception types and call shapes are centralised in
 ## Q-058: tolerances for generic summary values and derivatives (spec 8.3-8.5, 12.1; rev 50)
 
 - **Checked:** 12.1 (ordinary targets; staged-RMST log-unit derivative
-  scales), 8.3 ("Convergence requires two successive levels within `atol +
-  rtol*|estimate|`. This is a heuristic"), 8.4 ("Derivative accuracy is
+  scales), 8.3 (rev 52: "Convergence requires one adjacent pair of combined
+  estimates to satisfy `abs(Q_l - Q_(l-1)) <= atol + rtol*abs(Q_l)` ... This
+  is a heuristic"), 8.4 ("Derivative accuracy is
   limited by the quadrature tolerance and is documented method by method"),
   8.5 defaults (`rtol` 1e-8 / 1e-4 equal to the 12.1 `rtol`).
 - **Question:** the spec gives no derivative or value target for generic
@@ -890,21 +908,29 @@ on it. Guessed exception types and call shapes are centralised in
 - **Depends:** `test_improper_family_mean_is_never_finite`,
   `test_improper_mean_has_a_non_finite_tangent`.
 
-## Q-061: count and failure-status details (spec 8.2, 8.3, 8.5; rev 50)
+## Q-061: count and failure-status details (spec 8.2, 8.3, 8.5; rev 50, 52, 53)
 
 - **Checked:** 8.2, 8.3, 8.5.
-- **Question:** is `num_levels` bounded by `max_levels` or `max_levels + 1`
-  (0-based levels), and is it summed or maximised over split subintervals?
-  Does exhausting `max_bracket_steps` report `failed_bracket` or
-  `work_exhausted`? Is `error_estimate` the last level difference?
-- **Guess:** tests require `num_levels > 0` for generic quadrature, solver
-  and bracket counts within their static limits, `failed_bracket` or
-  `work_exhausted` for a bracket limit, and a converged error estimate within
-  ten times `atol + rtol*|value|` (time units).
-- **Depends:** `test_generic_rmst_counts`, `test_generic_mean_counts`,
-  `test_generic_quantile_counts`, `test_bracket_limit_failure_is_reported`,
-  `test_error_estimate_is_in_time_units`,
-  `test_non_finite_integrand_is_a_failure_status`.
+- **Rev 52 resolves the quadrature part:** `max_levels` evaluated levels
+  (0 to `max_levels - 1`), `num_levels` counts rounds per broadcast entry
+  (not summed over split intervals), convergence needs one adjacent pair of
+  summed estimates, and `error_estimate` is the last combined-estimate
+  difference (also on work exhaustion; NaN with fewer than two estimates or a
+  non-finite integrand). Tests now assert these directly.
+- **Rev 53 resolves the returned quadrature value:** 8.3 now says "A
+  converged entry returns `Q_l` of the converging pair. An entry with a
+  failure status (`non_finite_arithmetic` or `work_exhausted`) returns NaN."
+  The earlier guess (returned value is `Q_l`) is confirmed, so
+  `test_error_estimate_is_in_time_units` no longer depends on this question;
+  the NaN values of work-exhausted and non-finite entries are now spec, not
+  inference. 8.5's "NaN when not meaningful" now points to the quadrature
+  paragraph (no test change).
+- **Question (still open):** does exhausting `max_bracket_steps` report
+  `failed_bracket` or `work_exhausted`? (Rev 53 covers only quadrature.)
+- **Guess:** solver and bracket counts within their static limits,
+  `failed_bracket` or `work_exhausted` for a bracket limit.
+- **Depends:** `test_generic_quantile_counts`,
+  `test_bracket_limit_failure_is_reported`.
 
 ## Q-062: tangents at finite endpoint quantiles and invalid inputs (spec 8.4, 8.7, 8.8; rev 50, 51)
 
