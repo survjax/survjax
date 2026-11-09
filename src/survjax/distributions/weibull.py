@@ -11,6 +11,7 @@ from survjax import constraints
 from survjax._dtypes import normalize_parameters
 from survjax._rmst import _rmst_cutoff, _weibull_rmst
 from survjax.distributions._survival_methods import log_cdf_from_log_cumulative_hazard
+from survjax.distributions._weibull_intervals import log_interval_prob
 from survjax.distributions.base import SurvivalDistribution, param, register_family
 
 
@@ -69,6 +70,8 @@ class Weibull(SurvivalDistribution):
     >>> round(float(progression.survival(10.0)), 4)  # exp(-1)
     0.3679
     """
+
+    log_interval_prob = log_interval_prob
 
     shape: jax.Array = param(constraint=constraints.positive)
     scale: jax.Array = param(constraint=constraints.positive)

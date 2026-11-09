@@ -1,46 +1,50 @@
-# B1b.2 — Conditional Exponential interval override
+# B1c.1 — Weibull interval override
 
 Independent review: round 1/3
 
-Read PLAN.md (B1b.2), spec 4.2 and 7.1–7.3, Exponential's conditional
-interval method, then tests/unit/test_exponential_conditional.py.
-Start / previous step: 6a0e342; original worktree base: cc0e30f.
+Read PLAN.md, spec 4.2 and 7.1–7.3, distributions/_weibull_intervals.py,
+its binding in weibull.py, then tests/unit/test_weibull_intervals.py.
+Start / previous implementation: 6fab866; original worktree base: cc0e30f.
+Plan archive: aafe3a5. Maintainer explicitly approved the new private module.
 
-Invariants: finite positive exponential rates have positive mass on every
-nonempty valid truncation window. Intersect endpoints first, then substitute
-the window for inactive numerators. Cancel exp(-rate*L) analytically, before
-multiplication: -rate*(a-L) + log F(b-a) - log F(U-L). The existing stable
-log-CDF handles zero/infinity and products too tiny for linear representation.
-Full coverage is structurally zero; empty intersection is -inf. Invalid
-endpoints, windows and parameters give NaN. No likelihood dispatch changed.
+Invariants: the private increment helper receives finite 0<a<b and valid
+parameters. For nearby endpoints, log(b/a)=log1p((b-a)/a); for separated ones,
+log(b)-log(a) avoids an overflowing ratio. Inactive branches substitute before
+operating. log(delta_H)=log H(b)+log(1-exp(-k*log(b/a))) reuses the guarded
+log-CDF-from-log-hazard primitive, never subtracting nearly equal powers or
+forming an underflowing k*log(b/a). The interval result is
+-H(a)+log(1-exp(-delta_H)). Zero/infinite endpoints use existing direct methods;
+invalid or empty inputs never reach the finite increment helper unchanged.
+Parameters of that inactive piece are substituted too; real active parameters
+retain their derivatives. No likelihood or conditional override is changed.
 
 Test map:
-- Spec 4.2/7.2: far-tail conditional probability at L=2**40 (x64), 2**20
-  (x32), versus independent mpmath survival-ratio formula after memorylessness.
-- Spec 7.3: same case verifies eager/jit/vmap, analytic first and second
-  derivatives via mpmath, all four AD mode compositions, and check_grads order 2.
-- Spec 7.1/7.2: tiny rate/window product that underflows in linear space,
-  checked against mpmath expm1 ratio without treating the denominator as zero.
-- Spec 7.1: partial/full/empty intersections; exact window boundaries;
-  invalid and infinite endpoints and windows; invalid rates; batch broadcasting.
-- Spec 7.2/7.3: mixed full/right/empty/infinite rows with eager jax_debug_nans,
-  objective -r, gradient -1 and Hessian 0.
+- Spec 7.2: 400-digit mpmath powers for narrow, tiny-mass, wide ratio, far-tail,
+  decreasing-hazard and tiny-shape inputs. The final case resolves an O(1e-312)
+  power difference in x64. Eager/jit/vmap agree in both dtypes.
+- Spec 7.3: 100-digit mpmath natural shape/scale gradient and full Hessian on a
+  narrow interval; all four AD compositions; check_grads order 2 both modes.
+- Spec 4.1/4.2: shape-one Exponential identity with two-axis broadcasting and
+  Python-list endpoints.
+- Spec 7.1: equal/reversed/negative/NaN/infinite endpoints and invalid parameters.
+- Spec 7.2/7.3: mixed full/right/empty/infinite batch under jax_debug_nans,
+  analytic value/gradient/Hessian at k=1 and scale=2.
 
-Checks run:
-- Three interval test files, pytest -n 6, both dtype modes: 20 passed each.
-- Ruff format/check, mypy src, git diff --check: passed.
-- scripts/update_slow_tests.sh --through A10: completed, 358 slow entries.
-  Observed full x64 duration suites: implementer 1332 passed/8 skipped;
-  spec 2332/28. Full x32 summaries not retained; script completion alone is
-  not claimed as proof of that full suite (script tolerates test failures).
-- scripts/check.sh --fast --through A10: all gates passed. Implementer:
-  x64 1150 passed/8 skipped, x32 1155/3. Doctests: 4 passed each mode.
-  Spec: x64 2156 passed/28 skipped, x32 2160/24.
-- No docs build, R regeneration, or performance benchmark for this code step.
+Checks:
+- Final touched file, pytest -n 6, x64 and x32: 5 passed each.
+- Ruff format/check, mypy src (23 source files), git diff --check: passed.
+- An initial Python-list probe failed in result_type; fixed array conversion
+  before dtype selection and added list coverage, then reran both dtype suites.
+- scripts/update_slow_tests.sh --through A10: completed, 397 entries; generated
+  timing churn committed separately. Observed x64 full duration results:
+  implementer 1337 passed/8 skipped; spec 2332/28. Final x32 logs not retained,
+  so script completion is not claimed as proof of those full test results.
+- scripts/check.sh --fast --through A10: all gates passed. Implementer
+  x64 1133 passed/8 skipped, x32 1138/3. Doctests: 4 per mode. Spec:
+  x64 2139 passed/28 skipped, x32 2146/21.
+- No R fixtures regenerated, docs built, or performance claims made.
 
-Remaining: B1c Weibull interval/conditional overrides; B2 likelihood integration;
-B3 full numerical/reference matrix; B4 measured pruning and docs. No expanded
-invalid-parameter derivative-isolation guarantee for direct hooks; likelihood
-parameter preparation still owns that guarantee. Source file is now 332 lines,
-slightly above the approximate 300-line guideline, with one family responsibility
-and no new helper module or abstraction introduced solely to move lines.
+Remaining: B1c.2 conditional Weibull; B2 likelihood integration; B3 full
+reference/numerical matrix; B4 measured metadata pruning and docs. The generic
+conditional method still subtracts absolute log probabilities and is not
+claimed to handle far-tail cancellation until B1c.2.
