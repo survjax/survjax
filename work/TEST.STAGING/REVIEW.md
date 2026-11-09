@@ -1,6 +1,17 @@
 # TEST.STAGING handoff
 
 Independent review: round 1/3.
+Final verdict: maintainer; accepted by the maintainer in the conversation.
+Reviewed implementation commit: 9a274211745e063a4c040028a668b503caa7fd72.
+Review file: ../../../review/slices/TEST.STAGING.md.
+
+S-1 requested confirmation of the protected gate edit and branch exception;
+the maintainer agreed after receiving the review outcome. N-1 notes that the
+tester conftest does not yet consume SPEC_FEATURES; the task explicitly permits
+this while the feature list is empty. Verify the consumer when tests are synced.
+The reviewer could not reproduce the gate: the detached checkout failed the
+branch guard, and a direct pytest attempt was blocked by uv cache permissions.
+The implementer's passing results below remain separate evidence.
 
 Read PLAN.md, scripts/spec-features.txt, then the guard and spec-test sections
 of scripts/check.sh. Workspace docs/workflow.md, "Staging after the release",
@@ -29,14 +40,15 @@ Validation:
   the expected-value calculation at test_a11_ph_direct_methods.py:78.
 
 No library behavior changed; no numerical tests or mutations were added.
-Full slow gate, docs build, and independent review have not run.
+Full slow gate and docs build have not run. Independent review ran once.
 
 The maintainer authorized creation of the missing reviewer checkout in this
-conversation. Preserve the pre-existing .spec-seen edit separately while
-arranging the skill's clean-tree precondition, then restore it after review.
+conversation. The pre-existing .spec-seen edit was stashed for the clean-tree
+precondition and restored after review. On acceptance, the maintainer requested
+updating and committing it: now aligned to design commit e991e38, revision 51.
 
 Starting base: 3abefc5; previous step tip: ff07cf9 (A12 acceptance).
-Remaining: independent review, then maintainer integration into main and a
+Remaining: maintainer integration into main and a
 merge of main into rmst. The separate rmst D-049/plan update is not this step.
 Roadmap handoff: staging mechanism implemented, no post-release feature enabled;
-review and integration pending. No shared progress files changed.
+review accepted; integration pending. No shared progress files changed.
