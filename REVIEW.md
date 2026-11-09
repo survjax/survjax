@@ -1,48 +1,46 @@
-# B1b.1 — Exponential interval probability override
+# B1b.2 — Conditional Exponential interval override
 
 Independent review: round 1/3
 
-Read PLAN.md, spec 4.2 and 7.1–7.3, the Exponential.log_interval_prob
-method, tests/unit/test_exponential_intervals.py, then the generic-test subclass
-in tests/unit/test_interval_defaults.py.
+Read PLAN.md (B1b.2), spec 4.2 and 7.1–7.3, Exponential's conditional
+interval method, then tests/unit/test_exponential_conditional.py.
+Start / previous step: 6a0e342; original worktree base: cc0e30f.
 
-Start / previous step: 8f9eb95; original worktree base: cc0e30f.
-Plan archive commit: f0e15cc.
+Invariants: finite positive exponential rates have positive mass on every
+nonempty valid truncation window. Intersect endpoints first, then substitute
+the window for inactive numerators. Cancel exp(-rate*L) analytically, before
+multiplication: -rate*(a-L) + log F(b-a) - log F(U-L). The existing stable
+log-CDF handles zero/infinity and products too tiny for linear representation.
+Full coverage is structurally zero; empty intersection is -inf. Invalid
+endpoints, windows and parameters give NaN. No likelihood dispatch changed.
 
-Invariants: valid rates are finite and positive. Empty/invalid intervals use
-finite substitute endpoints before subtraction, so inf-inf is never evaluated.
-The active formula is -rate*lower + log_cdf(upper-lower). The existing log-CDF
-implementation calculates from log cumulative hazard, retaining log mass even
-when rate*width underflows. No floors, clipping or density approximation.
-Generic tests explicitly select the base hooks on a registered test subclass,
-so adding the built-in override does not silently remove default-hook coverage.
-
-Requirement / test map:
-- Spec 4.2/7.2: high-precision tests at represented endpoints cover narrow,
-  finite far-tail, product-underflow and infinite intervals; eager/jit/vmap.
-- Spec 7.3: mpmath first/second derivatives on a narrow interval, all four
-  forward/reverse second-order combinations; separate check_grads interior.
-- Spec 7.1: equal, reversed, negative, NaN and infinite endpoints; invalid rates.
-- Spec 7.2: full-support/right-tail/empty batch gradients and Hessian under
-  eager jax_debug_nans, with analytically known -2r objective.
-- Spec 4.2: explicit two-axis broadcasting check.
+Test map:
+- Spec 4.2/7.2: far-tail conditional probability at L=2**40 (x64), 2**20
+  (x32), versus independent mpmath survival-ratio formula after memorylessness.
+- Spec 7.3: same case verifies eager/jit/vmap, analytic first and second
+  derivatives via mpmath, all four AD mode compositions, and check_grads order 2.
+- Spec 7.1/7.2: tiny rate/window product that underflows in linear space,
+  checked against mpmath expm1 ratio without treating the denominator as zero.
+- Spec 7.1: partial/full/empty intersections; exact window boundaries;
+  invalid and infinite endpoints and windows; invalid rates; batch broadcasting.
+- Spec 7.2/7.3: mixed full/right/empty/infinite rows with eager jax_debug_nans,
+  objective -r, gradient -1 and Hessian 0.
 
 Checks run:
-- Touched files, pytest -n 6 in each dtype: 15 passed per mode.
-- Ruff formatting/lint, mypy src, git diff --check: passed.
-- scripts/update_slow_tests.sh --through A10: completed, 359 entries. Its
-  timing-only list is committed separately because regenerated churn exceeds
-  the numerical step size. Observed full x64 results: implementer 1327 passed,
-  8 skipped; spec 2332 passed, 28 skipped. Full x32 summaries were removed by
-  the script; do not infer their outcome from its exit status alone.
-- scripts/check.sh --fast --through A10 with refreshed list: all gates passed.
-  Captured counts include x64 implementer 1145/8 and x32 spec 2159/24;
-  remaining summaries were truncated in tool output, but final gate exit is 0.
-- No R regeneration, docs build, or performance claim in this code-only step.
+- Three interval test files, pytest -n 6, both dtype modes: 20 passed each.
+- Ruff format/check, mypy src, git diff --check: passed.
+- scripts/update_slow_tests.sh --through A10: completed, 358 slow entries.
+  Observed full x64 duration suites: implementer 1332 passed/8 skipped;
+  spec 2332/28. Full x32 summaries not retained; script completion alone is
+  not claimed as proof of that full suite (script tolerates test failures).
+- scripts/check.sh --fast --through A10: all gates passed. Implementer:
+  x64 1150 passed/8 skipped, x32 1155/3. Doctests: 4 passed each mode.
+  Spec: x64 2156 passed/28 skipped, x32 2160/24.
+- No docs build, R regeneration, or performance benchmark for this code step.
 
-Remaining: conditional Exponential override (B1b.2), Weibull overrides (B1c),
-likelihood integration (B2), full numerical/reference matrix (B3), pruning and
-docs (B4). The generic conditional method benefits from this interval override
-but still subtracts absolute log masses; its far-tail cancellation is not fixed
-by this step. Mixed invalid-parameter derivative isolation remains owned by the
-likelihood evaluator; no expanded direct-method guarantee is claimed here.
+Remaining: B1c Weibull interval/conditional overrides; B2 likelihood integration;
+B3 full numerical/reference matrix; B4 measured pruning and docs. No expanded
+invalid-parameter derivative-isolation guarantee for direct hooks; likelihood
+parameter preparation still owns that guarantee. Source file is now 332 lines,
+slightly above the approximate 300-line guideline, with one family responsibility
+and no new helper module or abstraction introduced solely to move lines.

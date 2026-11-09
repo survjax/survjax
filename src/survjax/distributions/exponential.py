@@ -235,6 +235,60 @@ class Exponential(SurvivalDistribution):
         value = -self.rate * a + self.log_cdf(b - a)
         return jnp.where(valid, jnp.where(empty, -jnp.inf, value), jnp.nan)
 
+    def log_conditional_interval_prob(
+        self,
+        lower: ArrayLike,
+        upper: ArrayLike,
+        left_trunc: ArrayLike,
+        right_trunc: ArrayLike,
+    ) -> jax.Array:
+        """Return the interval's log probability conditional on (L,U].
+
+        Intersect (lower,upper] with the truncation window to get (a,b].
+        Cancel the common survival factor S(L) before evaluating the ratio:
+        -rate*(a-L) + log F(b-a) - log F(U-L), where F is this family's CDF.
+
+        Args:
+            lower: Nonnegative requested lower endpoints.
+            upper: Requested upper endpoints, possibly +inf.
+            left_trunc: Finite nonnegative window lower endpoints L.
+            right_trunc: Window upper endpoints U > L, possibly +inf.
+        Returns:
+            Log probabilities with trailing-axis batch broadcasting. Full
+            coverage gives exactly zero; empty intersections give -inf.
+            Invalid endpoints or rates give NaN.
+        Raises:
+            ValueError: If input shapes cannot broadcast.
+        """
+        a, b, window_lower, window_upper = jnp.broadcast_arrays(
+            *map(jnp.asarray, (lower, upper, left_trunc, right_trunc))
+        )
+        valid = (
+            (a >= 0)
+            & (b >= a)
+            & jnp.isfinite(window_lower)
+            & (window_lower >= 0)
+            & (window_upper > window_lower)
+            & ~self.parameter_issues().invalid_entries
+        )
+        window_lower = jnp.where(valid, window_lower, 0.0)
+        window_upper = jnp.where(valid, window_upper, 1.0)
+        lo, hi = jnp.maximum(a, window_lower), jnp.minimum(b, window_upper)
+        empty = hi <= lo
+        full = (a <= window_lower) & (b >= window_upper)
+        active = valid & ~empty & ~full
+        # spec 7.2: inactive numerator uses the window, without re-intersection.
+        lo = jnp.where(active, lo, window_lower)
+        hi = jnp.where(active, hi, window_upper)
+        # spec 4.2: cancel the common cumulative hazard before multiplication.
+        value = (
+            -self.rate * (lo - window_lower)
+            + self.log_cdf(hi - lo)
+            - self.log_cdf(window_upper - window_lower)
+        )
+        value = jnp.where(full, 0.0, jnp.where(empty, -jnp.inf, value))
+        return jnp.where(valid, value, jnp.nan)
+
     def log_prob(self, t: ArrayLike) -> jax.Array:
         """Return the log density, ``log f(t) = log(rate) - rate * t``.
 

@@ -1,3 +1,21 @@
+# B1b.2 — Conditional Exponential interval override
+
+Start / previous step: 6a0e342; original worktree base: cc0e30f.
+Files: distributions/exponential.py, tests/unit/test_exponential_conditional.py,
+PLAN.md, REVIEW.md; tests/slow_tests.txt if duration refresh is required.
+Spec 4.2 and 7.1–7.3: intersect with (L,U], then cancel exp(-rate*L)
+analytically. Evaluate -rate*(a-L) + log F(b-a) - log F(U-L), using the
+existing stable log-CDF. Preserve full/empty/invalid endpoint policies.
+No new public API, module, dependency, protected path or docs edit.
+Tests: mpmath and memorylessness in far tails and tiny windows; first/second
+parameter derivatives; eager/jit/vmap and broadcasting; invalid/empty/full
+windows; safe mixed-boundary gradients. Existing interval suites remain green.
+Run touched tests in both dtypes, refresh timings if needed, fast A10 gate,
+commit and independent review, then stop. Generated timing churn may be
+committed separately as in B1b.1.
+Remaining: B1c Weibull overrides; B2 likelihood integration; B3 numerical and
+reference matrix; B4 pruning measurements and docs. Docs to-do unchanged.
+
 # B1b.1 — Exponential interval probability override
 
 Start / previous step: 8f9eb95; original worktree base: cc0e30f.
