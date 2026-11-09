@@ -72,3 +72,83 @@ def log_interval_prob(self: "Weibull", lower: ArrayLike, upper: ArrayLike) -> ja
     value = jnp.where(a == 0, left_mass, value)
     value = jnp.where(jnp.isposinf(b), log_survival, value)
     return jnp.where(valid, jnp.where(empty, -jnp.inf, value), jnp.nan)
+
+
+def _log_window_increment(
+    self: "Weibull",
+    lower: jax.Array,
+    upper: jax.Array,
+) -> jax.Array:
+    """Log hazard increment for valid 0 <= lower <= upper, lower finite."""
+    positive = upper > lower
+    interior = positive & (lower > 0) & jnp.isfinite(upper)
+    value = _log_hazard_increment(
+        jnp.where(interior, self.shape, 1.0),
+        jnp.where(interior, self.scale, 1.0),
+        jnp.where(interior, lower, 1.0),
+        jnp.where(interior, upper, 2.0),
+    )
+    # spec 7.2: the zero-origin piece is inactive for positive lower endpoints.
+    from_zero = self._log_cumulative_hazard(
+        jnp.where(positive & (lower == 0), upper, 0.0)
+    )
+    value = jnp.where(lower == 0, from_zero, value)
+    value = jnp.where(jnp.isposinf(upper), jnp.inf, value)
+    return jnp.where(positive, value, -jnp.inf)
+
+
+def log_conditional_interval_prob(
+    self: "Weibull",
+    lower: ArrayLike,
+    upper: ArrayLike,
+    left_trunc: ArrayLike,
+    right_trunc: ArrayLike,
+) -> jax.Array:
+    """Return interval log probability conditional on the window (L,U].
+
+    Intersect the requested interval with the window to get (a,b]. With
+    D(x,y)=H(y)-H(x), cancel the common H(L) before evaluating
+    -D(L,a) + log(1-exp(-D(a,b))) - log(1-exp(-D(L,U))).
+    All hazard differences use stable increments rather than power subtraction.
+
+    Args:
+        lower: Nonnegative requested lower endpoints.
+        upper: Requested upper endpoints, possibly +inf.
+        left_trunc: Finite nonnegative window lower endpoints L.
+        right_trunc: Window upper endpoints U > L, possibly +inf.
+    Returns:
+        Log probabilities with trailing-axis batch broadcasting. Full coverage
+        is exactly zero; empty intersections give -inf. Invalid endpoints,
+        windows or parameters give NaN. Use trailing singleton axes for grids.
+    Raises:
+        ValueError: If input shapes cannot broadcast.
+    """
+    arrays = tuple(map(jnp.asarray, (lower, upper, left_trunc, right_trunc)))
+    dtype = jnp.result_type(*arrays, self.shape, self.scale)
+    a, b, window_lower, window_upper = jnp.broadcast_arrays(
+        *(array.astype(dtype) for array in arrays)
+    )
+    valid = (
+        (a >= 0)
+        & (b >= a)
+        & jnp.isfinite(window_lower)
+        & (window_lower >= 0)
+        & (window_upper > window_lower)
+        & ~self.parameter_issues().invalid_entries
+    )
+    window_lower = jnp.where(valid, window_lower, 0.0)
+    window_upper = jnp.where(valid, window_upper, 1.0)
+    lo, hi = jnp.maximum(a, window_lower), jnp.minimum(b, window_upper)
+    empty = hi <= lo
+    full = (a <= window_lower) & (b >= window_upper)
+    active = valid & ~empty & ~full
+    # spec 7.2: inactive numerator uses the valid window, without re-intersection.
+    lo, hi = jnp.where(active, lo, window_lower), jnp.where(active, hi, window_upper)
+    offset = jnp.exp(_log_window_increment(self, window_lower, lo))
+    numerator = log_cdf_from_log_cumulative_hazard(_log_window_increment(self, lo, hi))
+    denominator = log_cdf_from_log_cumulative_hazard(
+        _log_window_increment(self, window_lower, window_upper)
+    )
+    value = -offset + numerator - denominator
+    value = jnp.where(full, 0.0, jnp.where(empty, -jnp.inf, value))
+    return jnp.where(valid, value, jnp.nan)

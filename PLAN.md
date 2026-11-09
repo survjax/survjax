@@ -1,3 +1,23 @@
+# B1c.2 — Conditional Weibull interval override
+
+Start / previous step: 68ba259; original worktree base: cc0e30f.
+Files: distributions/_weibull_intervals.py, distributions/weibull.py,
+tests/unit/test_weibull_conditional.py, PLAN.md, REVIEW.md, and slow-test list
+if timings require regeneration. No new module/API/dependency/protected path.
+Spec 4.2/7.1–7.3: intersect to (a,b], then cancel H(L) analytically:
+-[H(a)-H(L)] + log(1-exp(-[H(b)-H(a)]))
+             - log(1-exp(-[H(U)-H(L)])).
+Add a boundary-aware private wrapper around the existing finite positive
+increment helper, needed for zero/equal/infinite endpoints. Retain stable log
+increments for numerator and denominator; exponentiate only the offset term.
+Tests: high-precision far-tail/narrow/tiny-mass values, natural-parameter
+first/second derivatives including mixed Hessian entries, shape-one identity,
+invalid/full/empty windows, list/batch broadcasting and safe boundary gradients.
+Run touched tests both dtypes; duration refresh if needed; fast A10 gate;
+commit, independent review, then stop. Timing churn may be committed separately.
+Remaining: B2 likelihood integration; B3 full numerical/reference matrix;
+B4 pruning measurements and docs. Docs to-do remains expanded observation support.
+
 # B1c.1 — Weibull interval probability override (approved module split)
 
 Start / previous step: 6fab866; original worktree base: cc0e30f.

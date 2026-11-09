@@ -1,69 +1,48 @@
-# B1c.1 — Weibull interval override
+# B1c.2 — Conditional Weibull interval override
 
-Independent review: round 3/3
+Independent review: round 1/3
 
-Read PLAN.md, spec 4.2 and 7.1–7.3, distributions/_weibull_intervals.py,
-its binding in weibull.py, then tests/unit/test_weibull_intervals.py.
-Start / previous implementation: 6fab866; original worktree base: cc0e30f.
-Plan archive: aafe3a5. Maintainer explicitly approved the new private module.
+Read PLAN.md B1c.2, spec 4.2 and 7.1–7.3, the new boundary-aware increment
+wrapper and conditional method in distributions/_weibull_intervals.py, its
+binding in weibull.py, then tests/unit/test_weibull_conditional.py.
+Start / previous step: 68ba259; original worktree base: cc0e30f.
 
-Invariants: the private increment helper receives finite 0<a<b and valid
-parameters. For nearby endpoints, log(b/a)=log1p((b-a)/a); for separated ones,
-log(b)-log(a) avoids an overflowing ratio. Inactive branches substitute before
-operating. log(delta_H)=log H(b)+log(1-exp(-k*log(b/a))) reuses the guarded
-log-CDF-from-log-hazard primitive, never subtracting nearly equal powers or
-forming an underflowing k*log(b/a). The interval result is
--H(a)+log(1-exp(-delta_H)). Zero/infinite endpoints use existing direct methods;
-invalid or empty inputs never reach the finite increment helper unchanged.
-Parameters of that inactive piece are substituted too; real active parameters
-retain their derivatives. No likelihood or conditional override is changed.
+Invariants: valid finite positive Weibull parameters have positive mass on
+any valid nonempty truncation window. Intersect before evaluation; inactive
+numerators use the window, without re-intersection. The boundary wrapper
+receives ordered nonnegative endpoints with finite lower endpoint; it delegates
+finite positive interiors to the already-reviewed stable increment helper and
+uses log H for a zero origin. Equal endpoints give log increment -inf; infinite
+upper endpoint gives +inf. Substitution occurs before inactive operations.
+The conditional expression cancels H(L) before arithmetic, then exponentiates
+only the offset increment H(a)-H(L). Numerator and denominator remain in log
+space through the existing log-CDF-from-log-hazard helper. Full coverage is
+structurally zero and empty intersections are -inf; invalid inputs give NaN.
+No new module, public API, dependency or likelihood dispatch in this step.
 
 Test map:
-- Spec 7.2: 400-digit mpmath powers for narrow, tiny-mass, wide ratio, far-tail,
-  decreasing-hazard and tiny-shape inputs. The final case resolves an O(1e-312)
-  power difference in x64. Eager/jit/vmap agree in both dtypes.
-- Spec 7.3: 100-digit mpmath natural shape/scale gradient and full Hessian on a
-  narrow interval; all four AD compositions; check_grads order 2 both modes.
-- Spec 4.1/4.2: shape-one Exponential identity with two-axis broadcasting and
-  Python-list endpoints.
-- Spec 7.1: equal/reversed/negative/NaN/infinite endpoints and invalid parameters.
-- Spec 7.2/7.3: mixed full/right/empty/infinite batch under jax_debug_nans,
-  analytic value/gradient/Hessian at k=1 and scale=2.
+- Spec 4.2/7.2/7.3: far-tail conditional values and natural-parameter gradients
+  and all four Hessian mode combinations against 100-digit mpmath; eager/jit/vmap.
+- Spec 7.1/7.2: k=2 tiny window with underflowing linear mass against mpmath.
+- Spec 4.1/7.1: shape-one Exponential identity, finite/infinite windows, partial,
+  full and empty intersections, lists and trailing-axis broadcasting.
+- Spec 7.1: invalid endpoints, windows and parameters remain NaN.
+- Spec 7.2/7.3: mixed finite-window full/partial/empty rows under jax_debug_nans;
+  values, gradients and Hessian checked against direct analytical survival
+  ratios at moderate inputs; check_grads order 2, fwd/rev on the same interior.
 
 Checks:
-- Final touched file, pytest -n 6, x64 and x32: 5 passed each.
-- Ruff format/check, mypy src (23 source files), git diff --check: passed.
-- An initial Python-list probe failed in result_type; fixed array conversion
-  before dtype selection and added list coverage, then reran both dtype suites.
-- scripts/update_slow_tests.sh --through A10: completed, 397 entries; generated
-  timing churn committed separately. Observed x64 full duration results:
-  implementer 1337 passed/8 skipped; spec 2332/28. Final x32 logs not retained,
-  so script completion is not claimed as proof of those full test results.
+- Touched Weibull interval suites, pytest -n 6: 10 passed per dtype.
+- Ruff format/check, mypy src (23 files), git diff --check: passed.
+- scripts/update_slow_tests.sh --through A10: completed, 439 entries; generated
+  churn committed separately. Observed x64 duration suites: implementer
+  1342 passed/8 skipped; spec 2332/28. Full x32 summaries not retained; script
+  completion alone is not claimed as proof of those full test results.
 - scripts/check.sh --fast --through A10: all gates passed. Implementer
-  x64 1133 passed/8 skipped, x32 1138/3. Doctests: 4 per mode. Spec:
-  x64 2139 passed/28 skipped, x32 2146/21.
-- No R fixtures regenerated, docs built, or performance claims made.
+  x64 1081 passed/8 skipped, x32 1086/3; doctests 4 each; spec x64 2154/28,
+  x32 2158/24.
+- No full non-fast gate, R regeneration, docs build or benchmark claimed.
 
-Remaining: B1c.2 conditional Weibull; B2 likelihood integration; B3 full
-reference/numerical matrix; B4 measured metadata pruning and docs. The generic
-conditional method still subtracts absolute log probabilities and is not
-claimed to handle far-tail cancellation until B1c.2.
-
-## Authorized review retry
-
-Maintainer requested another reviewer attempt. Round 1 at e0fc2f1 performed
-no review because checkout permissions blocked it; no findings were issued.
-Implementation and tests are unchanged. Retry uses the recorded previous SHA
-and finding IDs `none`.
-
-## Round 2 fix-up: F-1
-
-Reviewed 3f5742b01bf9635e9d1e61b98c059564e12c7532; verdict fix-first.
-Added a narrow interval starting at 3 to the existing high-precision value
-matrix. Unlike a=1, its log(a) is nonzero, exposing cancellation if the nearby
-log1p path is removed. Widths: 1e-12 (x64), 1e-5 (x32), with expectations
-computed at represented endpoints. Existing tolerances unchanged. No library
-code or new test function added; duration list unchanged.
-Validation: touched file 5 passed in each dtype. Fast A10 gate passed:
-implementer 1133/8 (x64), 1138/3 (x32); doctests 4 each; spec 2139/28 and
-2146/21. Ruff, mypy and whitespace checks passed. Full gate not rerun.
+Remaining: B2 likelihood integration; B3 full numerical/reference matrix;
+B4 measured metadata pruning and docs. Direct invalid-parameter gradient
+isolation is not added; likelihood preparation retains ownership of that rule.
