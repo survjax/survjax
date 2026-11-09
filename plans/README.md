@@ -54,3 +54,5 @@ Imported verbatim; old status/next-step instructions are historical only.
 - [B1a](B1a.md): generic interval hooks and docstring follow-ups, through 8f9eb95.
 
 - [B1b](B1b.md): Exponential interval and conditional overrides, through 6fab866.
+
+- [B1c](B1c.md): Weibull interval and conditional overrides, through 535b854.
