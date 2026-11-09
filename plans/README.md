@@ -16,6 +16,7 @@ These are future assignments, not completed-step archives or implementation appr
 
 | File | Contents |
 | --- | --- |
+| `demo-e1.md` | Incoming DEMO.E1 release-demo evidence audit plan; preserved verbatim during A12 rebase |
 | `docs-through-docs6.md` | Completed documentation restructuring and integration, DOCS.1–DOCS.6; archived verbatim before revision-46 gap planning |
 | `GPU.1.md` | Modal GPU runner and safe source-archive follow-up |
 | `A10.md` | A10 concordance records through A10.d2, including A10.4/d1; unfinished, retained while A9 is current |
@@ -56,3 +57,4 @@ Imported verbatim; old status/next-step instructions are historical only.
 - [B1b](B1b.md): Exponential interval and conditional overrides, through 6fab866.
 
 - [B1c](B1c.md): Weibull interval and conditional overrides, through 535b854.
+- [Pre-demo-audit records](pre-final-demo-evidence.md): verbatim incoming WHEEL.1/RELEASE.A2 plan at cc0e30f; historical authorizations do not apply to this worktree.

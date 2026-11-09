@@ -19,7 +19,10 @@ First-derivative references are mpmath quadrature of ``dS/dtheta``
 ``rtol * |rmst|``, ``d/dtau`` within ``rtol``; higher orders "in the same log
 units: the derivative is multiplied by each variable it is taken with respect
 to (`tau` included, once per order)", scale ``|rmst|``. Shape higher
-derivatives (12.1, rev 45) raise or are correct, never wrong.
+derivatives (12.1, rev 45) raise or are correct, never wrong; those tests carry
+`until("summary.rmst")`, because section 8.8 (rev 51) replaces the shape-
+derivative exclusion with correctness checks once generic RMST is enabled
+(``test_summary_rmst_derivatives.py``).
 """
 
 import itertools
@@ -405,6 +408,7 @@ def _raises_or_matches(compute, check):
 
 
 @pytest.mark.step("A12")
+@pytest.mark.until("summary.rmst")
 @pytest.mark.parametrize("mode", list(HESSIANS))
 @pytest.mark.parametrize("case", list(SHAPE_CASES))
 def test_weibull_shape_hessian_raises_or_is_correct(case, mode):
@@ -419,6 +423,7 @@ def test_weibull_shape_hessian_raises_or_is_correct(case, mode):
 
 
 @pytest.mark.step("A12")
+@pytest.mark.until("summary.rmst")
 @pytest.mark.parametrize("mode", list(HESSIANS))
 @pytest.mark.parametrize("case", list(SHAPE_CASES))
 def test_weibull_full_hessian_raises_or_is_correct(case, mode):
@@ -434,6 +439,7 @@ def test_weibull_full_hessian_raises_or_is_correct(case, mode):
 
 
 @pytest.mark.step("A12")
+@pytest.mark.until("summary.rmst")
 @pytest.mark.parametrize("mode", list(HESSIANS))
 def test_ph_weibull_shape_hessian_raises_or_is_correct(mode):
     """spec 8.7/12.1, rev 45: "alone and through PH": the `(k, eta)` Hessian raises or is correct."""

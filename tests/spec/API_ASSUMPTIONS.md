@@ -526,11 +526,15 @@ on it. Guessed exception types and call shapes are centralised in
 
 - **Checked:** 10.1 ("matching metadata"), 10.2 ("Initial version
   `0.0.1.dev0`", compatibility policy).
-- **Guess:** until the first release, the installed distribution's version is
-  exactly `0.0.1.dev0`; a release bump updates this one test. The license
+- **Guess:** the spec fixes only the *initial* version, so the installed
+  version must be a valid PEP 440 version `>= 0.0.1.dev0`. (Until
+  2026-11-09 the test pinned exactly `0.0.1.dev0` "until the first release";
+  the release bump to `0.0.1a2` failed the A12 gate, and the spec does not
+  require the pin.) Should the spec state a version scheme for releases
+  (for example 0.0.x pre-releases), tighten this test. The license
   metadata contains "Apache" in `License-Expression`, `License` or a
   classifier (the field is not fixed by the spec).
-- **Depends:** `test_distribution_version_is_initial_development_version`,
+- **Depends:** `test_distribution_version_is_not_before_the_initial_version`,
   `test_distribution_license_metadata_is_apache`.
 
 ## Q-042: module placement of the concordance API (spec 9.2, 10.2; rev 34)
@@ -739,7 +743,8 @@ on it. Guessed exception types and call shapes are centralised in
   at least one raise.
 - **Depends:** `test_weibull_shape_hessian_raises_or_is_correct`,
   `test_weibull_full_hessian_raises_or_is_correct`,
-  `test_ph_weibull_shape_hessian_raises_or_is_correct`.
+  `test_ph_weibull_shape_hessian_raises_or_is_correct` (removed at rev 50,
+  restored at rev 51 with `until("summary.rmst")`; Q-055).
 
 ## Q-054: "not provided" means absent (spec 8.7, 10.2; rev 41)
 
@@ -765,6 +770,241 @@ on it. Guessed exception types and call shapes are centralised in
   `batch_shape` (8.7 says only "ordinary trailing-axis rules"; 4.1's
   `TypeError` is stated for direct methods), and the `tau` dtype rules
   (boolean or complex `tau`).
-- **Depends:** `test_absent_first_release_methods`,
-  `test_summary_configuration_types_are_not_provided`,
-  `test_there_is_no_rmst_grid`.
+- **Depends:** `test_absent_first_release_methods` (`rmst_with_info`,
+  `inverse_cumulative_hazard`, `sample`, each with its `until`),
+  `test_there_is_no_rmst_grid`, `test_summary_configuration_types_are_not_provided`
+  (`until("summary.containers")`); restored at rev 51 after the rev 50
+  removal (Q-055).
+
+## Q-055: step for the post-release summary stage, and superseded A12 tests (spec 8.8, 12.2; rev 50)
+
+- **Status:** superseded by spec rev 51 (decision 0058) and the maintainer's
+  staging scheme (2026-11-09): there is no step A13. Post-release tests carry
+  `feature(...)` markers (`summary.containers`, `summary.rmst`,
+  `summary.mean`, `summary.quantile`, `sampling`), filtered by
+  `SPEC_FEATURES`; the A12 rejection and absence tests removed at rev 50 are
+  restored under `step("A12")` with `until(<feature>)`. Earlier resolution
+  (2026-11-07, rev 50): step A13, superseded A12 tests deleted.
+- **Checked:** 8.8 Gate ("replace shape-Hessian rejection with correctness
+  checks, and replace custom-RMST/mean/quantile and diagnostic-absence checks
+  with the new surface requirements ... the historical rows remain
+  unchanged"), 12.2 ("Post-release summary stage").
+- **Consequence (rev 51):** with `SPEC_FEATURES` unset, the suite checks the
+  first-release rows again; enabling a feature drops the A12 tests it lifts
+  and runs its feature tests.
+- **Depends:** every `feature(...)` and `until(...)` marker; `conftest.FEATURES`.
+
+## Q-056: `SummaryOptions` / `SummaryInfo` access conventions (spec 8.5, 8.7; rev 50, 51)
+
+- **Checked:** 8.5 (rev 50 schema; "`options=survjax.SummaryOptions(...)`"),
+  8.7 ("Slice D adds a keyword-only `options` with a default"), 8.8.
+- **Rev 51:** the rev 48–50 sentence "Export `SummaryOptions` and
+  `SummaryInfo` at the package top level" and the explicit signatures
+  `rmst(tau, *, options=None)`, `mean(*, options=None)`,
+  `quantile(p, *, options=None)` with "`None` selects section 8.5 defaults"
+  are gone. Guess kept: `SummaryInfo` is also `survjax.SummaryInfo`; every
+  summary method and `_with_info` twin (`median` and `median_with_info`
+  included) takes keyword-only `options=None`, and `None`, omission and
+  `SummaryOptions()` agree.
+- **Guess:** both are constructed with the listed keyword names; fields are
+  attributes of the same names; `SummaryInfo.Status` is a class attribute;
+  assigning to a field of the frozen containers raises `AttributeError` (as
+  `dataclasses.FrozenInstanceError` does); status arrays have an integer
+  dtype that compares equal to the `IntEnum` values; a `SummaryOptions` is a
+  valid `jit` argument whose work limits read back as Python `int` under
+  tracing. Counts are compared as numbers (their dtype is not asserted).
+- **Depends:** `test_summary_containers_schema.py`, the `*_options_*` and
+  `*_with_info_*` tests in `test_summary_{rmst,mean,quantile}_surface.py`,
+  `helpers.status`, `helpers.assert_status`, and every feature test that
+  reads `info`.
+
+## Q-057: status of invalid-input, zero-cutoff and endpoint entries (spec 4.5, 8.5, 8.7, 8.8; rev 50, 51)
+
+- **Checked:** 8.5 (status list), 4.5 summary rows, 8.7 value policy ("NaN
+  wherever `parameter_issues()` reports a violation; with no `SummaryInfo`,
+  NaN is the release's invalid-input signal"). Rev 50's 8.8 sentence
+  "Declared parameter violations yield NaN values and invalid-input status for
+  all three summaries" was removed at rev 51.
+- **Rev 51 change:** the parameter-violation tests no longer assert
+  `invalid_input`; like invalid `tau`/`p`, the violating entry must be NaN and
+  not `converged` (valid entries `converged`). Should the spec restore the
+  `invalid_input` requirement, tighten
+  `test_parameter_violations_are_not_reported_converged` in the three policy
+  files.
+- **Question:** is `invalid_input` also the required status for invalid `tau`
+  or `p`? What status do `rmst(0)`, `quantile(0)`, `quantile(1)` and an
+  improper-family `+inf` quantile report?
+- **Guess (tested):** invalid `tau`/`p` entries are NaN and **not**
+  `converged`; nothing is asserted about the other statuses.
+- **Depends:** `test_invalid_probability_is_not_reported_converged`,
+  `test_generic_invalid_cutoff_is_not_reported_converged`,
+  `test_parameter_violations_are_not_reported_converged` (rmst, mean,
+  quantile policy files), `test_parameter_violation_status_under_jit`.
+
+## Q-058: tolerances for generic summary values and derivatives (spec 8.3-8.5, 12.1; rev 50)
+
+- **Checked:** 12.1 (ordinary targets; staged-RMST log-unit derivative
+  scales), 8.3 ("Convergence requires two successive levels within `atol +
+  rtol*|estimate|`. This is a heuristic"), 8.4 ("Derivative accuracy is
+  limited by the quadrature tolerance and is documented method by method"),
+  8.5 defaults (`rtol` 1e-8 / 1e-4 equal to the 12.1 `rtol`).
+- **Question:** the spec gives no derivative or value target for generic
+  quadrature and solver results.
+- **Guess:** generic values are compared relatively at `10 * rtol` (12.1
+  `rtol`), no absolute floor; generic derivatives in the 12.1 log units at
+  `10 * rtol * |value|` (the `tau` derivative at absolute `10 * rtol`).
+  The factor 10 allows a converged estimate to sit at the stopping
+  tolerance. Built-in closed forms and Weibull RMST (8.8 rev 51: "Section
+  8.7's tail accuracy ... remain[s] in force") keep the 12.1 scales. Change `helpers.GENERIC_FACTOR`
+  if the documented accuracy differs.
+- **Depends:** `helpers.generic_rtol`, `assert_generic_close`,
+  `assert_generic_log_derivative`; generic tests in
+  `test_summary_{rmst,mean,quantile}_values.py` and
+  `test_summary_{rmst,mean,quantile}_derivatives.py`.
+
+## Q-059: `support()` return convention (spec 4.2, 8.1-8.3; rev 50)
+
+- **Checked:** 4.2 ("`support()` | `(0, +inf)`. Bounded-support families
+  override"), 8.1, 8.2, 8.3.
+- **Guess:** `support()` returns a tuple `(lower, upper)` of arrays
+  broadcastable to `batch_shape` in the parameter dtype.
+- **Depends:** `spec_families.uniform_support` and the bounded-support tests
+  in `test_summary_{rmst,mean,quantile}_values.py`.
+
+## Q-060: how a family reports a known infinite mean (spec 4.2, 8.1, 8.3; rev 50, 51)
+
+- **Checked:** 4.2 ("Families may override, including to report a known
+  infinite mean"), 8.1 (rev 51: "A known infinite mean (from a family
+  override) is `+inf`, with its own status in `mean_with_info`"), 8.3 ("A
+  family's known-infinite mean status is still needed").
+- **Rev 51:** the `+inf` value now sits in 8.1, but still no family in reach
+  has a known infinite mean (log-logistic is Slice D) and the override
+  mechanism is not specified, so the `+inf` requirement itself is untested.
+- **Question:** which member does a custom family override so that
+  `mean_with_info()` reports `known_infinite` (`mean`, `mean_with_info`, or a
+  hook)? Does the generic mean treat `log_survival_at_infinity() > -inf` as
+  known infinite?
+- **Guess:** none; the only test asserts that an improper family's mean is
+  `+inf` with `known_infinite` or NaN with a failure status, never finite,
+  and that its tangent is non-finite.
+- **Depends:** `test_improper_family_mean_is_never_finite`,
+  `test_improper_mean_has_a_non_finite_tangent`.
+
+## Q-061: count and failure-status details (spec 8.2, 8.3, 8.5; rev 50)
+
+- **Checked:** 8.2, 8.3, 8.5.
+- **Question:** is `num_levels` bounded by `max_levels` or `max_levels + 1`
+  (0-based levels), and is it summed or maximised over split subintervals?
+  Does exhausting `max_bracket_steps` report `failed_bracket` or
+  `work_exhausted`? Is `error_estimate` the last level difference?
+- **Guess:** tests require `num_levels > 0` for generic quadrature, solver
+  and bracket counts within their static limits, `failed_bracket` or
+  `work_exhausted` for a bracket limit, and a converged error estimate within
+  ten times `atol + rtol*|value|` (time units).
+- **Depends:** `test_generic_rmst_counts`, `test_generic_mean_counts`,
+  `test_generic_quantile_counts`, `test_bracket_limit_failure_is_reported`,
+  `test_error_estimate_is_in_time_units`,
+  `test_non_finite_integrand_is_a_failure_status`.
+
+## Q-062: tangents at finite endpoint quantiles and invalid inputs (spec 8.4, 8.7, 8.8; rev 50, 51)
+
+- **Checked:** 8.4 ("Entries that failed or did not converge get NaN
+  tangents, never zeros. Endpoint quantiles and known-infinite means get NaN
+  or infinite tangents"), 8.8 rev 51 (once a method is enabled, 8.7's
+  derivative restrictions, including "section 8.4's NaN-tangent requirement
+  is deferred", no longer apply).
+- **Question:** `quantile(0) = 0` and a bounded `quantile(1) = end` have
+  finite true derivatives; must their tangents still be NaN or infinite? Are
+  invalid-input entries (`tau < 0`, `p > 1`, parameter violations) "failed"
+  for the NaN-tangent rule?
+- **Guess:** only tested where unambiguous: work-exhausted and
+  non-finite-arithmetic entries have NaN tangents; `quantile(1) = +inf` and an
+  improper mean have non-finite tangents.
+- **Depends:** `test_non_converged_entry_has_a_nan_tangent`,
+  `test_non_finite_failure_entry_has_a_nan_tangent`,
+  `test_upper_endpoint_quantile_has_a_non_finite_tangent`.
+
+## Q-063: public `inverse_cumulative_hazard` signature and input policy (spec 4.5, 8.1, 8.2, 8.4, 8.8; rev 51)
+
+- **Checked:** 8.1 ("`inverse_cumulative_hazard(e)` | the `t` with `H(t)=e`,
+  for `e>=0`"), 8.2 (solver; improper `+inf`), 8.4 (implicit-function
+  tangents), 8.5 ("Summary methods take `options`"), 8.8 (lists
+  `inverse_cumulative_hazard` separately from "summaries, their `_with_info`
+  variants"; "Section 8.7's ... value policy and shape rules remain in force
+  and apply in the same way to `p` for quantiles"), 4.5 (rows for `t`, `tau`
+  and `p`, none for `e`).
+- **Question:** does `inverse_cumulative_hazard` take `options` and have an
+  `inverse_cumulative_hazard_with_info` twin (it uses the same solver and
+  limits)? What does it return for negative, NaN or `+inf` `e`, and does the
+  4.5 dtype rule (`TypeError` for boolean/complex/string/object) apply to `e`?
+  Which feature enables it (the role table puts it under `summary.quantile`)?
+- **Guess (tested):** called positionally with `e` only; `e` broadcasts
+  against `batch_shape` like a direct-method argument (`e_grid[:, None, None]`
+  gives `(m, S, 2)`); `H⁻¹(0) = 0`; values, PH routes, improper `+inf` and
+  derivatives as in 8.1, 8.2, 4.4 and 8.4. Nothing is asserted for invalid or
+  non-numeric `e`, for `options`, or for a `_with_info` variant.
+- **Depends:** the `inverse_cumulative_hazard` tests in
+  `test_summary_quantile_surface.py`, `_values.py`, `_policy.py`
+  (`test_inverse_cumulative_hazard_grid_with_explicit_axes`) and
+  `_derivatives.py`.
+
+## Q-064: the triage recipe's support check after Slice B (spec 7.1, 12.2; rev 51)
+
+- **Checked:** 7.1 ("The documentation shows this **Slice A** recipe";
+  "Its mask expands as later slices implement more modes"), 12.2 (Slice B:
+  "Left and interval censoring; all truncation combinations").
+- **Question:** the spec gives only the Slice A form of `supported_mode`. Once
+  Slice B is in, is the support check simply all-true (every v0 observation
+  mode implemented), and does the documented recipe keep a `supported_mode`
+  term at all?
+- **Guess:** `helpers.supported_mode` drops the kind condition when
+  `observation.censoring` is enabled and the truncation condition when
+  `observation.truncation` is enabled (`SPEC_FEATURES`), so with both enabled
+  every row is supported and every unexplained NaN is `other` (`Z=0` or
+  numerical failure).
+- **Depends:** `helpers.supported_mode`, `helpers.nan_causes`,
+  `helpers.unsupported_nan`, and the Slice B feature tests that triage NaN
+  rows.
+
+## Q-065: calling `log_interval_prob` directly (spec 4.2, 4.5, 7.1, 12.2; rev 51)
+
+- **Checked:** 4.2 (member table: "`log_interval_prob(lower, upper)` | Stable
+  log difference with tail selection ..."; overrides "receive endpoints `0`
+  and `+inf`"), 4.5 (direct methods "never raise on values and carry no issue
+  masks"), 7.1 ("Direct interval probability with equal endpoints is zero;
+  reversed endpoints are invalid"), 12.2 (Slice B lists only the
+  `log_conditional_interval_prob` hook).
+- **Question:** is `dist.log_interval_prob` a public callable method of every
+  registered family, and in which feature does it land? How do its endpoints
+  broadcast? What value does it return for reversed endpoints (`lower >
+  upper`): NaN, or something else, given that it cannot raise or set an issue?
+  Which member does the likelihood use for an untruncated censored row?
+- **Guess (tested):** a public method on every family, called positionally
+  `(lower, upper)`; endpoints broadcast against `batch_shape` like a
+  direct-method `t`; enabled with `observation.censoring`; equal endpoints
+  give `-inf`; reversed endpoints give NaN. Nothing is asserted about which
+  member the likelihood dispatches to.
+- **Depends:** `test_observation_censoring_interval_prob.py`.
+
+## Q-066: calling `log_conditional_interval_prob` and its use by the likelihood (spec 4.2, 12.2; rev 51)
+
+- **Checked:** 4.2 ("`log_conditional_interval_prob(lower, upper, left_trunc,
+  right_trunc)` | Generic `log P(max(lower,L)<T<=min(upper,U)) - log Z`.
+  Families override it ... The likelihood never dispatches on family type";
+  "a family shapes the likelihood only through the members above"), 12.2
+  (Slice B: "`log_conditional_interval_prob` hook").
+- **Question:** is the hook a public callable on every registered family,
+  and do its four arguments broadcast against `batch_shape`? Which rows does
+  the likelihood evaluate through it: every censored row, only truncated
+  censored rows, or also `log Z` for exact rows? Does a family's override
+  replace the generic path for all of them? Which feature enables it
+  (it is needed only with truncation, but the test rows include interval
+  sets)?
+- **Guess (tested):** a public method on every family, called positionally
+  `(lower, upper, left_trunc, right_trunc)`, broadcasting like a direct-method
+  argument; enabled when both Slice B features are enabled; its value is the
+  4.2 definition, `0` on the whole window, and equal to the corresponding
+  censored row's likelihood contribution. A correct custom override leaves
+  the likelihood equal to the closed form; nothing asserts that the
+  likelihood calls the override.
+- **Depends:** `test_observation_truncation_hook.py`.

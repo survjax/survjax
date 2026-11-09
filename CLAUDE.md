@@ -8,7 +8,7 @@ The goals are in `spec/GOALS.md`. The normative contract is
 repo (`../design/spec`). **Both are read-only for you**, unless the maintainer
 explicitly asks you to change the spec in the current conversation. If the spec
 is ambiguous, wrong or awkward to implement, do not fix it and do not silently
-choose: log it in `DEVIATIONS.md` (spec section, what you did, why) and ask.
+choose: log it in the step’s `DEVIATIONS.md` (see “Step records” below) and ask.
 
 When the maintainer asks you to change the spec: edit `spec/`, then commit the
 change on its own in the design repo, never together with code:
@@ -32,11 +32,10 @@ explicitly, never return plausible values (section 12.2).
 The maintainer reviews all code, so optimise for reviewability over speed.
 
 1. **Plan, then continue.** Before code for a step, write the step's section
-   in `PLAN.md`: files to create or change, public API touched, tests you will
+   in `work/<STEP>/PLAN.md`: files to create or change, public API touched, tests you will
    add, spec sections covered. Then implement it without waiting for approval,
    unless one of these holds; then **stop and ask**:
-   - the spec does not settle something, or the step needs a `DEVIATIONS.md`
-     entry;
+   - the spec does not settle something, or the step needs a deviation entry;
    - the step adds public API or a module that the spec does not name;
    - the step adds a dependency;
    - the step will not fit in about 300 changed lines (propose a split);
@@ -46,17 +45,14 @@ The maintainer reviews all code, so optimise for reviewability over speed.
    The maintainer reads the code and the review, usually not the plan; the
    reviewer checks the plan against the spec.
 
-   `PLAN.md` holds only the sub-slice in progress, newest section first. When
-   you start a new sub-slice, first move the finished one's sections verbatim
-   to `plans/<sub-slice>.md` and add it to `plans/README.md`, in a commit of
-   its own with no other changes. Read an archived plan only when a step
-   needs it.
+   Use the globally unique step ID assigned in the task (for example `AFT.1`
+   or `A12.GATE`) as `<STEP>`. See “Step records” below. Do not archive or
+   rewrite another step's records when starting work.
 2. **Small steps.** One concept per step, ending in one commit. Aim for a diff
    of about 300 lines or less for code, tests and other implementation files.
    If a step grows past that, split it and say so.
-3. **Independent review, then stop after every step.** Write `REVIEW.md`
-   (overwrite it at the start of each step; update it in later review rounds of
-   the same step):
+3. **Independent review, then stop after every step.** Write `work/<STEP>/REVIEW.md`
+   (update it in later review rounds of the same step):
    - what to read first, in order;
    - the invariants the code relies on;
    - which tests demonstrate which spec requirement;
@@ -81,20 +77,24 @@ The maintainer reviews all code, so optimise for reviewability over speed.
    branch). No publishing, no remote setup or credentials (spec 12.2: separate
    actions).
 8. **Deviations.** Anything the spec does not settle, or that you believe is
-   wrong, goes into `DEVIATIONS.md` as an entry with: id (`D-001`...), step,
+   wrong, goes into `work/<STEP>/DEVIATIONS.md` as an entry with: id
+   (`D-<STEP>-001`...), step,
    spec section, what the spec says, what you did or propose, and status
    `open`. The maintainer resolves entries. You never mark them resolved.
 9. **Spec tests are not yours.** `tests/spec/` is written by an independent
    author from the spec alone and is read-only for you (see "Spec tests"
-   below). If one fails and you think the test is wrong, add a `DEVIATIONS.md`
+   below). If one fails and you think the test is wrong, add a step `DEVIATIONS.md`
    entry. Do not edit, skip or xfail it.
-10. **The review is not yours.** The `independent-review` skill allows exactly
-    two things outside this repo: running the `claude` command it gives, in
-    the reviewer's checkout `../review/code-<branch>`, and reading the review
-    file `../review/slices/<step>.md`. Never edit anything in `review/`, never
+10. **The review is not yours.** The `independent-review` skill permits only
+    mechanical creation of a missing detached reviewer checkout and its
+    read-only setup checks, running the `claude` command it gives in that
+    checkout, and reading the review file `../review/slices/<step>.md`.
+    Follow the skill's setup procedure; this exception does not authorize
+    changing reviewer roles, settings, prompts or existing checkouts.
+    Apart from that missing-checkout creation, never edit anything in `review/`, never
     add context or instructions to the reviewer prompt, and never re-run a
     review to get a different verdict (one retry only when no new round was
-    written). If you disagree with a finding, give your reasons in `REVIEW.md`
+    written). If you disagree with a finding, give your reasons in the step’s `REVIEW.md`
     instead of working around it. Spec-questions are for the maintainer.
 11. **Report back commits that were starting points** If you start with a
     new step and take 1-N commits to finish it, when reporting back,
@@ -107,10 +107,32 @@ The maintainer reviews all code, so optimise for reviewability over speed.
     back on, and which sub-steps remain to be done. This helps the maintainer
     understand the progress of the work and what is left to be done.
 
+## Step records
+
+- New steps own `work/<STEP>/PLAN.md`, `REVIEW.md`, and (only when needed)
+  `DEVIATIONS.md`. Step IDs must be unique across parallel features and review
+  files, with no slashes; use letters, digits, dots, underscores and hyphens.
+- Include the step ID, feature, base commit, dependencies and links to preceding
+  steps in the plan. Record the cumulative gate target separately (for example
+  `A12`); a step ID such as `AFT.1` is not a `--through` value. Keep “Docs to-do” there; a follow-up docs step reads the
+  linked code-step plans and records which items it covers.
+- Commit these records with the step. Update only your step's directory; no
+  shared index, “latest” pointer, or archive move is needed. Discover records
+  with `rg --files work` and links in the handoff.
+- Root `PLAN.md`, `REVIEW.md`, `DEVIATIONS.md` and `plans/` are legacy history.
+  Leave them unchanged for new steps. Already-running steps may finish using
+  the legacy files; do not relocate their records behind another agent's back.
+  Coordinate a switch before their next step. Existing open deviations remain
+  actionable; the maintainer resolves them at integration.
+- Independent features may run in separate worktrees once their dependencies
+  are merged. Keep dependent steps ordered, one writer per step ID, and do not
+  start the next step on your branch until told. Report integration needs and
+  the roadmap status change in the handoff; do not edit a shared progress file.
+
 ## Docs
 
 - **Code steps:** don't edit `docs/`. Write docstrings for public API with the code (summary, args, returns, raises). Examples longer than a few lines belong in the docs pages, not in docstrings.
-- If a code step makes docs necessary, add a line to `PLAN.md` under the sub-slice's "Docs to-do" instead of writing them.
+- If a code step makes docs necessary, add a line to `work/<STEP>/PLAN.md` under "Docs to-do" instead of writing them.
 - **Docs steps:** edit `docs/` (and docstrings only where they are wrong). One page or topic per step, at most 300 changed lines, `scripts/build_docs.sh` clean.
 - Run scripts/build_docs.sh directly, without redirects, environment assignments, or shell wrappers. When sandbox restrictions require escalation, use the existing approved prefix ["scripts/build_docs.sh"].
 
@@ -168,8 +190,8 @@ each numerical step.
 spec -> ../design/spec    GOALS.md, SPECIFICATION.md (symlink; read-only, see above)
 .spec-seen                design commit of the spec this repo is aligned with
 CLAUDE.md                 this file (AGENTS.md is a symlink to it)
-PLAN.md  REVIEW.md  DEVIATIONS.md
-plans/                    archived plans of other sub-slices (verbatim)
+work/<STEP>/              PLAN.md, REVIEW.md, optional DEVIATIONS.md for one step
+PLAN.md  REVIEW.md  DEVIATIONS.md  plans/   legacy records; leave unchanged
 pyproject.toml  uv.lock  .python-version  .pre-commit-config.yaml
 .gitignore  LICENSE
 src/survjax/          layout of spec 10.2; only modules Slice A needs
@@ -223,7 +245,7 @@ run it. Step A0 must make `scripts/run_tests.sh`, `ruff` and `mypy` work so that
 | Tier | When | Command |
 | --- | --- | --- |
 | 0 | while coding | `JAX_ENABLE_X64=<1,0> uv run --group test pytest -n 6 <touched test files>`, both modes, no marker filter |
-| 1 | before `REVIEW.md` and the review; the reviewer each round | `scripts/check.sh --fast --through A<N>` |
+| 1 | before the step handoff and review; the reviewer each round | `scripts/check.sh --fast --through A<N>` |
 | 2 | before merge (maintainer), CI on `main` and PRs (Linux, macOS) | `scripts/check.sh --through A<N>` |
 
 `--fast` deselects the tests listed in `tests/slow_tests.txt` (marker `slow`,
@@ -316,8 +338,8 @@ environment outside the source tree, check imports, exported names and the
 
 ## Slice A: suggested step order
 
-`PLAN.md` may refine this, but keep the steps this small. Each ends in a commit,
-a `REVIEW.md` and a stop.
+The step plan may refine this, but keep the steps this small. Each ends in a commit,
+a step `REVIEW.md` and a stop.
 
 | Step | Content | Spec |
 | --- | --- | --- |
@@ -333,5 +355,5 @@ a `REVIEW.md` and a stop.
 | A9 | Derivative and transformation suite; wheel smoke test; tiny synthetic example | 7.3, 10.3, 12.2 |
 
 Slice A is done only when every item in its completion gate (spec 12.2) has
-evidence, and the final `REVIEW.md` lists each gate item with the test that
+evidence, and the final step’s `REVIEW.md` lists each gate item with the test that
 covers it. Passing Slice A is not evidence for later slices.
