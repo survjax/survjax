@@ -7,7 +7,9 @@ likelihood keep the PH formulas": an exact row contributes
 ``log S = exp(eta) log S0(t)``. Weibull ``(k, b0)``, ``z = t/b0``:
 ``log h0 = log k - log b0 + (k-1) log z``, ``log S0 = -z**k``; Exponential
 ``log h0 = log r``, ``log S0 = -r t``. Unsupported modes return NaN on their
-rows (7.1, 12.2).
+rows (7.1, 12.2) until Slice B enables them (``until("observation.censoring")``
+or ``until("observation.truncation")`` per case); the supported-row derivative
+test stays true afterwards and carries no ``until``.
 """
 
 import jax
@@ -289,8 +291,21 @@ def _unsupported_cases():
     }
 
 
+# Slice B features that implement each case's mode; the NaN assertions stop once
+# it is enabled (spectest CLAUDE.md, "Post-release features").
+_LIFTED_BY = {
+    "left-censored": "observation.censoring",
+    "interval-censored": "observation.censoring",
+    "left-truncated": "observation.truncation",
+    "right-truncated": "observation.truncation",
+}
+
+
 @pytest.mark.step("A11")
-@pytest.mark.parametrize("case", list(_unsupported_cases()))
+@pytest.mark.parametrize(
+    "case",
+    [pytest.param(c, marks=pytest.mark.until(feat), id=c) for c, feat in _LIFTED_BY.items()],
+)
 def test_unsupported_mode_row_is_nan_and_supported_row_kept(case):
     """spec 7.1/12.2, rev 41: an unimplemented mode gives NaN on its row, eagerly and under `jit`; the supported row keeps its value."""
     data = _unsupported_cases()[case]
