@@ -478,3 +478,63 @@ def assert_cutoff_derivative(actual, expected, err_msg=""):
     actual = np.asarray(actual, dtype=np.float64)
     assert np.isfinite(actual).all(), f"{err_msg}: non-finite derivative {actual!r}"
     np.testing.assert_allclose(actual, np.asarray(expected, dtype=np.float64), rtol=0.0, atol=rmst_rtol(), err_msg=err_msg)
+
+
+# ------------------------------------------ post-release summary features (spec 8.5, 8.8; rev 50-51)
+
+# Spec 8.5 (rev 50): the five SummaryInfo fields, read as attributes (Q-056).
+INFO_FIELDS = ("status", "error_estimate", "num_levels", "num_solver_steps", "num_bracket_steps")
+COUNT_FIELDS = ("num_levels", "num_solver_steps", "num_bracket_steps")
+
+# Spec 8.5 (rev 50): ``SummaryInfo.Status`` codes.
+STATUS_CODES = {
+    "converged": 0,
+    "known_infinite": 1,
+    "invalid_input": 2,
+    "non_finite_arithmetic": 3,
+    "failed_bracket": 4,
+    "work_exhausted": 5,
+}
+
+# Q-058: generic numerical summaries (quadrature and solver) are compared with
+# a factor GENERIC_FACTOR on the 12.1 scales; see that entry for the reason.
+GENERIC_FACTOR = 10.0
+
+
+def status(info):
+    """The integer status array of a ``SummaryInfo`` (spec 8.5, rev 50; Q-056)."""
+    return np.asarray(info.status)
+
+
+def assert_status(info, expected, err_msg=""):
+    """Every entry's status equals the named code(s); ``expected`` is a name or an array-like of names."""
+    want = np.vectorize(STATUS_CODES.__getitem__)(np.asarray(expected))
+    got = status(info)
+    np.testing.assert_array_equal(got, np.broadcast_to(want, got.shape), err_msg=err_msg)
+
+
+def generic_rtol():
+    """Q-058: ``GENERIC_FACTOR`` times the 12.1 ``rtol`` of the active dtype."""
+    from tolerances import TOLERANCES
+
+    return GENERIC_FACTOR * TOLERANCES[FLOAT]["rtol"]
+
+
+def assert_generic_close(actual, expected, err_msg=""):
+    """Relative comparison at ``generic_rtol()``, no absolute floor; non-finite entries must match."""
+    np.testing.assert_allclose(
+        np.asarray(actual).astype(np.float64),
+        np.asarray(expected, dtype=np.float64),
+        rtol=generic_rtol(),
+        atol=0.0,
+        err_msg=err_msg,
+    )
+
+
+def assert_generic_log_derivative(actual, expected, param, value, err_msg=""):
+    """``|param * (actual - expected)| <= generic_rtol() * |value|`` (12.1 log units, Q-058)."""
+    actual = np.asarray(actual, dtype=np.float64)
+    assert np.isfinite(actual).all(), f"{err_msg}: non-finite derivative {actual!r}"
+    err = np.abs(np.asarray(param, dtype=np.float64) * (actual - np.asarray(expected, dtype=np.float64)))
+    bound = generic_rtol() * np.abs(np.asarray(value, dtype=np.float64))
+    assert np.all(err <= bound), f"{err_msg}: error {err!r} exceeds {bound!r}"

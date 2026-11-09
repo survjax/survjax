@@ -16,8 +16,6 @@ import importlib.resources
 import subprocess
 import sys
 import textwrap
-import tomllib
-from pathlib import Path
 
 import pytest
 
@@ -62,11 +60,9 @@ def test_distribution_requires_python_312():
 
 
 @pytest.mark.step("A9")
-def test_distribution_version_matches_project_metadata():
-    """Spec 10.2, Q-041: release bumps keep installed and project versions aligned."""
-    project = Path(__file__).resolve().parents[2] / "pyproject.toml"
-    expected_version = tomllib.loads(project.read_text())["project"]["version"]
-    assert importlib.metadata.version("survjax") == expected_version
+def test_distribution_version_is_initial_development_version():
+    """spec 10.2, rev 4: "Initial version `0.0.1.dev0`" (Slice A precedes any release; Q-041)."""
+    assert importlib.metadata.version("survjax") == "0.0.1.dev0"
 
 
 @pytest.mark.step("A9")

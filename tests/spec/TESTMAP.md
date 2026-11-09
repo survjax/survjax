@@ -120,7 +120,17 @@ wrappers with field `baseline` (rev 42, one new test, two retags), wrapper
 RMST derivative tolerance factors (rev 44: the A12 derivative tests and
 helpers are retagged; no assertion changed), shape Hessians raise or are
 correct (rev 45, retags), and absent APIs plus `tau` shape and dtype rules
-(rev 46, four new tests; the absence test now expects `AttributeError`). Revision 47 (use-case 01 censoring limits) and the keyword-only PH example fixes change no test. The mpmath references
+(rev 46, four new tests; the absence test now expects `AttributeError`). Revision 47 (use-case 01 censoring limits) and the keyword-only PH example fixes change no test. Revisions 48–50 (8.5, 8.7, 8.8, 12.1, 12.2: the independently gated
+post-release generic RMST, mean and quantile stage, its `SummaryOptions` /
+`SummaryInfo` schema and superseded verification rows) were first covered
+by a step A13 batch. Revision 51 (decision 0058) replaces that fixed stage
+with per-method lifting in any order (8.8), so that batch is now relabelled
+into post-release feature tests (`test_summary_<feature>_*.py`, marked
+`feature(...)`, tagged `rev 51`; see "Post-release features" below). The A12
+rejection and absence tests the A13 batch had removed are restored under
+`step("A12")` with `until(<feature>)`, so they run until the lifting feature is
+enabled (`SPEC_FEATURES`). A12 value and first-derivative regressions are
+unchanged. The mpmath references
 need `mpmath`, and the A10 property tests `hypothesis`, in the test environment. Tests are static acceptance tests and have never
 been executed against survjax. Test names below are relative to `tests/spec/`.
 
@@ -1828,7 +1838,7 @@ in log units (rev 44).
 | 4.5/8.7 | `tau=0`: value 0, parameter derivatives 0, `tau` derivative 1 | `test_rmst_at_zero_is_zero`, `test_first_derivatives_at_zero_cutoff` |
 | 8.7/12.1 | Exponential all orders: Hessians (four compositions), third derivatives, `check_grads(order=2)`, PH-Exponential | `test_exponential_hessian_in_rate_and_cutoff`, `test_ph_exponential_hessian_in_rate_predictor_and_cutoff`, `test_exponential_third_derivatives`, `test_check_grads_order_two_exponential_rmst`, `test_check_grads_order_two_ph_exponential_rmst` |
 | 8.7/12.1 | Weibull and PH-Weibull derivatives not involving `k` on interior `tau>0`: Hessians in `b`/`b0`, `eta`, `tau`; third `tau` derivative; `check_grads` without the shape direction | `test_weibull_hessian_in_scale_and_cutoff`, `test_ph_weibull_hessian_in_scale_predictor_and_cutoff`, `test_weibull_third_cutoff_derivative`, `test_check_grads_order_two_weibull_rmst_without_shape`, `test_check_grads_order_two_ph_weibull_rmst_without_shape` |
-| 8.7/12.1 | shape higher derivatives raise `NotImplementedError` or are correct, never wrong; alone and through PH (rev 45) | `test_weibull_shape_hessian_raises_or_is_correct`, `test_weibull_full_hessian_raises_or_is_correct`, `test_ph_weibull_shape_hessian_raises_or_is_correct` |
+| 8.7/12.1 | shape Hessians (`k`, `(k, b, tau)`, PH `(k, eta)`) raise `NotImplementedError` or are correct, never wrong (rev 45); `until("summary.rmst")` | `test_weibull_shape_hessian_raises_or_is_correct`, `test_weibull_full_hessian_raises_or_is_correct`, `test_ph_weibull_shape_hessian_raises_or_is_correct` |
 
 ### `test_a12_rmst_policy.py`
 
@@ -1840,7 +1850,10 @@ in log units (rev 44).
 | 8.7 | `rmst(5.0)` `(S, 2)`; `rmst(tau_grid[:, None, None])` `(m, S, 2)`; trailing pairing; native grid; no `rmst_grid`; non-broadcasting `tau` `TypeError` (rev 46) | `test_scalar_cutoff_against_draws_by_arms`, `test_explicit_cutoff_grid_against_draws_by_arms`, `test_cutoff_vector_pairs_with_the_trailing_arm_axis`, `test_cutoff_grid_for_native_weibull_batch`, `test_there_is_no_rmst_grid`, `test_cutoff_that_does_not_broadcast_is_rejected` |
 | 4.5/8.7 | `tau` dtype rules: boolean, complex, string, object `TypeError` (eager and traced); float64 under 32-bit mode converts without warning (rev 46) | `test_cutoff_with_a_non_numeric_dtype_is_rejected`, `test_boolean_cutoff_is_rejected_during_tracing`, `test_float64_cutoff_converts_without_warning_in_32_bit_mode` |
 | 12.1 | eager/`jit`/`vmap` agreement | `test_rmst_agrees_under_jit`, `test_rmst_agrees_under_vmap_over_distribution_and_cutoff`, `test_rmst_gradient_agrees_under_vmap_and_jit` |
-| 8.7/12.1 | `rmst` raises on a custom family (type, not values; call and trace) and on PH of a custom baseline; `mean`/`median`/`quantile` raise everywhere; no `options`; absent APIs raise `AttributeError` and are not exported (rev 46) | `test_rmst_on_a_custom_family_raises`, `test_rmst_check_depends_on_the_type_not_values`, `test_rmst_on_a_ph_wrapper_of_a_custom_baseline_raises`, `test_other_summaries_raise_on_every_family`, `test_rmst_takes_no_options_argument`, `test_absent_first_release_methods`, `test_summary_configuration_types_are_not_provided` |
+| 8.7/12.1 | `rmst` on a custom family and on PH of a custom baseline raises `NotImplementedError` (call and trace), by type not values; no `options` argument (rev 41); `until("summary.rmst")` | `test_rmst_on_a_custom_family_raises`, `test_rmst_check_depends_on_the_type_not_values`, `test_rmst_on_a_ph_wrapper_of_a_custom_baseline_raises`, `test_rmst_takes_no_options_argument` |
+| 8.7/12.1 | `mean` raises everywhere (`until("summary.mean")`); `median` and `quantile` raise everywhere (`until("summary.quantile")`), call and trace (rev 41) | `test_mean_raises_on_every_family`, `test_median_raises_on_every_family`, `test_quantile_raises_on_every_family` |
+| 8.7 | absent (`AttributeError`, rev 46): `rmst_with_info` (`until("summary.rmst")`), `inverse_cumulative_hazard` (`until("summary.quantile")`), `sample` (`until("sampling")`) | `test_absent_first_release_methods` |
+| 8.7 | `SummaryOptions`, `SummaryInfo` not exported from any public module (rev 46); `until("summary.containers")` | `test_summary_configuration_types_are_not_provided` |
 
 ### A12: deliberately not tested
 
@@ -1848,13 +1861,114 @@ in log units (rev 44).
   NaN entry itself**: outside the staged guarantee (8.7).
 - **A required raise from some shape Hessian**: not required (12.1, rev 45).
 - **Second-order isolation for Weibull families**: shape Hessians are
-  restricted; Exponential second-order isolation is tested.
+  restricted; Exponential second-order isolation is tested
+  (the `summary.rmst` feature tests Weibull Hessian isolation).
 - **`tau` outside `[1e-2, 1e5] * b`, `k` outside [0.2, 50]**: no accuracy
   requirement.
 - **Section 8.4 quadrature tangent, `SummaryInfo` statuses, generic RMST,
-  `mean`/`median`/`quantile` values, sampling**: Slice D.
+  `mean`/`median`/`quantile` values, sampling**: post-release features
+  (below) and Slice D.
 - **Executable documentation of the derivative limitation**: a
   documentation gate, not a test.
+
+## Post-release features (spec 4.2, 4.4, 4.5, 8.1-8.5, 8.7, 8.8, 12.1; rev 51)
+
+Section 8.8 (rev 51) enables each section 8.1 method, and the two containers,
+by its own step in any order, under the full contract of 8.1–8.6; 8.7's tail
+accuracy, value policy and shape rules stay in force and apply in the same way
+to `p`. Tests carry `@pytest.mark.feature(...)` with the names of the
+"Post-release features" table and run only when every named feature is in
+`SPEC_FEATURES`. A test that also needs `options` or `SummaryInfo` lists
+`summary.containers` too ("+ containers" below). The `sampling` feature has no
+tests yet (maintainer: not needed yet).
+
+References: 8.1/8.2 closed forms (`summary_reference`, mpmath `diff` at 60
+digits for derivatives; hand algebra in docstrings), mpmath quadrature of the
+physical law (`rmst_reference`, `summary_reference.log_logistic_rmst`), hand
+values for uniform and mixture-cure families. Built-in closed forms and
+Weibull RMST use the 12.1 scales; generic quadrature/solver paths use
+`GENERIC_FACTOR = 10` times them (Q-058). Shared cases live in
+`summary_cases.py`. Families: `spec_families.uniform_support`, `nan_beyond`,
+`far_reference_log_logistic`, `const_hazard`, `power_hazard`,
+`softplus_log_logistic`, `mixture_cure`, `constrained_rate`, `capped_rate`.
+
+### `summary.containers`: `test_summary_containers_schema.py`
+
+| Spec | Requirement | Tests |
+| --- | --- | --- |
+| 8.5 | `survjax.SummaryOptions` (and `SummaryInfo`, Q-056) at the top level | `test_summary_containers_are_exported_at_top_level` |
+| 8.5 | `SummaryOptions(rtol=None, atol=None, max_levels=8, max_solver_steps=64, max_bracket_steps=64)`; stored values; frozen | `test_summary_options_defaults`, `test_summary_options_stores_explicit_values`, `test_summary_options_is_frozen` |
+| 8.5 | "Explicit tolerances are dynamic PyTree leaves; the three work limits are static metadata"; one trace across tolerance values, retrace on a limit | `test_explicit_tolerances_are_the_pytree_leaves`, `test_tolerance_values_do_not_change_the_tree_structure`, `test_work_limits_are_static_metadata`, `test_options_cross_jit_with_tolerances_traced_and_limits_static` |
+| 8.5 | `SummaryInfo.Status` `IntEnum` codes 0-5 | `test_status_is_an_int_enum_with_the_specified_codes` |
+| 8.5 | "a frozen PyTree with all five fields as array leaves"; "Construction stores these fields" | `test_summary_info_construction_stores_its_fields`, `test_summary_info_has_five_array_leaves`, `test_summary_info_round_trips_through_tree_map`, `test_summary_info_passes_through_jit`, `test_summary_info_is_frozen` |
+
+### `summary.rmst`: `test_summary_rmst_*.py`
+
+| Spec | Requirement | Tests |
+| --- | --- | --- |
+| 4.2/4.4/8.8 | every family (built-ins, PH closures, custom, PH without closure) provides `rmst`; no `rmst_grid` | `test_every_family_provides_rmst`, `test_there_is_still_no_rmst_grid` (surface) |
+| 8.1/8.5/8.7 (+ containers) | `rmst_with_info` returns `(values, SummaryInfo)` from the same backend; `converged`, integer codes, field shapes, counts; `options=None` defaults; keyword-only `options`; built-ins accept options | `test_rmst_with_info_returns_values_and_summary_info`, `test_valid_interior_rmst_reports_converged`, `test_rmst_info_fields_are_shaped_like_the_values`, `test_rmst_options_none_selects_the_defaults`, `test_rmst_options_are_keyword_only`, `test_built_in_rmst_accepts_explicit_options` (surface) |
+| 8.3/8.8 | generic fallbacks: constant and power hazards, batched; PH without closure; bounded support; improper finite RMST; heavy tail; scale changes; dtype | `test_generic_rmst_of_a_constant_hazard`, `test_generic_rmst_of_a_power_hazard_matches_quadrature`, `test_generic_rmst_is_vectorized_over_a_batch`, `test_ph_rmst_on_a_baseline_without_closure_matches_the_physical_law`, `test_bounded_support_rmst_is_hand_derived`, `test_improper_family_has_finite_rmst`, `test_heavy_tail_generic_rmst`, `test_generic_rmst_scales_with_the_time_scale`, `test_generic_rmst_is_in_the_parameter_dtype` (values) |
+| 4.5/8.7 | 8.7 `tau` policy on generic paths: NaN, `rmst(0)=0`, dtype `TypeError` (eager, traced), float64 conversion; `tau_grid[:, None, None]`; non-broadcasting `tau`; parameter violations NaN | `test_generic_invalid_cutoff_gives_nan`, `test_generic_rmst_at_zero_is_zero`, `test_generic_cutoff_with_a_non_numeric_dtype_is_rejected`, `test_generic_boolean_cutoff_is_rejected_during_tracing`, `test_generic_float64_cutoff_converts_without_warning_in_32_bit_mode`, `test_generic_cutoff_grid_with_explicit_axes`, `test_generic_cutoff_that_does_not_broadcast_is_rejected`, `test_parameter_violations_give_nan_rmst`, `test_non_finite_integrand_gives_nan_rmst`, `test_rmst_agrees_under_jit_and_vmap` (policy) |
+| 8.3/8.5 (+ containers) | invalid `tau` and violations not `converged` (also `jit`); info shapes on grids; `non_finite_arithmetic` per entry; `work_exhausted`; counts; error estimate in time units; `jit`/`vmap` of info; options into `jit` | `test_generic_invalid_cutoff_is_not_reported_converged`, `test_cutoff_grid_with_info_against_draws_by_arms`, `test_parameter_violations_are_not_reported_converged`, `test_parameter_violation_status_under_jit`, `test_non_finite_integrand_is_a_failure_status`, `test_quadrature_work_exhaustion_is_reported`, `test_generic_rmst_counts`, `test_error_estimate_is_in_time_units`, `test_rmst_with_info_agrees_under_jit_and_vmap`, `test_options_cross_jit_into_a_generic_rmst` (policy) |
+| 8.4/8.8 | Weibull and PH-Weibull shape Hessians correct (interior, heavy, both power tails), four compositions; `check_grads` with the shape direction | `test_weibull_rmst_shape_second_derivative_is_correct`, `test_weibull_rmst_full_hessian_is_correct`, `test_ph_weibull_rmst_hessian_with_shape_is_correct`, `test_check_grads_order_two_weibull_rmst_with_shape`, `test_check_grads_order_two_ph_weibull_rmst_with_shape` (derivatives) |
+| 8.4 | `tau=0` first derivatives (parameters 0, `tau` 1) on every kind of family (rev 51, family-neutral) | `test_rmst_first_derivatives_at_zero_cutoff` (derivatives) |
+| 8.4 | generic tangents: first derivatives, Hessian, PH without closure, `check_grads`, `jit`/`vmap` | `test_generic_rmst_first_derivatives_match_quadrature`, `test_generic_rmst_hessian`, `test_ph_rmst_without_closure_derivatives_match_the_physical_law`, `test_check_grads_order_two_generic_rmst`, `test_generic_rmst_gradient_agrees_under_jit_and_vmap` (derivatives) |
+| 8.4/8.7 | isolation with shared parameters (invalid `tau`, non-finite failure, Weibull Hessian); NaN tangent of a failed entry; NaN tangent of a non-converged entry (+ containers) | `test_generic_rmst_isolates_invalid_cutoffs_with_shared_rate`, `test_valid_entries_isolated_from_a_non_finite_failure`, `test_weibull_rmst_hessian_isolation_with_shared_parameters`, `test_non_finite_failure_entry_has_a_nan_tangent`, `test_non_converged_entry_has_a_nan_tangent` (derivatives) |
+
+### `summary.mean`: `test_summary_mean_*.py`
+
+| Spec | Requirement | Tests |
+| --- | --- | --- |
+| 4.2/4.4/8.8 | every family provides `mean` | `test_every_family_provides_mean` (surface) |
+| 8.1/8.5/8.7 (+ containers) | `mean_with_info` from the same backend; `converged`; field shapes; `options=None`; keyword-only; built-ins accept options | `test_mean_with_info_returns_values_and_summary_info`, `test_valid_mean_reports_converged`, `test_mean_info_fields_are_shaped_like_the_values`, `test_mean_options_none_selects_the_defaults`, `test_mean_options_are_keyword_only`, `test_built_in_mean_accepts_explicit_options` (surface) |
+| 8.1 | Exponential `1/r`, Weibull `b*Γ(1+1/k)`, batched, scale changes, dtype | `test_exponential_mean_is_the_reciprocal_rate`, `test_weibull_mean_closed_form`, `test_built_in_mean_is_vectorized_over_the_batch`, `test_built_in_mean_scales_with_the_time_scale`, `test_mean_is_in_the_parameter_dtype` (values) |
+| 8.3/4.4 | generic fallbacks (constant, power, batched, scale changes); PH identities (closure, generic, PH-Exponential, `(S, 1)` x `(S, 2)`); bounded support; heavy tails | `test_generic_mean_of_a_constant_hazard`, `test_generic_mean_of_a_power_hazard`, `test_generic_mean_is_vectorized_over_a_batch`, `test_generic_mean_scales_with_the_time_scale`, `test_ph_weibull_mean_equals_the_equivalent_weibull`, `test_ph_exponential_mean_equals_the_equivalent_exponential`, `test_ph_mean_with_draw_by_arm_broadcasting`, `test_bounded_support_mean_is_half_the_end`, `test_heavy_tail_generic_mean` (values) |
+| 8.1 (+ containers) | improper family: never finite; `+inf` only with `known_infinite`, else NaN not `converged`; `mean()` equals the info value; `beta` near 1 correct or unresolved, never `+inf` | `test_improper_family_mean_is_never_finite`, `test_heavy_tail_near_one_mean_is_correct_or_reported_unresolved` (values) |
+| 8.3/8.7 | `batch_shape`; parameter violations NaN; non-finite integrand NaN; `jit`/`vmap` | `test_mean_has_the_batch_shape`, `test_parameter_violations_give_nan_mean`, `test_non_finite_integrand_gives_nan_mean`, `test_mean_agrees_under_jit_and_vmap` (policy) |
+| 8.3/8.5 (+ containers) | info shapes; violations not `converged`; `non_finite_arithmetic`; `work_exhausted`; counts; `jit`/`vmap` of info | `test_mean_info_has_the_batch_shape`, `test_parameter_violations_are_not_reported_converged`, `test_non_finite_integrand_in_the_mean_is_a_failure_status`, `test_quadrature_work_exhaustion_of_the_mean_is_reported`, `test_generic_mean_counts`, `test_mean_with_info_agrees_under_jit_and_vmap` (policy) |
+| 8.4 | built-in first derivatives and Hessian; PH chain rule; generic first derivatives and Hessian; `check_grads`; `jit`/`vmap`; isolation; non-finite tangent of the improper mean | `test_exponential_mean_derivative`, `test_weibull_mean_derivatives`, `test_weibull_mean_hessian`, `test_ph_weibull_mean_gradient_equals_the_equivalent_weibull`, `test_generic_mean_first_derivatives`, `test_generic_mean_hessian`, `test_check_grads_order_two_mean`, `test_generic_mean_gradient_agrees_under_jit_and_vmap`, `test_mean_isolates_failing_entries_with_shared_scale`, `test_improper_mean_has_a_non_finite_tangent` (derivatives) |
+
+### `summary.quantile`: `test_summary_quantile_*.py`
+
+| Spec | Requirement | Tests |
+| --- | --- | --- |
+| 4.2/4.4/8.1/8.8 | every family provides `quantile`, `median` (= `quantile(0.5)`, no longer raising) and public `inverse_cumulative_hazard` (no longer absent); `quantile(p) = H⁻¹(-log1p(-p))` | `test_every_family_provides_quantile`, `test_median_is_the_half_quantile`, `test_every_family_provides_inverse_cumulative_hazard`, `test_quantile_is_the_inverse_cumulative_hazard_of_minus_log1p_minus_p` (surface) |
+| 8.1/8.5/8.7 (+ containers) | `quantile_with_info` and `median_with_info` from the same backend; `converged`; field shapes; `options=None`; keyword-only for all four; built-ins accept options | `test_quantile_with_info_returns_values_and_summary_info`, `test_valid_interior_quantile_reports_converged`, `test_quantile_info_fields_are_shaped_like_the_values`, `test_quantile_options_none_selects_the_defaults`, `test_quantile_options_are_keyword_only`, `test_built_in_quantile_accepts_explicit_options`, `test_median_with_info_is_the_half_quantile_with_info` (surface) |
+| 8.1/8.2 | closed forms: Exponential and Weibull quantile, median and inverse cumulative hazard; scale changes; dtype | `test_exponential_quantile_closed_form`, `test_weibull_quantile_closed_form`, `test_built_in_quantile_scales_with_the_time_scale`, `test_exponential_median_is_log_two_over_rate`, `test_weibull_median_closed_form`, `test_exponential_inverse_cumulative_hazard_closed_form`, `test_weibull_inverse_cumulative_hazard_closed_form`, `test_quantile_results_are_in_the_parameter_dtype` (values) |
+| 8.1 | endpoints from `support()` (default and bounded); `H⁻¹(0)=0`; `H(H⁻¹(e)) = e` on every family | `test_quantile_endpoints_follow_the_default_support`, `test_bounded_support_quantile_endpoints_come_from_support`, `test_inverse_cumulative_hazard_at_zero_is_zero`, `test_cumulative_hazard_inverts_the_inverse_cumulative_hazard` (values) |
+| 8.2/4.4 | generic solver (constant and power hazards, median, batched, scale changes); PH identities (closure and generic, `H0⁻¹(e*exp(-eta))`, PH-Exponential, `(S, 1)` x `(S, 2)`); bounded support; improper below and beyond the cure level (`+inf`) | `test_generic_quantile_of_a_constant_hazard`, `test_generic_quantile_of_a_power_hazard`, `test_generic_inverse_cumulative_hazard_of_a_power_hazard`, `test_generic_median_of_a_power_hazard`, `test_generic_quantile_is_vectorized_over_a_batch`, `test_generic_quantile_scales_with_the_time_scale`, `test_ph_weibull_quantile_equals_the_equivalent_weibull`, `test_ph_inverse_cumulative_hazard_is_the_baseline_inverse_at_scaled_hazard`, `test_ph_exponential_quantile_equals_the_equivalent_exponential`, `test_ph_quantile_with_draw_by_arm_broadcasting`, `test_bounded_support_quantile_is_hand_derived`, `test_bounded_support_inverse_cumulative_hazard_is_hand_derived`, `test_improper_family_quantile_below_the_cure_level`, `test_improper_family_quantile_beyond_the_cure_level_is_infinite`, `test_improper_family_inverse_cumulative_hazard_below_the_cure_level`, `test_improper_family_inverse_cumulative_hazard_beyond_the_cure_level_is_infinite` (values) |
+| 4.5/8.7/8.8 | `p` policy: NaN outside `[0,1]` (eager, `jit`), valid entries kept; dtype `TypeError` (eager, traced); float64 conversion; shapes (scalar, `p_grid[:, None, None]`, non-broadcasting `TypeError`); `e_grid` axes; violations NaN for quantile and median; default-limit convergence far from `reference_time()`; `jit`/`vmap` incl. median and `H⁻¹`; `vmap` over `p` | `test_invalid_probability_gives_nan`, `test_invalid_probability_entries_leave_valid_entries`, `test_probability_with_a_non_numeric_dtype_is_rejected`, `test_boolean_probability_is_rejected_during_tracing`, `test_float64_probability_converts_without_warning_in_32_bit_mode`, `test_scalar_probability_against_draws_by_arms`, `test_probability_grid_with_explicit_axes`, `test_probability_that_does_not_broadcast_is_rejected`, `test_inverse_cumulative_hazard_grid_with_explicit_axes`, `test_parameter_violations_give_nan_quantile`, `test_far_reference_quantile_converges_with_default_limits`, `test_quantile_agrees_under_jit_and_vmap`, `test_quantile_agrees_under_vmap_over_probabilities` (policy) |
+| 8.2/8.5 (+ containers) | invalid `p` and violations not `converged`; `_with_info` dtype and broadcast `TypeError`; info grid shapes; bracket limit; default-limit `converged`; counts; `jit`/`vmap` of info | `test_invalid_probability_is_not_reported_converged`, `test_probability_with_a_non_numeric_dtype_is_rejected_with_info`, `test_probability_grid_info_has_the_broadcast_shape`, `test_probability_that_does_not_broadcast_is_rejected_with_info`, `test_parameter_violations_are_not_reported_converged`, `test_bracket_limit_failure_is_reported`, `test_far_reference_quantile_reports_converged_with_default_limits`, `test_generic_quantile_counts`, `test_quantile_with_info_agrees_under_jit_and_vmap` (policy) |
+| 8.4 | built-in quantile and `H⁻¹` first derivatives (`dq/dp = 1/f(q)`, `dt/de = 1/h(t)`), Hessian; median = quantile derivative; PH chain rule; generic first derivatives (quantile, `H⁻¹`) and Hessian; `check_grads`; `jit`/`vmap`; isolation; non-finite `quantile(1)` tangent | `test_exponential_quantile_derivatives`, `test_weibull_quantile_derivatives`, `test_weibull_quantile_hessian`, `test_weibull_inverse_cumulative_hazard_derivatives`, `test_median_derivatives_equal_the_half_quantile_derivatives`, `test_ph_weibull_quantile_gradient_equals_the_equivalent_weibull`, `test_generic_quantile_first_derivatives`, `test_generic_inverse_cumulative_hazard_derivatives`, `test_generic_quantile_hessian`, `test_check_grads_order_two_quantile`, `test_generic_quantile_gradient_agrees_under_jit_and_vmap`, `test_generic_quantile_isolates_invalid_probabilities`, `test_upper_endpoint_quantile_has_a_non_finite_tangent` (derivatives) |
+
+### Post-release features: deliberately not tested
+
+- **`+inf` from a known infinite mean (rev 51, 8.1):** no family in reach has
+  one: log-logistic is not a built-in before Slice D, and the spec gives no
+  public way for a custom family to declare a known infinite mean or to set
+  `known_infinite` status (Q-060). Only the improper-family rule-out test
+  (never finite; `+inf` only with `known_infinite`) and its non-finite tangent
+  cover it.
+- **`invalid_input` as the status of invalid `tau`/`p` or of declared parameter
+  violations, and statuses at `tau=0`, endpoint `p`, `+inf` improper
+  quantiles:** rev 51 no longer states the invalid-input status for parameter
+  violations; entries are only required not to be `converged` (Q-057).
+- **Higher-order RMST derivatives at `tau=0`:** "carry no guarantee" (8.4,
+  rev 51).
+- **Tangents at `p=0` and at a bounded support end, and for invalid-input
+  entries:** 8.4's "endpoint quantiles ... NaN or infinite tangents" reads
+  oddly where the true derivative is finite (Q-062).
+- **Exact `num_levels` upper bound, split-interval accounting, and which of
+  `failed_bracket`/`work_exhausted` a bracket limit reports:** unspecified
+  (Q-061).
+- **`inverse_cumulative_hazard` for negative, NaN, infinite or non-numeric `e`;
+  `options` or a `_with_info` variant for it:** unspecified (Q-063).
+- **`sample`:** feature `sampling`, not requested yet; its absence stays
+  covered by `test_absent_first_release_methods` until `sampling` is enabled.
+- **Log-normal, log-logistic, `HazardFamily`, AFT:** Slice D (8.8: "Enabling
+  summaries and sampling does not bring forward any other Slice D feature").
+- **Executable documentation of convergence limitations:** documentation gate.
 
 ## Revision 37 (first public release): remaining items
 

@@ -518,3 +518,94 @@ def scaled_capped():
             return {"ratio_too_large": self.log_ratio > 2.0}
 
     return ScaledCapped
+
+
+# ------------------------------------- post-release generic summaries (spec 8.8, rev 50)
+
+
+@functools.cache
+def uniform_support():
+    """Uniform on ``(0, end]`` with a ``support()`` override (spec 4.2, 8.1-8.3, rev 50).
+
+    ``S(t) = 1 - t/end`` for ``t < end`` and ``0`` from ``end`` on, so
+    ``log S = log1p(-t/end)`` inside and ``-inf`` beyond. ``support()`` returns
+    ``(0, end)`` per batch entry (Q-059). Hand values: ``rmst(tau) = tau -
+    tau**2/(2 end)`` for ``tau <= end`` and ``end/2`` beyond; ``mean = end/2``;
+    ``quantile(p) = p * end``, with ``quantile(1) = end`` from ``support()``.
+    """
+
+    @survjax.register_family
+    @dataclasses.dataclass(frozen=True)
+    class UniformSupport(survjax.SurvivalDistribution):
+        end: jax.Array = survjax.param()
+
+        def log_survival(self, t):
+            inside = t < self.end
+            ts = jnp.where(inside, t, 0.0)
+            return jnp.where(inside, jnp.log1p(-ts / self.end), -jnp.inf)
+
+        def reference_time(self):
+            return 0.5 * self.end
+
+        def support(self):
+            return jnp.zeros_like(self.end), self.end
+
+    return UniformSupport
+
+
+@functools.cache
+def nan_beyond():
+    """Valid parameters whose formula is NaN beyond ``cut`` (spec 8.3 "A non-finite integrand at any node is a failure status").
+
+    ``log S = -rate * t`` for ``t <= cut`` and NaN for ``t > cut``; nothing is
+    declared, so no parameter issue is reported. ``reference_time()`` is
+    ``0.25 / rate``, inside ``(0, cut]`` for the cases used (``rate = 1``,
+    ``cut = 1``), so an RMST to ``tau <= cut`` never evaluates the NaN region
+    and one to ``tau > cut`` must.
+    """
+
+    @survjax.register_family
+    @dataclasses.dataclass(frozen=True)
+    class NanBeyond(survjax.SurvivalDistribution):
+        rate: jax.Array = survjax.param()
+        cut: jax.Array = survjax.param()
+
+        def log_survival(self, t):
+            return jnp.where(t <= self.cut, -self.rate * t, jnp.nan)
+
+        def reference_time(self):
+            return jnp.broadcast_to(
+                0.25 / self.rate,
+                jnp.broadcast_shapes(jnp.shape(self.rate), jnp.shape(self.cut)),
+            )
+
+    return NanBeyond
+
+
+@functools.cache
+def far_reference_log_logistic():
+    """Log-logistic ``S(t) = 1/(1 + (t/alpha)**beta)`` whose ``reference_time()`` is always ``1`` (spec 4.2, 8.2).
+
+    ``reference_time()`` need only be positive and finite (4.2). With
+    ``alpha = 1e20`` every quantile lies about 46 log-units from the bracket
+    start ``log reference_time() = 0``, so a solver limited to one bracket
+    expansion cannot bracket it (8.2: "expands geometrically ... up to a static
+    step limit").
+    """
+
+    @survjax.register_family
+    @dataclasses.dataclass(frozen=True)
+    class FarReferenceLogLogistic(survjax.SurvivalDistribution):
+        alpha: jax.Array = survjax.param()
+        beta: jax.Array = survjax.param()
+
+        def log_survival(self, t):
+            return -jax.nn.softplus(self.beta * (jnp.log(t) - jnp.log(self.alpha)))
+
+        def reference_time(self):
+            return jnp.ones(
+                jnp.broadcast_shapes(jnp.shape(self.alpha), jnp.shape(self.beta)),
+                dtype=jnp.result_type(self.alpha),
+            )
+
+    return FarReferenceLogLogistic

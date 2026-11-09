@@ -13,6 +13,10 @@ of them; every other `rmst`, and `mean`, `median`, `quantile` on every
 family, raise `NotImplementedError`; no `options`, `rmst_with_info`,
 `SummaryOptions`, `SummaryInfo`, `sample` or `inverse_cumulative_hazard`.
 
+Section 8.8 (rev 51) lifts these surface restrictions method by method. Each
+surface test keeps its step marker and carries `until(<feature>)` for the
+feature that lifts it, so it stops running once that feature is enabled.
+
 Isolation follows ``test_a11_ph_isolation.py``: entry 1 is NaN, entries 0
 and 2 are compared with the same distribution evaluated on entries 0 and 2
 alone, as functions of one flat parameter vector. Only first derivatives
@@ -436,6 +440,7 @@ def test_rmst_gradient_agrees_under_vmap_and_jit():
 
 
 @pytest.mark.step("A12")
+@pytest.mark.until("summary.rmst")
 def test_rmst_on_a_custom_family_raises():
     """spec 8.7/12.1, rev 41: "On every other family ... `rmst` raises `NotImplementedError` at call or trace time"."""
     d = fam.const_hazard()(rate=f(0.5))
@@ -446,6 +451,7 @@ def test_rmst_on_a_custom_family_raises():
 
 
 @pytest.mark.step("A12")
+@pytest.mark.until("summary.rmst")
 def test_rmst_check_depends_on_the_type_not_values():
     """spec 8.7, rev 41: "the check depends on the type, not on values"; NaN parameters and `tau=0` still raise."""
     d = fam.const_hazard()(rate=f(NAN))
@@ -454,6 +460,7 @@ def test_rmst_check_depends_on_the_type_not_values():
 
 
 @pytest.mark.step("A12")
+@pytest.mark.until("summary.rmst")
 def test_rmst_on_a_ph_wrapper_of_a_custom_baseline_raises():
     """spec 4.4/8.7/12.1, rev 41: "`rmst` on a PH wrapper of a custom baseline raises `NotImplementedError`", also under `jit`."""
     d = ph(fam.power_hazard()(shape=f(1.5), scale=f(2.0)), f(0.3))
@@ -470,16 +477,7 @@ def _every_family():
     return out
 
 
-@pytest.mark.step("A12")
-@pytest.mark.parametrize("family", list(_every_family()))
-@pytest.mark.parametrize(
-    "call",
-    [lambda d: d.mean(), lambda d: d.median(), lambda d: d.quantile(f(0.5))],
-    ids=["mean", "median", "quantile"],
-)
-def test_other_summaries_raise_on_every_family(family, call):
-    """spec 8.7/12.1, rev 41: "`mean`, `median` and `quantile` raise `NotImplementedError` on every family", eager and under `jit`."""
-    d = _every_family()[family]()
+def _raises_eagerly_and_under_jit(d, call):
     with pytest.raises(NotImplementedError):
         call(d)
     with pytest.raises(NotImplementedError):
@@ -487,6 +485,31 @@ def test_other_summaries_raise_on_every_family(family, call):
 
 
 @pytest.mark.step("A12")
+@pytest.mark.until("summary.mean")
+@pytest.mark.parametrize("family", list(_every_family()))
+def test_mean_raises_on_every_family(family):
+    """spec 8.7/12.1, rev 41: "`mean` ... raise[s] `NotImplementedError` on every family", eager and under `jit`; lifted by `summary.mean` (8.8, rev 51)."""
+    _raises_eagerly_and_under_jit(_every_family()[family](), lambda d: d.mean())
+
+
+@pytest.mark.step("A12")
+@pytest.mark.until("summary.quantile")
+@pytest.mark.parametrize("family", list(_every_family()))
+def test_median_raises_on_every_family(family):
+    """spec 8.7/12.1, rev 41: "`median` ... raise[s] `NotImplementedError` on every family", eager and under `jit`; lifted by `summary.quantile` (8.8, rev 51)."""
+    _raises_eagerly_and_under_jit(_every_family()[family](), lambda d: d.median())
+
+
+@pytest.mark.step("A12")
+@pytest.mark.until("summary.quantile")
+@pytest.mark.parametrize("family", list(_every_family()))
+def test_quantile_raises_on_every_family(family):
+    """spec 8.7/12.1, rev 41: "`quantile` ... raise[s] `NotImplementedError` on every family", eager and under `jit`; lifted by `summary.quantile` (8.8, rev 51)."""
+    _raises_eagerly_and_under_jit(_every_family()[family](), lambda d: d.quantile(f(0.5)))
+
+
+@pytest.mark.step("A12")
+@pytest.mark.until("summary.rmst")
 @pytest.mark.parametrize("family", FAMILIES)
 def test_rmst_takes_no_options_argument(family):
     """spec 8.7, rev 41: "It has no `options` argument"."""
@@ -496,14 +519,22 @@ def test_rmst_takes_no_options_argument(family):
 
 @pytest.mark.step("A12")
 @pytest.mark.parametrize("family", FAMILIES)
-@pytest.mark.parametrize("name", ["rmst_with_info", "sample", "inverse_cumulative_hazard"])
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param("rmst_with_info", marks=pytest.mark.until("summary.rmst")),
+        pytest.param("inverse_cumulative_hazard", marks=pytest.mark.until("summary.quantile")),
+        pytest.param("sample", marks=pytest.mark.until("sampling")),
+    ],
+)
 def test_absent_first_release_methods(family, name):
-    """spec 8.7, rev 46: "'Not provided' means absent: accessing such a method on a distribution raises `AttributeError`"."""
+    """spec 8.7, rev 46: "'Not provided' means absent: accessing such a method on a distribution raises `AttributeError`"; each case runs until the feature that provides the method (8.8, rev 51)."""
     with pytest.raises(AttributeError):
         getattr(_families()[family](), name)
 
 
 @pytest.mark.step("A12")
+@pytest.mark.until("summary.containers")
 @pytest.mark.parametrize("name", ["SummaryOptions", "SummaryInfo"])
 def test_summary_configuration_types_are_not_provided(name):
     """spec 8.7, rev 46: "`SummaryOptions` and `SummaryInfo` are not exported from any public module"."""
