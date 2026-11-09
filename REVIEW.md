@@ -1,6 +1,6 @@
 # B1c.1 — Weibull interval override
 
-Independent review: round 2/3
+Independent review: round 3/3
 
 Read PLAN.md, spec 4.2 and 7.1–7.3, distributions/_weibull_intervals.py,
 its binding in weibull.py, then tests/unit/test_weibull_intervals.py.
@@ -55,3 +55,15 @@ Maintainer requested another reviewer attempt. Round 1 at e0fc2f1 performed
 no review because checkout permissions blocked it; no findings were issued.
 Implementation and tests are unchanged. Retry uses the recorded previous SHA
 and finding IDs `none`.
+
+## Round 2 fix-up: F-1
+
+Reviewed 3f5742b01bf9635e9d1e61b98c059564e12c7532; verdict fix-first.
+Added a narrow interval starting at 3 to the existing high-precision value
+matrix. Unlike a=1, its log(a) is nonzero, exposing cancellation if the nearby
+log1p path is removed. Widths: 1e-12 (x64), 1e-5 (x32), with expectations
+computed at represented endpoints. Existing tolerances unchanged. No library
+code or new test function added; duration list unchanged.
+Validation: touched file 5 passed in each dtype. Fast A10 gate passed:
+implementer 1133/8 (x64), 1138/3 (x32); doctests 4 each; spec 2139/28 and
+2146/21. Ruff, mypy and whitespace checks passed. Full gate not rerun.

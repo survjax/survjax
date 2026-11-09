@@ -21,10 +21,12 @@ def test_weibull_interval_high_precision_values(x64_enabled):
     tiny = 1e-200 if x64_enabled else 1e-30
     narrow = 1e-12 if x64_enabled else 1e-5
     tiny_shape = 1e-300 if x64_enabled else 1e-35
-    a = jnp.array([1.0, tiny, tiny, 10.0, 0.5, 1.0])
-    b = jnp.array([1.0 + narrow, 2 * tiny, 1 / tiny, 10.1, 3.0, 1.0 + narrow])
-    shape = jnp.array([1.3, 2.0, 0.01, 3.0, 0.5, tiny_shape])
-    scale = jnp.array([2.1, 1.0, 1.0, 1.0, 2.0, 1.0])
+    a = jnp.array([1.0, tiny, tiny, 10.0, 0.5, 3.0, 1.0])
+    b = jnp.array(
+        [1.0 + narrow, 2 * tiny, 1 / tiny, 10.1, 3.0, 3.0 + narrow, 1.0 + narrow]
+    )
+    shape = jnp.array([1.3, 2.0, 0.01, 3.0, 0.5, 1.3, tiny_shape])
+    scale = jnp.array([2.1, 1.0, 1.0, 1.0, 2.0, 2.1, 1.0])
     # 400 digits resolve the last row's O(1e-312) difference of powers.
     with mp.workdps(400):
         expected = []
