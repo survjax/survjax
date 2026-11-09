@@ -177,7 +177,7 @@ def test_installed_core_uses_wheel_without_demo_dependencies(installed, x64_enab
 
         assert Path(sys.prefix) in Path(survjax.__file__).resolve().parents
         assert set(survjax.__all__) == {
-            "constraints", "Exponential", "Weibull", "ProportionalHazards", "SurvivalData",
+            "constraints", "Exponential", "Weibull", "LogLogistic", "LogNormal", "ProportionalHazards", "SurvivalData",
             "InvalidDataError", "InvalidParameterError", "SurvivalDistribution",
             "register_family", "param", "distribution", "static",
             "concordance_index", "concordance_index_with_info",
