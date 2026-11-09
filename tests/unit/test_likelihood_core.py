@@ -186,10 +186,10 @@ def test_zero_censoring_has_zero_parameter_gradient_and_hessian():
         (2, 2, True, 0, 5),
     ],
 )
-def test_unsupported_modes_preserve_supported_values_and_derivatives(
+def test_truncated_rows_preserve_other_row_values_and_derivatives(
     lower, upper, exact, left, right, paired, x64_enabled
 ):
-    """Spec 7.1/7.3: mode support is separate from issues, with safe inactive pieces."""
+    """Spec 7.1/7.3: truncation preserves other-row values and derivatives."""
     data = survjax.SurvivalData.from_bounds(
         [1.0, lower],
         [1.0, upper],
@@ -205,7 +205,7 @@ def test_unsupported_modes_preserve_supported_values_and_derivatives(
     assert data.issues.ok
     assert not survjax.Exponential(rate=rate).parameter_issues().invalid_entries.any()
     for evaluate in (_log_likelihood, jax.jit(_log_likelihood)):
-        assert jnp.isnan(evaluate(survjax.Exponential(rate=rate), data)[1])
+        assert jnp.isfinite(evaluate(survjax.Exponential(rate=rate), data)[1])
     # Exact log(r)-r at r=.5: gradient=1, Hessian=-4; other-row terms are zero.
     np.testing.assert_allclose(
         supported(rate),

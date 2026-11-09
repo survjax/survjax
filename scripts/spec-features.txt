@@ -1,2 +1,3 @@
 # Completed features only; see the "Post-release features" table in roles/TESTER.md.
 observation.censoring
+observation.truncation
