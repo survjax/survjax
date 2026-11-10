@@ -478,6 +478,23 @@ def ph(baseline, log_hazard_ratio):
     )
 
 
+# ------------------------------------------- families brought forward (spec 4.1, 12.2; rev 55)
+
+
+def lognormal_from_log(meanlog, log_sdlog):
+    """``LogNormal.from_log`` (spec 4.1: "equivalents for the other families"); keyword names guessed (Q-069).
+
+    ``meanlog`` is already unconstrained, so it is passed as is; ``sdlog =
+    exp(log_sdlog)``.
+    """
+    return survjax.LogNormal.from_log(meanlog=meanlog, log_sdlog=log_sdlog)
+
+
+def loglogistic_from_log(log_shape, log_scale):
+    """``LogLogistic.from_log`` with the Weibull keywords ``log_shape``, ``log_scale`` (spec 4.1; guessed, Q-069)."""
+    return survjax.LogLogistic.from_log(log_shape=log_shape, log_scale=log_scale)
+
+
 # ------------------------------------------------------- staged RMST (A12, rev 41)
 
 
@@ -530,8 +547,10 @@ STATUS_CODES = {
     "work_exhausted": 5,
 }
 
-# Q-058: generic numerical summaries (quadrature and solver) are compared with
-# a factor GENERIC_FACTOR on the 12.1 scales; see that entry for the reason.
+# Spec 12.1 Summaries row (rev 54; Q-058 resolved): "Generic quadrature and
+# solver results, and their derivatives, are compared at `10*rtol` relative
+# (this table's ordinary `rtol` per dtype), since a converged estimate may sit
+# at the stopping tolerance; closed forms keep the ordinary targets."
 GENERIC_FACTOR = 10.0
 
 
@@ -548,7 +567,7 @@ def assert_status(info, expected, err_msg=""):
 
 
 def generic_rtol():
-    """Q-058: ``GENERIC_FACTOR`` times the 12.1 ``rtol`` of the active dtype."""
+    """Spec 12.1 (rev 54): ``GENERIC_FACTOR`` (10) times the 12.1 ``rtol`` of the active dtype."""
     from tolerances import TOLERANCES
 
     return GENERIC_FACTOR * TOLERANCES[FLOAT]["rtol"]
@@ -566,7 +585,7 @@ def assert_generic_close(actual, expected, err_msg=""):
 
 
 def assert_generic_log_derivative(actual, expected, param, value, err_msg=""):
-    """``|param * (actual - expected)| <= generic_rtol() * |value|`` (12.1 log units, Q-058)."""
+    """``|param * (actual - expected)| <= generic_rtol() * |value|`` (12.1 rev 54 factor, in the 12.1 log units; Q-058)."""
     actual = np.asarray(actual, dtype=np.float64)
     assert np.isfinite(actual).all(), f"{err_msg}: non-finite derivative {actual!r}"
     err = np.abs(np.asarray(param, dtype=np.float64) * (actual - np.asarray(expected, dtype=np.float64)))

@@ -834,9 +834,30 @@ on it. Guessed exception types and call shapes are centralised in
   `*_with_info_*` tests in `test_summary_{rmst,mean,quantile}_surface.py`,
   `helpers.status`, `helpers.assert_status`, and every feature test that
   reads `info`.
+- **Status:** confirmed by the maintainer, 2026-11-09.
 
-## Q-057: status of invalid-input, zero-cutoff and endpoint entries (spec 4.5, 8.5, 8.7, 8.8; rev 50, 51)
+## Q-057: status of invalid-input, zero-cutoff and endpoint entries (spec 4.5, 8.5, 8.7, 8.8; rev 50, 51, 54)
 
+- **Status:** resolved by spec rev 54 (8.5; design f87c3d5): "Invalid
+  arguments (`tau<0` or non-finite, `p` outside `[0,1]`, negative or NaN `e`)
+  and entries with parameter issues have status `invalid_input` and NaN
+  values. Exact endpoint values (`rmst(0)=0`, endpoint quantiles from
+  `support()`) have status `converged`." The "not `converged`" tests now
+  assert `invalid_input` (`test_parameter_violations_report_invalid_input`
+  in the three policy files, `test_invalid_cutoff_reports_invalid_input` on
+  every family, `test_invalid_probability_reports_invalid_input`), and new
+  tests assert `converged` for `rmst(0)` and endpoint quantiles
+  (`test_zero_cutoff_reports_converged`, `test_cutoff_statuses_are_per_entry`,
+  `test_endpoint_quantiles_report_converged`,
+  `test_bounded_support_endpoint_quantiles_report_converged`; the improper
+  `p = 1` test is `known_infinite` since rev 56, Q-068).
+- **Settled by spec rev 56 (8.5; design 720524a):** "On an improper family, a
+  quantile that is `+inf` because `p >= 1 - S(+inf)` has status
+  `known_infinite`; `quantile(1)=+inf` on a proper family is an endpoint and
+  `converged`." New tests:
+  `test_improper_family_quantile_beyond_the_cure_level_reports_known_infinite`,
+  `test_known_infinite_quantile_is_decided_per_entry_of_the_batch`. The
+  improper `p = 1` case moved from `converged` to `known_infinite` (Q-068).
 - **Checked:** 8.5 (status list), 4.5 summary rows, 8.7 value policy ("NaN
   wherever `parameter_issues()` reports a violation; with no `SummaryInfo`,
   NaN is the release's invalid-input signal"). Rev 50's 8.8 sentence
@@ -848,18 +869,30 @@ on it. Guessed exception types and call shapes are centralised in
   `invalid_input` requirement, tighten
   `test_parameter_violations_are_not_reported_converged` in the three policy
   files.
-- **Question:** is `invalid_input` also the required status for invalid `tau`
+- **Question (rev 51, answered by rev 54 except the improper interior
+  `+inf`):** is `invalid_input` also the required status for invalid `tau`
   or `p`? What status do `rmst(0)`, `quantile(0)`, `quantile(1)` and an
   improper-family `+inf` quantile report?
-- **Guess (tested):** invalid `tau`/`p` entries are NaN and **not**
-  `converged`; nothing is asserted about the other statuses.
-- **Depends:** `test_invalid_probability_is_not_reported_converged`,
-  `test_generic_invalid_cutoff_is_not_reported_converged`,
-  `test_parameter_violations_are_not_reported_converged` (rmst, mean,
-  quantile policy files), `test_parameter_violation_status_under_jit`.
+- **Depends:** `test_invalid_probability_reports_invalid_input`,
+  `test_invalid_cutoff_reports_invalid_input`,
+  `test_parameter_violations_report_invalid_input` (rmst, mean, quantile
+  policy files), `test_parameter_violation_status_under_jit`, and the
+  `converged` endpoint tests listed under Status.
 
-## Q-058: tolerances for generic summary values and derivatives (spec 8.3-8.5, 12.1; rev 50)
+## Q-058: tolerances for generic summary values and derivatives (spec 8.3-8.5, 12.1; rev 50, 54)
 
+- **Status:** resolved by spec rev 54 (12.1 Summaries row; design f87c3d5):
+  "Generic quadrature and solver results, and their derivatives, are compared
+  at `10*rtol` relative (this table's ordinary `rtol` per dtype), since a
+  converged estimate may sit at the stopping tolerance; closed forms keep the
+  ordinary targets." This is the guess below (`helpers.GENERIC_FACTOR = 10`);
+  no assertion changed, only the comments citing it.
+- **Interpretation kept:** for derivatives, "relative" is read in the 12.1
+  log-parameter units already used for staged RMST (`|theta (got - want)| <=
+  10*rtol*|value|`; the `tau` derivative at absolute `10*rtol`), not relative
+  to the derivative itself, which would fail on roundoff where a true
+  derivative is near zero (for example `dq/dk` near `e = 1`). Tighten
+  `assert_generic_log_derivative` if the maintainer means the latter.
 - **Checked:** 12.1 (ordinary targets; staged-RMST log-unit derivative
   scales), 8.3 (rev 52: "Convergence requires one adjacent pair of combined
   estimates to satisfy `abs(Q_l - Q_(l-1)) <= atol + rtol*abs(Q_l)` ... This
@@ -879,6 +912,7 @@ on it. Guessed exception types and call shapes are centralised in
   `assert_generic_log_derivative`; generic tests in
   `test_summary_{rmst,mean,quantile}_values.py` and
   `test_summary_{rmst,mean,quantile}_derivatives.py`.
+- **Status:** confirmed by the maintainer, 2026-11-09 (derivative tolerance in the existing log-parameter units).
 
 ## Q-059: `support()` return convention (spec 4.2, 8.1-8.3; rev 50)
 
@@ -888,28 +922,49 @@ on it. Guessed exception types and call shapes are centralised in
   broadcastable to `batch_shape` in the parameter dtype.
 - **Depends:** `spec_families.uniform_support` and the bounded-support tests
   in `test_summary_{rmst,mean,quantile}_values.py`.
+- **Status:** confirmed by the maintainer, 2026-11-09.
 
-## Q-060: how a family reports a known infinite mean (spec 4.2, 8.1, 8.3; rev 50, 51)
+## Q-060: how a family reports a known infinite mean (spec 4.2, 8.1, 8.3; rev 50, 51, 54)
 
+- **Status:** resolved by spec rev 54 (8.1; design f87c3d5): "A family
+  reports it by overriding `mean_with_info`; `mean` returns the value part of
+  `mean_with_info`, so one override serves both. The generic mean returns
+  `+inf` with status `known_infinite`, without quadrature, wherever
+  `log_survival_at_infinity() > -inf`." The improper-family rule-out test is
+  replaced by direct assertions (`+inf`, `known_infinite`, zero counts, NaN
+  error estimate, per-entry decision); its tangent test now requires NaN
+  (8.4 rev 54). Override tests use the custom families
+  `known_mean_log_logistic` (the 8.1 log-logistic row through a
+  `mean_with_info` override, `beta` 0.5, 1 and 2) and
+  `mean_with_info_sentinel` (dispatch only); their override signature was
+  Q-067 and is spec since rev 56.
 - **Checked:** 4.2 ("Families may override, including to report a known
-  infinite mean"), 8.1 (rev 51: "A known infinite mean (from a family
-  override) is `+inf`, with its own status in `mean_with_info`"), 8.3 ("A
-  family's known-infinite mean status is still needed").
-- **Rev 51:** the `+inf` value now sits in 8.1, but still no family in reach
-  has a known infinite mean (log-logistic is Slice D) and the override
-  mechanism is not specified, so the `+inf` requirement itself is untested.
-- **Question:** which member does a custom family override so that
-  `mean_with_info()` reports `known_infinite` (`mean`, `mean_with_info`, or a
-  hook)? Does the generic mean treat `log_survival_at_infinity() > -inf` as
-  known infinite?
-- **Guess:** none; the only test asserts that an improper family's mean is
-  `+inf` with `known_infinite` or NaN with a failure status, never finite,
-  and that its tangent is non-finite.
-- **Depends:** `test_improper_family_mean_is_never_finite`,
-  `test_improper_mean_has_a_non_finite_tangent`.
+  infinite mean"), 8.1, 8.3 ("A family's known-infinite mean status is still
+  needed").
+- **Previously (rev 50, 51):** the override mechanism was unspecified, so the
+  only test (`test_improper_family_mean_is_never_finite`, removed) accepted
+  `+inf` with `known_infinite` or NaN with a failure status, and the tangent
+  test only non-finite.
+- **Depends:** `test_improper_family_mean_is_plus_infinity`,
+  `test_improper_family_mean_is_known_infinite`,
+  `test_improper_family_mean_uses_no_quadrature`,
+  `test_known_infinite_mean_is_decided_per_entry`,
+  `test_log_logistic_mean_override_*`,
+  `test_mean_returns_the_value_part_of_a_mean_with_info_override`,
+  `test_improper_mean_has_a_nan_tangent`.
 
-## Q-061: count and failure-status details (spec 8.2, 8.3, 8.5; rev 50, 52, 53)
+## Q-061: count and failure-status details (spec 8.2, 8.3, 8.5; rev 50, 52, 53, 54)
 
+- **Status:** resolved by spec rev 54 (8.2; design f87c3d5): "Non-convergence
+  gives NaN and a failure status: `failed_bracket` when the bracket step limit
+  (`max_bracket_steps`) is reached without bracketing the root,
+  `work_exhausted` when `max_solver_steps` is reached inside a bracket."
+  `test_bracket_limit_reports_failed_bracket` (renamed from
+  `test_bracket_limit_failure_is_reported`) now asserts `failed_bracket` and
+  `num_bracket_steps == 1`; the new
+  `test_solver_step_limit_inside_a_bracket_reports_work_exhausted` asserts
+  `work_exhausted` and `num_solver_steps == 1` (the counts equal the limit
+  that was "reached"; inference from "Counts record ... steps used").
 - **Checked:** 8.2, 8.3, 8.5.
 - **Rev 52 resolves the quadrature part:** `max_levels` evaluated levels
   (0 to `max_levels - 1`), `num_levels` counts rounds per broadcast entry
@@ -925,33 +980,66 @@ on it. Guessed exception types and call shapes are centralised in
   the NaN values of work-exhausted and non-finite entries are now spec, not
   inference. 8.5's "NaN when not meaningful" now points to the quadrature
   paragraph (no test change).
-- **Question (still open):** does exhausting `max_bracket_steps` report
-  `failed_bracket` or `work_exhausted`? (Rev 53 covers only quadrature.)
-- **Guess:** solver and bracket counts within their static limits,
-  `failed_bracket` or `work_exhausted` for a bracket limit.
+- **Question (rev 53, answered by rev 54):** does exhausting
+  `max_bracket_steps` report `failed_bracket` or `work_exhausted`?
 - **Depends:** `test_generic_quantile_counts`,
-  `test_bracket_limit_failure_is_reported`.
+  `test_bracket_limit_reports_failed_bracket`,
+  `test_solver_step_limit_inside_a_bracket_reports_work_exhausted`.
 
-## Q-062: tangents at finite endpoint quantiles and invalid inputs (spec 8.4, 8.7, 8.8; rev 50, 51)
+## Q-062: tangents at finite endpoint quantiles and invalid inputs (spec 8.4, 8.7, 8.8; rev 50, 51, 54)
 
+- **Status:** resolved by spec rev 54 (8.4; design f87c3d5): "Entries that
+  failed or did not converge get NaN tangents, never zeros. So do endpoint
+  quantiles (`p` = 0 or 1), `inverse_cumulative_hazard` at `e` = 0 or
+  `+inf`, known-infinite means and invalid-input entries, even where a
+  one-sided or constant derivative exists. Gradients are guaranteed only
+  inside the open domain (`0<p<1`, `0<e<+inf`)." Tests now require NaN (not
+  merely non-finite) and cover `p = 0`, a bounded `quantile(1) = end`,
+  `H⁻¹(0)`, `H⁻¹(+inf)`, invalid `tau`, `p` and `e`, and parameter-issue
+  entries of all three summaries. `rmst(0)` keeps its 8.4 first derivatives
+  (not in the list).
+- **Settled by spec rev 56 (8.1, 8.4; design 720524a):** "The override is
+  responsible for the section 8.4 NaN tangents of a known infinite mean;
+  built-ins provide them", and "known-infinite means and quantiles" get NaN
+  tangents. The custom `known_mean_log_logistic` now supplies them itself;
+  `test_mean_carries_the_tangents_of_a_mean_with_info_override` checks that
+  `mean()` carries them, and `test_known_infinite_quantile_has_nan_tangents`
+  covers the improper `+inf` quantile.
 - **Checked:** 8.4 ("Entries that failed or did not converge get NaN
   tangents, never zeros. Endpoint quantiles and known-infinite means get NaN
   or infinite tangents"), 8.8 rev 51 (once a method is enabled, 8.7's
   derivative restrictions, including "section 8.4's NaN-tangent requirement
   is deferred", no longer apply).
-- **Question:** `quantile(0) = 0` and a bounded `quantile(1) = end` have
-  finite true derivatives; must their tangents still be NaN or infinite? Are
-  invalid-input entries (`tau < 0`, `p > 1`, parameter violations) "failed"
-  for the NaN-tangent rule?
-- **Guess:** only tested where unambiguous: work-exhausted and
-  non-finite-arithmetic entries have NaN tangents; `quantile(1) = +inf` and an
-  improper mean have non-finite tangents.
+- **Question (rev 51, answered by rev 54):** `quantile(0) = 0` and a bounded
+  `quantile(1) = end` have finite true derivatives; must their tangents still
+  be NaN or infinite? Are invalid-input entries (`tau < 0`, `p > 1`,
+  parameter violations) "failed" for the NaN-tangent rule?
 - **Depends:** `test_non_converged_entry_has_a_nan_tangent`,
   `test_non_finite_failure_entry_has_a_nan_tangent`,
-  `test_upper_endpoint_quantile_has_a_non_finite_tangent`.
+  `test_endpoint_quantile_has_nan_tangents`,
+  `test_bounded_support_upper_endpoint_quantile_has_a_nan_tangent`,
+  `test_inverse_cumulative_hazard_endpoints_have_nan_tangents`,
+  `test_invalid_*_entries_have_nan_tangents`,
+  `test_parameter_violation_entry_has_a_nan_*_tangent`,
+  `test_improper_mean_has_a_nan_tangent`.
 
-## Q-063: public `inverse_cumulative_hazard` signature and input policy (spec 4.5, 8.1, 8.2, 8.4, 8.8; rev 51)
+## Q-063: public `inverse_cumulative_hazard` signature and input policy (spec 4.5, 8.1, 8.2, 8.4, 8.8; rev 51, 54)
 
+- **Status:** resolved by spec rev 54 (8.1, 8.5; design f87c3d5):
+  `inverse_cumulative_hazard(e, *, options=None)`; "`e=0` gives the lower and
+  `e=+inf` the upper end of `support()`; negative or NaN `e` gives NaN; no
+  `_with_info` twin (failures are NaN; `quantile_with_info` reports the same
+  solver's diagnostics)"; it "takes `options` for its solver limits". New
+  tests: invalid `e` NaN (eager, `jit`, per entry), `e=+inf` endpoints
+  (default, bounded, improper), keyword-only `options`, `None` defaults,
+  solver limits through `options`, absent `_with_info` twin (`AttributeError`,
+  as 8.7 defines absence).
+- **Dtype question settled by design d104627 (8.1, within rev 54):** "the
+  section 4.5 dtype rule applies to `e` as to `t`". New tests:
+  `test_hazard_level_with_a_non_numeric_dtype_is_rejected`,
+  `test_boolean_hazard_level_is_rejected_during_tracing`,
+  `test_float64_hazard_level_converts_without_warning_in_32_bit_mode`. Which
+  feature enables it stays `summary.quantile` (the role table).
 - **Checked:** 8.1 ("`inverse_cumulative_hazard(e)` | the `t` with `H(t)=e`,
   for `e>=0`"), 8.2 (solver; improper `+inf`), 8.4 (implicit-function
   tangents), 8.5 ("Summary methods take `options`"), 8.8 (lists
@@ -964,15 +1052,14 @@ on it. Guessed exception types and call shapes are centralised in
   limits)? What does it return for negative, NaN or `+inf` `e`, and does the
   4.5 dtype rule (`TypeError` for boolean/complex/string/object) apply to `e`?
   Which feature enables it (the role table puts it under `summary.quantile`)?
-- **Guess (tested):** called positionally with `e` only; `e` broadcasts
-  against `batch_shape` like a direct-method argument (`e_grid[:, None, None]`
-  gives `(m, S, 2)`); `H⁻¹(0) = 0`; values, PH routes, improper `+inf` and
-  derivatives as in 8.1, 8.2, 4.4 and 8.4. Nothing is asserted for invalid or
-  non-numeric `e`, for `options`, or for a `_with_info` variant.
+- **Guess still made (tested):** `e` broadcasts against `batch_shape` like a
+  direct-method argument (`e_grid[:, None, None]` gives `(m, S, 2)`); 8.1 now
+  fixes the signature, endpoints, invalid-`e` values, `options`, the absent
+  twin and (d104627) the dtype rule.
 - **Depends:** the `inverse_cumulative_hazard` tests in
   `test_summary_quantile_surface.py`, `_values.py`, `_policy.py`
-  (`test_inverse_cumulative_hazard_grid_with_explicit_axes`) and
-  `_derivatives.py`.
+  (`test_inverse_cumulative_hazard_grid_with_explicit_axes`, the invalid-`e`
+  and `options` tests) and `_derivatives.py`.
 
 ## Q-064: the triage recipe's support check after Slice B (spec 7.1, 12.2; rev 51)
 
@@ -991,9 +1078,20 @@ on it. Guessed exception types and call shapes are centralised in
 - **Depends:** `helpers.supported_mode`, `helpers.nan_causes`,
   `helpers.unsupported_nan`, and the Slice B feature tests that triage NaN
   rows.
+- **Status:** confirmed by the maintainer, 2026-11-09.
 
-## Q-065: calling `log_interval_prob` directly (spec 4.2, 4.5, 7.1, 12.2; rev 51)
+## Q-065: calling `log_interval_prob` directly (spec 4.2, 4.5, 7.1, 12.2; rev 51, 54)
 
+- **Status:** settled by spec rev 54 (12.2; design f87c3d5): Slice B is now
+  "Left and interval censoring; all truncation combinations;
+  `log_interval_prob` and the `log_conditional_interval_prob` hook", so the
+  member is part of Slice B, and of `observation.censoring` as guessed. No
+  test changed (module docstring retagged).
+- **Still guessed (unchanged spec text):** positional `(lower, upper)`
+  broadcasting like a direct-method argument, and NaN for reversed endpoints
+  (7.1 says only "invalid"; 4.5 rules out raising and issue masks). Which
+  member the likelihood uses for an untruncated censored row stays
+  untested.
 - **Checked:** 4.2 (member table: "`log_interval_prob(lower, upper)` | Stable
   log difference with tail selection ..."; overrides "receive endpoints `0`
   and `+inf`"), 4.5 (direct methods "never raise on values and carry no issue
@@ -1011,6 +1109,7 @@ on it. Guessed exception types and call shapes are centralised in
   give `-inf`; reversed endpoints give NaN. Nothing is asserted about which
   member the likelihood dispatches to.
 - **Depends:** `test_observation_censoring_interval_prob.py`.
+- **Status:** confirmed by the maintainer, 2026-11-09.
 
 ## Q-066: calling `log_conditional_interval_prob` and its use by the likelihood (spec 4.2, 12.2; rev 51)
 
@@ -1034,3 +1133,99 @@ on it. Guessed exception types and call shapes are centralised in
   the likelihood equal to the closed form; nothing asserts that the
   likelihood calls the override.
 - **Depends:** `test_observation_truncation_hook.py`.
+
+## Q-067: writing a `mean_with_info` override in a custom family (spec 4.2, 8.1, 8.4, 8.5; rev 54)
+
+- **Status:** settled by spec rev 56 (8.1; design 720524a): "The override has
+  the signature `mean_with_info(self, *, options=None) -> tuple[Array,
+  SummaryInfo]` and may ignore `options`. An analytical answer reports status
+  `converged` (or `known_infinite`), a NaN `error_estimate` and zero work
+  counts. The override is responsible for the section 8.4 NaN tangents of a
+  known infinite mean; built-ins provide them and `check_family` checks
+  them." 4.2 now points to the same override (design d104627). The guessed
+  signature and `SummaryInfo` contents are spec; the custom
+  `known_mean_log_logistic` now supplies its own NaN tangents; new tests
+  `test_built_in_analytical_mean_reports_no_work` and
+  `test_mean_carries_the_tangents_of_a_mean_with_info_override`.
+- **Still not stated (not asserted):** whether a `ProportionalHazards`
+  wrapper of a family with a `mean_with_info` override uses it (4.4 routes PH
+  means through a PH closure or the generic method; the override is not a
+  closure). How `SummaryInfo` is constructed (keyword fields, `int32` codes)
+  remains Q-056.
+- **Checked:** 8.1 (rev 54: "A family reports it by overriding
+  `mean_with_info`; `mean` returns the value part of `mean_with_info`, so one
+  override serves both"), 8.5 (`SummaryInfo` schema; "Construction stores
+  these fields; the evaluating backend supplies consistent shapes, dtypes and
+  values"), 8.4 (NaN tangents for known-infinite means), 4.2 (override table).
+- **Question:** what signature must the override have, and how does it build
+  its `SummaryInfo`? Does `mean(options=...)` forward `options` to it? Does a
+  `ProportionalHazards` wrapper of such a family use the baseline's override?
+  Must survjax force a NaN tangent on an override's `+inf` value (8.4), or is
+  that the family's duty?
+- **Guess (tested):** `def mean_with_info(self, *, options=None)` returning
+  `(values, survjax.SummaryInfo(status=..., error_estimate=...,
+  num_levels=..., num_solver_steps=..., num_bracket_steps=...))` with `int32`
+  status codes from `SummaryInfo.Status`, zero counts and a NaN error
+  estimate, all of shape `batch_shape` (`spec_families._override_info`).
+  `mean()` and `mean(options=SummaryOptions())` return the override's value
+  part. Nothing is asserted about PH wrappers of such a family or about the
+  tangent of an override's value.
+- **Depends:** `spec_families.known_mean_log_logistic`,
+  `spec_families.mean_with_info_sentinel`; `test_log_logistic_mean_override_*`,
+  `test_mean_returns_the_value_part_of_a_mean_with_info_override`.
+
+## Q-068: status of `quantile(1)` on an improper family (spec 8.5; rev 54, 56)
+
+- **Checked:** 8.5 (rev 54: "Exact endpoint values (`rmst(0)=0`, endpoint
+  quantiles from `support()`) have status `converged`"; rev 56: "On an
+  improper family, a quantile that is `+inf` because `p >= 1 - S(+inf)` has
+  status `known_infinite`; `quantile(1)=+inf` on a proper family is an
+  endpoint and `converged`"), 8.4 (both endpoint and known-infinite quantiles
+  get NaN tangents, so the tangent is NaN either way).
+- **Question:** on an improper family with the default support, `quantile(1)
+  = +inf` is both a `support()` endpoint (rev 54: `converged`) and a quantile
+  with `p >= 1 - S(+inf)` (rev 56: `known_infinite`). Which status applies?
+- **Reading (tested):** `known_infinite`. Rev 56 restricts the `converged`
+  endpoint case to "a proper family", which only makes sense if the improper
+  `p = 1` falls under the improper rule. The rev 54 test
+  `test_improper_family_upper_endpoint_quantile_reports_converged` is renamed
+  `test_improper_family_upper_endpoint_quantile_reports_known_infinite`. If
+  the maintainer means `converged`, flip that one assertion.
+- **Depends:** `test_improper_family_upper_endpoint_quantile_reports_known_infinite`.
+
+## Q-069: `from_log` keywords of the brought-forward families (spec 4.1; rev 55)
+
+- **Checked:** 4.1 ("Log-parameter constructors take unconstrained log
+  parameters ... `Weibull.from_log(log_shape=..., log_scale=...)`,
+  `Exponential.from_log(log_rate=...)` and equivalents for the other
+  families"; "Values and parameter gradients equal those of the ordinary
+  constructor wherever `exp` is finite"), 4.6, 12.2 (rev 55: the log-normal
+  family is enabled under the full contract of 4.1).
+- **Question:** what are the keyword names of `LogNormal.from_log`? `meanlog`
+  is already unconstrained (`real`), so does it keep its name, and is the
+  scale `log_sdlog`?
+- **Guess:** `LogNormal.from_log(meanlog=..., log_sdlog=...)`, with
+  `sdlog = exp(log_sdlog)` and `meanlog` stored unchanged
+  (`helpers.lognormal_from_log`); `LogLogistic.from_log(log_shape=...,
+  log_scale=...)`, the Weibull keywords, since its constructor keywords are
+  also `shape` and `scale` (`helpers.loglogistic_from_log`).
+- **Depends:** `test_lognormal_from_log_*`, `test_loglogistic_from_log_*`
+  (construction), and in both families' files
+  `test_from_log_overflow_is_reported_as_parameter_issue` (constraints),
+  `test_from_log_gradient_follows_the_chain_rule` (derivatives).
+
+## Q-070: `check_family` for the brought-forward families (spec 4.2, 12.1, 12.2; rev 55, 56)
+
+- **Checked:** 12.1 (Families and wrappers: "`check_family` on every
+  built-in"), 12.2 (rev 55: each brought-forward family "is gated by the
+  section 12.1 rows that apply to a built-in family"; Slice D still lists
+  `check_family`), 8.1 (rev 56: "`check_family` checks them", the NaN
+  tangents of a known infinite mean), the role table (no feature names
+  `check_family`).
+- **Question:** is `survjax.testing.check_family` part of `family.lognormal`
+  / `family.loglogistic` (so `check_family(LogNormal(...))` must pass), or
+  does it stay in Slice D with its own feature?
+- **Guess:** none; `check_family` is not called. The identities it checks
+  (`logaddexp(log S, log F) = 0`, `log_prob` consistency, boundary limits,
+  finite parameter gradients) are covered directly by the family tests.
+- **Depends:** nothing.

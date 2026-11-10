@@ -1,16 +1,21 @@
-"""Feature `summary.quantile`: quantile, median and inverse cumulative hazard derivatives (spec 4.4, 8.1, 8.4, 8.7, 8.8, 12.1; rev 51).
+"""Feature `summary.quantile`: quantile, median and inverse cumulative hazard derivatives (spec 4.4, 8.1, 8.4, 8.7, 8.8, 12.1; rev 51, 54).
 
 8.4: "Summaries are differentiable; nothing raises." "**Inverse cumulative
 hazard and quantiles** (implicit function theorem): `dt = (∂θ log S(t)·dθ +
-de) / h(t)` ... `dq/dp = 1/f(q)`." "Entries that failed or did not converge
-get NaN tangents, never zeros. Endpoint quantiles ... get NaN or infinite
-tangents." 4.4: PH closures differentiate "by the chain rule". 8.7 isolation
+de) / h(t)` ... `dq/dp = 1/f(q)`." Rev 54 (Q-062 resolved): "Entries that
+failed or did not converge get NaN tangents, never zeros. So do endpoint
+quantiles (`p` = 0 or 1), `inverse_cumulative_hazard` at `e` = 0 or `+inf`,
+known-infinite means and invalid-input entries, even where a one-sided or
+constant derivative exists. Gradients are guaranteed only inside the open
+domain (`0<p<1`, `0<e<+inf`)." Rev 56 extends the list to "known-infinite
+means and quantiles" (an improper family's `+inf` quantile at `p >= 1 -
+S(+inf)`). 4.4: PH closures differentiate "by the chain rule". 8.7 isolation
 of valid entries remains as value policy (8.8).
 
 Tolerances (12.1 log units): ``|theta (got - want)| <= scale * |value|``
 (``p`` and ``e`` included), higher orders multiplied by every variable once
 per order; ``scale`` is the 12.1 ``rtol`` for built-in closed forms and
-``generic_rtol()`` for the generic solver (Q-058). References: hand
+``generic_rtol()`` (``10*rtol``, 12.1 rev 54) for the generic solver. References: hand
 derivatives of the 8.1/8.2 closed forms, and mpmath ``diff`` at 60 digits
 (``summary_reference``).
 """
@@ -35,7 +40,7 @@ from helpers import (
     rounded,
 )
 from jax.test_util import check_grads
-from summary_cases import HESSIANS, MODES, QUANTILE, assert_hessian, grad, valid_subset_grad
+from summary_cases import HESSIANS, MODES, QUANTILE, assert_hessian, entry_tangents, grad, valid_subset_grad
 
 import survjax
 
@@ -243,10 +248,71 @@ def test_generic_quantile_isolates_invalid_probabilities(mode):
     assert_close(g_full, g_alone)
 
 
+def _rate_family(generic):
+    return fam.const_hazard() if generic else survjax.Exponential
+
+
+@pytest.mark.parametrize("p", [0.0, 1.0])
 @pytest.mark.parametrize("generic", [False, True], ids=["builtin", "generic"])
 @QUANTILE
-def test_upper_endpoint_quantile_has_a_non_finite_tangent(generic):
-    """spec 8.4, rev 51: "Endpoint quantiles ... get NaN or infinite tangents": `quantile(1) = +inf` in the rate direction (Q-062)."""
-    make = fam.const_hazard() if generic else survjax.Exponential
-    _, tangent = jax.jvp(lambda r: make(rate=r).quantile(f(1.0)), (f(0.5),), (f(1.0),))
-    assert not np.isfinite(np.asarray(tangent))
+def test_endpoint_quantile_has_nan_tangents(generic, p):
+    """spec 8.4, rev 54: "endpoint quantiles (`p` = 0 or 1)" get NaN tangents in the rate and in `p`, "even where a one-sided or constant derivative exists" (`quantile(0) = 0` for every rate)."""
+    make = _rate_family(generic)
+    assert np.isnan(entry_tangents(lambda r: make(rate=r).quantile(f(p)), f(0.5)))
+    assert np.isnan(entry_tangents(lambda p_: make(rate=f(0.5)).quantile(p_), f(p)))
+
+
+@QUANTILE
+def test_bounded_support_upper_endpoint_quantile_has_a_nan_tangent():
+    """spec 8.4, rev 54: `quantile(1) = end` of uniform `(0, end]` has the constant derivative 1 in `end`, but as an endpoint quantile its tangent is NaN."""
+    assert np.isnan(entry_tangents(lambda e: fam.uniform_support()(end=e).quantile(f(1.0)), f(2.0)))
+
+
+@pytest.mark.parametrize("e", [0.0, np.inf], ids=["zero", "posinf"])
+@pytest.mark.parametrize("generic", [False, True], ids=["builtin", "generic"])
+@QUANTILE
+def test_inverse_cumulative_hazard_endpoints_have_nan_tangents(generic, e):
+    """spec 8.4, rev 54: "`inverse_cumulative_hazard` at `e` = 0 or `+inf`" gets NaN tangents, in the rate and in `e`."""
+    make = _rate_family(generic)
+    assert np.isnan(entry_tangents(lambda r: make(rate=r).inverse_cumulative_hazard(f(e)), f(0.5)))
+    assert np.isnan(entry_tangents(lambda e_: make(rate=f(0.5)).inverse_cumulative_hazard(e_), f(e)))
+
+
+@QUANTILE
+def test_known_infinite_quantile_has_nan_tangents():
+    """spec 8.4, rev 56: "known-infinite ... quantiles" get NaN tangents: `mixture_cure` (`c = 0.3`) at `p = 0.9 >= 1 - c`, in the cure fraction, the rate and `p`; at `p = 0.5` below the cure level the tangents are finite."""
+    cure = fam.mixture_cure()
+    for p, check in ((0.9, np.isnan), (0.5, np.isfinite)):
+        assert check(entry_tangents(lambda c, p=p: cure(cure=c, rate=f(1.0)).quantile(f(p)), f(0.3))), p
+        assert check(entry_tangents(lambda r, p=p: cure(cure=f(0.3), rate=r).quantile(f(p)), f(1.0))), p
+        assert check(entry_tangents(lambda p_: cure(cure=f(0.3), rate=f(1.0)).quantile(p_), f(p))), p
+
+
+@pytest.mark.parametrize("generic", [False, True], ids=["builtin", "generic"])
+@QUANTILE
+def test_invalid_probability_entries_have_nan_tangents(generic):
+    """spec 8.4/8.5, rev 54: invalid-input entries (`p` outside `[0,1]`, NaN `p`) get NaN `p` tangents; interior entries keep finite ones (`1/f(q)`)."""
+    make = _rate_family(generic)
+    tangent = entry_tangents(lambda p_: make(rate=f(0.5)).quantile(p_), f([0.3, 1.5, np.nan, -0.1, 0.6]))
+    assert np.isnan(tangent[1:4]).all()
+    assert np.isfinite(tangent[[0, 4]]).all()
+
+
+@pytest.mark.parametrize("generic", [False, True], ids=["builtin", "generic"])
+@QUANTILE
+def test_invalid_hazard_level_entries_have_nan_tangents(generic):
+    """spec 8.4/8.5, rev 54: negative or NaN `e` ("invalid-input entries") get NaN `e` tangents; interior entries keep finite ones (`1/h(t)`)."""
+    make = _rate_family(generic)
+    tangent = entry_tangents(lambda e_: make(rate=f(0.5)).inverse_cumulative_hazard(e_), f([0.5, -1.0, np.nan, 2.0]))
+    assert np.isnan(tangent[[1, 2]]).all()
+    assert np.isfinite(tangent[[0, 3]]).all()
+
+
+@pytest.mark.parametrize("generic", [False, True], ids=["builtin", "generic"])
+@QUANTILE
+def test_parameter_violation_entry_has_a_nan_quantile_tangent(generic):
+    """spec 8.4/8.5, rev 54: a parameter-issue entry (`rate = 0`, declared `positive`) gets a NaN rate tangent; the valid entries' are finite."""
+    make = fam.constrained_rate() if generic else survjax.Exponential
+    tangent = entry_tangents(lambda r: make(rate=r).quantile(f(0.4)), f([0.5, 0.0, 0.7]))
+    assert np.isnan(tangent[1])
+    assert np.isfinite(tangent[[0, 2]]).all()

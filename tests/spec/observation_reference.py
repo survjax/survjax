@@ -11,13 +11,28 @@ arithmetic):
   decides whether it is invalid data).
 
 ``P(a < T <= b) = S(a) - S(b)`` with ``S(0) = 1`` and ``S(+inf) = 0`` (proper
-built-in laws, spec 2). Derivatives are ``mpmath.diff`` partials of the same
-expression in the natural parameters, also at 50 digits.
+built-in laws, spec 2), evaluated in cumulative-hazard form
+(``S = exp(-H)``):
+
+``log(S(a) - S(b)) = -H(a) + log(-expm1(-(H(b) - H(a))))``,
+
+with ``H(0) = 0`` and, for ``b = +inf``, ``-H(a)``. Subtracting survival
+values instead cancels even at 50 digits for tiny masses: Weibull ``k=2.5``,
+``b=2``, left at ``1e-30`` has ``H ~ 1.77e-76``, so ``1 - exp(-H)`` rounds to
+``0`` and the log to ``-inf``, while the true value is
+``log(-expm1(-H)) ~ -174.42675``. Derivatives are ``mpmath.diff`` partials of
+the same expression in the natural parameters, also at 50 digits.
 
 Families (spec 4.1): ``"exponential"`` with parameters ``(r,)``,
-``S(t) = exp(-r t)``, ``log f = log r - r t``; ``"weibull"`` with
-``(k, b)``, ``S(t) = exp(-(t/b)**k)``,
-``log f = log k - log b + (k-1) log(t/b) - (t/b)**k``.
+``H(t) = r t``, ``log f = log r - r t``; ``"weibull"`` with
+``(k, b)``, ``H(t) = (t/b)**k``,
+``log f = log k - log b + (k-1) log(t/b) - (t/b)**k``; ``"lognormal"``
+(rev 55) with ``(meanlog, sdlog) = (mu, sigma)``, ``z = (log t - mu)/sigma``,
+``H(t) = -log Phi(-z)`` and ``log f = -log t - log sigma - log(2 pi)/2 -
+z**2/2`` (``family_reference``; ``log Phi(y)`` as ``log1p(-Phi(-y))`` for
+``y > 0``, so a tiny ``H`` keeps its digits); ``"loglogistic"`` (rev 55) with
+``(shape, scale) = (beta, alpha)``, ``H(t) = log1p((t/alpha)**beta)`` and
+``log f = log beta - log alpha + (beta-1) log(t/alpha) - 2 log1p((t/alpha)**beta)``.
 """
 
 import math
@@ -39,17 +54,32 @@ def rounded(*values):
     return [float(np.asarray(v, dtype=FLOAT)) for v in values]
 
 
-def _survival(family, params, t):
+def _cumulative_hazard(family, params, t):
+    """``H(t)``, with ``H(0) = 0`` and ``H(+inf) = +inf``."""
     mp = _mp()
     if t == 0:
-        return mp.mpf(1)
-    if mp.isinf(t):
         return mp.mpf(0)
+    if mp.isinf(t):
+        return mp.inf
     if family == "exponential":
         (r,) = params
-        return mp.exp(-r * t)
+        return r * t
+    if family == "lognormal":
+        mu, sigma = params
+        return -_log_ndtr(-(mp.log(t) - mu) / sigma)
+    if family == "loglogistic":
+        beta, alpha = params
+        return mp.log1p((t / alpha) ** beta)
     k, b = params
-    return mp.exp(-((t / b) ** k))
+    return (t / b) ** k
+
+
+def _log_ndtr(y):
+    """``log Phi(y)``; ``log1p(-Phi(-y))`` for ``y > 0`` keeps the digits of a tiny ``1 - Phi(y)``."""
+    mp = _mp()
+    if y > 0:
+        return mp.log1p(-mp.ncdf(-y))
+    return mp.log(mp.ncdf(y))
 
 
 def _log_density(family, params, t):
@@ -57,14 +87,27 @@ def _log_density(family, params, t):
     if family == "exponential":
         (r,) = params
         return mp.log(r) - r * t
+    if family == "lognormal":
+        mu, sigma = params
+        z = (mp.log(t) - mu) / sigma
+        return -mp.log(t) - mp.log(sigma) - mp.log(2 * mp.pi) / 2 - z**2 / 2
+    if family == "loglogistic":
+        beta, alpha = params
+        z = t / alpha
+        return mp.log(beta) - mp.log(alpha) + (beta - 1) * mp.log(z) - 2 * mp.log1p(z**beta)
     k, b = params
     z = t / b
     return mp.log(k) - mp.log(b) + (k - 1) * mp.log(z) - z**k
 
 
 def _log_mass(family, params, a, b):
+    """``log P(a < T <= b) = -H(a) + log(-expm1(-(H(b) - H(a))))`` for ``a < b`` (module docstring)."""
     mp = _mp()
-    return mp.log(_survival(family, params, a) - _survival(family, params, b))
+    h_a = _cumulative_hazard(family, params, a)
+    h_b = _cumulative_hazard(family, params, b)
+    if mp.isinf(h_b):
+        return -h_a
+    return -h_a + mp.log(-mp.expm1(-(h_b - h_a)))
 
 
 def _contribution(family, params, lower, upper, exact, left, right):

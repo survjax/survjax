@@ -13,15 +13,15 @@ estimates or a non-finite integrand. Rev 53 (8.3): a converged entry returns
 `Q_l` of the converging pair; a failure status (`non_finite_arithmetic` or
 `work_exhausted`) returns NaN.
 
-Status for parameter violations is only required not to be `converged`
-(Q-057).
+Rev 54 (8.5; Q-057 resolved): "entries with parameter issues have status
+`invalid_input` and NaN values."
 """
 
 import jax
 import numpy as np
 import pytest
 import spec_families as fam
-from helpers import STATUS_CODES, assert_close, assert_status, f, status
+from helpers import assert_close, assert_status, f, status
 from summary_cases import FAMILIES, MEAN, MEAN_INFO, VIOLATIONS, draws_by_arms, violations
 
 import survjax
@@ -63,13 +63,11 @@ def test_parameter_violations_give_nan_mean(case):
 
 @pytest.mark.parametrize("case", VIOLATIONS)
 @MEAN_INFO
-def test_parameter_violations_are_not_reported_converged(case):
-    """spec 8.5/8.7, rev 51: the violating entry is not `converged`; the valid entries converge (Q-057)."""
+def test_parameter_violations_report_invalid_input(case):
+    """spec 8.5, rev 54: "entries with parameter issues have status `invalid_input` and NaN values"; the valid entries converge."""
     values, info = violations()[case].mean_with_info()
-    codes = status(info)
     assert np.isnan(np.asarray(values)[1])
-    assert codes[1] != STATUS_CODES["converged"]
-    assert (codes[[0, 2]] == STATUS_CODES["converged"]).all()
+    assert_status(info, ["converged", "invalid_input", "converged"])
 
 
 # --------------------------------------------------------------- failure statuses

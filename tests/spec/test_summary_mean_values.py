@@ -1,4 +1,4 @@
-"""Feature `summary.mean`: mean values (spec 4.4, 8.1, 8.3, 8.8, 12.1; rev 51).
+"""Feature `summary.mean`: mean values (spec 4.4, 8.1, 8.3, 8.5, 8.8, 12.1; rev 51, 54).
 
 8.1: `mean() = ∫_0^inf S(t) dt`; Exponential `1/r`, Weibull `b*Γ(1+1/k)`. "A
 converged numerical mean does not prove a finite expectation ... A known
@@ -9,13 +9,23 @@ infinite mean (from a family override) is `+inf`, with its own status in
 the closure where provided, "otherwise the generic method". 8.8: gated by the
 12.1 Summaries row.
 
-No family in reach has a known infinite mean: log-logistic is not a built-in
-before Slice D, and the spec gives no public way for a custom family to
-declare one (Q-060). The improper-family test checks only what 8.1 rules out.
+Rev 54 (8.1; Q-060 resolved): "A family reports it by overriding
+`mean_with_info`; `mean` returns the value part of `mean_with_info`, so one
+override serves both. The generic mean returns `+inf` with status
+`known_infinite`, without quadrature, wherever `log_survival_at_infinity() >
+-inf`." Rev 56 (8.1; Q-067 settled): "The override has the signature
+`mean_with_info(self, *, options=None) -> tuple[Array, SummaryInfo]` and may
+ignore `options`. An analytical answer reports status `converged` (or
+`known_infinite`), a NaN `error_estimate` and zero work counts." The override
+tests use the custom ``spec_families.known_mean_log_logistic`` (the 8.1
+log-logistic row through that override) and ``mean_with_info_sentinel``; they
+test the extension contract, not the built-in `LogLogistic` (feature
+`family.loglogistic`, ``test_family_loglogistic_summaries.py``). Their
+overrides build a `SummaryInfo`, so they also need `summary.containers`.
 
 References: closed forms (``summary_reference`` at 60 digits). Built-in values
 use the 12.1 ``rtol`` with no absolute floor; generic numerical values use
-``generic_rtol()`` (Q-058).
+``generic_rtol()``, 10 times it (12.1, rev 54).
 """
 
 import math
@@ -30,12 +40,13 @@ from helpers import (
     STATUS_CODES,
     assert_generic_close,
     assert_rel_close,
+    assert_status,
     f,
     ph,
     rounded,
     status,
 )
-from summary_cases import MEAN, MEAN_INFO
+from summary_cases import BUILT_IN, MEAN, MEAN_INFO, families
 
 import survjax
 
@@ -167,20 +178,102 @@ def test_bounded_support_mean_is_half_the_end():
     assert_generic_close(fam.uniform_support()(end=f(2.0)).mean(), 1.0)
 
 
+@MEAN
+def test_improper_family_mean_is_plus_infinity():
+    """spec 8.1, rev 54: "The generic mean returns `+inf` ... wherever `log_survival_at_infinity() > -inf`" (`mixture_cure`, `S(+inf) = c = 0.3`)."""
+    assert np.asarray(fam.mixture_cure()(cure=f(0.3), rate=f(1.0)).mean()) == INF
+
+
 @MEAN_INFO
-def test_improper_family_mean_is_never_finite():
-    """spec 8.1, rev 51: the true mean is infinite (`S(+inf)=c>0`) and "A converged numerical mean does not prove a finite expectation": the result is `+inf` with `known_infinite` status, or NaN ("unresolved convergence yields NaN") with neither `converged` nor `known_infinite`; never finite. `mean()` equals the `mean_with_info()` value (Q-060)."""
+def test_improper_family_mean_is_known_infinite():
+    """spec 8.1/8.5, rev 54: the same mean is `+inf` "with status `known_infinite`" in `mean_with_info`, and `mean()` is its value part."""
     d = fam.mixture_cure()(cure=f(0.3), rate=f(1.0))
     value, info = d.mean_with_info()
-    value = float(np.asarray(value))
-    code = int(status(info))
-    assert not np.isfinite(value), f"finite mean {value} for an improper family"
-    if value == INF:
-        assert code == STATUS_CODES["known_infinite"]
-    else:
-        assert np.isnan(value)
-        assert code not in (STATUS_CODES["converged"], STATUS_CODES["known_infinite"])
-    np.testing.assert_array_equal(np.asarray(d.mean()), value)
+    assert np.asarray(value) == INF
+    assert_status(info, "known_infinite")
+    assert np.asarray(d.mean()) == INF
+
+
+@MEAN_INFO
+def test_improper_family_mean_uses_no_quadrature():
+    """spec 8.1/8.5, rev 54: "without quadrature": no levels, solver or bracket steps ("unused counts are zero"); the error estimate is NaN, since "fewer than two estimates exist"."""
+    _, info = fam.mixture_cure()(cure=f(0.3), rate=f(1.0)).mean_with_info()
+    for name in ("num_levels", "num_solver_steps", "num_bracket_steps"):
+        np.testing.assert_array_equal(np.asarray(getattr(info, name)), 0, err_msg=name)
+    assert np.isnan(np.asarray(info.error_estimate))
+
+
+@MEAN_INFO
+def test_known_infinite_mean_is_decided_per_entry():
+    """spec 8.1/8.5, rev 54: "wherever" `log_survival_at_infinity() > -inf`, per broadcast entry: cure `[0.3, 0]` gives `[+inf, 1/r]` with `[known_infinite, converged]`.
+
+    With ``c = 0``, ``log S = logaddexp(log 0, log1p(0) - r t) = -r t``, a
+    proper exponential law with mean ``1/r = 2`` (``r = 0.5``) from the
+    generic quadrature.
+    """
+    (r,) = rounded(0.5)
+    values, info = fam.mixture_cure()(cure=f([0.3, 0.0]), rate=f([1.0, r])).mean_with_info()
+    values = np.asarray(values)
+    assert values[0] == INF
+    assert_generic_close(values[1], 1.0 / r)
+    assert_status(info, ["known_infinite", "converged"])
+
+
+@pytest.mark.parametrize("beta", [0.5, 1.0])
+@MEAN_INFO
+def test_log_logistic_mean_override_reports_known_infinite(beta):
+    """spec 8.1, rev 56: log-logistic "known infinite for `beta<=1`", reported by a custom `mean_with_info(self, *, options=None)` override: `+inf` with `known_infinite`; "`mean` returns the value part of `mean_with_info`, so one override serves both"."""
+    d = fam.known_mean_log_logistic()(alpha=f(2.0), beta=f(beta))
+    value, info = d.mean_with_info()
+    assert np.asarray(value) == INF
+    assert_status(info, "known_infinite")
+    assert np.asarray(d.mean()) == INF
+
+
+@MEAN_INFO
+def test_log_logistic_mean_override_closed_form_for_beta_two():
+    """spec 8.1, rev 56: the same override for `beta = 2 > 1`: `alpha*(π/beta)/sin(π/beta) = alpha*π/2`, `converged`, and `mean()` equals it."""
+    aa, bb = rounded(2.0, 2.0)
+    d = fam.known_mean_log_logistic()(alpha=f(aa), beta=f(bb))
+    value, info = d.mean_with_info()
+    assert_rel_close(value, sref.log_logistic_mean(aa, bb))
+    assert_status(info, "converged")
+    assert_rel_close(d.mean(), sref.log_logistic_mean(aa, bb))
+
+
+@MEAN_INFO
+def test_log_logistic_mean_override_is_per_entry():
+    """spec 8.1/8.5, rev 56: a batch `beta = [0.5, 1, 2]` keeps the override's per-entry values and statuses through `mean` and `mean_with_info`."""
+    aa, bb = rounded(2.0, 2.0)
+    d = fam.known_mean_log_logistic()(alpha=f(aa), beta=f([0.5, 1.0, bb]))
+    values, info = d.mean_with_info()
+    for got in (np.asarray(values), np.asarray(d.mean())):
+        assert got.shape == (3,)
+        assert (got[:2] == INF).all()
+        assert_rel_close(got[2], sref.log_logistic_mean(aa, bb))
+    assert_status(info, ["known_infinite", "known_infinite", "converged"])
+
+
+@MEAN_INFO
+def test_mean_returns_the_value_part_of_a_mean_with_info_override():
+    """spec 8.1, rev 56: "`mean` returns the value part of `mean_with_info`": an override returning a sentinel (not `1/rate`) is what `mean()` returns, with and without `options` (the override "may ignore `options`")."""
+    d = fam.mean_with_info_sentinel()(rate=f(0.5))
+    value, info = d.mean_with_info()
+    np.testing.assert_array_equal(np.asarray(value), fam.MEAN_SENTINEL)
+    assert_status(info, "converged")
+    np.testing.assert_array_equal(np.asarray(d.mean()), fam.MEAN_SENTINEL)
+    np.testing.assert_array_equal(np.asarray(d.mean(options=survjax.SummaryOptions())), fam.MEAN_SENTINEL)
+
+
+@pytest.mark.parametrize("family", BUILT_IN)
+@MEAN_INFO
+def test_built_in_analytical_mean_reports_no_work(family):
+    """spec 8.1, rev 56: "An analytical answer reports status `converged` (or `known_infinite`), a NaN `error_estimate` and zero work counts": the Exponential and Weibull closed forms (8.1 table) and PH closures (4.4)."""
+    _, info = families()[family]().mean_with_info()
+    assert_status(info, "converged")
+    assert np.isnan(np.asarray(info.error_estimate)).all()
+    for name in ("num_levels", "num_solver_steps", "num_bracket_steps"):
+        np.testing.assert_array_equal(np.asarray(getattr(info, name)), 0, err_msg=name)
 
 
 @pytest.mark.parametrize("beta", [3.0, 1.5])

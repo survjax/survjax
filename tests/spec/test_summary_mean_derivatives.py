@@ -1,16 +1,20 @@
-"""Feature `summary.mean`: mean derivatives (spec 4.4, 8.4, 8.7, 8.8, 12.1; rev 51).
+"""Feature `summary.mean`: mean derivatives (spec 4.4, 8.4, 8.7, 8.8, 12.1; rev 51, 54).
 
 8.4: "Summaries are differentiable; nothing raises"; generic mean tangent
 "`∫ ∂θ S·dθ dt` ... on a **static** node set ... Forward, reverse and
 higher-order derivatives all work"; "Entries that failed or did not converge
-get NaN tangents, never zeros. ... known-infinite means get NaN or infinite
-tangents." 4.4: PH closures differentiate "by the chain rule". 8.7 isolation
-of valid entries remains as value policy (8.8).
+get NaN tangents, never zeros. So do ... known-infinite means and
+invalid-input entries, even where a one-sided or constant derivative exists"
+(rev 54; Q-062 resolved). Rev 56 (8.1): "The override is responsible for the
+section 8.4 NaN tangents of a known infinite mean; built-ins provide them"
+(Q-067 settled). 4.4: PH closures differentiate "by the chain rule".
+8.7 isolation of valid entries remains as value policy (8.8).
 
 Tolerances (12.1 log units): ``|theta (got - want)| <= scale * |value|``,
 higher orders multiplied by every variable once per order; ``scale`` is the
-12.1 ``rtol`` for built-in closed forms and ``generic_rtol()`` for generic
-quadrature (Q-058). References: mpmath ``diff`` of `b*Γ(1+1/k)` at 60 digits.
+12.1 ``rtol`` for built-in closed forms and ``generic_rtol()`` (``10*rtol``,
+12.1 rev 54) for generic quadrature. References: mpmath ``diff`` of
+`b*Γ(1+1/k)` at 60 digits.
 """
 
 import jax
@@ -31,7 +35,7 @@ from helpers import (
     rounded,
 )
 from jax.test_util import check_grads
-from summary_cases import HESSIANS, MEAN, MODES, assert_hessian, grad, valid_subset_grad
+from summary_cases import HESSIANS, MEAN, MEAN_INFO, MODES, assert_hessian, entry_tangents, grad, valid_subset_grad
 
 import survjax
 
@@ -167,7 +171,41 @@ def test_mean_isolates_failing_entries_with_shared_scale(generic, mode):
 
 
 @MEAN
-def test_improper_mean_has_a_non_finite_tangent():
-    """spec 8.4, rev 51: an improper family's mean is known infinite ("NaN or infinite tangents") or unresolved ("NaN tangents"); either way never finite."""
-    _, tangent = jax.jvp(lambda r: fam.mixture_cure()(cure=f(0.3), rate=r).mean(), (f(1.0),), (f(1.0),))
-    assert not np.isfinite(np.asarray(tangent))
+def test_improper_mean_has_a_nan_tangent():
+    """spec 8.1/8.4, rev 54: the improper family's mean is known infinite (`log_survival_at_infinity() > -inf`), and "known-infinite means" get NaN tangents, in the rate and in the cure fraction."""
+    in_rate = entry_tangents(lambda r: fam.mixture_cure()(cure=f(0.3), rate=r).mean(), f(1.0))
+    in_cure = entry_tangents(lambda c: fam.mixture_cure()(cure=c, rate=f(1.0)).mean(), f(0.3))
+    assert np.isnan(in_rate)
+    assert np.isnan(in_cure)
+
+
+@MEAN_INFO
+def test_mean_carries_the_tangents_of_a_mean_with_info_override():
+    """spec 8.1/8.4, rev 56: "The override is responsible for the section 8.4 NaN tangents of a known infinite mean", and "`mean` returns the value part of `mean_with_info`", so `mean()` carries the override's tangents.
+
+    ``known_mean_log_logistic`` with ``alpha = 2`` and ``beta = [0.5, 1, 2]``
+    supplies NaN ``alpha`` tangents on its ``+inf`` entries; at ``beta = 2``
+    the mean ``alpha*(pi/2)/sin(pi/2) = alpha*pi/2`` has ``d/dalpha = pi/2``.
+    """
+    make = fam.known_mean_log_logistic()
+    beta = f([0.5, 1.0, 2.0])
+    via_mean = entry_tangents(lambda a: make(alpha=a, beta=beta).mean(), f([2.0, 2.0, 2.0]))
+    via_info = entry_tangents(lambda a: make(alpha=a, beta=beta).mean_with_info()[0], f([2.0, 2.0, 2.0]))
+    for tangent in (via_mean, via_info):
+        assert np.isnan(tangent[:2]).all()
+        assert_close(tangent[2], np.pi / 2)
+
+
+@pytest.mark.parametrize("generic", [False, True], ids=["builtin", "generic"])
+@MEAN
+def test_parameter_violation_entry_has_a_nan_mean_tangent(generic):
+    """spec 8.4/8.5, rev 54: a parameter-issue entry ("invalid-input entries") gets a NaN tangent; the valid entries' tangents `-1/r**2` are finite.
+
+    Rates ``[0.5, 0, 0.7]``: ``rate = 0`` violates ``positive`` (Exponential;
+    ``constrained_rate`` declares the same constraint and uses the generic
+    mean).
+    """
+    make = fam.constrained_rate() if generic else survjax.Exponential
+    tangent = entry_tangents(lambda r: make(rate=r).mean(), f([0.5, 0.0, 0.7]))
+    assert np.isnan(tangent[1])
+    assert np.isfinite(tangent[[0, 2]]).all()

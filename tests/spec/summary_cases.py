@@ -108,6 +108,18 @@ def assert_hessian(got, variables, ref_fn, value, scale, err_msg):
         assert err <= scale * abs(value), f"{err_msg}[{i},{j}]: {got[i, j]} vs {want} (weighted error {err})"
 
 
+def entry_tangents(fn, x):
+    """Per-entry forward-mode tangent of ``fn`` at ``x`` along ``ones_like(x)``, as a float64 NumPy array.
+
+    Used for the spec 8.4 (rev 54) NaN-tangent rule: with entry-wise inputs
+    (each output entry depends only on its own input entry), the tangent of
+    entry ``i`` is that entry's own derivative.
+    """
+    x = jnp.asarray(x)
+    _, tangent = jax.jvp(fn, (x,), (jnp.ones_like(x),))
+    return np.asarray(tangent, dtype=np.float64)
+
+
 def valid_subset_grad(full, alone, x, mode, idx=(0, 2)):
     """Gradient of the valid entries' sum from the full batch, and from the valid entries alone."""
     index = jnp.asarray(idx)

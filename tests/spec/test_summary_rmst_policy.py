@@ -27,8 +27,9 @@ Rev 53 (8.3): "A converged entry returns `Q_l` of the converging pair. An
 entry with a failure status (`non_finite_arithmetic` or `work_exhausted`)
 returns NaN."
 
-Status for invalid `tau` and for parameter violations is only required not
-to be `converged` (Q-057).
+Rev 54 (8.5; Q-057 resolved): "Invalid arguments (`tau<0` or non-finite, ...)
+and entries with parameter issues have status `invalid_input` and NaN
+values. Exact endpoint values (`rmst(0)=0`, ...) have status `converged`."
 """
 
 import warnings
@@ -41,7 +42,6 @@ import spec_families as fam
 from helpers import (
     INF,
     NAN,
-    STATUS_CODES,
     X64,
     assert_close,
     assert_status,
@@ -63,14 +63,34 @@ def test_generic_invalid_cutoff_gives_nan(family, tau):
     assert np.isnan(np.asarray(families()[family]().rmst(f(tau))))
 
 
-@pytest.mark.parametrize("family", GENERIC)
-@pytest.mark.parametrize("tau", [-1.0, NAN, INF], ids=["negative", "nan", "posinf"])
+@pytest.mark.parametrize("family", FAMILIES)
+@pytest.mark.parametrize("tau", [-1.0, NAN, INF, -INF], ids=["negative", "nan", "posinf", "neginf"])
 @RMST_INFO
-def test_generic_invalid_cutoff_is_not_reported_converged(family, tau):
-    """spec 8.5, rev 51: an invalid-`tau` NaN entry is not reported `converged` (Q-057)."""
+def test_invalid_cutoff_reports_invalid_input(family, tau):
+    """spec 8.5, rev 54: "Invalid arguments (`tau<0` or non-finite ...) ... have status `invalid_input` and NaN values", on every family."""
     values, info = families()[family]().rmst_with_info(f(tau))
     assert np.isnan(np.asarray(values))
-    assert int(status(info)) != STATUS_CODES["converged"]
+    assert_status(info, "invalid_input")
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@RMST_INFO
+def test_zero_cutoff_reports_converged(family):
+    """spec 8.5, rev 54: "Exact endpoint values (`rmst(0)=0`, ...) have status `converged`"."""
+    values, info = families()[family]().rmst_with_info(f(0.0))
+    assert np.asarray(values) == 0.0
+    assert_status(info, "converged")
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@RMST_INFO
+def test_cutoff_statuses_are_per_entry(family):
+    """spec 8.5, rev 54: statuses per broadcast entry: `tau = [1.5, -1, 0, NaN]` gives `[converged, invalid_input, converged, invalid_input]`."""
+    values, info = families()[family]().rmst_with_info(f([1.5, -1.0, 0.0, NAN]))
+    values = np.asarray(values)
+    assert np.isfinite(values[0]) and values[2] == 0.0
+    assert np.isnan(values[[1, 3]]).all()
+    assert_status(info, ["converged", "invalid_input", "converged", "invalid_input"])
 
 
 @pytest.mark.parametrize("family", GENERIC)
@@ -164,13 +184,11 @@ def test_parameter_violations_give_nan_rmst(case):
 
 @pytest.mark.parametrize("case", VIOLATIONS)
 @RMST_INFO
-def test_parameter_violations_are_not_reported_converged(case):
-    """spec 8.5/8.7, rev 51: the violating entry is NaN and not `converged`; the valid entries converge (Q-057: `invalid_input` expected, not asserted)."""
+def test_parameter_violations_report_invalid_input(case):
+    """spec 8.5, rev 54: "entries with parameter issues have status `invalid_input` and NaN values"; the valid entries converge."""
     values, info = violations()[case].rmst_with_info(f(1.5))
-    codes = status(info)
     assert np.isnan(np.asarray(values)[1])
-    assert codes[1] != STATUS_CODES["converged"]
-    assert (codes[[0, 2]] == STATUS_CODES["converged"]).all()
+    assert_status(info, ["converged", "invalid_input", "converged"])
 
 
 @RMST_INFO

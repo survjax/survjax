@@ -66,7 +66,7 @@ def test_exponential_left_row_at_tiny_time_keeps_relative_precision():
 
 @FEATURE
 def test_weibull_left_row_where_the_cumulative_hazard_underflows():
-    """spec 4.1 and 12.1, rev 51: Weibull `k=2.5`, `b=2`, left at `1e-30`: `H = (5e-31)**2.5` underflows float32, but `log F ~ log H ~ -174.6` is representable and required.
+    """spec 4.1 and 12.1, rev 51: Weibull `k=2.5`, `b=2`, left at `1e-30`: `H = (5e-31)**2.5` underflows float32, but `log F ~ log H ~ -174.43` is representable and required.
 
     4.1: the lower tail keeps relative precision "wherever `log H` is
     representable, even where `H` or `F` underflows".
@@ -85,7 +85,7 @@ def test_exponential_interval_at_tiny_times():
 
 @FEATURE
 def test_weibull_interval_at_tiny_times():
-    """spec 7.2 and 12.1, rev 51: Weibull `k=1.5`, `b=2`, `(1e-10, 2e-10]`: mass about `2.5e-16` (log about `-35.9`)."""
+    """spec 7.2 and 12.1, rev 51: Weibull `k=1.5`, `b=2`, `(1e-10, 2e-10]`: mass about `6.46e-16` (log about `-34.975`)."""
     out = ll(_weib(1.5, 2.0), flag_data(["interval"], [1e-10], [2e-10]))
     assert_tail_close(out, [ref.contribution("weibull", (1.5, 2.0), 1e-10, 2e-10)], RTOL)
 

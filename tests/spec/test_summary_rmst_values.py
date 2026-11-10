@@ -13,7 +13,8 @@ first-derivative regressions of the first-release rows still apply").
 References: closed forms (hand algebra in the docstrings) and mpmath
 quadrature of the physical law (``rmst_reference``,
 ``summary_reference``). Inputs are rounded to the active dtype first.
-Generic numerical values use ``generic_rtol()`` (Q-058).
+Generic numerical values use ``generic_rtol()``: "Generic quadrature and
+solver results ... are compared at `10*rtol` relative" (12.1, rev 54).
 """
 
 import math
