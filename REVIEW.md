@@ -97,3 +97,24 @@ explanation. Browser MathJax layout not inspected; unchanged plot retained.
 git diff --check passed. No code/test/API changes; no numerical gate repeated
 for this prose-only follow-up. The third review round is the final allowed
 round; remaining AFT implementation sub-steps: none.
+
+
+Round 3 (218defa): VERDICT merge. Density adjustment and its role in exact/
+right likelihood were checked by hand; N-1 remained a harmless wrapping nit.
+Maintainer follow-up from 218defa: the opening hazard derivation previously
+also stated the density without explaining its derivation. Split the display:
+cumulative hazard differentiates to h; then explicitly substitute AFT h and S
+into f=hS, using h0*S0=f0. Retain interval-width intuition afterwards and
+remove the now-redundant rhetorical question. Finish rewrapping N-1.
+No numerical/API/test change. All three AFT.3 review rounds are used; no
+fourth review is requested or run for this maintainer-directed clarification.
+Validation pending. Original worktree base cc0e30f; previous step 607a11b.
+
+Follow-up validation: direct escalated scripts/build_docs.sh passed both
+strict dtype sites with success identity (exit 0). All tutorial cells executed.
+Both generated HTML pages contain the separate hazard equation, the f=hS
+explanation and aligned substitution through h0*S0 to f0, followed by interval
+width intuition. No code or test changes; no numerical gate repeated.
+git diff --check passed. N-1's remaining hazard-ratio line is now rewrapped.
+This clarification is not independently re-reviewed: AFT.3 rounds 1–3 are
+already used; the last saved verdict was merge for 218defa. No sub-steps remain.

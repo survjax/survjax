@@ -11,6 +11,14 @@ boundary substitution; follow-up checks passed.
 
 ## AFT.3 — AFT documentation
 
+Follow-up from 218defa: explicitly derive hazard from cumulative hazard,
+then density from f=hS and the AFT survival formula before discussing interval
+widths. Files: AFT tutorial, PLAN.md, REVIEW.md; no API/code/test changes.
+Spec 4.4/10.5. Run both dtype docs builds and inspect generated derivation.
+All three AFT.3 review rounds are used; this is the maintainer-directed
+clarification after round 3, not a fourth review. Base cc0e30f; previous
+completed step 607a11b.
+
 Follow-up from 93924cc: explain why density needs the inverse time-scale
 factor, using interval probability conservation and du/dt=exp(-eta).
 Connect it to the exact-event -eta term and explain why censoring has no

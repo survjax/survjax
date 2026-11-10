@@ -100,14 +100,28 @@ implemented.
 ## What does this imply for the hazard?
 
 Differentiating the AFT cumulative hazard $H(t\mid\eta)=H_0(t e^{-\eta})$
-gives
+gives the hazard:
 
 $$
-h(t\mid\eta)=e^{-\eta}h_0(t e^{-\eta}),\qquad
-f(t\mid\eta)=e^{-\eta}f_0(t e^{-\eta}).
+h(t\mid\eta)=e^{-\eta}h_0(t e^{-\eta}).
 $$
 
-Why does the density need the extra factor $e^{-\eta}$? A density is
+The density then follows from $f(t)=h(t)S(t)$. Substituting both the AFT
+hazard above and $S(t\mid\eta)=S_0(t e^{-\eta})$ gives
+
+$$
+\begin{aligned}
+f(t\mid\eta)
+&=h(t\mid\eta)S(t\mid\eta) \\
+&=e^{-\eta}h_0(t e^{-\eta})S_0(t e^{-\eta}) \\
+&=e^{-\eta}f_0(t e^{-\eta}).
+\end{aligned}
+$$
+
+The last step uses the same density identity for the baseline,
+$f_0(u)=h_0(u)S_0(u)$.
+
+The factor $e^{-\eta}$ also has a probability interpretation. A density is
 probability *per unit of time*. Stretching the time axis spreads the same
 probability over a wider interval. With a time ratio of 1.5, a short baseline
 interval becomes 1.5 times wider, so the corresponding density per month
@@ -142,8 +156,8 @@ varies with $t$. A Weibull baseline is a special case: its power-law hazard
 makes this ratio $e^{-k\eta}$, constant over time. With a common shape $k$,
 a Weibull AFT predictor $\eta$ consequently corresponds to a PH predictor
 $-k\eta$. In our example group 2's hazard ratio relative to group 1 is
-$1.5^{-1.5}\approx0.544$, even though the time ratio is 1.5. For an exponential baseline ($k=1$), the
-rescaled rate is simply $r e^{-\eta}$.
+$1.5^{-1.5}\approx0.544$, even though the time ratio is 1.5. For an
+exponential baseline ($k=1$), the rescaled rate is simply $r e^{-\eta}$.
 
 Use `aft.log_hazard(12.0)` for the two groups' log event rates at month 12,
 or `aft.log_prob(12.0)` for their log densities. The
