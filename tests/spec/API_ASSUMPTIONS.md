@@ -1239,3 +1239,48 @@ on it. Guessed exception types and call shapes are centralised in
   (`logaddexp(log S, log F) = 0`, `log_prob` consistency, boundary limits,
   finite parameter gradients) are covered directly by the family tests.
 - **Depends:** nothing.
+
+## Q-071: a cut search that runs reports at least one solver step (spec 8.3, 8.5; rev 58)
+
+- **Checked:** 8.3 (rev 58: "The cut is needed only where `log S(tau)` is
+  below the floor; otherwise there is no search ... Any iterate with
+  `floor - 1 <= log S(c) <= floor` is accepted ... Its steps count against
+  `max_solver_steps` and are reported in `num_solver_steps` (zero where no
+  search runs)"), 8.2 (the iteration: Newton steps in `u = log t`, bisection
+  fallback; the bracket "starts at `log reference_time()`"), 8.5 (counts
+  "record ... solver steps ... used per entry").
+- **Question:** the spec fixes neither where the cut search starts nor
+  whether an accepted starting point counts as a step. Could a search that
+  runs report `num_solver_steps == 0`?
+- **Guess:** no: where `log S(tau)` is far below the floor, the search reports
+  between 1 and `max_solver_steps` steps. The cases are chosen so that
+  neither bracket end, nor the arithmetic or logarithmic midpoint of the
+  bracket, lies in the acceptance window, so only an unusual start could be
+  accepted without a step.
+- **Depends:** `test_cut_search_steps_are_counted`,
+  `test_cut_search_counts_are_per_entry` (`test_summary_rmst_tail_cut.py`).
+
+## Q-072: the cut search's `work_exhausted` cannot be forced (spec 8.3, 8.5; rev 58)
+
+- **Checked:** 8.3 (rev 58: "an entry whose search exhausts them has status
+  `work_exhausted` and a NaN value"), 8.2, 8.5 (`max_solver_steps` is a
+  static `SummaryOptions` field, default 64; no minimum is stated).
+- **Question:** no static `max_solver_steps` is guaranteed to exhaust the cut
+  search, because the starting point is open (Q-071) and any iterate in the
+  acceptance window is accepted. For exponential- and Weibull-like families
+  `log H` is linear in `log t`, so one Newton step reaches the root exactly.
+  Should the spec fix the start (for example `min(tau, s)`, like 8.2's
+  `log reference_time()`), so that a test can force exhaustion? Is
+  `max_solver_steps=1` (or 0) a valid option value?
+- **Guess:** `SummaryOptions(max_solver_steps=1)` is valid. The tight-limit
+  tests use a Gompertz-like family (`spec_families.gompertz_like`, `log H`
+  nonlinear in `log t`, window about `1/88` (float32) or `1/709` (float64)
+  wide in `t` on the bracket `[1, 50]`), where one step is very unlikely to
+  suffice. They assert only what holds either way: at most one step;
+  `converged` with the right value or `work_exhausted` with NaN; the other
+  entries unchanged in values, counts, status and shared-parameter
+  derivatives. The NaN-tangent check runs only if the entry is exhausted and
+  is otherwise skipped (reported as a skip).
+- **Depends:** `test_cut_search_under_a_one_step_limit_is_consistent`,
+  `test_cut_search_limit_isolates_other_entries`,
+  `test_exhausted_cut_search_entry_has_a_nan_tangent`.

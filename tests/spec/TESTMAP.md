@@ -1,6 +1,6 @@
 # Test map
 
-Spec: revision 56 (see `.spec-seen`). Unchanged requirements keep their
+Spec: revision 58 (see `.spec-seen`). Unchanged requirements keep their
 earlier revision tags. Tests from the revision 10 decision (sections 6.2, 10.2,
 13) are tagged `rev 10`. Tests from the performance amendment (section 7.2),
 accepted in revision 11, are tagged `rev 11`. A4 tests derive from revision 11 and
@@ -198,7 +198,18 @@ reverse, shared parameters, hand-derived): beside a known-infinite mean
 `beta = [3, 0.8]`), known-infinite quantiles (`p = 0.9` and `p = 1`), endpoint
 quantiles (default and bounded support), `inverse_cumulative_hazard` at `e`
 0 and `+inf`, and invalid-input entries (invalid `p`, invalid `e`, parameter
-issues). Revision 55 (8.8, 12.2) brings
+issues). Revision 58 (8.3) settles the generic RMST tail cut: the floor
+`log(finfo(dtype).tiny)`, a search only where `log S(tau)` is below it, the
+section 8.2 iteration in the known bracket with an acceptance window, steps
+counted against `max_solver_steps`, `work_exhausted` with NaN on failure, a
+finite support end as the cut, and `stop_gradient` on the cut point. No
+existing test changed: the only RMST count assertion
+(`test_generic_rmst_counts`) has `log S(tau)` above the floor, where rev 58
+still requires zero solver steps. New tests in `test_summary_rmst_tail_cut.py`
+(tagged `rev 58`) use custom families only, including the new
+`spec_families.gompertz_like` (hand RMST with `E1`,
+`summary_reference.gompertz_rmst`); Q-071 and Q-072 record the guesses.
+Revision 55 (8.8, 12.2) brings
 the log-normal and log-logistic families forward; they are covered by the new
 features `family.lognormal` and `family.loglogistic` (`test_family_*.py`,
 tagged `rev 55`; analytical-summary tests also list the summary feature).
@@ -2006,6 +2017,11 @@ and (rev 54) `known_mean_log_logistic`, `mean_with_info_sentinel`.
 | 8.4 | generic tangents: first derivatives, Hessian, PH without closure, `check_grads`, `jit`/`vmap` | `test_generic_rmst_first_derivatives_match_quadrature`, `test_generic_rmst_hessian`, `test_ph_rmst_without_closure_derivatives_match_the_physical_law`, `test_check_grads_order_two_generic_rmst`, `test_generic_rmst_gradient_agrees_under_jit_and_vmap` (derivatives) |
 | 8.4/8.7 | isolation with shared parameters (invalid `tau`, non-finite failure, Weibull Hessian); NaN tangent of a failed entry; NaN tangent of a non-converged entry (+ containers) | `test_generic_rmst_isolates_invalid_cutoffs_with_shared_rate`, `test_valid_entries_isolated_from_a_non_finite_failure`, `test_weibull_rmst_hessian_isolation_with_shared_parameters`, `test_non_finite_failure_entry_has_a_nan_tangent`, `test_non_converged_entry_has_a_nan_tangent` (derivatives) |
 | 8.4 rev 54 | "invalid-input entries" get NaN tangents: invalid `tau` (`<0`, NaN, `±inf`) on every family, with `tau=0` and interior entries finite; parameter-issue entries (built-in and generic) | `test_invalid_cutoff_entries_have_nan_tangents`, `test_parameter_violation_entry_has_a_nan_rmst_tangent` (derivatives) |
+| 8.3 rev 58 | "Cut the upper range where `log S` falls below the floor `log(finfo(dtype).tiny)`": light tails far below the floor in both dtypes (Weibull-like `k=20`, `tau=1000*b`; exponential-like `r=0.5`, `tau=1e4`; Gompertz-like `a=0.5`, `g=1`, `tau=50`) against mpmath | `test_light_tail_rmst_matches_mpmath` (tail cut) |
+| 8.3/8.4 rev 58 | "`c` enters the integral through `stop_gradient` ... the section 8.4 tangents are unchanged": first derivatives in parameters and `tau`, forward and reverse; `(k, b)` Hessian at `k=20`, `tau=1000*b` against the mean's | `test_light_tail_rmst_first_derivatives_match_mpmath`, `test_light_tail_rmst_parameter_hessian` (tail cut) |
+| 8.3 rev 58 | "where `log S` reaches `-inf` before the floor (a finite support end), the cut is that end": uniform `(0, end]` at `tau` 10, 1e3, 1e6: `end/2`, `d/dend = 1/2`, `d/dtau = 0`; per-entry `converged` (+ containers) | `test_support_end_before_the_floor`, `test_support_end_cut_reports_converged` (tail cut) |
+| 8.3/8.5 rev 58 (+ containers) | "otherwise there is no search" / "zero where no search runs" (including `log S(tau) = floor + 2`); a search's steps "count against `max_solver_steps` and are reported in `num_solver_steps`" (1 to 64, Q-071); "no bracket expansion occurs" (`num_bracket_steps == 0`); per entry | `test_no_cut_search_where_log_survival_at_tau_is_above_the_floor`, `test_cut_search_steps_are_counted`, `test_cut_search_counts_are_per_entry` (tail cut) |
+| 8.3/8.4 rev 58 (+ containers) | `max_solver_steps=1`: at most one step; "an entry whose search exhausts them has status `work_exhausted` and a NaN value" or a correct converged value; other entries keep values, counts, status and shared-parameter derivatives (rev 57 isolation); exhausted entry's forward tangent NaN (conditional, Q-072) | `test_cut_search_under_a_one_step_limit_is_consistent`, `test_cut_search_limit_isolates_other_entries`, `test_exhausted_cut_search_entry_has_a_nan_tangent` (tail cut) |
 
 ### `summary.mean`: `test_summary_mean_*.py`
 
@@ -2241,6 +2257,18 @@ not exercise.
   `check_family` is Slice D and in no feature of the role table.
 - **Higher-order RMST derivatives at `tau=0`:** "carry no guarantee" (8.4,
   rev 51).
+- **Where the RMST cut point `c` lies (8.3, rev 58):** not observable through
+  the public API (the omitted mass is below `tiny`), and the spec fixes only
+  the acceptance window. The search's starting point and the exact step count
+  are open (Q-071).
+- **A forced `work_exhausted` from the RMST cut search (8.3, rev 58):** no
+  static `max_solver_steps` provably exhausts it (Q-072); the one-step tests
+  check exhaustion only when it happens.
+- **`(k, b, tau)` RMST Hessian in the light tail:** in float32 the test
+  family's own `log S` overflows to `-inf` at `tau = 1000*b`, where its
+  parameter tangent is `0 * inf`; `tau` is covered to first order.
+- **The tail cut on PH wrappers without a closure:** the same generic path;
+  covered by the custom families only, as requested.
 - **"All subintervals of a broadcast entry share the same refinement round"
   beyond counts, and the arithmetic-failure NaN error estimate (8.3/8.5,
   rev 52):** only observable through `num_levels` (tested); no public family
