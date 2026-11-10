@@ -1,6 +1,6 @@
 # Test map
 
-Spec: revision 58 (see `.spec-seen`). Unchanged requirements keep their
+Spec: revision 59 (see `.spec-seen`). Unchanged requirements keep their
 earlier revision tags. Tests from the revision 10 decision (sections 6.2, 10.2,
 13) are tagged `rev 10`. Tests from the performance amendment (section 7.2),
 accepted in revision 11, are tagged `rev 11`. A4 tests derive from revision 11 and
@@ -209,6 +209,14 @@ still requires zero solver steps. New tests in `test_summary_rmst_tail_cut.py`
 (tagged `rev 58`) use custom families only, including the new
 `spec_families.gompertz_like` (hand RMST with `E1`,
 `summary_reference.gompertz_rmst`); Q-071 and Q-072 record the guesses.
+Revision 59 (10.4, 10.5, 12.1, 12.2; decision 0059) defines the Slice B
+flexsurv likelihood fixture for the ten cells where flexsurv's conventions
+match section 2. New: `test_observation_censoring_flexsurv_fixture.py`
+(tagged `rev 59`), the fixture schema in `fixtures/README.md` (Q-073), and
+two float64 mpmath helpers in `observation_reference.py`; markers and the
+float64-only comparisons are Q-074. No existing test changed; the "R
+fixtures" entries of the Slice B not-tested lists now point to the new
+section. The fixture file itself is not committed yet.
 Revision 55 (8.8, 12.2) brings
 the log-normal and log-logistic families forward; they are covered by the new
 features `family.lognormal` and `family.loglogistic` (`test_family_*.py`,
@@ -2103,8 +2111,9 @@ Not tested for `observation.censoring`:
   row: unspecified; tested only through values (Q-065).
 - **Static-metadata pruning itself:** optional (7.2); only its invariance is
   tested.
-- **R fixtures (flexsurv, every kind):** 12.2 Slice B gate, but fixtures are
-  maintainer-supplied and none are committed yet.
+- **R fixtures (flexsurv):** the comparable cells are tested against the rev 59
+  fixture ("Slice B flexsurv fixture" below); the fixture is
+  maintainer-supplied and not committed yet, so those tests fail until it is.
 - **Derivatives at `-inf` or overflowing rows, at support-change boundaries,
   and in data times:** outside 7.3's guarantee.
 
@@ -2148,10 +2157,66 @@ Not tested for `observation.truncation`:
   truncation flags:** optional and permitted (7.2); only invariance and reuse
   for equal metadata are tested.
 - **Truncation-conditioned sampling** (8.6): feature `sampling`.
-- **R fixtures (flexsurv, every kind and truncation):** maintainer-supplied;
-  none committed yet.
+- **R fixtures (flexsurv):** only the rev 59 comparable cells, below; the
+  others are not compared with flexsurv by design (10.4).
 - **Derivatives in truncation endpoints:** outside 7.3's guarantee.
 - **AFT wrapper under truncation:** Slice D.
+
+### Slice B flexsurv fixture: `test_observation_censoring_flexsurv_fixture.py` (rev 59)
+
+Spec 10.4 (rev 59): per-row log likelihoods from `flexsurvreg(..., fixedpars
+= TRUE)` for Weibull (with shape 1), log-normal and log-logistic, two or
+more vectors each, in the ten cells where flexsurv's conventions match
+section 2; 12.1 float64 targets; 12.2 Slice B gate. File
+`fixtures/slice_b_likelihood.json`, schema in `fixtures/README.md` (Q-073).
+Not committed yet, so every test here fails until it is. Markers and the
+float64-only comparison: Q-074. The comparison tests run per family
+(`weibull`, `lognormal`, `loglogistic`) and per cell, each over every vector
+of the fixture.
+
+| Spec | Requirement | Tests |
+| --- | --- | --- |
+| 10.4 | fixture integrity (no survjax): exactly the ten cells, each present; rows match their cell's kind, window and membership (`c>L`, `t<=U`, `c<U`, `b<=U`, `L<t<=U`); three families, two or more vectors, natural parameter names, Weibull shape 1, valid parameters; one finite value per row; `H <= 15` at every finite point (mpmath); widths `>= 1e-4` times the upper bound; censored rows `<= 0`; values equal 50-digit mpmath of the spec 2 table at float64 tolerances | `test_fixture_covers_exactly_the_ten_comparable_cells`, `test_fixture_rows_match_their_cell`, `test_fixture_has_the_three_families_with_two_or_more_vectors`, `test_fixture_weibull_includes_shape_one`, `test_fixture_parameters_are_valid`, `test_fixture_log_likelihoods_have_one_finite_value_per_row`, `test_fixture_cumulative_hazards_are_at_most_15`, `test_fixture_intervals_are_not_too_narrow`, `test_fixture_censored_rows_have_non_positive_log_likelihood`, `test_fixture_agrees_with_mpmath` |
+| 2/10.4/12.1 | no truncation: exact, right (`observation.censoring`), left, interval (`observation.censoring`) | `test_per_row_log_likelihood_matches_flexsurv_in_each_cell[<family>-untruncated_{exact,right,left,interval}]` |
+| 2/10.4/12.1 | left truncation only: exact; right with `c>L` (`observation.truncation`) | `test_per_row_log_likelihood_matches_flexsurv_in_each_cell[<family>-left_truncated_{exact,right}]` |
+| 2/10.4/12.1 | right truncation only: exact `t<=U` (`observation.truncation`); left `c<U`, interval `b<=U` (both features) | `test_per_row_log_likelihood_matches_flexsurv_in_each_cell[<family>-right_truncated_{exact,left,interval}]` |
+| 2/10.4/12.1 | two-sided truncation: exact (`observation.truncation`) | `test_per_row_log_likelihood_matches_flexsurv_in_each_cell[<family>-two_sided_exact]` |
+| 1/2/7.1/10.4 | all ten cells in one mixed batch (per-row kinds and windows); summed objective | `test_whole_fixture_in_one_batch_matches_flexsurv`, `test_summed_fixture_log_likelihood_matches_flexsurv` |
+
+**Cells 10.4 excludes from the fixture, covered by independent mathematics
+(12.1, 12.2 Slice B gate: "the others by independent mathematics"):**
+
+| Excluded cell (10.4) | Covered by (hand algebra or 50-digit mpmath) |
+| --- | --- |
+| left or interval censoring with left truncation | Exponential, Weibull `k>1`, `k<1`: `test_observation_truncation_values.py::test_truncated_left_and_interval_rows_are_hand_derived` (`left`, `two-sided` windows), `test_full_mixed_matrix_in_one_batch`, `test_mixed_kinds_and_mixed_windows_in_one_batch`; properties `test_two_sided_truncation_conditions_on_the_window`; derivatives `test_weibull_full_matrix_hessian_matches_mpmath`. Log-normal and log-logistic: interval only, `test_truncated_interval_row_with_partial_overlap` (window `(0.5, 3]`) |
+| right-censored rows under a finite `U` (`P(c<T<=U)`, not `S(c)`) | Exponential, Weibull: `test_truncated_exact_and_right_rows_are_hand_derived` (`right`, `two-sided`), `test_right_censored_beyond_entry_with_right_truncation_by_hand`. Log-normal, log-logistic: `test_truncated_exact_and_right_rows_match_mpmath` (`right`, `two-sided`) |
+| censored sets reaching beyond `U` (intersected with the window) | Exponential, Weibull: the partial-overlap interval `(1, 4]` with `U=3` in `test_truncated_left_and_interval_rows_are_hand_derived`; covering sets exactly zero and `uninformative` in `test_observation_truncation_diagnostics.py::test_censored_set_covering_the_window_is_exactly_zero_and_uninformative` (left at `c>=U`, intervals containing the window), `test_covering_rows_are_zero_for_extreme_parameters`, and the property `test_censored_sets_covering_the_window_are_exactly_zero` |
+| rows censored at or before entry | at entry (exactly zero, `uninformative`): `test_right_censored_at_entry_is_exactly_zero_and_uninformative`, property `test_right_censoring_at_entry_is_exactly_zero`; before entry and empty intersections (NaN, invalid): `test_invalid_truncated_exact_or_right_row_is_nan` (`right-before-entry`, `bounds-zero-to-inf-after-entry`), `test_invalid_truncated_censored_row_is_nan` (`left-at-entry`, `left-before-entry`, interval ending at or before `L`) |
+| observations outside the window | `test_invalid_truncated_exact_or_right_row_is_nan` (`exact-at-entry`, `exact-before-entry`, `exact-after-upper`, `right-at-upper`, `right-beyond-upper`), `test_invalid_truncated_censored_row_is_nan` (`interval-starting-at-upper`) |
+| exact zero times | invalid data (3.3), NaN row: `test_a6_likelihood_invalid_data.py::test_invalid_exact_time_is_nan[zero]`; issue bits `test_a2_boundaries.py::test_exact_time_zero_sets_issue`, `test_a3_data_issues.py::test_zero_exact_time_sets_invalid_time`, `test_a2_bounds_constructor.py::test_exact_row_at_zero_sets_issue` |
+
+**Gaps (excluded cells without an independent-mathematics test for some
+fixture family):**
+
+- **Left-censored rows with left truncation, log-normal and log-logistic:**
+  only the interval row is tested for these families; no left row under
+  `L>0`.
+- **Censored sets reaching beyond `U`, log-normal and log-logistic:** no
+  partial overlap at `U` (for example an interval `(a, b]` with `a<U<b`) and
+  no covering set (left at `c>=U`) for these families. The structural zero
+  is family-independent in 2 and 7.1, but the partial-overlap value is not.
+- **Rows censored at or before entry, and observations outside the window,
+  for log-normal and log-logistic:** tested with Exponential only. These are
+  structural (data validity, exact zero), so no family-specific values are
+  expected; listed for completeness.
+- **Weibull with shape exactly 1 in the excluded truncated cells:** the
+  truncation values use Exponential, Weibull `k=1.5` and `k=0.6`;
+  Exponential is the same law, so this is not a real gap.
+
+Not tested: float32 comparison with the fixture (10.4 sets float64 targets;
+skipped, Q-074); derivatives and survreg values (10.4: "The fixture records no
+derivatives and no survreg values"); the 10.5 documentation list of cells
+where survjax and flexsurv differ (documentation gate, not a spec test).
 
 ### `family.lognormal`: `test_family_lognormal_*.py` (rev 55)
 
@@ -2211,7 +2276,8 @@ Not tested for `family.lognormal`:
 - **Sampling** (8.6 closed-form draws): feature `sampling`, not requested.
 - **AFT over a log-normal baseline:** Slice D.
 - **Committed R fixtures for the family** (12.1 "Independent references"):
-  maintainer-supplied, none committed.
+  the rev 59 Slice B flexsurv fixture covers log-normal in the comparable
+  cells ("Slice B flexsurv fixture" above); not committed yet.
 
 ### `family.loglogistic`: `test_family_loglogistic_*.py` (rev 55)
 
@@ -2243,8 +2309,9 @@ before use.
 Not tested for `family.loglogistic`: `check_family` (Slice D, 12.2 rev 57;
 Q-070 settled); the declaration order; a violating entry's own values; error
 estimate and counts of the closed-form quantile; the known-infinite entries'
-own reverse-mode derivatives (unspecified, 8.4 rev 57); sampling; AFT;
-R fixtures. The custom-family log-logistic mean tests in
+own reverse-mode derivatives (unspecified, 8.4 rev 57); sampling; AFT.
+R fixtures: the rev 59 Slice B flexsurv fixture covers log-logistic in the
+comparable cells ("Slice B flexsurv fixture" above); not committed yet. The custom-family log-logistic mean tests in
 `test_summary_mean_values.py` are kept: they test the `mean_with_info`
 override contract and the generic heavy-tail path, which the built-in does
 not exercise.
