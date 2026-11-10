@@ -1,3 +1,15 @@
+## Review resumption — 2026-11-10
+
+Current base: 157a240 (main d8c85c7 merged, including the reference fix).
+B2.1 implementation checkpoint: 5c271b4; last B2.1 checkpoint: 47aa112.
+B2.2 subsequently integrated truncation and received a merge verdict in round 1.
+The reference failure no longer reproduces; the fast A12 gate passes with both
+observation features enabled. D-B2.1-001's formal status remains maintainer-owned.
+Update this plan and REVIEW.md only, then request the deferred B2.1 review on
+the integrated tree. No numerical changes or new implementation step here.
+Review scope is the B2.1 changes and their current integration; the historical
+plan below describes the originally isolated, untruncated implementation.
+
 # B2.1 — Untruncated censoring likelihood
 
 Feature: observation.censoring. Base: c9fee45 (merge of main 4239d61).
