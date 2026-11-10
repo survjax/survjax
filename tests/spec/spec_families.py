@@ -611,6 +611,38 @@ def far_reference_log_logistic():
     return FarReferenceLogLogistic
 
 
+@functools.cache
+def gompertz_like():
+    """Super-exponential tail for the RMST tail cut (spec 8.3, rev 58): ``S(t) = exp(-a expm1(g t))``.
+
+    ``H(t) = a (exp(g t) - 1)``, ``log S = -a expm1(g t)`` for ``t >= 0``
+    (``0`` for ``t < 0``); ``reference_time() = 1/g``. In ``u = log t`` the
+    section 8.2 function ``log H(e^u)`` is far from linear (unlike the
+    exponential- and Weibull-like families, where it is exactly linear and one
+    Newton step solves it), so a cut search on a long bracket needs several
+    steps. Hand RMST (substitute ``x = a exp(g t)``):
+    ``(exp(a)/g) (E1(a) - E1(a exp(g tau)))``.
+    """
+
+    @survjax.register_family
+    @dataclasses.dataclass(frozen=True)
+    class GompertzLike(survjax.SurvivalDistribution):
+        a: jax.Array = survjax.param()
+        g: jax.Array = survjax.param()
+
+        def log_survival(self, t):
+            t, ts = _safe_time(t)
+            return jnp.where(t < 0, 0.0, -self.a * jnp.expm1(self.g * ts))
+
+        def reference_time(self):
+            return jnp.broadcast_to(
+                1.0 / self.g,
+                jnp.broadcast_shapes(jnp.shape(self.a), jnp.shape(self.g)),
+            )
+
+    return GompertzLike
+
+
 # ------------------------------------------- mean_with_info overrides (spec 8.1, rev 54, 56)
 
 

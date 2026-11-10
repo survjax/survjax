@@ -201,6 +201,20 @@ def lognormal_rmst(mu, sigma, tau):
     return _value(lognormal_rmst_mp, mu, sigma, tau)
 
 
+def gompertz_rmst_mp(a, g, tau):
+    """RMST of ``S(t) = exp(-a expm1(g t))`` (rev 58 tail-cut family ``spec_families.gompertz_like``).
+
+    ``S = exp(a) exp(-a exp(g t))``; with ``x = a exp(g t)``, ``dt = dx/(g x)``:
+    ``∫_0^tau S dt = (exp(a)/g) ∫_a^(a exp(g tau)) exp(-x)/x dx
+    = (exp(a)/g) (E1(a) - E1(a exp(g tau)))``.
+    """
+    return mpmath.exp(a) * (mpmath.e1(a) - mpmath.e1(a * mpmath.exp(g * tau))) / g
+
+
+def gompertz_rmst(a, g, tau):
+    return _value(gompertz_rmst_mp, a, g, tau)
+
+
 def mixture_cure_quantile(c, r, p):
     with mpmath.workdps(DPS):
         c, r, p = _mp(c), _mp(r), _mp(p)
