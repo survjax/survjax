@@ -190,6 +190,26 @@ def hessian(family, params, lower, upper=None, *, exact=False, left=0.0, right=m
     return out
 
 
+def contribution_float64(family, params, lower, upper=None, *, exact=False, left=0.0, right=math.inf):
+    """As ``contribution``, but at the given float64 inputs, not rounded to the active dtype (rev 59).
+
+    For checking committed fixtures, whose inputs are float64 in either dtype mode.
+    """
+    mp = _mp()
+    upper = lower if upper is None else upper
+    with mp.workdps(DPS):
+        lo, hi, lt, rt = _to_mp([float(lower), float(upper), float(left), float(right)])
+        return float(_contribution(family, _to_mp([float(p) for p in params]), lo, hi, exact, lt, rt))
+
+
+def cumulative_hazard_float64(family, params, t):
+    """``H(t)`` in mpmath at float64 inputs, as a float64 (``H(0) = 0``, ``H(+inf) = +inf``; rev 59)."""
+    mp = _mp()
+    with mp.workdps(DPS):
+        (t,) = _to_mp([float(t)])
+        return float(_cumulative_hazard(family, _to_mp([float(p) for p in params]), t))
+
+
 def rows(family, params, table, **window):
     """``contribution`` for each ``(lower, upper, exact)`` in ``table``, as a float64 array."""
     return np.array(

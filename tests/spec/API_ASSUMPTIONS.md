@@ -1284,3 +1284,53 @@ on it. Guessed exception types and call shapes are centralised in
 - **Depends:** `test_cut_search_under_a_one_step_limit_is_consistent`,
   `test_cut_search_limit_isolates_other_entries`,
   `test_exhausted_cut_search_entry_has_a_nan_tangent`.
+
+## Q-073: name and schema of the Slice B flexsurv fixture (spec 10.4, 12.1, 12.2; rev 59)
+
+- **Checked:** 10.4 (rev 59, "Slice B likelihood fixture": "The spec tester
+  defines the file name and schema; the generator writes that schema"), 10.5,
+  12.1 ("Independent references"), 12.2 (Slice B gate), 2, 4.1.
+- **Definition (not a guess, as for Q-039):** one JSON file
+  `tests/spec/fixtures/slice_b_likelihood.json`, laid out as in
+  `tests/spec/fixtures/README.md`: one shared dataset `data` (`cell`, `kind`,
+  `time`, `time2`, `left_trunc`, `right_trunc`; `null` for `+inf` / absent),
+  and `families.<weibull|lognormal|loglogistic>.vectors[]` with `name`,
+  `parameters` in survjax's natural names, and per-row `loglik`.
+- **Readings the spec leaves open:**
+  - One dataset shared by all families and vectors (10.4 says "A synthetic
+    dataset"). The generator must then keep `H <= 15` at every point under
+    every vector.
+  - "Finite intervals are not narrower than `1e-4` times their upper bound"
+    is applied to interval rows and also to finite truncation windows
+    (`U - L >= 1e-4 U`), because `Z` is a difference of probabilities in
+    flexsurv too. If only interval rows are meant, drop the window half of
+    `test_fixture_intervals_are_not_too_narrow`.
+  - Every cell has at least one row; 10.4 fixes no count.
+  - The fixture's values are also checked against 50-digit mpmath of spec 2
+    at the 12.1 float64 tolerances (a malformed-fixture guard). If flexsurv
+    itself is less accurate than that within `H <= 15` and width `1e-4`,
+    survjax could not meet the same target either, and 10.4's targets would
+    need revisiting.
+- **Depends:** every test in `test_observation_censoring_flexsurv_fixture.py`.
+
+## Q-074: markers and dtype scope of the Slice B flexsurv fixture tests (spec 10.4, 12.1, 12.2; rev 59)
+
+- **Checked:** role table (`observation.censoring`, `observation.truncation`,
+  `family.lognormal`, `family.loglogistic`), 10.4 ("Targets: section 12.1
+  float64 tolerances"), 12.1, 12.2.
+- **Guess (maintainer instruction for Weibull, extended to the other
+  families):** untruncated exact/right rows carry `observation.censoring`
+  for all three families, not only Weibull, so the fixture as a whole is part
+  of the Slice B batch and an already-enabled `family.lognormal` /
+  `family.loglogistic` gate does not start failing while the fixture is
+  still missing. Truncated exact/right rows: `observation.truncation`;
+  truncated left/interval rows: both; plus the family feature for log-normal
+  and log-logistic. The fixture integrity tests (no survjax calls) carry
+  `observation.censoring`. The whole-batch tests carry both Slice B features.
+- **Guess:** the survjax comparisons run only in float64 and are skipped in
+  float32 (reported as skips). 10.4 sets only float64 targets, and float32
+  rounding of the endpoints of a `1e-4`-wide interval (relative `6e-8`)
+  changes its log mass by up to about `6e-8 / 1e-4 = 6e-4`, beyond the float32
+  `rtol=1e-4`. Float32 Slice B values stay covered by the mpmath tests.
+- **Depends:** every survjax comparison test in
+  `test_observation_censoring_flexsurv_fixture.py`.
