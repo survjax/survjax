@@ -120,6 +120,19 @@ def entry_tangents(fn, x):
     return np.asarray(tangent, dtype=np.float64)
 
 
+def entry_sum_grad(fn, idx, args, mode, argnums=0):
+    """Derivative of the sum of entries ``idx`` of ``fn(*args)``, in ``mode`` ("rev" or "fwd").
+
+    Used for the spec 8.4 (rev 57) isolation rule: the selected entries are the
+    finite ones, and ``args`` include parameters shared with entries that have
+    NaN tangents. Only the selected entries enter the objective, so a reverse
+    pass gives them a zero cotangent; the NaN entries' own reverse-mode
+    derivatives are unspecified and never asserted.
+    """
+    index = jnp.asarray(idx)
+    return grad(lambda *a: jnp.sum(fn(*a)[index]), argnums, mode)(*args)
+
+
 def valid_subset_grad(full, alone, x, mode, idx=(0, 2)):
     """Gradient of the valid entries' sum from the full batch, and from the valid entries alone."""
     index = jnp.asarray(idx)

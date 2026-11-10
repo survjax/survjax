@@ -1176,6 +1176,11 @@ on it. Guessed exception types and call shapes are centralised in
 
 ## Q-068: status of `quantile(1)` on an improper family (spec 8.5; rev 54, 56)
 
+- **Status:** settled by spec rev 57 (8.5; design 83a8e82): "On an improper
+  family, a quantile that is `+inf` because `p >= 1 - S(+inf)` has status
+  `known_infinite`, including `quantile(1)` (this rule takes precedence over
+  the endpoint rule)". The reading below was right; the test keeps its
+  assertion and is retagged `rev 57`.
 - **Checked:** 8.5 (rev 54: "Exact endpoint values (`rmst(0)=0`, endpoint
   quantiles from `support()`) have status `converged`"; rev 56: "On an
   improper family, a quantile that is `+inf` because `p >= 1 - S(+inf)` has
@@ -1216,6 +1221,11 @@ on it. Guessed exception types and call shapes are centralised in
 
 ## Q-070: `check_family` for the brought-forward families (spec 4.2, 12.1, 12.2; rev 55, 56)
 
+- **Status:** settled by spec rev 57 (12.2; design 83a8e82): each
+  brought-forward family is gated by the 12.1 built-in rows "except
+  `check_family`, which arrives with Slice D and must then pass on both
+  families". `check_family` is in neither `family.lognormal` nor
+  `family.loglogistic`, so no test calls it; nothing changed.
 - **Checked:** 12.1 (Families and wrappers: "`check_family` on every
   built-in"), 12.2 (rev 55: each brought-forward family "is gated by the
   section 12.1 rows that apply to a built-in family"; Slice D still lists

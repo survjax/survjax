@@ -1,4 +1,4 @@
-"""Features `family.loglogistic` + `summary.*`: summaries of `LogLogistic` (spec 4.5, 8.1-8.5, 8.7, 8.8, 12.1, 12.2; rev 55, 56).
+"""Features `family.loglogistic` + `summary.*`: summaries of `LogLogistic` (spec 4.5, 8.1-8.5, 8.7, 8.8, 12.1, 12.2; rev 55, 56, 57).
 
 12.2 (rev 55): analytical summaries "are enabled with the matching summary
 method", so every test lists `family.loglogistic` and its summary feature.
@@ -10,7 +10,9 @@ known infinite mean is `+inf` "with its own status in `mean_with_info`";
 "An analytical answer reports status `converged` (or `known_infinite`), a
 NaN `error_estimate` and zero work counts"; the NaN tangents of a known
 infinite mean: "built-ins provide them" (8.4: "known-infinite means ... get
-NaN tangents"). 8.3: verification covers "heavy tails (log-logistic `beta`
+NaN tangents"; rev 57: in forward mode, and they never reach other entries
+"in forward or reverse mode, including through shared parameters"). 8.3:
+verification covers "heavy tails (log-logistic `beta`
 near 1)". 12.1: closed forms at the ordinary targets; generic quadrature and
 its derivatives at `10*rtol` (Q-058 log units).
 
@@ -133,6 +135,24 @@ def test_finite_entries_keep_finite_tangents_beside_known_infinite_ones():
     tangent = np.asarray(tangent, dtype=np.float64)
     assert np.isnan(tangent[0])
     np.testing.assert_allclose(tangent[1], math.pi / 2, rtol=1e-4 if not X64 else 1e-8)
+
+
+@MEAN
+@pytest.mark.parametrize("mode", ["rev", "fwd"])
+def test_finite_mean_keeps_its_scale_derivative_beside_a_known_infinite_entry_with_shared_scale(mode):
+    """spec 8.4, rev 57: "An entry with a NaN tangent never gives NaN derivatives to other entries, in forward or reverse mode, including through shared parameters": `beta = [3, 0.8]` with one shared `alpha`.
+
+    Entry 1 (``beta = 0.8 <= 1``) is known infinite with NaN tangents; entry 0
+    has ``m = alpha x/sin x``, ``x = pi/3``, so ``dm/dalpha = m/alpha`` (only
+    entry 0 enters the objective; entry 1's own reverse derivative is
+    unspecified).
+    """
+    bb, aa = rounded(3.0, 2.0)
+    m = sref.log_logistic_mean(aa, bb)
+    g = (jax.grad if mode == "rev" else jax.jacfwd)(
+        lambda a: survjax.LogLogistic(shape=f([bb, 0.8]), scale=a).mean()[0]
+    )(f(aa))
+    assert_log_parameter_derivative(g, m / aa, aa, m, "dm/dalpha")
 
 
 @MEAN_INFO

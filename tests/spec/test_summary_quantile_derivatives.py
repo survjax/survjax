@@ -1,4 +1,4 @@
-"""Feature `summary.quantile`: quantile, median and inverse cumulative hazard derivatives (spec 4.4, 8.1, 8.4, 8.7, 8.8, 12.1; rev 51, 54).
+"""Feature `summary.quantile`: quantile, median and inverse cumulative hazard derivatives (spec 4.4, 8.1, 8.4, 8.7, 8.8, 12.1; rev 51, 54, 56, 57).
 
 8.4: "Summaries are differentiable; nothing raises." "**Inverse cumulative
 hazard and quantiles** (implicit function theorem): `dt = (∂θ log S(t)·dθ +
@@ -9,7 +9,12 @@ known-infinite means and invalid-input entries, even where a one-sided or
 constant derivative exists. Gradients are guaranteed only inside the open
 domain (`0<p<1`, `0<e<+inf`)." Rev 56 extends the list to "known-infinite
 means and quantiles" (an improper family's `+inf` quantile at `p >= 1 -
-S(+inf)`). 4.4: PH closures differentiate "by the chain rule". 8.7 isolation
+S(+inf)`). Rev 57: "Isolation takes precedence over these NaN tangents. An
+entry with a NaN tangent never gives NaN derivatives to other entries, in
+forward or reverse mode, including through shared parameters ... Its own NaN
+tangent is guaranteed in forward mode; its own reverse-mode derivative is
+unspecified": NaN tangents are asserted with `jax.jvp` only, isolation in
+both modes. 4.4: PH closures differentiate "by the chain rule". 8.7 isolation
 of valid entries remains as value policy (8.8).
 
 Tolerances (12.1 log units): ``|theta (got - want)| <= scale * |value|``
@@ -40,7 +45,16 @@ from helpers import (
     rounded,
 )
 from jax.test_util import check_grads
-from summary_cases import HESSIANS, MODES, QUANTILE, assert_hessian, entry_tangents, grad, valid_subset_grad
+from summary_cases import (
+    HESSIANS,
+    MODES,
+    QUANTILE,
+    assert_hessian,
+    entry_sum_grad,
+    entry_tangents,
+    grad,
+    valid_subset_grad,
+)
 
 import survjax
 
@@ -316,3 +330,120 @@ def test_parameter_violation_entry_has_a_nan_quantile_tangent(generic):
     tangent = entry_tangents(lambda r: make(rate=r).quantile(f(0.4)), f([0.5, 0.0, 0.7]))
     assert np.isnan(tangent[1])
     assert np.isfinite(tangent[[0, 2]]).all()
+
+
+# ---------------------------------- rev 57: isolation over NaN tangents, forward and reverse
+#
+# 8.4 rev 57: "An entry with a NaN tangent never gives NaN derivatives to other
+# entries, in forward or reverse mode, including through shared parameters".
+# Each case shares a scalar parameter between interior entries and entries
+# with NaN tangents, and differentiates the sum of the interior entries only
+# (``entry_sum_grad``). The NaN entries' own reverse derivatives are
+# unspecified and never asserted.
+
+
+def _rate_check(generic):
+    return assert_generic_log_derivative if generic else assert_log_parameter_derivative
+
+
+@pytest.mark.parametrize("mode", MODES)
+@QUANTILE
+def test_finite_quantile_keeps_its_derivatives_beside_known_infinite_quantiles(mode):
+    """spec 8.4/8.5, rev 57: shared `cure` and `rate` beside known-infinite quantiles (`p = 0.9 >= 1 - c` and `quantile(1)`, both `known_infinite`).
+
+    ``mixture_cure``, ``c = 0.3``, ``r = 1``, ``p = [0.5, 0.9, 1]``. Entry 0
+    solves ``c + (1-c) exp(-r q) = 1 - p``: ``q = (1/r) log((1-c)/(1-p-c))``,
+    so ``dq/dr = -q/r`` and ``dq/dc = (1/r)(1/(1-p-c) - 1/(1-c))``
+    (generic solver, 12.1 ``10*rtol``).
+    """
+    cc, rr, pp = rounded(0.3, 1.0, 0.5)
+    q = math.log((1 - cc) / (1 - pp - cc)) / rr
+    gc, gr = entry_sum_grad(
+        lambda c, r: fam.mixture_cure()(cure=c, rate=r).quantile(f([pp, 0.9, 1.0])), [0], (f(cc), f(rr)), mode, (0, 1)
+    )
+    assert_generic_log_derivative(gc, (1 / (1 - pp - cc) - 1 / (1 - cc)) / rr, cc, q, "dq/dc")
+    assert_generic_log_derivative(gr, -q / rr, rr, q, "dq/dr")
+
+
+@pytest.mark.parametrize("mode", MODES)
+@pytest.mark.parametrize("generic", [False, True], ids=["builtin", "generic"])
+@QUANTILE
+def test_interior_quantile_keeps_its_rate_derivative_beside_endpoint_quantiles(generic, mode):
+    """spec 8.4, rev 57: endpoint quantiles (`p` = 0 and 1, NaN tangents) beside an interior one with a shared rate: `q = -log1p(-p)/r`, `dq/dr = -q/r`."""
+    rr, pp = rounded(0.5, 0.4)
+    q = -math.log1p(-pp) / rr
+    g = entry_sum_grad(lambda r: _rate_family(generic)(rate=r).quantile(f([0.0, pp, 1.0])), [1], (f(rr),), mode)
+    _rate_check(generic)(g, -q / rr, rr, q, "dq/dr")
+
+
+@pytest.mark.parametrize("mode", MODES)
+@QUANTILE
+def test_interior_quantile_keeps_its_derivative_beside_bounded_support_endpoints(mode):
+    """spec 8.4, rev 57: uniform `(0, end]` with a shared `end`: `quantile(0) = 0` and `quantile(1) = end` are endpoints (NaN tangents); the interior `q = p*end` keeps `dq/dend = p`."""
+    ee, pp = rounded(2.0, 0.4)
+    g = entry_sum_grad(lambda e: fam.uniform_support()(end=e).quantile(f([0.0, pp, 1.0])), [1], (f(ee),), mode)
+    assert_generic_log_derivative(g, pp, ee, pp * ee, "dq/dend")
+
+
+@pytest.mark.parametrize("mode", MODES)
+@pytest.mark.parametrize("generic", [False, True], ids=["builtin", "generic"])
+@QUANTILE
+def test_interior_inverse_cumulative_hazard_keeps_its_rate_derivative_beside_endpoints(generic, mode):
+    """spec 8.4, rev 57: `inverse_cumulative_hazard` at `e` = 0 and `+inf` (NaN tangents) beside an interior level with a shared rate: `t = e/r`, `dt/dr = -t/r`."""
+    rr, ee = rounded(0.5, 0.7)
+    t = ee / rr
+    g = entry_sum_grad(
+        lambda r: _rate_family(generic)(rate=r).inverse_cumulative_hazard(f([0.0, ee, np.inf])), [1], (f(rr),), mode
+    )
+    _rate_check(generic)(g, -t / rr, rr, t, "dt/dr")
+
+
+@pytest.mark.parametrize("mode", MODES)
+@pytest.mark.parametrize("generic", [False, True], ids=["builtin", "generic"])
+@QUANTILE
+def test_valid_quantiles_keep_their_rate_derivative_beside_invalid_probabilities(generic, mode):
+    """spec 8.4/8.5, rev 57: invalid-input `p` (1.5, NaN, -0.1) beside valid `p` (0.3, 0.6) with a shared rate: `d(q_0 + q_4)/dr = -(q_0 + q_4)/r`, `q = -log1p(-p)/r`."""
+    rr, p0, p4 = rounded(0.5, 0.3, 0.6)
+    total = -(math.log1p(-p0) + math.log1p(-p4)) / rr
+    g = entry_sum_grad(
+        lambda r: _rate_family(generic)(rate=r).quantile(f([p0, 1.5, np.nan, -0.1, p4])), [0, 4], (f(rr),), mode
+    )
+    _rate_check(generic)(g, -total / rr, rr, total, "d(q0+q4)/dr")
+
+
+@pytest.mark.parametrize("mode", MODES)
+@pytest.mark.parametrize("generic", [False, True], ids=["builtin", "generic"])
+@QUANTILE
+def test_valid_levels_keep_their_rate_derivative_beside_invalid_hazard_levels(generic, mode):
+    """spec 8.4/8.5, rev 57: invalid-input `e` (-1, NaN) beside valid `e` (0.5, 2) with a shared rate: `t = e/r`, `d(t_0 + t_3)/dr = -(t_0 + t_3)/r`."""
+    rr, e0, e3 = rounded(0.5, 0.5, 2.0)
+    total = (e0 + e3) / rr
+    g = entry_sum_grad(
+        lambda r: _rate_family(generic)(rate=r).inverse_cumulative_hazard(f([e0, -1.0, np.nan, e3])), [0, 3], (f(rr),), mode
+    )
+    _rate_check(generic)(g, -total / rr, rr, total, "d(t0+t3)/dr")
+
+
+@pytest.mark.parametrize("mode", MODES)
+@QUANTILE
+def test_valid_quantiles_keep_their_scale_derivative_beside_a_parameter_violation(mode):
+    """spec 8.4/8.5, rev 57: a parameter-issue entry (Weibull `shape = -1`) beside valid shapes with a shared scale: `q_i = b*(-log1p(-p))**(1/k_i)`, `d(q_0 + q_2)/db = (q_0 + q_2)/b`."""
+    k0, k2, bb, pp = rounded(2.5, 1.5, 2.0, 0.4)
+    total = sum(bb * (-math.log1p(-pp)) ** (1 / k) for k in (k0, k2))
+    g = entry_sum_grad(
+        lambda b: survjax.Weibull(shape=f([k0, -1.0, k2]), scale=b).quantile(f(pp)), [0, 2], (f(bb),), mode
+    )
+    assert_log_parameter_derivative(g, total / bb, bb, total, "d(q0+q2)/db")
+
+
+@pytest.mark.parametrize("mode", MODES)
+@pytest.mark.parametrize("generic", [False, True], ids=["ph-exponential", "ph-custom"])
+@QUANTILE
+def test_valid_quantiles_keep_their_rate_derivative_beside_an_invalid_log_hazard_ratio(generic, mode):
+    """spec 8.4/8.5, rev 57: a non-finite `eta` (parameter issue, 4.4/4.7) beside valid entries with a shared baseline rate: `H = r exp(eta) t`, `q_i = -log1p(-p)/(r exp(eta_i))`, `d(q_0 + q_2)/dr = -(q_0 + q_2)/r`."""
+    rr, e0, e2, pp = rounded(0.5, 0.1, -0.2, 0.4)
+    total = sum(-math.log1p(-pp) / (rr * math.exp(e)) for e in (e0, e2))
+    g = entry_sum_grad(
+        lambda r: ph(_rate_family(generic)(rate=r), f([e0, np.inf, e2])).quantile(f(pp)), [0, 2], (f(rr),), mode
+    )
+    _rate_check(generic)(g, -total / rr, rr, total, "d(q0+q2)/dr")
