@@ -60,3 +60,28 @@ The full gate above used no slow filter, so this metadata cannot weaken it.
 Main then advanced to 4e40d48 with rev-59 Slice B fixture tests and marker;
 no library code or existing A0–A12 test assertions changed. Integrate that
 final author update and repeat the full gate plus docs on a stable snapshot.
+
+
+Final validation after merging main 4e40d48, at bd0708a:
+- scripts/check.sh --through A12 exited 0: all gates passed, both modes,
+  no --fast. Formatting 224 files; Ruff clean; mypy 24 source files clean.
+- Implementation x64 1406 passed/8 skipped (67.34s), x32 1411 passed/3 skipped
+  (70.49s). Source doctests 4 passed per mode (0.45s/0.44s).
+- Latest spec x32 summary: 3559 passed/54 skipped, 2 expected NumPy warnings
+  (39.63s). The latest x64 summary was truncated in the tool output, so its
+  timing is not reported; exit 0 certifies both runs. The preceding full
+  snapshot's captured x64 summary was 3581 passed/32 skipped, as recorded above.
+- Direct escalated scripts/build_docs.sh passed both strict sites with success
+  identity at bd0708a, clean tree, both dtypes and all tutorial cells executed.
+  Parsed rendered API pages contain AFT, LogNormal and LogLogistic together;
+  AFT tutorial outputs batch (2,) in both modes. Plot remains the approved one.
+- AFT numerical source and both AFT test files unchanged from 3e4cd40;
+  protected files and tests/spec equal current main exactly. git diff --check
+  passed. No assertions/tolerances/acceptance features changed by integration.
+- Final main-imported .spec-seen is rev 59, matching the spec audit. All later
+  summary/observation implementation work remains separate and staged.
+
+Remaining: independent integration review, then the explicitly authorized
+local fast-forward of main. Workmux cleanup would remove the reviewer checkout;
+use a plain fast-forward and retain the existing worktrees, respecting the
+review-directory restriction. No remote push or tag operation is authorized.

@@ -21,8 +21,8 @@ clean; no spec or acceptance-test content was edited by this integration.
   and truncation. This AFT step implements neither those observation modes
   nor that fixture generator; no AFT doc/value-policy change is needed.
 
-The inherited .spec-seen checkpoint is revision 58, d5cc410. Revision 59 was
-reviewed for applicability here, but no broader Slice B compliance claim or
+The final .spec-seen checkpoint imported from main is revision 59, 0ea22df,
+matching the latest audited spec. No broader Slice B compliance claim or
 feature activation is made. The spec feature registry is inherited unchanged
 from main; unimplemented post-release feature suites remain staged as designed.
 The full A12 gate still runs all implementation tests, including both new
