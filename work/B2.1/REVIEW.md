@@ -1,6 +1,6 @@
 # B2.1 — Untruncated censoring integration
 
-Independent review: round 1/3
+Independent review: round 2/3
 
 Read work/B2.1/PLAN.md, spec 2/3.3/4.2/7.1–7.3, the B2.1 implementation
 commit 5c271b4 (parent edba58a), then current src/survjax/likelihood.py,
@@ -50,3 +50,30 @@ Uncertainty: D-B2.1-001 documents the historical reference defect. Its fix is
 integrated and tested, but its formal status remains for the maintainer.
 No current acceptance failure is known. Remaining implementation work:
 B3 numerical/reference matrix and B4 pruning/docs, after this review.
+
+## Round 1 follow-up
+
+Round 1 at 9f6553a returned fix-first (no blockers; F-1 and F-2 should-fix).
+The reviewer independently reproduced the passing fast A12 gate.
+
+- F-1: the existing safe-input test now observes and asserts the actual
+  conditional-hook endpoints eagerly before any outer selection can hide a
+  bad value. Exact and invalid rows must receive the full (0,inf] window.
+  The original jit/value/gradient/Hessian checks remain unchanged.
+- F-2: a synthetic rounded-tail probe returns equal finite survival/CDF logs
+  at distinct endpoints. Eager and jitted generic interval calls must return
+  NaN, not -inf, as required for unresolved differences by spec 7.1.
+- Both touched files in full: 15 passed per dtype. The new test's measured
+  call times are .38s (x64) and .34s (x32); no duration-list refresh required.
+- Separate x64 processes injected each reported mutation in memory only.
+  F-1 (upper=hi) fails the new endpoint assertion; F-2 (low<=high) fails the
+  NaN assertion with actual -inf. Each targeted mutant run had one expected
+  failure; no production file was edited.
+
+No numerical changes or protected-test edits.
+
+Post-fix scripts/check.sh --fast --through A12 exited 0: 233 files formatted,
+lint clean, mypy 25 source files clean. Implementation x64 1309 passed/8
+skipped; x32 1314 passed/3 skipped. Doctests 4 passed per dtype. Acceptance
+x64 3800 passed/32 skipped; x32 3765 passed/63 skipped, with the two existing
+PH NumPy-reference warnings per mode. git diff --check passed.

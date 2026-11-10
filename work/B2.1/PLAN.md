@@ -52,3 +52,11 @@ independent review; this is not a completion claim.
 Timing refresh generated 416 changed lines as new A12/censoring tests were
 measured. Proposed split on resumption: isolate generated tests/slow_tests.txt
 in a timing-record commit; keep the bounded implementation/test diff separate.
+
+## Round 1 follow-up — F-1 / F-2
+
+Test-only fixes: strengthen tests/unit/test_likelihood_intervals.py to inspect
+actual hook endpoints before the outer likelihood selection; add a generic
+rounded-equal finite-log regression in tests/unit/test_interval_defaults.py.
+Spec 4.2/7.2 and 7.1 respectively. No production changes. Run both touched
+files fully in both dtypes, then fast A12 gate and review round 2.

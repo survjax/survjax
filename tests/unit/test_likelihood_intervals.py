@@ -127,13 +127,27 @@ class IntervalProbe(survjax.SurvivalDistribution):
         return jnp.where(valid, -self.rate * lower, jnp.nan)
 
 
-def test_interval_override_receives_safe_inputs_before_evaluation():
+def test_interval_override_receives_safe_inputs_before_evaluation(monkeypatch):
     """Spec 4.2/7.2: exact and invalid rows never send empty sets to the hook."""
     data = survjax.SurvivalData.from_bounds(
         [1.0, 0.0, 1.0, 2.0, -1.0],
         [1.0, 2.0, 3.0, np.inf, 3.0],
         exact=[True, False, False, False, False],
     )
+    original = IntervalProbe.log_conditional_interval_prob
+
+    def check_endpoints(self, lower, upper, left_trunc, right_trunc):
+        # Spec 7.2: inspect operands before any final selection can hide errors.
+        # Exact and invalid rows must receive (0,inf]; other sets stay active.
+        np.testing.assert_array_equal(lower, [0, 0, 1, 2, 0])
+        np.testing.assert_array_equal(upper, [np.inf, 2, 3, np.inf, np.inf])
+        return original(self, lower, upper, left_trunc, right_trunc)
+
+    # Host assertions are only for this eager operand check, not traced calls.
+    with monkeypatch.context() as patch:
+        patch.setattr(IntervalProbe, "log_conditional_interval_prob", check_endpoints)
+        IntervalProbe(rate=1.0).log_likelihood(data)
+
     value = jax.jit(lambda r: IntervalProbe(rate=r).log_likelihood(data))(1.0)
     np.testing.assert_array_equal(value[:4], [-1, 0, -1, -2])
     assert np.isnan(value[4])

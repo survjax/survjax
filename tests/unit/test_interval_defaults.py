@@ -180,3 +180,27 @@ def test_generic_mixed_censoring_is_safe_under_debug_nans(x64_enabled):
     np.testing.assert_allclose(
         actual, expected, atol=ATOL[x64_enabled], rtol=RTOL[x64_enabled]
     )
+
+
+@register_family
+@dataclass(frozen=True)
+class RoundedTailProbe(SurvivalDistribution):
+    """Simulate finite tail logs rounded to the same value at two endpoints."""
+
+    def log_survival(self, t):
+        return jnp.full_like(t, -jnp.log(2.0))
+
+    def reference_time(self):
+        return jnp.asarray(1.0)
+
+
+def test_rounded_equal_finite_logs_are_precision_loss_not_zero_mass():
+    """Spec 7.1: equal finite logs cannot establish mathematical zero mass."""
+    dist = RoundedTailProbe()
+    # Both log S and the default log F have rounded equal finite values.
+    # For distinct endpoints the generic difference is unresolved, not zero.
+    for method in (dist.log_survival, dist.log_cdf):
+        a, b = method(1.0), method(2.0)
+        assert np.isfinite(a) and a == b
+    for evaluate in (dist.log_interval_prob, jax.jit(dist.log_interval_prob)):
+        assert np.isnan(evaluate(1.0, 2.0))
