@@ -37,7 +37,9 @@ if [[ " $* " == *" python -c "* ]]; then
   exec "PYTHON_EXECUTABLE" "$@"
 fi
 root="$PWD"
-if [[ "$OSTYPE" == msys* ]]; then root="$(cygpath -m "$root")"; fi
+if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
+  root="$(cygpath -m "$root")"
+fi
 for name in JUPYTER_RUNTIME_DIR IPYTHONDIR MPLCONFIGDIR; do
   test -d "${!name}"
   case "${!name}" in "$root"/docs/_build/.cache/*) ;; *) exit 7 ;; esac
