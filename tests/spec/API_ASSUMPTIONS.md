@@ -1285,7 +1285,31 @@ on it. Guessed exception types and call shapes are centralised in
   `test_cut_search_limit_isolates_other_entries`,
   `test_exhausted_cut_search_entry_has_a_nan_tangent`.
 
-## Q-073: name and schema of the Slice B flexsurv fixture (spec 10.4, 12.1, 12.2; rev 59)
+## Q-073: name and schema of the Slice B flexsurv fixture (spec 10.4, 12.1, 12.2; rev 59) — resolved by rev 60
+
+- **Resolved by rev 60 (maintainer, 2026-11-10):** one dataset shared by all
+  families and vectors is confirmed; the generator chooses the vectors so
+  that every rule holds under every family. 10.4 now states: at least five
+  rows per cell, spread over the domain, including `b=U` and `t=U` where the
+  cell allows; the `1e-4` width rule also covers two-sided truncation
+  windows; every censored set and finite truncation window has probability
+  at least `1e-6` under every parameter vector. The mpmath integrity check
+  is confirmed. The maintainer corrected the remark below that survjax could
+  not meet the target if flexsurv could not: survjax computes in log space,
+  so it could; the point is moot because 10.4's domain keeps flexsurv well
+  within the targets. Tests added: `test_fixture_has_at_least_five_rows_per_cell`,
+  `test_fixture_has_an_interval_ending_at_upper`,
+  `test_fixture_has_an_exact_time_at_upper`,
+  `test_fixture_censored_sets_and_windows_have_probability_at_least_1e_minus_6`
+  (unconditional `P(lower < T <= upper)` in 50-digit mpmath).
+  "Spread over the domain" is not checked mechanically.
+  A clarification of rev 60 (maintainer, 2026-11-10) applies the minimum
+  probability to every truncation window other than `(0,+inf]`, so
+  left-only windows `(L,+inf]` are included (flexsurv computes `1 - F(L)`
+  by subtraction); the test now checks them. The maintainer confirmed that
+  probability means the unconditional `P(T in set)` and that "spread over
+  the domain" stays untested guidance.
+  The readings below are kept as the record of what was asked.
 
 - **Checked:** 10.4 (rev 59, "Slice B likelihood fixture": "The spec tester
   defines the file name and schema; the generator writes that schema"), 10.5,
@@ -1313,7 +1337,13 @@ on it. Guessed exception types and call shapes are centralised in
     need revisiting.
 - **Depends:** every test in `test_observation_censoring_flexsurv_fixture.py`.
 
-## Q-074: markers and dtype scope of the Slice B flexsurv fixture tests (spec 10.4, 12.1, 12.2; rev 59)
+## Q-074: markers and dtype scope of the Slice B flexsurv fixture tests (spec 10.4, 12.1, 12.2; rev 59) — resolved by rev 60
+
+- **Resolved by rev 60 (maintainer, 2026-11-10):** the markers are confirmed
+  as written below; the role table now says `observation.censoring` covers
+  "the section 10.4 Slice B flexsurv fixture, including its untruncated exact
+  and right-censored rows". 10.4 now states "compared in float64 only", so
+  the float32 skip is the spec's rule, not a guess.
 
 - **Checked:** role table (`observation.censoring`, `observation.truncation`,
   `family.lognormal`, `family.loglogistic`), 10.4 ("Targets: section 12.1
