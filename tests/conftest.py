@@ -95,6 +95,8 @@ def _reject_json_constant(word: str) -> None:
 
 
 def _load_r_fixture(name: str, root: Path = _R_FIXTURES) -> dict:
+    if name == "slice_b":
+        return _load_slice_b_fixture(root / name)
     if name == "concordance":
         return _load_concordance_fixture(root / name)
     if name not in ("exponential", "bc_like"):
@@ -323,6 +325,41 @@ def _load_concordance_fixture(directory: Path) -> dict:
     return fixture
 
 
+def _load_slice_b_fixture(directory: Path) -> dict:
+    payloads = _checked_payloads(directory, {"data.csv", "slice_b_likelihood.json"})
+    fixture = json.loads(
+        payloads["slice_b_likelihood.json"], parse_constant=_reject_json_constant
+    )
+    meta = fixture["meta"]
+    if (meta["R"], meta["flexsurv"], meta["survival"], meta["seed"]) != (
+        "4.4.2",
+        "2.3.2",
+        "3.7-0",
+        20261110,
+    ) or meta["generator"] != "scripts/fixtures/generate_slice_b.R":
+        raise ValueError("invalid Slice B provenance")
+    data = fixture["data"]
+    columns = ["cell", "kind", "time", "time2", "left_trunc", "right_trunc"]
+    reader = csv.DictReader(io.StringIO(payloads["data.csv"].decode()))
+    rows = list(reader)
+    if reader.fieldnames != columns or set(data) != set(columns):
+        raise ValueError("invalid Slice B columns")
+    if len(rows) != 50 or any(len(data[key]) != len(rows) for key in columns):
+        raise ValueError("invalid Slice B row count")
+    for key in columns:
+        if key in ("cell", "kind"):
+            matches = [row[key] for row in rows] == data[key]
+        else:
+            # JSON null is absent time2 or infinite right_trunc (spec 10.4).
+            absent = np.inf if key == "right_trunc" else np.nan
+            csv_values = [float(row[key]) if row[key] else absent for row in rows]
+            json_values = [absent if v is None else v for v in data[key]]
+            matches = np.array_equal(csv_values, json_values, equal_nan=True)
+        if not matches:
+            raise ValueError(f"Slice B CSV/JSON alignment mismatch: {key}")
+    return fixture
+
+
 @pytest.fixture
 def r_fixture() -> Callable[..., dict]:
     """Load a manifest-checked R set, with an optional temporary fixture root.
@@ -331,5 +368,6 @@ def r_fixture() -> Callable[..., dict]:
     NumPy float64 precision independently of the process's JAX dtype mode.
     The bc acceptance export must match the primary rows, vectors and grids.
     The concordance export must match every CSV observation and score row.
+    The Slice B export preserves JSON lists and must match every CSV column.
     """
     return _load_r_fixture
