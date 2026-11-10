@@ -26,8 +26,9 @@ tests.
 
 Rev 56 (8.5): "On an improper family, a quantile that is `+inf` because `p >=
 1 - S(+inf)` has status `known_infinite`; `quantile(1)=+inf` on a proper family
-is an endpoint and `converged`" (Q-057 settled). The improper `p = 1` case is
-read as `known_infinite` too (Q-068).
+is an endpoint and `converged`" (Q-057 settled). Rev 57 makes the improper
+`p = 1` case explicit: "including `quantile(1)` (this rule takes precedence
+over the endpoint rule)" (Q-068 settled).
 """
 
 import math
@@ -98,7 +99,7 @@ def test_bounded_support_endpoint_quantiles_report_converged():
 
 @QUANTILE_INFO
 def test_improper_family_upper_endpoint_quantile_reports_known_infinite():
-    """spec 8.5, rev 56: on an improper family "a quantile that is `+inf` because `p >= 1 - S(+inf)` has status `known_infinite`"; only "on a proper family" is `quantile(1)=+inf` an endpoint and `converged` (Q-068: `p = 1` read as covered by the improper rule)."""
+    """spec 8.5, rev 57: on an improper family "a quantile that is `+inf` because `p >= 1 - S(+inf)` has status `known_infinite`, including `quantile(1)` (this rule takes precedence over the endpoint rule)" (Q-068 settled)."""
     values, info = fam.mixture_cure()(cure=f(0.3), rate=f(1.0)).quantile_with_info(f(1.0))
     assert np.asarray(values) == INF
     assert_status(info, "known_infinite")

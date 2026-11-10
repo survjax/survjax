@@ -635,13 +635,19 @@ def _override_info(status_code, shape, dtype):
 def _plus_inf_with_nan_tangent(x):
     """``+inf`` shaped like ``x`` whose tangent is NaN (spec 8.4: known-infinite means get NaN tangents).
 
-    The tangent rule ``dx * nan`` is linear, so reverse mode works. Callers
-    pass ``x = where(finite, 0, params)``, so forward tangents of the finite
-    entries are untouched, and with per-entry parameters their reverse
-    gradients are too (the guarding ``where`` transposes to zero there). A
-    linear NaN coefficient still meets a zero cotangent (``0 * nan``), so in
-    reverse mode the infinite entries' own parameters get NaN gradients even
-    from objectives that exclude them; tests use forward-mode tangents only.
+    Rev 57 (8.4): "Isolation takes precedence over these NaN tangents ... Its
+    own NaN tangent is guaranteed in forward mode; its own reverse-mode
+    derivative is unspecified, because a zero cotangent times a NaN tangent
+    would otherwise reach every shared parameter." A linear rule ``dx * nan``
+    would do exactly that (its transpose is ``ct * nan``, NaN for ``ct = 0``),
+    so this override would itself break isolation through a shared ``alpha``.
+    The tangent is therefore a constant NaN that does not depend on ``dx``:
+    forward mode gives NaN on the infinite entries; reverse mode has nothing
+    to transpose, so the infinite entries' own reverse derivative is zero
+    (unspecified by the spec, never asserted) and shared parameters are
+    untouched. Callers pass ``x = where(finite, 0, params)`` and select the
+    result with the same ``where``, so the finite entries' tangents are
+    untouched in both modes.
     """
     return jnp.full_like(x, jnp.inf)
 
@@ -649,7 +655,7 @@ def _plus_inf_with_nan_tangent(x):
 @_plus_inf_with_nan_tangent.defjvp
 def _plus_inf_with_nan_tangent_jvp(primals, tangents):
     (x,), (dx,) = primals, tangents
-    return _plus_inf_with_nan_tangent(x), dx * jnp.nan
+    return _plus_inf_with_nan_tangent(x), jnp.full_like(dx, jnp.nan)
 
 
 @functools.cache
@@ -670,7 +676,8 @@ def known_mean_log_logistic():
     ``converged`` or ``known_infinite``, a NaN ``error_estimate`` and zero
     work counts; and "The override is responsible for the section 8.4 NaN
     tangents of a known infinite mean", so the ``+inf`` entries carry a NaN
-    tangent (``_plus_inf_with_nan_tangent``). This is a custom override of
+    tangent (``_plus_inf_with_nan_tangent``, forward mode; rev 57 isolation of
+    shared parameters in reverse mode). This is a custom override of
     the extension interface; the built-in ``LogLogistic`` (feature
     ``family.loglogistic``) is tested separately.
     """
