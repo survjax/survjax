@@ -9,9 +9,10 @@ restrictions" no longer apply. 8.1: `quantile(p)`, `median() = quantile(0.5)`,
 `quantile_with_info` and `median_with_info` return "`(values, SummaryInfo)`
 and share the ordinary backend". 8.5: "Summary methods take `options`".
 Signatures `quantile(p, *, options=None)` and `median(*, options=None)` follow
-the 8.7 keyword-only `options` note (Q-056). Whether
-`inverse_cumulative_hazard` takes `options` or has a `_with_info` twin is not
-specified (Q-063); these tests call it with `e` only.
+the 8.7 keyword-only `options` note (Q-056). Rev 54 (8.1; Q-063 resolved)
+fixes `inverse_cumulative_hazard(e, *, options=None)` with no `_with_info`
+twin; its options, absent twin and input policy are tested in
+``test_summary_quantile_policy.py``, and these tests call it with `e` only.
 """
 
 import numpy as np

@@ -11,14 +11,16 @@ derivatives follow from this tangent (parameter derivatives 0, `tau`
 derivative `S(0)=1`); higher-order derivatives there involve the density at 0
 and carry no guarantee"; Weibull RMST is "the closed-form value plus the
 quadrature tangent via `custom_jvp`" with full Hessians; "Entries that failed
-or did not converge get NaN tangents, never zeros." 8.7 isolation ("NaN
-entries do not give NaN derivatives to other entries, including through shared
-parameters") remains as value policy.
+or did not converge get NaN tangents, never zeros. So do ... invalid-input
+entries" (rev 54; with the feature enabled, 8.7's deferral of this rule no
+longer applies, 8.8). 8.7 isolation ("NaN entries do not give NaN derivatives
+to other entries, including through shared parameters") remains as value
+policy.
 
 Tolerances (12.1 log units): ``|theta (got - want)| <= scale * |value|`` per
 variable (``tau`` included), higher orders multiplied by every variable once
 per order. ``scale`` is the 12.1 ``rtol`` for Weibull RMST (staged accuracy)
-and ``generic_rtol()`` for generic quadrature (Q-058). References: mpmath
+and ``generic_rtol()`` (``10*rtol``, 12.1 rev 54) for generic quadrature. References: mpmath
 ``diff`` of the closed form at 60 digits and mpmath quadrature of
 ``dS/dtheta`` (``rmst_reference``). No higher-order derivative is tested at
 ``tau=0``.
@@ -31,6 +33,8 @@ import pytest
 import rmst_reference as rref
 import spec_families as fam
 from helpers import (
+    INF,
+    NAN,
     X64,
     assert_close,
     assert_cutoff_derivative,
@@ -42,7 +46,18 @@ from helpers import (
     rounded,
 )
 from jax.test_util import check_grads
-from summary_cases import HESSIANS, MODES, RMST, RMST_INFO, assert_hessian, grad, valid_subset_grad
+from summary_cases import (
+    FAMILIES,
+    HESSIANS,
+    MODES,
+    RMST,
+    RMST_INFO,
+    assert_hessian,
+    entry_tangents,
+    families,
+    grad,
+    valid_subset_grad,
+)
 
 import survjax
 
@@ -284,6 +299,26 @@ def test_non_converged_entry_has_a_nan_tangent():
     opts = survjax.SummaryOptions(rtol=f(1e-30), atol=f(1e-30), max_levels=1)
     _, tangent = jax.jvp(lambda r: fam.const_hazard()(rate=r).rmst(f(3.0), options=opts), (f(0.5),), (f(1.0),))
     assert np.isnan(np.asarray(tangent))
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@RMST
+def test_invalid_cutoff_entries_have_nan_tangents(family):
+    """spec 8.4/8.5, rev 54: "invalid-input entries" (`tau<0` or non-finite) get NaN `tau` tangents; valid entries keep finite ones, including `tau=0` (`S(0)=1`, 8.4)."""
+    d = families()[family]()
+    tangent = entry_tangents(lambda t: d.rmst(t), f([1.5, -1.0, NAN, INF, -INF, 0.0]))
+    assert np.isnan(tangent[1:5]).all()
+    assert np.isfinite(tangent[[0, 5]]).all()
+
+
+@pytest.mark.parametrize("generic", [False, True], ids=["builtin", "generic"])
+@RMST
+def test_parameter_violation_entry_has_a_nan_rmst_tangent(generic):
+    """spec 8.4/8.5, rev 54: a parameter-issue entry (`rate = 0`, declared `positive`) gets a NaN rate tangent; the valid entries' are finite."""
+    make = fam.constrained_rate() if generic else survjax.Exponential
+    tangent = entry_tangents(lambda r: make(rate=r).rmst(f(1.5)), f([0.5, 0.0, 0.7]))
+    assert np.isnan(tangent[1])
+    assert np.isfinite(tangent[[0, 2]]).all()
 
 
 @RMST
