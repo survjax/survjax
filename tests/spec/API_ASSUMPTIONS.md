@@ -858,6 +858,15 @@ on it. Guessed exception types and call shapes are centralised in
   `test_improper_family_quantile_beyond_the_cure_level_reports_known_infinite`,
   `test_known_infinite_quantile_is_decided_per_entry_of_the_batch`. The
   improper `p = 1` case moved from `converged` to `known_infinite` (Q-068).
+- **Settled by spec rev 61 (8.5):** "For valid parameters, exact `rmst(0)=0`
+  bypasses quadrature and reports `error_estimate=0` and all work counts
+  zero; the fewer-than-two-quadrature-estimates NaN rule below does not apply
+  to this exact endpoint. Parameter issues still take precedence and give
+  `invalid_input` with a NaN value." `test_zero_cutoff_reports_converged` and
+  `test_cutoff_statuses_are_per_entry` now also assert the error estimate and
+  counts; new tests `test_zero_cutoff_with_a_single_level_is_still_exact`,
+  `test_zero_cutoff_with_a_single_level_is_per_entry`,
+  `test_parameter_violations_take_precedence_at_zero_cutoff`.
 - **Checked:** 8.5 (status list), 4.5 summary rows, 8.7 value policy ("NaN
   wherever `parameter_issues()` reports a violation; with no `SummaryInfo`,
   NaN is the release's invalid-input signal"). Rev 50's 8.8 sentence
