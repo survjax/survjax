@@ -68,11 +68,25 @@ def docs_builder(tmp_path, monkeypatch, bash_executable):
 
 
 @pytest.mark.parametrize("explicit", [False, True])
+@pytest.mark.parametrize("shell_os", [None, "msys", "cygwin"])
 def test_docs_build_uses_script_worktree_and_selected_output(
-    docs_builder, tmp_path, explicit
+    docs_builder, tmp_path, monkeypatch, explicit, shell_os
 ):
     """A portal's cwd/environment must not select another worktree's code."""
     script, repo, log = docs_builder
+    path_separator = os.pathsep
+    if shell_os is not None:
+        startup = tmp_path / "bash-startup"
+        startup.write_text(f"OSTYPE={shell_os}\n", newline="\n")
+        monkeypatch.setenv("BASH_ENV", startup.as_posix())
+        path_separator = ";"
+        if sys.platform != "win32":
+            # POSIX hosts exercise platform selection without drive-letter paths.
+            cygpath = tmp_path / "bin/cygpath"
+            cygpath.write_text(
+                "#!/usr/bin/env bash\nprintf '%s\\n' \"$2\"\n", newline="\n"
+            )
+            cygpath.chmod(0o755)
     args = list(script)
     output = repo / "docs/_build"
     if explicit:
@@ -90,7 +104,7 @@ def test_docs_build_uses_script_worktree_and_selected_output(
         env = call["env"]
         assert env["JAX_ENABLE_X64"] == mode
         assert Path(env["UV_PROJECT_ENVIRONMENT"]) == repo / ".venv"
-        assert [Path(p) for p in env["PYTHONPATH"].split(os.pathsep)] == [
+        assert [Path(p) for p in env["PYTHONPATH"].split(path_separator)] == [
             repo / "src",
             repo,
         ]
