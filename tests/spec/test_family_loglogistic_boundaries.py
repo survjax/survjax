@@ -163,7 +163,7 @@ def test_base_supplied_values_have_zero_parameter_gradients(beta, t, method):
 @pytest.mark.parametrize("mode", ["rev", "fwd"])
 def test_finite_density_and_hazard_limits_at_zero_have_the_scale_derivative(mode, method, want):
     """spec 4.5, rev 55: `beta = 1`: `log f(0) = log h(0) = -log alpha`, `h(0) = 1/alpha` are finite family limits with "finite parameter gradients equal to the derivative of the value" in `scale` (the `shape` derivative crosses the `beta = 1` discontinuity)."""
-    g = (jax.grad if mode == "rev" else jax.jacfwd)(lambda a: getattr(_dist(1.0, a), method)(f(0.0)))(f(ALPHA))
+    g = (jax.grad if mode == "rev" else jax.jacfwd)(lambda a: getattr(survjax.LogLogistic(shape=f(1.0), scale=a), method)(f(0.0)))(f(ALPHA))
     assert_close(g, want)
 
 

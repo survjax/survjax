@@ -92,7 +92,7 @@ def test_mean_derivatives_are_hand_derived(beta, mode):
     bb, aa = rounded(beta, 2.0)
     m = sref.log_logistic_mean(aa, bb)
     x = math.pi / bb
-    gk, ga = (jax.grad if mode == "rev" else jax.jacfwd)(lambda k, a: _dist(k, a).mean(), argnums=(0, 1))(f(bb), f(aa))
+    gk, ga = (jax.grad if mode == "rev" else jax.jacfwd)(lambda k, a: survjax.LogLogistic(shape=k, scale=a).mean(), argnums=(0, 1))(f(bb), f(aa))
     assert_log_parameter_derivative(ga, m / aa, aa, m, "dm/dalpha")
     assert_log_parameter_derivative(gk, (m / bb) * (x / math.tan(x) - 1.0), bb, m, "dm/dbeta")
 
@@ -120,7 +120,7 @@ def test_known_infinite_mean_is_decided_per_entry():
 @pytest.mark.parametrize("beta", [0.5, 1.0])
 def test_known_infinite_mean_has_nan_tangents(beta):
     """spec 8.1/8.4, rev 56: "known-infinite means" get NaN tangents, which "built-ins provide": in `scale` and in `shape`."""
-    assert np.isnan(_tangent(lambda a: _dist(beta, a).mean(), 2.0))
+    assert np.isnan(_tangent(lambda a: survjax.LogLogistic(shape=f(beta), scale=a).mean(), 2.0))
     assert np.isnan(_tangent(lambda k: survjax.LogLogistic(shape=k, scale=f(2.0)).mean(), beta))
 
 
@@ -238,7 +238,7 @@ def test_quantile_derivatives_are_hand_derived(p, mode):
     bb, aa, pp = rounded(2.0, 1.5, p)
     q = sref.log_logistic_quantile(aa, bb, pp)
     r = pp / (1 - pp)
-    gk, ga, gp = (jax.grad if mode == "rev" else jax.jacfwd)(lambda k, a, p_: _dist(k, a).quantile(p_), argnums=(0, 1, 2))(
+    gk, ga, gp = (jax.grad if mode == "rev" else jax.jacfwd)(lambda k, a, p_: survjax.LogLogistic(shape=k, scale=a).quantile(p_), argnums=(0, 1, 2))(
         f(bb), f(aa), f(pp)
     )
     assert_log_parameter_derivative(ga, q / aa, aa, q, "dq/dalpha")
@@ -301,7 +301,7 @@ def test_rmst_derivatives_match_quadrature(tau, mode):
     """spec 8.4, rev 55: the generic tangent `∫ ∂θ S dt` in `shape` and `scale` against mpmath quadrature of `dS/dθ` (Q-058 units at `10*rtol`); `d rmst/d tau = S(tau)` within absolute `10*rtol`."""
     bb, aa, tt = rounded(1.5, 2.0, tau)
     value = sref.log_logistic_rmst(aa, bb, tt)
-    gk, ga, gt = (jax.grad if mode == "rev" else jax.jacfwd)(lambda k, a, t_: _dist(k, a).rmst(t_), argnums=(0, 1, 2))(
+    gk, ga, gt = (jax.grad if mode == "rev" else jax.jacfwd)(lambda k, a, t_: survjax.LogLogistic(shape=k, scale=a).rmst(t_), argnums=(0, 1, 2))(
         f(bb), f(aa), f(tt)
     )
     assert_generic_log_derivative(gk, sref.log_logistic_rmst_derivative(aa, bb, tt, "beta"), bb, value, "d rmst/d beta")

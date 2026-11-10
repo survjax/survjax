@@ -94,7 +94,7 @@ def test_mean_derivatives_are_hand_derived(mode):
     """spec 8.4, rev 55: `dm/dmu = m`, `dm/dsigma = sigma m` (12.1 log units)."""
     mu, sigma = rounded(0.3, 0.8)
     m = sref.lognormal_mean(mu, sigma)
-    gm, gs = (jax.grad if mode == "rev" else jax.jacfwd)(lambda a, s: _dist(a, s).mean(), argnums=(0, 1))(f(mu), f(sigma))
+    gm, gs = (jax.grad if mode == "rev" else jax.jacfwd)(lambda a, s: survjax.LogNormal(meanlog=a, sdlog=s).mean(), argnums=(0, 1))(f(mu), f(sigma))
     assert_log_parameter_derivative(gm, m, 1.0, m, "dm/dmu")
     assert_log_parameter_derivative(gs, sigma * m, sigma, m, "dm/dsigma")
 
@@ -190,7 +190,7 @@ def test_quantile_derivatives_are_hand_derived(p, mode):
     q = sref.lognormal_quantile(mu, sigma, pp)
     y = (math.log(q) - mu) / sigma
     log_f_q = fr.direct("lognormal", (mu, sigma), q, "log_prob")[0]
-    grads = (jax.grad if mode == "rev" else jax.jacfwd)(lambda a, s, p_: _dist(a, s).quantile(p_), argnums=(0, 1, 2))(
+    grads = (jax.grad if mode == "rev" else jax.jacfwd)(lambda a, s, p_: survjax.LogNormal(meanlog=a, sdlog=s).quantile(p_), argnums=(0, 1, 2))(
         f(mu), f(sigma), f(pp)
     )
     assert_log_parameter_derivative(grads[0], q, 1.0, q, "dq/dmu")
@@ -208,7 +208,7 @@ def test_inverse_cumulative_hazard_derivatives(e, mode):
     y = (math.log(t) - mu) / sigma
     log_h = fr.direct("lognormal", (mu, sigma), t, "log_hazard")[0]
     grads = (jax.grad if mode == "rev" else jax.jacfwd)(
-        lambda a, s, e_: _dist(a, s).inverse_cumulative_hazard(e_), argnums=(0, 1, 2)
+        lambda a, s, e_: survjax.LogNormal(meanlog=a, sdlog=s).inverse_cumulative_hazard(e_), argnums=(0, 1, 2)
     )(f(mu), f(sigma), f(ee))
     assert_log_parameter_derivative(grads[0], t, 1.0, t, "dt/dmu")
     assert_log_parameter_derivative(grads[1], t * y, sigma, t, "dt/dsigma")
@@ -219,7 +219,7 @@ def test_inverse_cumulative_hazard_derivatives(e, mode):
 def test_endpoint_quantiles_have_nan_tangents():
     """spec 8.4, rev 55: "endpoint quantiles (`p` = 0 or 1)" get NaN tangents, also on the log-normal closed form."""
     for p in (0.0, 1.0):
-        _, tangent = jax.jvp(lambda a: _dist(a, 0.8).quantile(f(p)), (f(0.3),), (f(1.0),))
+        _, tangent = jax.jvp(lambda a: survjax.LogNormal(meanlog=a, sdlog=f(0.8)).quantile(f(p)), (f(0.3),), (f(1.0),))
         assert np.isnan(np.asarray(tangent)), p
 
 
@@ -277,7 +277,7 @@ def test_rmst_derivatives(tau, mode):
     """spec 8.4/8.7, rev 55: `d rmst/d tau = S(tau)` (absolute scale 1); `meanlog` and `sdlog` derivatives against `mpmath.diff` of the closed form (12.1 log units)."""
     mu, sigma, tt = rounded(0.3, 0.8, tau)
     value = sref.lognormal_rmst(mu, sigma, tt)
-    gm, gs, gt = (jax.grad if mode == "rev" else jax.jacfwd)(lambda a, s, t_: _dist(a, s).rmst(t_), argnums=(0, 1, 2))(
+    gm, gs, gt = (jax.grad if mode == "rev" else jax.jacfwd)(lambda a, s, t_: survjax.LogNormal(meanlog=a, sdlog=s).rmst(t_), argnums=(0, 1, 2))(
         f(mu), f(sigma), f(tt)
     )
     want_m = sref.derivative(sref.lognormal_rmst_mp, (mu, sigma, tt), (1, 0, 0))
