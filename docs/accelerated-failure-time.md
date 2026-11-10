@@ -61,7 +61,8 @@ The scalar baseline broadcasts across the two log time ratios, giving
 1 and follows the baseline. `survival_grid(months)` evaluates both groups at
 every month, with shape `(3, 2)`: time first, then group.
 
-At 18 months group 2's survival equals group 1's survival at 12 months: both are $e^{-1}\approx0.368$. In fact, substituting the Weibull
+At 18 months group 2's survival equals group 1's survival at 12 months:
+both are $e^{-1}\approx0.368$. In fact, substituting the Weibull
 survival into the AFT expression gives
 
 $$
@@ -106,9 +107,31 @@ h(t\mid\eta)=e^{-\eta}h_0(t e^{-\eta}),\qquad
 f(t\mid\eta)=e^{-\eta}f_0(t e^{-\eta}).
 $$
 
-The factor $e^{-\eta}$ in the density is the Jacobian of the time
-transformation. A hazard compares event rates at a fixed time, whereas the
-time ratio compares times at a fixed quantile. In general, the hazard ratio
+Why does the density need the extra factor $e^{-\eta}$? A density is
+probability *per unit of time*. Stretching the time axis spreads the same
+probability over a wider interval. With a time ratio of 1.5, a short baseline
+interval becomes 1.5 times wider, so the corresponding density per month
+must be divided by 1.5.
+
+More formally, the baseline time corresponding to $t$ is $u=t e^{-\eta}$.
+A short interval of width $dt$ corresponds to baseline width
+$du=e^{-\eta}dt$. Both intervals contain the same probability, so
+
+$$
+f(t\mid\eta)\,dt=f_0(u)\,du,
+\qquad
+f(t\mid\eta)=f_0(u)\frac{du}{dt}=f_0(u)e^{-\eta}.
+$$
+
+The derivative $du/dt=e^{-\eta}$ is called the Jacobian of this inverse
+time transformation. Taking its logarithm gives the $-\eta$ adjustment in
+`log_prob`; it also enters the likelihood for exact events below. survjax
+includes it automatically. Survival probabilities such as $P(T>t)$ already
+refer to an entire set of times, rather than a probability per unit time,
+so they need only the transformed threshold $u$, with no extra multiplier.
+
+A hazard compares event rates at a fixed time, whereas the time ratio
+compares times at a fixed quantile. In general, the hazard ratio
 
 $$
 \frac{h(t\mid\eta)}{h_0(t)}
@@ -118,13 +141,14 @@ $$
 varies with $t$. A Weibull baseline is a special case: its power-law hazard
 makes this ratio $e^{-k\eta}$, constant over time. With a common shape $k$,
 a Weibull AFT predictor $\eta$ consequently corresponds to a PH predictor
-$-k\eta$. In our example group 2's hazard ratio relative to group 1 is $1.5^{-1.5}\approx0.544$, even
-though the time ratio is 1.5. For an exponential baseline ($k=1$), the
+$-k\eta$. In our example group 2's hazard ratio relative to group 1 is
+$1.5^{-1.5}\approx0.544$, even though the time ratio is 1.5. For an exponential baseline ($k=1$), the
 rescaled rate is simply $r e^{-\eta}$.
 
 Use `aft.log_hazard(12.0)` for the two groups' log event rates at month 12,
-or `aft.log_prob(12.0)` for their log densities. The [API reference](api.md#accelerated-failure-time) lists the
-remaining direct methods. Time retains the baseline's units throughout.
+or `aft.log_prob(12.0)` for their log densities. The
+[API reference](api.md#accelerated-failure-time) lists the remaining direct
+methods. Time retains the baseline's units throughout.
 
 ## From covariates to a likelihood
 
@@ -162,8 +186,11 @@ $$
 $$
 
 where $y_i$ is the observed event or censoring time and $\delta_i$ indicates
-an event. In particular, the Jacobian term $-\eta_i$ belongs to exact-event
-contributions. A censored record contributes log survival.
+an event. The $-\eta_i$ term is the log density adjustment for the change
+in interval width derived above. It belongs to exact-event contributions;
+a right-censored record contributes $\log S_0(y_i e^{-\eta_i})$ without
+this adjustment, because it records survival beyond a threshold. Both
+`log_prob` and `log_likelihood` include the appropriate adjustment for you.
 
 The returned array has one entry per observation. Sum it to obtain an
 objective for your chosen optimizer:

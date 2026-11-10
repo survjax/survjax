@@ -1,6 +1,6 @@
 # AFT.3 — Accelerated failure time tutorial
 
-Independent review: round 2/3
+Independent review: round 3/3
 
 Start and previous step: 607a11b. Original worktree base: cc0e30f.
 Read PLAN.md AFT.3, spec 4.4/5/10.5, docs/proportional-hazards.md for style,
@@ -77,3 +77,23 @@ Follow-up validation:
   the same new plot hash. No full browser-layout inspection claimed.
 - git diff --check passed. Numerical gates not repeated for prose/example-only
   changes; both-dtype executable docs builds are the required docs-step check.
+
+
+AFT.3 follow-up from 93924cc: round 2 returned merge, with line-wrapping
+nit N-1. Maintainer asks what the density Jacobian means and whether it is
+needed. Replace the unexplained term with the inverse-map derivative and
+conservation of probability over short intervals. It is needed for densities
+and exact-event likelihoods, but survival/censoring transform without it.
+Rewrap existing long lines (N-1); no mathematical/API change. Both-dtype
+build validation pending. This uses the third and final review round.
+
+
+Density-explanation validation: direct scripts/build_docs.sh outside the
+Jupyter-restricted sandbox passed both strict dtype sites (exit 0, success
+identity). All tutorial cells executed unchanged. Both generated AFT HTML
+pages contain the inverse-map derivative, the f(t)dt=f0(u)du equation, the
+1.5-wide-interval example, automatic density adjustment and censoring
+explanation. Browser MathJax layout not inspected; unchanged plot retained.
+git diff --check passed. No code/test/API changes; no numerical gate repeated
+for this prose-only follow-up. The third review round is the final allowed
+round; remaining AFT implementation sub-steps: none.
