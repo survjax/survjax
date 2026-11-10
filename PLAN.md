@@ -11,6 +11,13 @@ boundary substitution; follow-up checks passed.
 
 ## AFT.3 — AFT documentation
 
+Maintainer follow-up from bd93232: present the opening example as a single
+AFT batch with log_time_ratio=log([1.0,1.5]) and batch_shape (2,). Update
+both-group table, plot, medians and explanatory text in the same tutorial.
+Keep the scalar baseline for the later regression example. Files: the AFT
+page, PLAN.md and REVIEW.md. No API or test changes. Spec 4.4/5/10.5.
+Execute both dtype docs builds, inspect HTML/plot, commit and review round 2.
+
 Documentation implemented and validated; independent review pending.
 Start and previous-step commit 607a11b, original
 worktree base cc0e30f. Files: docs/accelerated-failure-time.md (one tutorial

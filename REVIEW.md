@@ -1,6 +1,6 @@
 # AFT.3 — Accelerated failure time tutorial
 
-Independent review: round 1/3
+Independent review: round 2/3
 
 Start and previous step: 607a11b. Original worktree base: cc0e30f.
 Read PLAN.md AFT.3, spec 4.4/5/10.5, docs/proportional-hazards.md for style,
@@ -53,3 +53,27 @@ Review focus: mathematical interpretation, pedagogical progression and
 current API boundaries. No known content issue; browser page layout remains
 unverified as noted. After AFT.3 no planned AFT sub-steps remain; generic RMST,
 other families and summary infrastructure belong to other worktrees.
+
+
+AFT.3 follow-up from bd93232: maintainer asks for both groups in one batch,
+log_time_ratio=log([1.0,1.5]), batch_shape (2,). Round 1 returned merge, no
+findings. Update tutorial table, medians and plot to consume that batch;
+retain the shared scalar baseline in the regression section. All statistical
+identities and scope remain unchanged. Follow-up validation pending.
+Previous completed step: 607a11b; original worktree base: cc0e30f.
+
+Follow-up validation:
+- Initial direct sandboxed scripts/build_docs.sh exited 2: Jupyter process
+  inspection raised PermissionError from sysctl/psutil; execution of the
+  unrelated Weibull simulation page failed. No source workaround introduced.
+- Direct escalated scripts/build_docs.sh then passed: both strict sites built,
+  all cells executed in x32 and x64; success identity recorded. No docs edits
+  after that successful run. No numerical/test/API changes in this follow-up.
+- Parsed both generated AFT pages: opening output batch (2,), three-column
+  month/group-1/group-2 table; median vector about [9.4,14.1]. Later regression
+  remains valid with objective 7.972455. Shared baseline variable remains scalar.
+- Visually inspected the new PNG: labelled group 1/time ratio 1 and group 2/
+  time ratio 1.5, correct survival curves and median markers. Both modes use
+  the same new plot hash. No full browser-layout inspection claimed.
+- git diff --check passed. Numerical gates not repeated for prose/example-only
+  changes; both-dtype executable docs builds are the required docs-step check.

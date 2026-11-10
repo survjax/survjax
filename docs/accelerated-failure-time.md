@@ -37,7 +37,7 @@ $$
 
 For the same survival probability, the AFT curve reaches it $e^\eta$ times
 later. Consider a baseline with Weibull shape $k=1.5$ and scale $b_0=12$
-months, and a second group with a time ratio of 1.5:
+months, shared by two groups with time ratios 1.0 and 1.5:
 
 ```{code-cell} ipython3
 import jax
@@ -48,15 +48,20 @@ import survjax
 
 baseline = survjax.Weibull(shape=1.5, scale=12.0)
 aft = survjax.AcceleratedFailureTime(
-    baseline=baseline, log_time_ratio=jnp.log(1.5)
+    baseline=baseline, log_time_ratio=jnp.log(jnp.array([1.0, 1.5]))
 )
 months = jnp.array([6.0, 12.0, 18.0])
-print("columns: month, baseline survival, AFT survival")
-jnp.column_stack((months, baseline.survival(months), aft.survival(months)))
+print("distribution batch:", aft.batch_shape)
+print("columns: month, group 1 survival, group 2 survival")
+jnp.column_stack((months, aft.survival_grid(months)))
 ```
 
-At 18 months the second group's survival equals baseline survival at
-12 months: both are $e^{-1}\approx0.368$. In fact, substituting the Weibull
+The scalar baseline broadcasts across the two log time ratios, giving
+`aft.batch_shape == (2,)`: one distribution per group. Group 1 has time ratio
+1 and follows the baseline. `survival_grid(months)` evaluates both groups at
+every month, with shape `(3, 2)`: time first, then group.
+
+At 18 months group 2's survival equals group 1's survival at 12 months: both are $e^{-1}\approx0.368$. In fact, substituting the Weibull
 survival into the AFT expression gives
 
 $$
@@ -64,21 +69,22 @@ S(t\mid\eta)
 =\exp\!\left[-\left(\frac{t}{b_0 e^\eta}\right)^k\right].
 $$
 
-The model is therefore another Weibull, with the same shape and scale
-$b=b_0e^\eta=18$ months. Its median is also 1.5 times as large. We can
-calculate both medians from the Weibull formula $m=b(\log 2)^{1/k}$:
+Each group therefore has a Weibull distribution with the same shape and
+scale $b=b_0e^\eta$: 12 months for group 1 and 18 for group 2. Group 2's
+median is also 1.5 times as large. We can calculate both medians from the
+Weibull formula $m=b(\log 2)^{1/k}$:
 
 ```{code-cell} ipython3
 baseline_median = 12.0 * jnp.log(2.0) ** (1 / 1.5)
-aft_median = 1.5 * baseline_median
-print("median months, baseline and AFT:", baseline_median, aft_median)
+group_medians = baseline_median * jnp.exp(aft.log_time_ratio)
+print("median months, groups 1 and 2:", group_medians)
 
 times = jnp.linspace(0.0, 36.0, 181)
 fig, ax = plt.subplots(figsize=(6, 3.5))
-ax.plot(times, baseline.survival_grid(times), label="Baseline")
-ax.plot(times, aft.survival_grid(times), label="AFT: time ratio 1.5")
+curves = aft.survival_grid(times)
+ax.plot(times, curves, label=["Group 1: time ratio 1", "Group 2: time ratio 1.5"])
 ax.axhline(0.5, color="grey", linestyle=":")
-ax.scatter([baseline_median, aft_median], [0.5, 0.5], color=["C0", "C1"])
+ax.scatter(group_medians, [0.5, 0.5], color=["C0", "C1"])
 ax.set(xlabel="Months", ylabel="Survival probability", ylim=(0, 1))
 ax.legend()
 fig.tight_layout()
@@ -112,12 +118,12 @@ $$
 varies with $t$. A Weibull baseline is a special case: its power-law hazard
 makes this ratio $e^{-k\eta}$, constant over time. With a common shape $k$,
 a Weibull AFT predictor $\eta$ consequently corresponds to a PH predictor
-$-k\eta$. In our example the hazard ratio is $1.5^{-1.5}\approx0.544$, even
+$-k\eta$. In our example group 2's hazard ratio relative to group 1 is $1.5^{-1.5}\approx0.544$, even
 though the time ratio is 1.5. For an exponential baseline ($k=1$), the
 rescaled rate is simply $r e^{-\eta}$.
 
-Use `aft.log_hazard(t)` for the log event rate or `aft.log_prob(t)` for the
-log density. The [API reference](api.md#accelerated-failure-time) lists the
+Use `aft.log_hazard(12.0)` for the two groups' log event rates at month 12,
+or `aft.log_prob(12.0)` for their log densities. The [API reference](api.md#accelerated-failure-time) lists the
 remaining direct methods. Time retains the baseline's units throughout.
 
 ## From covariates to a likelihood
