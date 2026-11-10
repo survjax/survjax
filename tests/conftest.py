@@ -6,11 +6,27 @@ import io
 import json
 import os
 import re
+import shutil
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
 import pytest
+
+
+@pytest.fixture(scope="session")
+def bash_executable() -> str:
+    """Use Git Bash on Windows rather than the system's WSL launcher."""
+    if sys.platform == "win32":
+        git = shutil.which("git")
+        assert git is not None, "Git for Windows is required for shell tests"
+        bash = Path(git).resolve().parents[1] / "bin/bash.exe"
+        assert bash.is_file(), f"Git Bash not found: {bash}"
+        return str(bash)
+    bash = shutil.which("bash")
+    assert bash is not None, "Bash is required for shell tests"
+    return bash
 
 
 @pytest.fixture

@@ -1,0 +1,350 @@
+"""Feature `summary.rmst`: generic RMST inputs, shapes, statuses and transformations (spec 4.5, 8.3, 8.5, 8.7, 8.8, 12.1; rev 51, 52, 53).
+
+8.8: "Section 8.7's tail accuracy, value policy and shape rules remain in
+force"; each step is gated by the 12.1 Summaries row "including the section
+4.5 input policy". 8.7 value policy: boolean, complex, string and object `tau`
+raise `TypeError`; "NaN for negative, NaN or infinite `tau`; `0` at `tau=0`";
+"NaN wherever `parameter_issues()` reports a violation". 8.7 shapes: `tau`
+broadcasts against `batch_shape`; a non-broadcasting `tau` raises `TypeError`.
+8.3: "A non-finite integrand at any node is a failure status, never dropped."
+8.5: work limits are static; "convergence and status are per broadcast
+entry"; counts "record quadrature levels, solver steps and bracket steps used
+per entry; unused counts are zero"; "Error estimates are in time units".
+
+Rev 52 (8.3, 8.5): "Convergence requires one adjacent pair of combined
+estimates to satisfy `abs(Q_l - Q_(l-1)) <= atol + rtol*abs(Q_l)`. No second
+successful pair is required; one evaluated level alone cannot establish
+convergence. Sum all split-subinterval estimates before making this
+comparison. All subintervals of a broadcast entry share the same refinement
+round." "`max_levels` is the maximum number of evaluated refinement levels";
+"`num_levels` counts the rounds actually used per broadcast entry, not the sum
+of counts over split intervals"; "`error_estimate` is the last absolute
+difference between combined estimates, including on work exhaustion. It is
+NaN if fewer than two estimates exist or if a non-finite integrand ... makes
+the comparison meaningless."
+
+Rev 53 (8.3): "A converged entry returns `Q_l` of the converging pair. An
+entry with a failure status (`non_finite_arithmetic` or `work_exhausted`)
+returns NaN."
+
+Rev 54 (8.5; Q-057 resolved): "Invalid arguments (`tau<0` or non-finite, ...)
+and entries with parameter issues have status `invalid_input` and NaN
+values. Exact endpoint values (`rmst(0)=0`, ...) have status `converged`."
+"""
+
+import warnings
+
+import jax
+import jax.numpy as jnp
+import numpy as np
+import pytest
+import spec_families as fam
+from helpers import (
+    INF,
+    NAN,
+    X64,
+    assert_close,
+    assert_status,
+    f,
+    status,
+)
+from summary_cases import FAMILIES, GENERIC, RMST, RMST_INFO, VIOLATIONS, draws_by_arms, families, violations
+
+import survjax
+
+# --------------------------------------------------------------- generic tau policy
+
+
+@pytest.mark.parametrize("family", GENERIC)
+@pytest.mark.parametrize("tau", [-1.0, NAN, INF, -INF], ids=["negative", "nan", "posinf", "neginf"])
+@RMST
+def test_generic_invalid_cutoff_gives_nan(family, tau):
+    """spec 4.5/8.7, rev 51: the 8.7 value policy on the generic path: NaN for negative, NaN or infinite `tau`."""
+    assert np.isnan(np.asarray(families()[family]().rmst(f(tau))))
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@pytest.mark.parametrize("tau", [-1.0, NAN, INF, -INF], ids=["negative", "nan", "posinf", "neginf"])
+@RMST_INFO
+def test_invalid_cutoff_reports_invalid_input(family, tau):
+    """spec 8.5, rev 54: "Invalid arguments (`tau<0` or non-finite ...) ... have status `invalid_input` and NaN values", on every family."""
+    values, info = families()[family]().rmst_with_info(f(tau))
+    assert np.isnan(np.asarray(values))
+    assert_status(info, "invalid_input")
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@RMST_INFO
+def test_zero_cutoff_reports_converged(family):
+    """spec 8.5, rev 54: "Exact endpoint values (`rmst(0)=0`, ...) have status `converged`"."""
+    values, info = families()[family]().rmst_with_info(f(0.0))
+    assert np.asarray(values) == 0.0
+    assert_status(info, "converged")
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@RMST_INFO
+def test_cutoff_statuses_are_per_entry(family):
+    """spec 8.5, rev 54: statuses per broadcast entry: `tau = [1.5, -1, 0, NaN]` gives `[converged, invalid_input, converged, invalid_input]`."""
+    values, info = families()[family]().rmst_with_info(f([1.5, -1.0, 0.0, NAN]))
+    values = np.asarray(values)
+    assert np.isfinite(values[0]) and values[2] == 0.0
+    assert np.isnan(values[[1, 3]]).all()
+    assert_status(info, ["converged", "invalid_input", "converged", "invalid_input"])
+
+
+@pytest.mark.parametrize("family", GENERIC)
+@RMST
+def test_generic_rmst_at_zero_is_zero(family):
+    """spec 4.5/8.7, rev 51: `rmst(0) = 0` on the generic path."""
+    assert np.asarray(families()[family]().rmst(f(0.0))) == 0.0
+
+
+@pytest.mark.parametrize("family", GENERIC)
+@pytest.mark.parametrize(
+    "bad",
+    [np.array(True), np.array(1.0 + 0j), np.array("1.0"), np.array(1.0, dtype=object)],
+    ids=["bool", "complex", "string", "object"],
+)
+@RMST
+def test_generic_cutoff_with_a_non_numeric_dtype_is_rejected(family, bad):
+    """spec 4.5/8.7, rev 51: boolean, complex, string and object `tau` raise `TypeError` on the generic path."""
+    with pytest.raises(TypeError):
+        families()[family]().rmst(bad)
+
+
+@pytest.mark.parametrize("family", GENERIC)
+@RMST
+def test_generic_boolean_cutoff_is_rejected_during_tracing(family):
+    """spec 4.5/8.7, rev 51: the dtype check also applies to a traced `tau`."""
+    d = families()[family]()
+    with pytest.raises(TypeError):
+        jax.jit(lambda t: d.rmst(t))(np.asarray(True))
+
+
+@pytest.mark.skipif(X64, reason="the float64-to-float32 conversion exists only with 64-bit mode disabled")
+@pytest.mark.parametrize("family", GENERIC)
+@RMST
+def test_generic_float64_cutoff_converts_without_warning_in_32_bit_mode(family):
+    """spec 4.5/8.7, rev 51: a float64 `tau` with 64-bit mode disabled converts to float32 without a warning."""
+    d = families()[family]()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        got = d.rmst(np.asarray([0.5, 2.0], dtype=np.float64))
+    assert jnp.result_type(got) == jnp.float32
+    assert_close(got, d.rmst(f([0.5, 2.0])))
+
+
+# --------------------------------------------------------------- shapes
+
+
+@pytest.mark.parametrize("family", GENERIC)
+@RMST
+def test_generic_cutoff_grid_with_explicit_axes(family):
+    """spec 8.7, rev 51: `tau_grid[:, None, None]` against a `(S, 2)` batch gives `(m, S, 2)`, entry `[i]` equal to the scalar-`tau` result."""
+    d = draws_by_arms(family)
+    grid = f([0.5, 1.0, 5.0])
+    got = d.rmst(grid[:, None, None])
+    assert np.shape(got) == (3, 3, 2)
+    for i, t in enumerate(grid):
+        assert_close(np.asarray(got)[i], d.rmst(f(t)))
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@RMST_INFO
+def test_cutoff_grid_with_info_against_draws_by_arms(family):
+    """spec 8.5/8.7, rev 51: `tau_grid[:, None, None]` gives `(m, S, 2)` values and info on every family."""
+    values, info = draws_by_arms(family).rmst_with_info(f([0.5, 1.0, 5.0])[:, None, None])
+    assert np.shape(values) == (3, 3, 2)
+    for name in ("status", "error_estimate", "num_levels"):
+        assert np.shape(getattr(info, name)) == (3, 3, 2), name
+
+
+@pytest.mark.parametrize("family", GENERIC)
+@RMST
+def test_generic_cutoff_that_does_not_broadcast_is_rejected(family):
+    """spec 4.1/8.7, rev 51: a non-broadcasting `tau` raises `TypeError` on generic paths."""
+    with pytest.raises(TypeError):
+        draws_by_arms(family).rmst(f([0.5, 1.0, 5.0]))
+
+
+# --------------------------------------------------------------- parameter violations
+
+
+@pytest.mark.parametrize("case", VIOLATIONS)
+@RMST
+def test_parameter_violations_give_nan_rmst(case):
+    """spec 8.7, rev 51: "NaN wherever `parameter_issues()` reports a violation"; valid entries stay finite (all families, generic paths included)."""
+    d = violations()[case]
+    np.testing.assert_array_equal(np.asarray(d.parameter_issues().invalid_entries), [False, True, False])
+    values = np.asarray(d.rmst(f(1.5)))
+    assert np.isnan(values[1])
+    assert np.isfinite(values[[0, 2]]).all()
+
+
+@pytest.mark.parametrize("case", VIOLATIONS)
+@RMST_INFO
+def test_parameter_violations_report_invalid_input(case):
+    """spec 8.5, rev 54: "entries with parameter issues have status `invalid_input` and NaN values"; the valid entries converge."""
+    values, info = violations()[case].rmst_with_info(f(1.5))
+    assert np.isnan(np.asarray(values)[1])
+    assert_status(info, ["converged", "invalid_input", "converged"])
+
+
+@RMST_INFO
+def test_parameter_violation_status_under_jit():
+    """spec 8.5/8.7, rev 51: the same values and status under `jit`."""
+    d = violations()["custom-condition"]
+    v0, i0 = d.rmst_with_info(f(1.5))
+    v1, i1 = jax.jit(lambda dd: dd.rmst_with_info(f(1.5)))(d)
+    assert_close(v1, v0)
+    np.testing.assert_array_equal(status(i1), status(i0))
+
+
+# --------------------------------------------------------------- failure statuses
+
+
+@RMST
+def test_non_finite_integrand_gives_nan_rmst():
+    """spec 8.3, rev 51, 53: "A non-finite integrand at any node is a failure status, never dropped", and "an entry with a failure status ... returns NaN": the entry integrating past `cut` is NaN; the others are `-expm1(-t)`."""
+    values = np.asarray(fam.nan_beyond()(rate=f(1.0), cut=f(1.0)).rmst(f([0.5, 2.0, 0.9])))
+    assert np.isnan(values[1])
+    assert_close(values[[0, 2]], [-np.expm1(-0.5), -np.expm1(-0.9)])
+
+
+@RMST_INFO
+def test_non_finite_integrand_is_a_failure_status():
+    """spec 8.3/8.5, rev 52: the failing entry reports `non_finite_arithmetic`; the others converge, which takes at least two evaluated levels (status per entry)."""
+    _, info = fam.nan_beyond()(rate=f(1.0), cut=f(1.0)).rmst_with_info(f([0.5, 2.0, 0.9]))
+    assert_status(info, ["converged", "non_finite_arithmetic", "converged"])
+    assert (np.asarray(info.num_levels)[[0, 2]] >= 2).all()
+
+
+@RMST_INFO
+def test_non_finite_integrand_has_a_nan_error_estimate():
+    """spec 8.5, rev 52: `error_estimate` "is NaN if ... a non-finite integrand ... makes the comparison meaningless"; the converged entries' estimates are finite."""
+    _, info = fam.nan_beyond()(rate=f(1.0), cut=f(1.0)).rmst_with_info(f([0.5, 2.0, 0.9]))
+    err = np.asarray(info.error_estimate)
+    assert np.isnan(err[1])
+    assert np.isfinite(err[[0, 2]]).all()
+
+
+@RMST_INFO
+def test_quadrature_work_exhaustion_is_reported():
+    """spec 8.3/8.5, rev 52, 53: with `max_levels=1` only level 0 is evaluated and "one evaluated level alone cannot establish convergence": `work_exhausted`, and a failure status "returns NaN"."""
+    opts = survjax.SummaryOptions(rtol=f(1e-30), atol=f(1e-30), max_levels=1)
+    values, info = fam.const_hazard()(rate=f(0.5)).rmst_with_info(f(3.0), options=opts)
+    assert np.isnan(np.asarray(values))
+    assert_status(info, "work_exhausted")
+
+
+@RMST_INFO
+def test_single_level_reports_one_round_and_a_nan_error_estimate():
+    """spec 8.5, rev 52: with `max_levels=1` one round is used (`num_levels == 1`, also with the split at `s = 2 < tau = 3`), and the error estimate is NaN because "fewer than two estimates exist"."""
+    opts = survjax.SummaryOptions(rtol=f(1e-30), atol=f(1e-30), max_levels=1)
+    _, info = fam.const_hazard()(rate=f(0.5)).rmst_with_info(f(3.0), options=opts)
+    np.testing.assert_array_equal(np.asarray(info.num_levels), 1)
+    assert np.isnan(np.asarray(info.error_estimate))
+
+
+@RMST_INFO
+def test_work_exhaustion_counts_rounds_not_split_intervals():
+    """spec 8.3/8.5, rev 52, 53: tolerances no difference can meet exhaust all `max_levels=3` rounds, so the value is NaN (a failure status "returns NaN"); `[0, 2]` and `[2, 3]` share each round, so `num_levels == 3` (not 6); the error estimate is the last difference, finite and positive ("including on work exhaustion")."""
+    opts = survjax.SummaryOptions(rtol=f(1e-30), atol=f(1e-30), max_levels=3)
+    values, info = fam.const_hazard()(rate=f(0.5)).rmst_with_info(f(3.0), options=opts)
+    assert np.isnan(np.asarray(values))
+    assert_status(info, "work_exhausted")
+    np.testing.assert_array_equal(np.asarray(info.num_levels), 3)
+    err = float(np.asarray(info.error_estimate))
+    # Not converged, so the last difference exceeds atol + rtol*abs(Q_l) > 0.
+    assert np.isfinite(err) and err > 0
+
+
+@RMST_INFO
+def test_one_adjacent_pair_suffices_for_convergence():
+    """spec 8.3/8.5, rev 52: "No second successful pair is required": with `atol` far above any possible level difference, levels 0 and 1 converge, so `num_levels == 2` and the error estimate is within `atol`."""
+    # S in (0, 1] on [0, 3], so the summed estimates of a positive-weight rule are O(1) (split at
+    # s = 2 < tau = 3), and abs(Q_1 - Q_0) is far below atol = 1e3.
+    opts = survjax.SummaryOptions(rtol=f(1e-30), atol=f(1e3), max_levels=8)
+    _, info = fam.const_hazard()(rate=f(0.5)).rmst_with_info(f(3.0), options=opts)
+    assert_status(info, "converged")
+    np.testing.assert_array_equal(np.asarray(info.num_levels), 2)
+    err = float(np.asarray(info.error_estimate))
+    assert 0 <= err <= 1e3
+
+
+# --------------------------------------------------------------- counts and error estimates
+
+
+@RMST_INFO
+def test_generic_rmst_counts():
+    """spec 8.3/8.5, rev 52: generic RMST uses between 2 and `max_levels` (default 8) rounds and no solver or bracket steps ("unused counts are zero"); converged error estimates are finite and nonnegative."""
+    _, info = fam.const_hazard()(rate=f([0.5, 2.0])).rmst_with_info(f(1.5))
+    assert_status(info, "converged")
+    levels = np.asarray(info.num_levels)
+    assert ((levels >= 2) & (levels <= 8)).all()
+    assert (np.asarray(info.num_solver_steps) == 0).all()
+    assert (np.asarray(info.num_bracket_steps) == 0).all()
+    err = np.asarray(info.error_estimate)
+    assert np.isfinite(err).all() and (err >= 0).all()
+
+
+@RMST_INFO
+def test_error_estimate_is_in_time_units():
+    """spec 8.3/8.5, rev 52, 53: "Error estimates are in time units": under time scales `c` the converged error estimate is the last difference, which met `atol + rtol*abs(Q_l)`, and "a converged entry returns `Q_l` of the converging pair"."""
+    for c in (1e-6, 1.0, 1e6):
+        d = fam.power_hazard()(shape=f(2.5), scale=f(2.0 * c))
+        values, info = d.rmst_with_info(f(3.0 * c))
+        assert_status(info, "converged")
+        err = float(np.asarray(info.error_estimate))
+        value = float(np.asarray(values))
+        rtol, atol_factor = (1e-8, 1e-10) if X64 else (1e-4, 1e-6)
+        # 8.3: the converging pair has abs(Q_l - Q_(l-1)) <= atol + rtol*abs(Q_l); 8.5: atol = factor * s with
+        # s = reference_time() = scale = 2c, and error_estimate is that last difference. 8.3 rev 53: the
+        # returned value is that Q_l; the factor 1.01 absorbs dtype rounding of the tolerances.
+        assert 0 <= err <= 1.01 * (atol_factor * 2.0 * c + rtol * abs(value)), c
+
+
+# --------------------------------------------------------------- transformations
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@RMST
+def test_rmst_agrees_under_jit_and_vmap(family):
+    """spec 8.8/12.1, rev 51: eager/`jit`/`vmap` agreement of RMST values on every family."""
+    d = draws_by_arms(family)
+    want = d.rmst(f(1.5))
+    assert_close(jax.jit(lambda dd: dd.rmst(f(1.5)))(d), want)
+    assert_close(jax.vmap(lambda dd: dd.rmst(f(1.5)))(d), want)
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@RMST_INFO
+def test_rmst_with_info_agrees_under_jit_and_vmap(family):
+    """spec 8.8/12.1, rev 51: eager/`jit`/`vmap` agreement of values and status."""
+    d = draws_by_arms(family)
+    call = lambda dd: dd.rmst_with_info(f(1.5))  # noqa: E731
+    v0, i0 = call(d)
+    for v1, i1 in (jax.jit(call)(d), jax.vmap(call)(d)):
+        assert_close(v1, v0)
+        np.testing.assert_array_equal(status(i1), status(i0))
+
+
+@RMST_INFO
+def test_options_cross_jit_into_a_generic_rmst():
+    """spec 8.5, rev 51: options passed into `jit`: tolerance values reuse one trace, a work limit retraces."""
+    d = fam.const_hazard()(rate=f(0.5))
+    traces = []
+
+    @jax.jit
+    def run(dd, opts):
+        traces.append(None)
+        return dd.rmst(f(2.0), options=opts)
+
+    a = run(d, survjax.SummaryOptions(rtol=f(1e-4), atol=f(1e-6)))
+    b = run(d, survjax.SummaryOptions(rtol=f(1e-5), atol=f(1e-7)))
+    assert len(traces) == 1
+    run(d, survjax.SummaryOptions(rtol=f(1e-5), atol=f(1e-7), max_levels=5))
+    assert len(traces) == 2
+    want = -np.expm1(-1.0) / 0.5
+    np.testing.assert_allclose(np.asarray([a, b], dtype=np.float64), want, rtol=1e-3)

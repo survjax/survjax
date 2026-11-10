@@ -128,8 +128,8 @@ jobs:
           key: jax-${{ runner.os }}-x64${{ matrix.x64 }}-${{ hashFiles('uv.lock') }}-${{ github.run_id }}
           restore-keys: |
             jax-${{ runner.os }}-x64${{ matrix.x64 }}-${{ hashFiles('uv.lock') }}-
-      - name: Run all gates through A10 in this dtype mode
+      - name: Run all gates through A12 in this dtype mode
         env:
           UV_OFFLINE: "1"
           UV_PYTHON_DOWNLOADS: never
-        run: bash scripts/check.sh --through A10
+        run: bash scripts/check.sh --through A12

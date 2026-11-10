@@ -2,9 +2,18 @@
 
 - Dtype mode: taken from the ``JAX_ENABLE_X64`` environment variable, which the
   runner sets. Tests never set it; the suite runs once per mode.
-- ``step`` marker: every test carries exactly one ``@pytest.mark.step("A2")``.
-  ``SPEC_THROUGH=A3`` deselects every test marked with a later step; unset
-  means run everything.
+- ``step`` marker: a release-baseline test carries exactly one
+  ``@pytest.mark.step("A2")``. ``SPEC_THROUGH=A3`` deselects every test
+  marked with a later step; unset means run everything.
+- ``feature(*names)`` marker: a post-release test (spec 8.8) carries exactly
+  one ``@pytest.mark.feature("summary.rmst", ...)`` instead of a step marker.
+  It runs only when every named feature is enabled in ``SPEC_FEATURES``
+  (comma-separated; unset or empty enables none).
+- ``until(name)`` marker: a first-release restriction test that a feature
+  lifts runs only while that feature is not enabled.
+- Every test has exactly one ``step`` or one ``feature`` marker, not both.
+  Feature names outside ``FEATURES`` (markers or ``SPEC_FEATURES``) are a
+  usage error.
 - ``spec_fixture``: loader for committed reference fixtures in ``fixtures/``.
 """
 
@@ -26,6 +35,35 @@ X64 = os.environ.get("JAX_ENABLE_X64", "").strip().lower() in _TRUTHY
 
 _STEP_RE = re.compile(r"^([A-Z])([0-9]+)$")
 
+# Post-release features (spectest CLAUDE.md, "Post-release features" table).
+FEATURES = frozenset(
+    {
+        "summary.containers",
+        "summary.rmst",
+        "summary.mean",
+        "summary.quantile",
+        "sampling",
+        "observation.censoring",
+        "observation.truncation",
+        "family.lognormal",
+        "family.loglogistic",
+    }
+)
+
+
+def _check_feature(name, where):
+    if name not in FEATURES:
+        raise pytest.UsageError(
+            f"unknown feature {name!r} in {where}; known: {', '.join(sorted(FEATURES))}"
+        )
+    return name
+
+
+def _enabled_features():
+    raw = os.environ.get("SPEC_FEATURES", "")
+    names = [part.strip() for part in raw.split(",") if part.strip()]
+    return frozenset(_check_feature(name, "SPEC_FEATURES") for name in names)
+
 
 def _step_key(step):
     match = _STEP_RE.match(str(step))
@@ -40,27 +78,67 @@ def pytest_configure(config):
         "step(name): delivery step a spec test belongs to, e.g. step('A2'); "
         "SPEC_THROUGH=A3 deselects later steps",
     )
+    config.addinivalue_line(
+        "markers",
+        "feature(*names): post-release features a spec test needs; it runs only "
+        "when all are enabled in SPEC_FEATURES",
+    )
+    config.addinivalue_line(
+        "markers",
+        "until(name): first-release restriction test that runs only while the "
+        "named feature is not enabled in SPEC_FEATURES",
+    )
+
+
+def _selected(item, limit, enabled):
+    """Return True to keep ``item``, False to deselect, None if misused."""
+    steps = list(item.iter_markers(name="step"))
+    features = list(item.iter_markers(name="feature"))
+    untils = list(item.iter_markers(name="until"))
+    if len(steps) + len(features) != 1:
+        return None
+    if steps and len(steps[0].args) != 1:
+        return None
+    if features and not features[0].args:
+        return None
+    if any(len(mark.args) != 1 for mark in untils):
+        return None
+
+    needed = {_check_feature(n, item.nodeid) for n in (features[0].args if features else ())}
+    lifted = {_check_feature(mark.args[0], item.nodeid) for mark in untils}
+
+    if steps:
+        key = _step_key(steps[0].args[0])
+        if limit is not None and key > limit:
+            return False
+    if not needed <= enabled:
+        return False
+    if lifted & enabled:
+        return False
+    return True
 
 
 def pytest_collection_modifyitems(config, items):
     through = os.environ.get("SPEC_THROUGH", "").strip()
     limit = _step_key(through) if through else None
+    enabled = _enabled_features()
 
-    unmarked, keep, drop = [], [], []
+    misused, keep, drop = [], [], []
     for item in items:
         if HERE not in Path(str(item.path)).resolve().parents:
             keep.append(item)
             continue
-        marks = list(item.iter_markers(name="step"))
-        if len(marks) != 1 or len(marks[0].args) != 1:
-            unmarked.append(item.nodeid)
-            continue
-        key = _step_key(marks[0].args[0])
-        (keep if limit is None or key <= limit else drop).append(item)
+        selected = _selected(item, limit, enabled)
+        if selected is None:
+            misused.append(item.nodeid)
+        else:
+            (keep if selected else drop).append(item)
 
-    if unmarked:
+    if misused:
         raise pytest.UsageError(
-            "spec tests need exactly one step marker: " + ", ".join(unmarked)
+            "spec tests need exactly one step marker (one name) or one feature "
+            "marker (one or more names), and until markers take one name: "
+            + ", ".join(misused)
         )
     if drop:
         config.hook.pytest_deselected(items=drop)

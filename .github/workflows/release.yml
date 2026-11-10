@@ -45,7 +45,7 @@ jobs:
           if ! git show-ref --verify --quiet refs/heads/main; then
             git branch main origin/main
           fi
-          scripts/check.sh --through A10
+          scripts/check.sh --through A12
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: python-distributions

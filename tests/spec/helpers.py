@@ -247,16 +247,50 @@ def ll(dist, data=None, **raw):
     return np.asarray(dist.log_likelihood(data, **raw))
 
 
-def supported_mode(data):
-    """The Slice A mode-support view of the spec 7.1 (rev 31) triage recipe, as a NumPy bool array.
+def enabled_features():
+    """Post-release features enabled by ``SPEC_FEATURES`` (parsed as in conftest; conftest validates the names)."""
+    import os
 
-    Exact or right-censored (``upper=+inf``) rows without truncation; a view of
-    normalized fields, not a public container.
+    raw = os.environ.get("SPEC_FEATURES", "")
+    return frozenset(part.strip() for part in raw.split(",") if part.strip())
+
+
+def supported_mode(data):
+    """The mode-support view of the spec 7.1 (rev 31) triage recipe, as a NumPy bool array.
+
+    Slice A: exact or right-censored (``upper=+inf``) rows without truncation;
+    a view of normalized fields, not a public container. 7.1: "Its mask
+    expands as later slices implement more modes": with
+    ``observation.censoring`` enabled every censoring kind is supported, and
+    with ``observation.truncation`` enabled truncation is supported, so the
+    view follows ``SPEC_FEATURES`` (Q-064).
     """
-    return (
-        (np.asarray(data.left_trunc) == 0)
-        & np.isposinf(np.asarray(data.right_trunc))
-        & (np.asarray(data.exact).astype(bool) | np.isposinf(np.asarray(data.upper)))
+    features = enabled_features()
+    kind_ok = np.asarray(data.exact).astype(bool) | np.isposinf(np.asarray(data.upper))
+    if "observation.censoring" in features:
+        kind_ok = np.ones_like(kind_ok)
+    window_ok = (np.asarray(data.left_trunc) == 0) & np.isposinf(np.asarray(data.right_trunc))
+    if "observation.truncation" in features:
+        window_ok = np.ones_like(window_ok)
+    return kind_ok & window_ok
+
+
+def flag_data(kinds, time, time2=None, **truncation):
+    """``SurvivalData`` through the flag form from per-row kinds ``"exact"``, ``"right"``, ``"left"``, ``"interval"`` (spec 3.1).
+
+    Explicit censoring flags select each row's kind (all false: exact);
+    ``time2`` defaults to NaN, which is ignored on non-interval rows.
+    ``truncation`` passes ``left_trunc`` / ``right_trunc`` through.
+    """
+    kinds = list(kinds)
+    time2 = [NAN] * len(kinds) if time2 is None else time2
+    return survjax.SurvivalData(
+        f(time),
+        right_censored=b([k == "right" for k in kinds]),
+        left_censored=b([k == "left" for k in kinds]),
+        interval_censored=b([k == "interval" for k in kinds]),
+        time2=f(time2),
+        **{name: f(value) for name, value in truncation.items()},
     )
 
 
@@ -444,6 +478,23 @@ def ph(baseline, log_hazard_ratio):
     )
 
 
+# ------------------------------------------- families brought forward (spec 4.1, 12.2; rev 55)
+
+
+def lognormal_from_log(meanlog, log_sdlog):
+    """``LogNormal.from_log`` (spec 4.1: "equivalents for the other families"); keyword names guessed (Q-069).
+
+    ``meanlog`` is already unconstrained, so it is passed as is; ``sdlog =
+    exp(log_sdlog)``.
+    """
+    return survjax.LogNormal.from_log(meanlog=meanlog, log_sdlog=log_sdlog)
+
+
+def loglogistic_from_log(log_shape, log_scale):
+    """``LogLogistic.from_log`` with the Weibull keywords ``log_shape``, ``log_scale`` (spec 4.1; guessed, Q-069)."""
+    return survjax.LogLogistic.from_log(log_shape=log_shape, log_scale=log_scale)
+
+
 # ------------------------------------------------------- staged RMST (A12, rev 41)
 
 
@@ -478,3 +529,65 @@ def assert_cutoff_derivative(actual, expected, err_msg=""):
     actual = np.asarray(actual, dtype=np.float64)
     assert np.isfinite(actual).all(), f"{err_msg}: non-finite derivative {actual!r}"
     np.testing.assert_allclose(actual, np.asarray(expected, dtype=np.float64), rtol=0.0, atol=rmst_rtol(), err_msg=err_msg)
+
+
+# ------------------------------------------ post-release summary features (spec 8.5, 8.8; rev 50-51)
+
+# Spec 8.5 (rev 50): the five SummaryInfo fields, read as attributes (Q-056).
+INFO_FIELDS = ("status", "error_estimate", "num_levels", "num_solver_steps", "num_bracket_steps")
+COUNT_FIELDS = ("num_levels", "num_solver_steps", "num_bracket_steps")
+
+# Spec 8.5 (rev 50): ``SummaryInfo.Status`` codes.
+STATUS_CODES = {
+    "converged": 0,
+    "known_infinite": 1,
+    "invalid_input": 2,
+    "non_finite_arithmetic": 3,
+    "failed_bracket": 4,
+    "work_exhausted": 5,
+}
+
+# Spec 12.1 Summaries row (rev 54; Q-058 resolved): "Generic quadrature and
+# solver results, and their derivatives, are compared at `10*rtol` relative
+# (this table's ordinary `rtol` per dtype), since a converged estimate may sit
+# at the stopping tolerance; closed forms keep the ordinary targets."
+GENERIC_FACTOR = 10.0
+
+
+def status(info):
+    """The integer status array of a ``SummaryInfo`` (spec 8.5, rev 50; Q-056)."""
+    return np.asarray(info.status)
+
+
+def assert_status(info, expected, err_msg=""):
+    """Every entry's status equals the named code(s); ``expected`` is a name or an array-like of names."""
+    want = np.vectorize(STATUS_CODES.__getitem__)(np.asarray(expected))
+    got = status(info)
+    np.testing.assert_array_equal(got, np.broadcast_to(want, got.shape), err_msg=err_msg)
+
+
+def generic_rtol():
+    """Spec 12.1 (rev 54): ``GENERIC_FACTOR`` (10) times the 12.1 ``rtol`` of the active dtype."""
+    from tolerances import TOLERANCES
+
+    return GENERIC_FACTOR * TOLERANCES[FLOAT]["rtol"]
+
+
+def assert_generic_close(actual, expected, err_msg=""):
+    """Relative comparison at ``generic_rtol()``, no absolute floor; non-finite entries must match."""
+    np.testing.assert_allclose(
+        np.asarray(actual).astype(np.float64),
+        np.asarray(expected, dtype=np.float64),
+        rtol=generic_rtol(),
+        atol=0.0,
+        err_msg=err_msg,
+    )
+
+
+def assert_generic_log_derivative(actual, expected, param, value, err_msg=""):
+    """``|param * (actual - expected)| <= generic_rtol() * |value|`` (12.1 rev 54 factor, in the 12.1 log units; Q-058)."""
+    actual = np.asarray(actual, dtype=np.float64)
+    assert np.isfinite(actual).all(), f"{err_msg}: non-finite derivative {actual!r}"
+    err = np.abs(np.asarray(param, dtype=np.float64) * (actual - np.asarray(expected, dtype=np.float64)))
+    bound = generic_rtol() * np.abs(np.asarray(value, dtype=np.float64))
+    assert np.all(err <= bound), f"{err_msg}: error {err!r} exceeds {bound!r}"
