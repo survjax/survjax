@@ -217,6 +217,18 @@ two float64 mpmath helpers in `observation_reference.py`; markers and the
 float64-only comparisons are Q-074. No existing test changed; the "R
 fixtures" entries of the Slice B not-tested lists now point to the new
 section. The fixture file itself is not committed yet.
+Revision 60 (10.4) settles Q-073 and Q-074: at least five rows per cell with
+`b=U` and `t=U` where allowed, minimum probability `1e-6` for every censored
+set and finite window, the width rule for two-sided windows, float64-only
+comparison. New fixture integrity tests (rows per cell, `b=U`, `t=U`, minimum
+probability with a new `observation_reference.log_mass_float64`); the
+comparison tests and the width test are retagged `rev 60`. New
+`test_observation_truncation_lognormal_loglogistic.py` (tagged `rev 60`)
+closes the log-normal and log-logistic gaps in the cells 10.4 excludes.
+A clarification of revision 60 (10.4, no revision bump) applies the minimum
+probability to every truncation window other than `(0,+inf]`, so left-only
+windows `(L,+inf]` are included; the minimum-probability integrity test now
+checks them too (still tagged `rev 60`).
 Revision 55 (8.8, 12.2) brings
 the log-normal and log-logistic families forward; they are covered by the new
 features `family.lognormal` and `family.loglogistic` (`test_family_*.py`,
@@ -2162,21 +2174,22 @@ Not tested for `observation.truncation`:
 - **Derivatives in truncation endpoints:** outside 7.3's guarantee.
 - **AFT wrapper under truncation:** Slice D.
 
-### Slice B flexsurv fixture: `test_observation_censoring_flexsurv_fixture.py` (rev 59)
+### Slice B flexsurv fixture: `test_observation_censoring_flexsurv_fixture.py` (rev 60)
 
-Spec 10.4 (rev 59): per-row log likelihoods from `flexsurvreg(..., fixedpars
+Spec 10.4 (rev 59/60): per-row log likelihoods from `flexsurvreg(..., fixedpars
 = TRUE)` for Weibull (with shape 1), log-normal and log-logistic, two or
 more vectors each, in the ten cells where flexsurv's conventions match
-section 2; 12.1 float64 targets; 12.2 Slice B gate. File
-`fixtures/slice_b_likelihood.json`, schema in `fixtures/README.md` (Q-073).
-Not committed yet, so every test here fails until it is. Markers and the
-float64-only comparison: Q-074. The comparison tests run per family
+section 2, at least five rows per cell; 12.1 float64 targets, compared in
+float64 only; 12.2 Slice B gate. File `fixtures/slice_b_likelihood.json`,
+schema in `fixtures/README.md` (Q-073, resolved by rev 60). Not committed
+yet, so every test here fails until it is. Markers: role table and Q-074
+(resolved by rev 60). The comparison tests run per family
 (`weibull`, `lognormal`, `loglogistic`) and per cell, each over every vector
 of the fixture.
 
 | Spec | Requirement | Tests |
 | --- | --- | --- |
-| 10.4 | fixture integrity (no survjax): exactly the ten cells, each present; rows match their cell's kind, window and membership (`c>L`, `t<=U`, `c<U`, `b<=U`, `L<t<=U`); three families, two or more vectors, natural parameter names, Weibull shape 1, valid parameters; one finite value per row; `H <= 15` at every finite point (mpmath); widths `>= 1e-4` times the upper bound; censored rows `<= 0`; values equal 50-digit mpmath of the spec 2 table at float64 tolerances | `test_fixture_covers_exactly_the_ten_comparable_cells`, `test_fixture_rows_match_their_cell`, `test_fixture_has_the_three_families_with_two_or_more_vectors`, `test_fixture_weibull_includes_shape_one`, `test_fixture_parameters_are_valid`, `test_fixture_log_likelihoods_have_one_finite_value_per_row`, `test_fixture_cumulative_hazards_are_at_most_15`, `test_fixture_intervals_are_not_too_narrow`, `test_fixture_censored_rows_have_non_positive_log_likelihood`, `test_fixture_agrees_with_mpmath` |
+| 10.4 | fixture integrity (no survjax): exactly the ten cells, each present; at least five rows per cell (rev 60); `b=U` in `right_truncated_interval` and `t=U` in `right_truncated_exact` and `two_sided_exact` (rev 60); rows match their cell's kind, window and membership (`c>L`, `t<=U`, `c<U`, `b<=U`, `L<t<=U`); three families, two or more vectors, natural parameter names, Weibull shape 1, valid parameters; one finite value per row; `H <= 15` at every finite point (mpmath); widths of intervals and finite windows `>= 1e-4` times the upper bound; every censored set and every window other than `(0,+inf]` (including left-only `(L,+inf]`) has probability `>= 1e-6` under every vector (mpmath, rev 60); censored rows `<= 0`; values equal 50-digit mpmath of the spec 2 table at float64 tolerances | `test_fixture_covers_exactly_the_ten_comparable_cells`, `test_fixture_has_at_least_five_rows_per_cell`, `test_fixture_has_an_interval_ending_at_upper`, `test_fixture_has_an_exact_time_at_upper`, `test_fixture_rows_match_their_cell`, `test_fixture_has_the_three_families_with_two_or_more_vectors`, `test_fixture_weibull_includes_shape_one`, `test_fixture_parameters_are_valid`, `test_fixture_log_likelihoods_have_one_finite_value_per_row`, `test_fixture_cumulative_hazards_are_at_most_15`, `test_fixture_intervals_are_not_too_narrow`, `test_fixture_censored_sets_and_windows_have_probability_at_least_1e_minus_6`, `test_fixture_censored_rows_have_non_positive_log_likelihood`, `test_fixture_agrees_with_mpmath` |
 | 2/10.4/12.1 | no truncation: exact, right (`observation.censoring`), left, interval (`observation.censoring`) | `test_per_row_log_likelihood_matches_flexsurv_in_each_cell[<family>-untruncated_{exact,right,left,interval}]` |
 | 2/10.4/12.1 | left truncation only: exact; right with `c>L` (`observation.truncation`) | `test_per_row_log_likelihood_matches_flexsurv_in_each_cell[<family>-left_truncated_{exact,right}]` |
 | 2/10.4/12.1 | right truncation only: exact `t<=U` (`observation.truncation`); left `c<U`, interval `b<=U` (both features) | `test_per_row_log_likelihood_matches_flexsurv_in_each_cell[<family>-right_truncated_{exact,left,interval}]` |
@@ -2188,35 +2201,30 @@ of the fixture.
 
 | Excluded cell (10.4) | Covered by (hand algebra or 50-digit mpmath) |
 | --- | --- |
-| left or interval censoring with left truncation | Exponential, Weibull `k>1`, `k<1`: `test_observation_truncation_values.py::test_truncated_left_and_interval_rows_are_hand_derived` (`left`, `two-sided` windows), `test_full_mixed_matrix_in_one_batch`, `test_mixed_kinds_and_mixed_windows_in_one_batch`; properties `test_two_sided_truncation_conditions_on_the_window`; derivatives `test_weibull_full_matrix_hessian_matches_mpmath`. Log-normal and log-logistic: interval only, `test_truncated_interval_row_with_partial_overlap` (window `(0.5, 3]`) |
+| left or interval censoring with left truncation | Exponential, Weibull `k>1`, `k<1`: `test_observation_truncation_values.py::test_truncated_left_and_interval_rows_are_hand_derived` (`left`, `two-sided` windows), `test_full_mixed_matrix_in_one_batch`, `test_mixed_kinds_and_mixed_windows_in_one_batch`; properties `test_two_sided_truncation_conditions_on_the_window`; derivatives `test_weibull_full_matrix_hessian_matches_mpmath`. Log-normal and log-logistic (two vectors each, mpmath): left rows `(0, c]` and interval rows inside, starting at and overlapping `L`, under left-only and two-sided windows, `test_observation_truncation_lognormal_loglogistic.py::test_left_and_interval_rows_with_left_truncation_match_mpmath`; also `test_truncated_interval_row_with_partial_overlap` in the family files |
 | right-censored rows under a finite `U` (`P(c<T<=U)`, not `S(c)`) | Exponential, Weibull: `test_truncated_exact_and_right_rows_are_hand_derived` (`right`, `two-sided`), `test_right_censored_beyond_entry_with_right_truncation_by_hand`. Log-normal, log-logistic: `test_truncated_exact_and_right_rows_match_mpmath` (`right`, `two-sided`) |
-| censored sets reaching beyond `U` (intersected with the window) | Exponential, Weibull: the partial-overlap interval `(1, 4]` with `U=3` in `test_truncated_left_and_interval_rows_are_hand_derived`; covering sets exactly zero and `uninformative` in `test_observation_truncation_diagnostics.py::test_censored_set_covering_the_window_is_exactly_zero_and_uninformative` (left at `c>=U`, intervals containing the window), `test_covering_rows_are_zero_for_extreme_parameters`, and the property `test_censored_sets_covering_the_window_are_exactly_zero` |
-| rows censored at or before entry | at entry (exactly zero, `uninformative`): `test_right_censored_at_entry_is_exactly_zero_and_uninformative`, property `test_right_censoring_at_entry_is_exactly_zero`; before entry and empty intersections (NaN, invalid): `test_invalid_truncated_exact_or_right_row_is_nan` (`right-before-entry`, `bounds-zero-to-inf-after-entry`), `test_invalid_truncated_censored_row_is_nan` (`left-at-entry`, `left-before-entry`, interval ending at or before `L`) |
-| observations outside the window | `test_invalid_truncated_exact_or_right_row_is_nan` (`exact-at-entry`, `exact-before-entry`, `exact-after-upper`, `right-at-upper`, `right-beyond-upper`), `test_invalid_truncated_censored_row_is_nan` (`interval-starting-at-upper`) |
+| censored sets reaching beyond `U` (intersected with the window) | Exponential, Weibull: the partial-overlap interval `(1, 4]` with `U=3` in `test_truncated_left_and_interval_rows_are_hand_derived`; covering sets exactly zero and `uninformative` in `test_observation_truncation_diagnostics.py::test_censored_set_covering_the_window_is_exactly_zero_and_uninformative` (left at `c>=U`, intervals containing the window), `test_covering_rows_are_zero_for_extreme_parameters`, and the property `test_censored_sets_covering_the_window_are_exactly_zero`. Log-normal and log-logistic (mpmath; `test_observation_truncation_lognormal_loglogistic.py`): partial overlap at `U` (`(1, 4]`, `(2.5, 10]`, `(1.5, +inf]` with `U=3`; right-only and two-sided windows) `test_censored_sets_reaching_beyond_upper_are_intersected_with_the_window`; covering sets exactly zero and `uninformative` (left at and beyond `U`, also with `L=0`; intervals equal to and containing the window; `(L, +inf]`) `test_censored_set_covering_the_window_is_exactly_zero`; deep windows (`Z ~ 6e-16`, `1e-12`) `test_covering_rows_are_exactly_zero_in_a_deep_window` |
+| rows censored at or before entry | at entry (exactly zero, `uninformative`): `test_right_censored_at_entry_is_exactly_zero_and_uninformative`, property `test_right_censoring_at_entry_is_exactly_zero`; before entry and empty intersections (NaN, invalid): `test_invalid_truncated_exact_or_right_row_is_nan` (`right-before-entry`, `bounds-zero-to-inf-after-entry`), `test_invalid_truncated_censored_row_is_nan` (`left-at-entry`, `left-before-entry`, interval ending at or before `L`). Log-normal and log-logistic (valid row 0 against mpmath): `test_right_censored_at_entry_is_exactly_zero`, `test_right_censored_before_entry_is_invalid`, `test_left_and_interval_rows_at_or_before_entry_are_invalid` |
+| observations outside the window | `test_invalid_truncated_exact_or_right_row_is_nan` (`exact-at-entry`, `exact-before-entry`, `exact-after-upper`, `right-at-upper`, `right-beyond-upper`), `test_invalid_truncated_censored_row_is_nan` (`interval-starting-at-upper`). Log-normal and log-logistic: `test_exact_and_right_rows_outside_the_window_are_invalid`, `test_interval_rows_outside_the_window_are_invalid` (also an interval wholly beyond `U`) |
 | exact zero times | invalid data (3.3), NaN row: `test_a6_likelihood_invalid_data.py::test_invalid_exact_time_is_nan[zero]`; issue bits `test_a2_boundaries.py::test_exact_time_zero_sets_issue`, `test_a3_data_issues.py::test_zero_exact_time_sets_invalid_time`, `test_a2_bounds_constructor.py::test_exact_row_at_zero_sets_issue` |
 
-**Gaps (excluded cells without an independent-mathematics test for some
-fixture family):**
+Markers of `test_observation_truncation_lognormal_loglogistic.py` (rev 60):
+the family feature and `observation.truncation` on every test;
+`observation.censoring` added where the test has left or interval rows.
 
-- **Left-censored rows with left truncation, log-normal and log-logistic:**
-  only the interval row is tested for these families; no left row under
-  `L>0`.
-- **Censored sets reaching beyond `U`, log-normal and log-logistic:** no
-  partial overlap at `U` (for example an interval `(a, b]` with `a<U<b`) and
-  no covering set (left at `c>=U`) for these families. The structural zero
-  is family-independent in 2 and 7.1, but the partial-overlap value is not.
-- **Rows censored at or before entry, and observations outside the window,
-  for log-normal and log-logistic:** tested with Exponential only. These are
-  structural (data validity, exact zero), so no family-specific values are
-  expected; listed for completeness.
-- **Weibull with shape exactly 1 in the excluded truncated cells:** the
-  truncation values use Exponential, Weibull `k=1.5` and `k=0.6`;
-  Exponential is the same law, so this is not a real gap.
+**Gaps:** none left for the fixture families in the excluded cells. Weibull
+with shape exactly 1 is not used in the excluded truncated cells (the values
+use Exponential, Weibull `k=1.5` and `k=0.6`); Exponential is the same law,
+so this is not a real gap. Derivatives in the excluded cells are tested for
+Exponential and Weibull (truncation derivatives) and, for log-normal and
+log-logistic, through `test_truncated_row_gradients_include_log_z` only (not
+a 10.4 requirement).
 
-Not tested: float32 comparison with the fixture (10.4 sets float64 targets;
-skipped, Q-074); derivatives and survreg values (10.4: "The fixture records no
-derivatives and no survreg values"); the 10.5 documentation list of cells
-where survjax and flexsurv differ (documentation gate, not a spec test).
+Not tested: float32 comparison with the fixture (10.4 rev 60: "compared in
+float64 only"; skipped); "spread over the domain" (no mechanical criterion);
+derivatives and survreg values (10.4: "The fixture records no derivatives and
+no survreg values"); the 10.5 documentation list of cells where survjax and
+flexsurv differ (documentation gate, not a spec test).
 
 ### `family.lognormal`: `test_family_lognormal_*.py` (rev 55)
 

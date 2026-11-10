@@ -1,6 +1,6 @@
-"""Slice B: per-row log likelihoods against the committed flexsurv fixture (spec 2, 10.4, 12.1, 12.2; rev 59).
+"""Slice B: per-row log likelihoods against the committed flexsurv fixture (spec 2, 10.4, 12.1, 12.2; rev 60).
 
-Spec 10.4 (rev 59), "Slice B likelihood fixture": "A synthetic dataset with a
+Spec 10.4 (rev 59/60), "Slice B likelihood fixture": "A synthetic dataset with a
 recorded seed and per-row log likelihoods from `flexsurvreg(..., fixedpars =
 TRUE)`, for Weibull (including shape 1), log-normal and log-logistic, each at
 two or more fixed natural parameter vectors without covariates. It covers only
@@ -15,28 +15,36 @@ right only          exact ``t<=U``; left ``c<U``; interval ``b<=U`` (``right_tru
 two-sided           exact (``two_sided_exact``)
 ==================  ==============================================================
 
-"Every finite bound, censoring time and truncation limit has cumulative hazard
-at most 15 ... Finite intervals are not narrower than `1e-4` times their upper
-bound. ... Targets: section 12.1 float64 tolerances." The other cells are
-covered by independent mathematics (TESTMAP, "Slice B flexsurv fixture").
+Rev 60: "Each cell has at least five rows, spread over the domain and
+including, where the cell allows, an interval ending at `U` (`b=U`) and an
+exact time at `U` (`t=U`). Every finite bound, censoring time and truncation
+limit has cumulative hazard at most 15 ... Finite intervals, including
+two-sided truncation windows, are not narrower than `1e-4` times their upper
+bound, and every censored set and every truncation window other than
+`(0,+inf]` has probability at least `1e-6`, under every parameter vector. ... Targets: section 12.1 float64
+tolerances, compared in float64 only". The other cells are covered by
+independent mathematics (TESTMAP, "Slice B flexsurv fixture";
+``test_observation_truncation_lognormal_loglogistic.py`` for the log-normal
+and log-logistic families).
 
 The fixture is ``fixtures/slice_b_likelihood.json``; its schema is in
-``fixtures/README.md`` (Q-073). 10.4: "The spec tester defines the file name
-and schema; the generator writes that schema." The spec tester never
-generates fixture values: a missing fixture fails these tests.
+``fixtures/README.md`` (Q-073, resolved by rev 60: one dataset shared by all
+families and vectors). 10.4: "The spec tester defines the file name and
+schema; the generator writes that schema." The spec tester never generates
+fixture values: a missing fixture fails these tests.
 
-Markers (role table; Q-074): untruncated rows ``observation.censoring`` (the
-untruncated exact/right rows belong to the Slice B batch too); truncated
-exact/right rows ``observation.truncation``; truncated left/interval rows
-both; log-normal and log-logistic add ``family.lognormal`` /
-``family.loglogistic``. The survjax comparisons run in float64 only, since 10.4
-sets float64 targets and float32 rounding of a ``1e-4``-wide interval's
-endpoints alone moves its log mass by up to about ``6e-4`` (Q-074).
+Markers (role table, which now names the fixture's untruncated exact and
+right-censored rows under ``observation.censoring``; Q-074 resolved by rev
+60): untruncated rows ``observation.censoring``; truncated exact/right rows
+``observation.truncation``; truncated left/interval rows both; log-normal and
+log-logistic add ``family.lognormal`` / ``family.loglogistic``. The survjax
+comparisons run in float64 only (10.4 rev 60).
 
 The "fixture integrity" tests check only the committed file against 10.4 (the
-ten cells, families and vectors, the cumulative-hazard and width limits, and
-agreement with 50-digit mpmath of the spec 2 table); they do not call
-survjax but stop a malformed fixture from passing silently.
+ten cells with at least five rows each and their ``b=U`` / ``t=U`` rows,
+families and vectors, the cumulative-hazard, width and minimum-probability
+limits, and agreement with 50-digit mpmath of the spec 2 table); they do not
+call survjax but stop a malformed fixture from passing silently.
 """
 
 import math
@@ -95,9 +103,14 @@ FAMILY_FEATURES = {
 KINDS = ("exact", "right", "left", "interval")
 MAX_CUMULATIVE_HAZARD = 15.0
 MIN_RELATIVE_WIDTH = 1e-4
+MIN_ROWS_PER_CELL = 5
+MIN_PROBABILITY = 1e-6
+# Spec 10.4 (rev 60): cells that allow an interval ending at ``U`` (``b=U``) or an exact time at ``U`` (``t=U``).
+CELLS_WITH_INTERVAL_AT_UPPER = ("right_truncated_interval",)
+CELLS_WITH_EXACT_AT_UPPER = ("right_truncated_exact", "two_sided_exact")
 
 FLOAT64_ONLY = pytest.mark.skipif(
-    not X64, reason="spec 10.4 (rev 59): targets are the section 12.1 float64 tolerances (Q-074)"
+    not X64, reason="spec 10.4 (rev 60): section 12.1 float64 tolerances, compared in float64 only"
 )
 INTEGRITY = pytest.mark.feature(CENSORING)
 
@@ -163,11 +176,16 @@ def _data(fx, rows):
     return flag_data(fx["kind"][rows], fx["time"][rows], fx["time2"][rows], **window)
 
 
+def _row_set(fx, i):
+    """Row ``i``'s ``(lower, upper)``: the censored set ``(lower, upper]``, or ``(t, None)`` for an exact row."""
+    t, t2 = fx["time"][i], fx["time2"][i]
+    return {"exact": (t, None), "right": (t, INF), "left": (0.0, t), "interval": (t, t2)}[fx["kind"][i]]
+
+
 def _reference(fx, family, vector, i):
     """50-digit mpmath of the spec 2 table for row ``i`` at the fixture's float64 inputs."""
     kind = fx["kind"][i]
-    t, t2 = fx["time"][i], fx["time2"][i]
-    lower, upper = {"exact": (t, None), "right": (t, INF), "left": (0.0, t), "interval": (t, t2)}[kind]
+    lower, upper = _row_set(fx, i)
     return oref.contribution_float64(
         family,
         _params(family, vector),
@@ -202,6 +220,29 @@ def test_fixture_covers_exactly_the_ten_comparable_cells(fx):
     n = fx["cell"].shape[0]
     for name in ("kind", "time", "time2", "left_trunc", "right_trunc"):
         assert fx[name].shape == (n,), name
+
+
+@INTEGRITY
+@pytest.mark.parametrize("cell", list(CELLS))
+def test_fixture_has_at_least_five_rows_per_cell(fx, cell):
+    """spec 10.4, rev 60: "Each cell has at least five rows"."""
+    assert int((fx["cell"] == cell).sum()) >= MIN_ROWS_PER_CELL, cell
+
+
+@INTEGRITY
+@pytest.mark.parametrize("cell", CELLS_WITH_INTERVAL_AT_UPPER)
+def test_fixture_has_an_interval_ending_at_upper(fx, cell):
+    """spec 10.4, rev 60: the cell includes "an interval ending at `U` (`b=U`)" (float64 equality of `time2` and `right_trunc`)."""
+    rows = fx["cell"] == cell
+    assert (fx["time2"][rows] == fx["right_trunc"][rows]).any(), cell
+
+
+@INTEGRITY
+@pytest.mark.parametrize("cell", CELLS_WITH_EXACT_AT_UPPER)
+def test_fixture_has_an_exact_time_at_upper(fx, cell):
+    """spec 10.4, rev 60: the cell includes "an exact time at `U` (`t=U`)" (float64 equality of `time` and `right_trunc`)."""
+    rows = fx["cell"] == cell
+    assert (fx["time"][rows] == fx["right_trunc"][rows]).any(), cell
 
 
 @INTEGRITY
@@ -293,13 +334,37 @@ def test_fixture_cumulative_hazards_are_at_most_15(fx):
 
 @INTEGRITY
 def test_fixture_intervals_are_not_too_narrow(fx):
-    """spec 10.4, rev 59: "Finite intervals are not narrower than `1e-4` times their upper bound" (interval rows and finite windows)."""
+    """spec 10.4, rev 60: "Finite intervals, including two-sided truncation windows, are not narrower than `1e-4` times their upper bound" (interval rows and every window with finite `U`)."""
     interval = fx["kind"] == "interval"
     a, b_ = fx["time"][interval], fx["time2"][interval]
     assert (b_ - a >= MIN_RELATIVE_WIDTH * b_).all()
     windowed = np.isfinite(fx["right_trunc"])
     lt, rt = fx["left_trunc"][windowed], fx["right_trunc"][windowed]
     assert (rt - lt >= MIN_RELATIVE_WIDTH * rt).all()
+
+
+@INTEGRITY
+@pytest.mark.parametrize("family", list(FAMILIES))
+def test_fixture_censored_sets_and_windows_have_probability_at_least_1e_minus_6(fx, family):
+    """spec 10.4, rev 60: "every censored set and every truncation window other than `(0,+inf]` has probability at least `1e-6`, under every parameter vector".
+
+    50-digit mpmath of the unconditional ``P(lower < T <= upper)`` of the
+    section 2 table at the fixture's float64 inputs: for each censored row's
+    set (right ``(c, +inf]``, left ``(0, c]``, interval ``(a, b]``) and for
+    each window other than ``(0, +inf]``: left-only ``(L, +inf]``
+    (probability ``S(L)``; flexsurv computes its normaliser ``1 - F(L)`` by
+    subtraction), right-only ``(0, U]`` and two-sided ``(L, U]``.
+    """
+    n = fx["cell"].shape[0]
+    sets = {_row_set(fx, i) for i in range(n) if fx["kind"][i] != "exact"}
+    windowed = np.flatnonzero((fx["left_trunc"] > 0) | np.isfinite(fx["right_trunc"]))
+    sets |= {(fx["left_trunc"][i], fx["right_trunc"][i]) for i in windowed}
+    floor = math.log(MIN_PROBABILITY)
+    for vector in fx["families"][family]:
+        params = _params(family, vector)
+        worst = min(sets, key=lambda s: oref.log_mass_float64(family, params, *s))
+        log_p = oref.log_mass_float64(family, params, *worst)
+        assert log_p >= floor, (vector["name"], worst, math.exp(log_p))
 
 
 @INTEGRITY
@@ -332,7 +397,7 @@ def test_fixture_agrees_with_mpmath(fx, family):
 @FLOAT64_ONLY
 @pytest.mark.parametrize("family, cell", _cases(lambda family, cell: (*CELL_FEATURES[cell], *FAMILY_FEATURES[family])))
 def test_per_row_log_likelihood_matches_flexsurv_in_each_cell(fx, family, cell):
-    """spec 2/10.4/12.1, rev 59: `dist.log_likelihood` per row equals flexsurv's per-row value in each comparable cell, at every fixture vector (float64 `atol=1e-10, rtol=1e-8`)."""
+    """spec 2/10.4/12.1, rev 60: `dist.log_likelihood` per row equals flexsurv's per-row value in each comparable cell, at every fixture vector (float64 only, `atol=1e-10, rtol=1e-8`)."""
     rows = np.flatnonzero(fx["cell"] == cell)
     assert rows.size > 0, cell
     data = _data(fx, rows)
@@ -352,7 +417,7 @@ def test_per_row_log_likelihood_matches_flexsurv_in_each_cell(fx, family, cell):
     ],
 )
 def test_whole_fixture_in_one_batch_matches_flexsurv(fx, family):
-    """spec 1/2/10.4/12.1, rev 59: all ten cells in one mixed batch (per-row kinds and windows) give flexsurv's per-row values."""
+    """spec 1/2/10.4/12.1, rev 60: all ten cells in one mixed batch (per-row kinds and windows) give flexsurv's per-row values (float64 only)."""
     rows = np.arange(fx["cell"].shape[0])
     data = _data(fx, rows)
     for vector in fx["families"][family]:
@@ -369,7 +434,7 @@ def test_whole_fixture_in_one_batch_matches_flexsurv(fx, family):
     ],
 )
 def test_summed_fixture_log_likelihood_matches_flexsurv(fx, family):
-    """spec 7.1/10.4, rev 59: the summed objective matches flexsurv's sum; `atol` scaled by the row count (each row within `atol`)."""
+    """spec 7.1/10.4, rev 60: the summed objective matches flexsurv's sum (float64 only); `atol` scaled by the row count (each row within `atol`)."""
     rows = np.arange(fx["cell"].shape[0])
     data = _data(fx, rows)
     for vector in fx["families"][family]:

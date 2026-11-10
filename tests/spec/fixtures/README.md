@@ -85,7 +85,7 @@ Field meanings:
   from flexsurv (`summary(..., type = "survival", t = grid.time)` at fixed
   parameters).
 
-## `slice_b_likelihood.json` (spec 2, 10.4, 12.1, 12.2; rev 59; Q-073)
+## `slice_b_likelihood.json` (spec 2, 10.4, 12.1, 12.2; rev 60; Q-073)
 
 The Slice B likelihood fixture of spec 10.4: one synthetic dataset with a
 recorded seed covering the ten cells where flexsurv's likelihood conventions
@@ -139,7 +139,8 @@ in `right_trunc` and for "absent" in `time2`.
 Field meanings:
 
 - `data`: `N` rows, all arrays of length `N`, in row order. Every family and
-  vector is evaluated on the same rows.
+  vector is evaluated on the same rows (Q-073, confirmed by rev 60: choose the
+  vectors so that every rule below holds under every family).
   - `kind`: `"exact"`, `"right"`, `"left"` or `"interval"`.
   - `time`: the exact time `t` (exact), the censoring time `c` (right: set
     `(c, +inf]`; left: set `(0, c]`), or the interval's lower end `a`
@@ -162,8 +163,8 @@ Field meanings:
   include no Jacobian of any transformation). At least one Weibull vector
   has `shape` exactly `1`.
 
-Cells (spec 10.4, rev 59); every cell has at least one row and no other row
-is allowed:
+Cells (spec 10.4, rev 60); every cell has **at least five rows**, spread
+over the cell's domain, and no other row is allowed:
 
 | `cell` | window | rows |
 | --- | --- | --- |
@@ -178,16 +179,29 @@ is allowed:
 | `right_truncated_interval` | `L=0`, finite `U` | interval, `b<=U` |
 | `two_sided_exact` | `L>0`, finite `U` | exact, `L<t<=U` |
 
-Generator constraints (10.4), checked by the integrity tests:
+Generator constraints (10.4 rev 60), checked by the integrity tests:
 
+- At least five rows per cell. `right_truncated_interval` includes a row
+  with `time2` equal to its `right_trunc` (`b=U`); `right_truncated_exact`
+  and `two_sided_exact` each include a row with `time` equal to its
+  `right_trunc` (`t=U`). Equality is float64 equality of the JSON numbers,
+  so write the same number in both fields. ("Spread over the domain" is not
+  checked mechanically.)
 - Every finite `time`, `time2`, `left_trunc` and `right_trunc` has cumulative
   hazard `H = -log S` at most 15 under every vector of every family.
 - `time2 - time >= 1e-4 * time2` on interval rows, and
   `right_trunc - left_trunc >= 1e-4 * right_trunc` on rows with finite `U`
-  (Q-073 reads a two-sided window as a finite interval too).
+  (10.4 rev 60: "including two-sided truncation windows").
+- Every censored set and every truncation window other than `(0,+inf]` has
+  probability at least `1e-6` under every vector of every family: `P(c < T)`
+  for right rows, `P(T <= c)` for left rows, `P(a < T <= b)` for interval
+  rows, and `P(L < T <= U)` for every row with `L>0` or finite `U`, including
+  left-only windows `(L, +inf]` (`P(T > L)`; flexsurv computes that
+  normaliser `1 - F(L)` by subtraction). All unconditional, computed in
+  50-digit mpmath from the section 2 table.
 - Values are finite; censored rows are at most `0`; and each value equals the
   spec 2 contribution (50-digit mpmath) within float64 `atol=1e-10`,
-  `rtol=1e-8`.
+  `rtol=1e-8`. survjax is compared with the fixture in float64 only.
 - No derivatives, no survreg values, no covariates, no weights.
 
 The cells 10.4 excludes (left or interval censoring with left truncation;

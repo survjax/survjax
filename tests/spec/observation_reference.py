@@ -1,4 +1,4 @@
-"""mpmath references for Slice B likelihood rows (spec 2, 7.1; rev 51). No survjax calls.
+"""mpmath references for Slice B likelihood rows (spec 2, 7.1; rev 51; fixture helpers rev 59/60). No survjax calls.
 
 Every reference evaluates the spec 2 table in mpmath at 50 digits, at inputs
 first rounded to the active dtype (so a comparison measures only survjax's
@@ -208,6 +208,18 @@ def cumulative_hazard_float64(family, params, t):
     with mp.workdps(DPS):
         (t,) = _to_mp([float(t)])
         return float(_cumulative_hazard(family, _to_mp([float(p) for p in params]), t))
+
+
+def log_mass_float64(family, params, a, b):
+    """``log P(a < T <= b)`` in mpmath at float64 inputs, as a float64, for ``0 <= a < b <= +inf`` (rev 60).
+
+    Unconditional (no truncation): the probability of a censored set or of a
+    truncation window, for checking committed fixtures.
+    """
+    mp = _mp()
+    with mp.workdps(DPS):
+        lo, hi = _to_mp([float(a), float(b)])
+        return float(_log_mass(family, _to_mp([float(p) for p in params]), lo, hi))
 
 
 def rows(family, params, table, **window):
