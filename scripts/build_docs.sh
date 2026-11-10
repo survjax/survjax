@@ -12,7 +12,7 @@ caller_dir="$PWD"
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 # Native Python needs Windows paths and its own search-path separator.
 python_path_separator=:
-if [[ "$OSTYPE" == msys* ]]; then
+if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
   caller_dir="$(cygpath -m "$caller_dir")"
   repo_dir="$(cygpath -m "$repo_dir")"
   python_path_separator=';'

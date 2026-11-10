@@ -21,9 +21,12 @@ def bash_executable() -> str:
     if sys.platform == "win32":
         git = shutil.which("git")
         assert git is not None, "Git for Windows is required for shell tests"
-        bash = Path(git).resolve().parents[1] / "bin/bash.exe"
-        assert bash.is_file(), f"Git Bash not found: {bash}"
-        return str(bash)
+        # Git may be on PATH from cmd, bin, or ucrt64/bin.
+        for parent in Path(git).resolve().parents:
+            bash = parent / "bin/bash.exe"
+            if bash.is_file():
+                return str(bash)
+        raise AssertionError(f"Git Bash not found beside Git installation: {git}")
     bash = shutil.which("bash")
     assert bash is not None, "Bash is required for shell tests"
     return bash
