@@ -30,6 +30,12 @@ returns NaN."
 Rev 54 (8.5; Q-057 resolved): "Invalid arguments (`tau<0` or non-finite, ...)
 and entries with parameter issues have status `invalid_input` and NaN
 values. Exact endpoint values (`rmst(0)=0`, ...) have status `converged`."
+
+Rev 61 (8.5): "For valid parameters, exact `rmst(0)=0` bypasses quadrature and
+reports `error_estimate=0` and all work counts zero; the
+fewer-than-two-quadrature-estimates NaN rule below does not apply to this
+exact endpoint. Parameter issues still take precedence and give
+`invalid_input` with a NaN value."
 """
 
 import warnings
@@ -42,6 +48,7 @@ import spec_families as fam
 from helpers import (
     INF,
     NAN,
+    STATUS_CODES,
     X64,
     assert_close,
     assert_status,
@@ -73,24 +80,60 @@ def test_invalid_cutoff_reports_invalid_input(family, tau):
     assert_status(info, "invalid_input")
 
 
+WORK_COUNTS = ("num_levels", "num_solver_steps", "num_bracket_steps")
+
+
+def assert_exact_zero_cutoff(values, info, index=()):
+    """8.5 rev 61: a valid `rmst(0)` entry is 0, `converged`, `error_estimate == 0` and every work count zero."""
+    assert np.asarray(values)[index] == 0.0
+    assert status(info)[index] == STATUS_CODES["converged"]
+    assert np.asarray(info.error_estimate)[index] == 0.0
+    for name in WORK_COUNTS:
+        assert np.asarray(getattr(info, name))[index] == 0, name
+
+
 @pytest.mark.parametrize("family", FAMILIES)
 @RMST_INFO
 def test_zero_cutoff_reports_converged(family):
-    """spec 8.5, rev 54: "Exact endpoint values (`rmst(0)=0`, ...) have status `converged`"."""
+    """spec 8.5, rev 54, 61: "Exact endpoint values (`rmst(0)=0`, ...) have status `converged`"; rev 61: "exact `rmst(0)=0` bypasses quadrature and reports `error_estimate=0` and all work counts zero", on every family."""
     values, info = families()[family]().rmst_with_info(f(0.0))
     assert np.asarray(values) == 0.0
     assert_status(info, "converged")
+    assert_exact_zero_cutoff(values, info)
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@RMST_INFO
+def test_zero_cutoff_with_a_single_level_is_still_exact(family):
+    """spec 8.5, rev 61: "the fewer-than-two-quadrature-estimates NaN rule ... does not apply to this exact endpoint": with `max_levels=1` and unmeetable tolerances, `rmst(0)` is still 0, `converged`, `error_estimate == 0`, counts zero."""
+    opts = survjax.SummaryOptions(rtol=f(1e-30), atol=f(1e-30), max_levels=1)
+    values, info = families()[family]().rmst_with_info(f(0.0), options=opts)
+    assert_exact_zero_cutoff(values, info)
+
+
+@pytest.mark.parametrize("family", GENERIC)
+@RMST_INFO
+def test_zero_cutoff_with_a_single_level_is_per_entry(family):
+    """spec 8.3/8.5, rev 52, 53, 61: with `max_levels=1`, `tau = [0, 3]` gives an exact zero entry (`converged`, `error_estimate == 0`, counts zero) beside a `work_exhausted` NaN entry with one round and a NaN error estimate."""
+    opts = survjax.SummaryOptions(rtol=f(1e-30), atol=f(1e-30), max_levels=1)
+    values, info = families()[family]().rmst_with_info(f([0.0, 3.0]), options=opts)
+    assert_exact_zero_cutoff(values, info, 0)
+    assert np.isnan(np.asarray(values)[1])
+    assert_status(info, ["converged", "work_exhausted"])
+    assert np.asarray(info.num_levels)[1] == 1
+    assert np.isnan(np.asarray(info.error_estimate)[1])
 
 
 @pytest.mark.parametrize("family", FAMILIES)
 @RMST_INFO
 def test_cutoff_statuses_are_per_entry(family):
-    """spec 8.5, rev 54: statuses per broadcast entry: `tau = [1.5, -1, 0, NaN]` gives `[converged, invalid_input, converged, invalid_input]`."""
+    """spec 8.5, rev 54, 61: statuses per broadcast entry: `tau = [1.5, -1, 0, NaN]` gives `[converged, invalid_input, converged, invalid_input]`; the `tau=0` entry has `error_estimate == 0` and counts zero."""
     values, info = families()[family]().rmst_with_info(f([1.5, -1.0, 0.0, NAN]))
     values = np.asarray(values)
     assert np.isfinite(values[0]) and values[2] == 0.0
     assert np.isnan(values[[1, 3]]).all()
     assert_status(info, ["converged", "invalid_input", "converged", "invalid_input"])
+    assert_exact_zero_cutoff(values, info, 2)
 
 
 @pytest.mark.parametrize("family", GENERIC)
@@ -189,6 +232,24 @@ def test_parameter_violations_report_invalid_input(case):
     values, info = violations()[case].rmst_with_info(f(1.5))
     assert np.isnan(np.asarray(values)[1])
     assert_status(info, ["converged", "invalid_input", "converged"])
+
+
+@pytest.mark.parametrize("case", VIOLATIONS)
+@RMST_INFO
+def test_parameter_violations_take_precedence_at_zero_cutoff(case):
+    """spec 8.5, rev 61: "Parameter issues still take precedence and give `invalid_input` with a NaN value" at `tau=0`; per entry, `tau = [0, 0, 1.5]` leaves the valid `tau=0` entry exact (0, `error_estimate == 0`, counts zero) and the last entry converged (built-in and generic)."""
+    d = violations()[case]
+    scalar_values, scalar_info = d.rmst_with_info(f(0.0))
+    assert np.isnan(np.asarray(scalar_values)[1])
+    assert_status(scalar_info, ["converged", "invalid_input", "converged"])
+    values, info = d.rmst_with_info(f([0.0, 0.0, 1.5]))
+    values = np.asarray(values)
+    assert np.isnan(values[1])
+    assert np.isfinite(values[2])
+    assert_status(info, ["converged", "invalid_input", "converged"])
+    assert_exact_zero_cutoff(values, info, 0)
+    assert_exact_zero_cutoff(scalar_values, scalar_info, 0)
+    assert_exact_zero_cutoff(scalar_values, scalar_info, 2)
 
 
 @RMST_INFO

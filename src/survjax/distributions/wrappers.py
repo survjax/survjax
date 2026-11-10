@@ -1,4 +1,4 @@
-"""Proportional-hazards composition."""
+"""Proportional-hazards and accelerated-failure-time composition."""
 
 from dataclasses import dataclass
 
@@ -205,3 +205,104 @@ class ProportionalHazards(SurvivalDistribution):
             +inf, NaN at NaN times, and the baseline-scaled limit at zero.
         """
         return self.log_hazard(t) + self.log_survival(t)
+
+
+@register_family
+@dataclass(frozen=True)
+class AcceleratedFailureTime(SurvivalDistribution):
+    """Rescale baseline event times by exp(eta), with eta = log_time_ratio.
+
+    Positive eta means longer times under AFT; under PH it means higher
+    hazard. Covariate mappings and fitting belong to the caller. Time units
+    match the baseline, and eta is dimensionless.
+
+    Args:
+        baseline: Registered distribution, keyword only. Nested parameter
+            leaves broadcast with eta and retain their dtypes.
+        log_time_ratio: Real predictor, keyword only, broadcast against the
+            baseline batch shape. Values are stored without domain checks.
+
+    Returns:
+        Frozen distribution with broadcast leaves and nested diagnostics
+        prefixed by ``baseline.``. Pointwise methods broadcast times against
+        batch_shape; inherited grids have shape ``(K, *batch_shape)``.
+
+    Raises:
+        TypeError: For malformed types, positional arguments or incompatible
+            shapes. Parameter violations appear in parameter_issues().
+    """
+
+    baseline: SurvivalDistribution = distribution()
+    log_time_ratio: jax.Array = param(constraint=constraints.real)
+
+    def reference_time(self) -> jax.Array:
+        """Return positive finite baseline reference times, shape batch_shape.
+
+        Returns:
+            Baseline reference times in the promoted parameter dtype. Keeping
+            this scale avoids overflowing exp(eta) for finite predictors.
+        """
+        reference = self.baseline.reference_time()
+        return jnp.asarray(
+            reference, dtype=jnp.result_type(reference, self.log_time_ratio)
+        )
+
+    def log_survival_at_infinity(self) -> jax.Array:
+        """Return the baseline log survival limit, shape batch_shape.
+
+        Returns:
+            Baseline proper or improper limit in the promoted parameter dtype;
+            a NaN predictor propagates as it does in the direct formulas.
+        """
+        limit = self.baseline.log_survival_at_infinity()
+        # spec 4.5: invalid predictors must retain arithmetic NaN precedence.
+        return limit + jnp.zeros_like(self.log_time_ratio) * self.log_time_ratio
+
+    def _rescale_time(self, t: ArrayLike) -> jax.Array:
+        time = jnp.asarray(t)
+        boundary = (time == 0) | jnp.isposinf(time)
+        # spec 4.4/7.2: log-space scaling avoids exp(-eta) overflow and 0*inf.
+        log_time = jnp.log(time) - self.log_time_ratio
+        overflow = log_time >= jnp.log(jnp.finfo(log_time.dtype).max)
+        scaled = jnp.exp(jnp.where(overflow, 0.0, log_time))
+        # spec 7.1: a positive interior time lost during rescaling is a
+        # numerical failure, not a true zero/infinity boundary of the model.
+        failed = ~boundary & ((scaled == 0) | overflow)
+        scaled = jnp.where(failed, jnp.nan, scaled)
+        return jnp.where(boundary, time, scaled)
+
+    def log_survival(self, t: ArrayLike) -> jax.Array:
+        """Return log S0(t*exp(-eta)) under the direct-method value policy.
+
+        Args:
+            t: Real times broadcast against batch_shape.
+        Returns:
+            Broadcast log survival; zero at zero and the baseline limit at
+            infinity. Negative times give zero (spec 4.5); NaN times and
+            unrepresentable interior rescaled times give NaN.
+        """
+        return self.baseline.log_survival(self._rescale_time(t))
+
+    def log_prob(self, t: ArrayLike) -> jax.Array:
+        """Return log f0(t*exp(-eta))-eta, retaining baseline zero limits.
+
+        Args:
+            t: Real times broadcast against batch_shape.
+        Returns:
+            Broadcast log density, -inf before zero and at infinity, NaN at
+            NaN times or unrepresentable interior rescaled times. The baseline
+            supplies the density limit at zero.
+        """
+        return self.baseline.log_prob(self._rescale_time(t)) - self.log_time_ratio
+
+    def log_hazard(self, t: ArrayLike) -> jax.Array:
+        """Return log h0(t*exp(-eta))-eta, retaining baseline boundary limits.
+
+        Args:
+            t: Real times broadcast against batch_shape.
+        Returns:
+            Broadcast log hazard; -inf before zero and NaN at NaN times.
+            Baseline overrides supply the zero and infinity limits; an
+            unrepresentable interior rescaled time gives NaN.
+        """
+        return self.baseline.log_hazard(self._rescale_time(t)) - self.log_time_ratio

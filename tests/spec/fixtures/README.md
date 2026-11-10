@@ -1,9 +1,10 @@
 # Committed reference fixtures for the spec tests
 
 The spec tester does not generate fixtures (spec 10.4: R evaluates them; the
-maintainer commits them). Spec 11.1 (rev 34): "The spec tester defines the
-file name and schema; the generator writes that schema." This file is that
-definition: the **file names and schema the spec tests read** (Q-039 in
+maintainer commits them). Spec 11.1 (rev 34) and 10.4 (rev 59, Slice B
+likelihood fixture): "The spec tester defines the file name and schema; the
+generator writes that schema." This file is that definition: the **file
+names and schema the spec tests read** (Q-039 and Q-073 in
 `../API_ASSUMPTIONS.md`).
 
 Until a file listed here exists, every test that reads it **fails** (it never
@@ -83,6 +84,130 @@ Field meanings:
   `grid.survival.<vector>`: shape `(141, 3)`, columns Good, Medium, Poor,
   from flexsurv (`summary(..., type = "survival", t = grid.time)` at fixed
   parameters).
+
+## `slice_b_likelihood.json` (spec 2, 10.4, 12.1, 12.2; rev 60; Q-073)
+
+The Slice B likelihood fixture of spec 10.4: one synthetic dataset with a
+recorded seed covering the ten cells where flexsurv's likelihood conventions
+match spec section 2, and per-row log likelihoods from
+`flexsurvreg(..., fixedpars = TRUE)` for Weibull, log-normal and
+log-logistic, each at two or more fixed parameter vectors, without
+covariates. Used by `test_observation_censoring_flexsurv_fixture.py`.
+
+All numbers are JSON numbers written with full float64 precision, as for
+`bc_synthetic_weibull.json`. JSON has no infinity: `null` stands for `+inf`
+in `right_trunc` and for "absent" in `time2`.
+
+```json
+{
+  "meta": {
+    "seed": 20261110,
+    "generator": "path/to/generator.R",
+    "R": "4.4.2",
+    "flexsurv": "2.3.2",
+    "survival": "3.7-0",
+    "call": "flexsurvreg(<Surv(...)> ~ 1, data = d, dist = <dist>, inits = <vector>, fixedpars = TRUE, rtrunc = <U>)"
+  },
+  "data": {
+    "cell":        ["untruncated_exact", "untruncated_left", "right_truncated_interval", ...],
+    "kind":        ["exact", "left", "interval", ...],
+    "time":        [0.83, 1.20, 0.40, ...],
+    "time2":       [null, null, 0.95, ...],
+    "left_trunc":  [0.0, 0.0, 0.0, ...],
+    "right_trunc": [null, null, 2.5, ...]
+  },
+  "families": {
+    "weibull": {
+      "flexsurv_dist": "weibull",
+      "vectors": [
+        {"name": "shape_one", "parameters": {"shape": 1.0, "scale": 2.0}, "loglik": [...]},
+        {"name": "shape_1_5", "parameters": {"shape": 1.5, "scale": 1.7}, "loglik": [...]}
+      ]
+    },
+    "lognormal": {
+      "flexsurv_dist": "lnorm",
+      "vectors": [{"name": "...", "parameters": {"meanlog": 0.3, "sdlog": 0.8}, "loglik": [...]}, "..."]
+    },
+    "loglogistic": {
+      "flexsurv_dist": "llogis",
+      "vectors": [{"name": "...", "parameters": {"shape": 2.0, "scale": 1.5}, "loglik": [...]}, "..."]
+    }
+  }
+}
+```
+
+Field meanings:
+
+- `data`: `N` rows, all arrays of length `N`, in row order. Every family and
+  vector is evaluated on the same rows (Q-073, confirmed by rev 60: choose the
+  vectors so that every rule below holds under every family).
+  - `kind`: `"exact"`, `"right"`, `"left"` or `"interval"`.
+  - `time`: the exact time `t` (exact), the censoring time `c` (right: set
+    `(c, +inf]`; left: set `(0, c]`), or the interval's lower end `a`
+    (interval: set `(a, b]`). Positive and finite.
+  - `time2`: the interval's upper end `b` (finite, `b > a`); `null` on every
+    other row.
+  - `left_trunc`: `L`, finite, `0` when there is no left truncation.
+  - `right_trunc`: `U`, a finite number, or `null` for `+inf` (no right
+    truncation). Every row has `L < U`.
+  - `cell`: the row's cell, one of the ten names below; the test checks that
+    `kind` and the window agree with it.
+- `families.<family>`: exactly `weibull`, `lognormal` and `loglogistic`.
+  `flexsurv_dist` records the `dist` argument used (documentation only).
+  `vectors`: two or more objects with a unique `name`, the natural
+  parameters in survjax's names (spec 4.1: Weibull `shape`, `scale`;
+  log-normal `meanlog`, `sdlog`; log-logistic `shape`, `scale`, matching
+  flexsurv's `weibull`, `lnorm` and `llogis` parameters one to one), and
+  `loglik`: `N` per-row log-likelihood contributions (for example
+  `fit$logliki`) at those fixed parameters, on the time scale (densities
+  include no Jacobian of any transformation). At least one Weibull vector
+  has `shape` exactly `1`.
+
+Cells (spec 10.4, rev 60); every cell has **at least five rows**, spread
+over the cell's domain, and no other row is allowed:
+
+| `cell` | window | rows |
+| --- | --- | --- |
+| `untruncated_exact` | `L=0`, `U=null` | exact |
+| `untruncated_right` | `L=0`, `U=null` | right |
+| `untruncated_left` | `L=0`, `U=null` | left |
+| `untruncated_interval` | `L=0`, `U=null` | interval |
+| `left_truncated_exact` | `L>0`, `U=null` | exact, `t>L` |
+| `left_truncated_right` | `L>0`, `U=null` | right, `c>L` (not at entry) |
+| `right_truncated_exact` | `L=0`, finite `U` | exact, `t<=U` |
+| `right_truncated_left` | `L=0`, finite `U` | left, `c<U` |
+| `right_truncated_interval` | `L=0`, finite `U` | interval, `b<=U` |
+| `two_sided_exact` | `L>0`, finite `U` | exact, `L<t<=U` |
+
+Generator constraints (10.4 rev 60), checked by the integrity tests:
+
+- At least five rows per cell. `right_truncated_interval` includes a row
+  with `time2` equal to its `right_trunc` (`b=U`); `right_truncated_exact`
+  and `two_sided_exact` each include a row with `time` equal to its
+  `right_trunc` (`t=U`). Equality is float64 equality of the JSON numbers,
+  so write the same number in both fields. ("Spread over the domain" is not
+  checked mechanically.)
+- Every finite `time`, `time2`, `left_trunc` and `right_trunc` has cumulative
+  hazard `H = -log S` at most 15 under every vector of every family.
+- `time2 - time >= 1e-4 * time2` on interval rows, and
+  `right_trunc - left_trunc >= 1e-4 * right_trunc` on rows with finite `U`
+  (10.4 rev 60: "including two-sided truncation windows").
+- Every censored set and every truncation window other than `(0,+inf]` has
+  probability at least `1e-6` under every vector of every family: `P(c < T)`
+  for right rows, `P(T <= c)` for left rows, `P(a < T <= b)` for interval
+  rows, and `P(L < T <= U)` for every row with `L>0` or finite `U`, including
+  left-only windows `(L, +inf]` (`P(T > L)`; flexsurv computes that
+  normaliser `1 - F(L)` by subtraction). All unconditional, computed in
+  50-digit mpmath from the section 2 table.
+- Values are finite; censored rows are at most `0`; and each value equals the
+  spec 2 contribution (50-digit mpmath) within float64 `atol=1e-10`,
+  `rtol=1e-8`. survjax is compared with the fixture in float64 only.
+- No derivatives, no survreg values, no covariates, no weights.
+
+The cells 10.4 excludes (left or interval censoring with left truncation;
+right-censored rows under a finite `U`; censored sets reaching beyond `U`;
+rows censored at or before entry; observations outside the window; exact zero
+times) must not appear: flexsurv defines them differently from section 2.
 
 ## `concordance_synthetic.json` (spec 9.2, 10.4, 12.1; step A10)
 

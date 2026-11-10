@@ -1,6 +1,6 @@
 # Test map
 
-Spec: revision 56 (see `.spec-seen`). Unchanged requirements keep their
+Spec: revision 59 (see `.spec-seen`). Unchanged requirements keep their
 earlier revision tags. Tests from the revision 10 decision (sections 6.2, 10.2,
 13) are tagged `rev 10`. Tests from the performance amendment (section 7.2),
 accepted in revision 11, are tagged `rev 11`. A4 tests derive from revision 11 and
@@ -198,7 +198,38 @@ reverse, shared parameters, hand-derived): beside a known-infinite mean
 `beta = [3, 0.8]`), known-infinite quantiles (`p = 0.9` and `p = 1`), endpoint
 quantiles (default and bounded support), `inverse_cumulative_hazard` at `e`
 0 and `+inf`, and invalid-input entries (invalid `p`, invalid `e`, parameter
-issues). Revision 55 (8.8, 12.2) brings
+issues). Revision 58 (8.3) settles the generic RMST tail cut: the floor
+`log(finfo(dtype).tiny)`, a search only where `log S(tau)` is below it, the
+section 8.2 iteration in the known bracket with an acceptance window, steps
+counted against `max_solver_steps`, `work_exhausted` with NaN on failure, a
+finite support end as the cut, and `stop_gradient` on the cut point. No
+existing test changed: the only RMST count assertion
+(`test_generic_rmst_counts`) has `log S(tau)` above the floor, where rev 58
+still requires zero solver steps. New tests in `test_summary_rmst_tail_cut.py`
+(tagged `rev 58`) use custom families only, including the new
+`spec_families.gompertz_like` (hand RMST with `E1`,
+`summary_reference.gompertz_rmst`); Q-071 and Q-072 record the guesses.
+Revision 59 (10.4, 10.5, 12.1, 12.2; decision 0059) defines the Slice B
+flexsurv likelihood fixture for the ten cells where flexsurv's conventions
+match section 2. New: `test_observation_censoring_flexsurv_fixture.py`
+(tagged `rev 59`), the fixture schema in `fixtures/README.md` (Q-073), and
+two float64 mpmath helpers in `observation_reference.py`; markers and the
+float64-only comparisons are Q-074. No existing test changed; the "R
+fixtures" entries of the Slice B not-tested lists now point to the new
+section. The fixture file itself is not committed yet.
+Revision 60 (10.4) settles Q-073 and Q-074: at least five rows per cell with
+`b=U` and `t=U` where allowed, minimum probability `1e-6` for every censored
+set and finite window, the width rule for two-sided windows, float64-only
+comparison. New fixture integrity tests (rows per cell, `b=U`, `t=U`, minimum
+probability with a new `observation_reference.log_mass_float64`); the
+comparison tests and the width test are retagged `rev 60`. New
+`test_observation_truncation_lognormal_loglogistic.py` (tagged `rev 60`)
+closes the log-normal and log-logistic gaps in the cells 10.4 excludes.
+A clarification of revision 60 (10.4, no revision bump) applies the minimum
+probability to every truncation window other than `(0,+inf]`, so left-only
+windows `(L,+inf]` are included; the minimum-probability integrity test now
+checks them too (still tagged `rev 60`).
+Revision 55 (8.8, 12.2) brings
 the log-normal and log-logistic families forward; they are covered by the new
 features `family.lognormal` and `family.loglogistic` (`test_family_*.py`,
 tagged `rev 55`; analytical-summary tests also list the summary feature).
@@ -1999,6 +2030,7 @@ and (rev 54) `known_mean_log_logistic`, `mean_with_info_sentinel`.
 | 8.3/8.8 | generic fallbacks: constant and power hazards, batched; PH without closure; bounded support; improper finite RMST; heavy tail; scale changes; dtype | `test_generic_rmst_of_a_constant_hazard`, `test_generic_rmst_of_a_power_hazard_matches_quadrature`, `test_generic_rmst_is_vectorized_over_a_batch`, `test_ph_rmst_on_a_baseline_without_closure_matches_the_physical_law`, `test_bounded_support_rmst_is_hand_derived`, `test_improper_family_has_finite_rmst`, `test_heavy_tail_generic_rmst`, `test_generic_rmst_scales_with_the_time_scale`, `test_generic_rmst_is_in_the_parameter_dtype` (values) |
 | 4.5/8.7 | 8.7 `tau` policy on generic paths: NaN, `rmst(0)=0`, dtype `TypeError` (eager, traced), float64 conversion; `tau_grid[:, None, None]`; non-broadcasting `tau`; parameter violations NaN | `test_generic_invalid_cutoff_gives_nan`, `test_generic_rmst_at_zero_is_zero`, `test_generic_cutoff_with_a_non_numeric_dtype_is_rejected`, `test_generic_boolean_cutoff_is_rejected_during_tracing`, `test_generic_float64_cutoff_converts_without_warning_in_32_bit_mode`, `test_generic_cutoff_grid_with_explicit_axes`, `test_generic_cutoff_that_does_not_broadcast_is_rejected`, `test_parameter_violations_give_nan_rmst`, `test_non_finite_integrand_gives_nan_rmst`, `test_rmst_agrees_under_jit_and_vmap` (policy) |
 | 8.5 rev 54 (+ containers) | "Invalid arguments (`tau<0` or non-finite ...) and entries with parameter issues have status `invalid_input` and NaN values"; "`rmst(0)=0` ... `converged`"; per entry | `test_invalid_cutoff_reports_invalid_input`, `test_parameter_violations_report_invalid_input`, `test_zero_cutoff_reports_converged`, `test_cutoff_statuses_are_per_entry` (policy) |
+| 8.5 rev 61 (+ containers) | "For valid parameters, exact `rmst(0)=0` bypasses quadrature and reports `error_estimate=0` and all work counts zero" on every family; "the fewer-than-two-quadrature-estimates NaN rule ... does not apply" (`max_levels=1`, every family; generic `tau = [0, 3]` beside a `work_exhausted` entry); "Parameter issues still take precedence and give `invalid_input` with a NaN value" (scalar `tau=0` and `tau = [0, 0, 1.5]`, built-in and generic); per entry in mixed batches | `test_zero_cutoff_reports_converged`, `test_cutoff_statuses_are_per_entry`, `test_zero_cutoff_with_a_single_level_is_still_exact`, `test_zero_cutoff_with_a_single_level_is_per_entry`, `test_parameter_violations_take_precedence_at_zero_cutoff` (policy) |
 | 8.3/8.5 (+ containers) | violation status under `jit`; info shapes on grids; `non_finite_arithmetic` per entry; `work_exhausted`; counts; error estimate in time units; `jit`/`vmap` of info; options into `jit` | `test_cutoff_grid_with_info_against_draws_by_arms`, `test_parameter_violation_status_under_jit`, `test_non_finite_integrand_is_a_failure_status`, `test_quadrature_work_exhaustion_is_reported`, `test_generic_rmst_counts`, `test_error_estimate_is_in_time_units`, `test_rmst_with_info_agrees_under_jit_and_vmap`, `test_options_cross_jit_into_a_generic_rmst` (policy) |
 | 8.3/8.5 rev 52 (+ containers) | "one adjacent pair ... No second successful pair is required; one evaluated level alone cannot establish convergence" (converged `num_levels` in `[2, max_levels]`, loose `atol` converges at 2); "`num_levels` counts the rounds ... not the sum of counts over split intervals" (exhaustion at `max_levels=3` across the `s` split gives 3); "`error_estimate` is the last absolute difference ... including on work exhaustion" (finite, positive), "NaN if fewer than two estimates exist" (`max_levels=1`) "or if a non-finite integrand"; rev 53: "A converged entry returns `Q_l` of the converging pair" (error estimate within `atol + rtol*abs(value)`), a failure status "returns NaN" | `test_one_adjacent_pair_suffices_for_convergence`, `test_work_exhaustion_counts_rounds_not_split_intervals`, `test_single_level_reports_one_round_and_a_nan_error_estimate`, `test_non_finite_integrand_has_a_nan_error_estimate`, `test_generic_rmst_counts`, `test_non_finite_integrand_is_a_failure_status`, `test_error_estimate_is_in_time_units`, `test_quadrature_work_exhaustion_is_reported`, `test_non_finite_integrand_gives_nan_rmst` (policy); `test_non_converged_entry_has_a_nan_tangent` (derivatives, premise only) |
 | 8.4/8.8 | Weibull and PH-Weibull shape Hessians correct (interior, heavy, both power tails), four compositions; `check_grads` with the shape direction | `test_weibull_rmst_shape_second_derivative_is_correct`, `test_weibull_rmst_full_hessian_is_correct`, `test_ph_weibull_rmst_hessian_with_shape_is_correct`, `test_check_grads_order_two_weibull_rmst_with_shape`, `test_check_grads_order_two_ph_weibull_rmst_with_shape` (derivatives) |
@@ -2006,6 +2038,11 @@ and (rev 54) `known_mean_log_logistic`, `mean_with_info_sentinel`.
 | 8.4 | generic tangents: first derivatives, Hessian, PH without closure, `check_grads`, `jit`/`vmap` | `test_generic_rmst_first_derivatives_match_quadrature`, `test_generic_rmst_hessian`, `test_ph_rmst_without_closure_derivatives_match_the_physical_law`, `test_check_grads_order_two_generic_rmst`, `test_generic_rmst_gradient_agrees_under_jit_and_vmap` (derivatives) |
 | 8.4/8.7 | isolation with shared parameters (invalid `tau`, non-finite failure, Weibull Hessian); NaN tangent of a failed entry; NaN tangent of a non-converged entry (+ containers) | `test_generic_rmst_isolates_invalid_cutoffs_with_shared_rate`, `test_valid_entries_isolated_from_a_non_finite_failure`, `test_weibull_rmst_hessian_isolation_with_shared_parameters`, `test_non_finite_failure_entry_has_a_nan_tangent`, `test_non_converged_entry_has_a_nan_tangent` (derivatives) |
 | 8.4 rev 54 | "invalid-input entries" get NaN tangents: invalid `tau` (`<0`, NaN, `±inf`) on every family, with `tau=0` and interior entries finite; parameter-issue entries (built-in and generic) | `test_invalid_cutoff_entries_have_nan_tangents`, `test_parameter_violation_entry_has_a_nan_rmst_tangent` (derivatives) |
+| 8.3 rev 58 | "Cut the upper range where `log S` falls below the floor `log(finfo(dtype).tiny)`": light tails far below the floor in both dtypes (Weibull-like `k=20`, `tau=1000*b`; exponential-like `r=0.5`, `tau=1e4`; Gompertz-like `a=0.5`, `g=1`, `tau=50`) against mpmath | `test_light_tail_rmst_matches_mpmath` (tail cut) |
+| 8.3/8.4 rev 58 | "`c` enters the integral through `stop_gradient` ... the section 8.4 tangents are unchanged": first derivatives in parameters and `tau`, forward and reverse; `(k, b)` Hessian at `k=20`, `tau=1000*b` against the mean's | `test_light_tail_rmst_first_derivatives_match_mpmath`, `test_light_tail_rmst_parameter_hessian` (tail cut) |
+| 8.3 rev 58 | "where `log S` reaches `-inf` before the floor (a finite support end), the cut is that end": uniform `(0, end]` at `tau` 10, 1e3, 1e6: `end/2`, `d/dend = 1/2`, `d/dtau = 0`; per-entry `converged` (+ containers) | `test_support_end_before_the_floor`, `test_support_end_cut_reports_converged` (tail cut) |
+| 8.3/8.5 rev 58 (+ containers) | "otherwise there is no search" / "zero where no search runs" (including `log S(tau) = floor + 2`); a search's steps "count against `max_solver_steps` and are reported in `num_solver_steps`" (1 to 64, Q-071); "no bracket expansion occurs" (`num_bracket_steps == 0`); per entry | `test_no_cut_search_where_log_survival_at_tau_is_above_the_floor`, `test_cut_search_steps_are_counted`, `test_cut_search_counts_are_per_entry` (tail cut) |
+| 8.3/8.4 rev 58 (+ containers) | `max_solver_steps=1`: at most one step; "an entry whose search exhausts them has status `work_exhausted` and a NaN value" or a correct converged value; other entries keep values, counts, status and shared-parameter derivatives (rev 57 isolation); exhausted entry's forward tangent NaN (conditional, Q-072) | `test_cut_search_under_a_one_step_limit_is_consistent`, `test_cut_search_limit_isolates_other_entries`, `test_exhausted_cut_search_entry_has_a_nan_tangent` (tail cut) |
 
 ### `summary.mean`: `test_summary_mean_*.py`
 
@@ -2087,8 +2124,9 @@ Not tested for `observation.censoring`:
   row: unspecified; tested only through values (Q-065).
 - **Static-metadata pruning itself:** optional (7.2); only its invariance is
   tested.
-- **R fixtures (flexsurv, every kind):** 12.2 Slice B gate, but fixtures are
-  maintainer-supplied and none are committed yet.
+- **R fixtures (flexsurv):** the comparable cells are tested against the rev 59
+  fixture ("Slice B flexsurv fixture" below); the fixture is
+  maintainer-supplied and not committed yet, so those tests fail until it is.
 - **Derivatives at `-inf` or overflowing rows, at support-change boundaries,
   and in data times:** outside 7.3's guarantee.
 
@@ -2132,10 +2170,62 @@ Not tested for `observation.truncation`:
   truncation flags:** optional and permitted (7.2); only invariance and reuse
   for equal metadata are tested.
 - **Truncation-conditioned sampling** (8.6): feature `sampling`.
-- **R fixtures (flexsurv, every kind and truncation):** maintainer-supplied;
-  none committed yet.
+- **R fixtures (flexsurv):** only the rev 59 comparable cells, below; the
+  others are not compared with flexsurv by design (10.4).
 - **Derivatives in truncation endpoints:** outside 7.3's guarantee.
 - **AFT wrapper under truncation:** Slice D.
+
+### Slice B flexsurv fixture: `test_observation_censoring_flexsurv_fixture.py` (rev 60)
+
+Spec 10.4 (rev 59/60): per-row log likelihoods from `flexsurvreg(..., fixedpars
+= TRUE)` for Weibull (with shape 1), log-normal and log-logistic, two or
+more vectors each, in the ten cells where flexsurv's conventions match
+section 2, at least five rows per cell; 12.1 float64 targets, compared in
+float64 only; 12.2 Slice B gate. File `fixtures/slice_b_likelihood.json`,
+schema in `fixtures/README.md` (Q-073, resolved by rev 60). Not committed
+yet, so every test here fails until it is. Markers: role table and Q-074
+(resolved by rev 60). The comparison tests run per family
+(`weibull`, `lognormal`, `loglogistic`) and per cell, each over every vector
+of the fixture.
+
+| Spec | Requirement | Tests |
+| --- | --- | --- |
+| 10.4 | fixture integrity (no survjax): exactly the ten cells, each present; at least five rows per cell (rev 60); `b=U` in `right_truncated_interval` and `t=U` in `right_truncated_exact` and `two_sided_exact` (rev 60); rows match their cell's kind, window and membership (`c>L`, `t<=U`, `c<U`, `b<=U`, `L<t<=U`); three families, two or more vectors, natural parameter names, Weibull shape 1, valid parameters; one finite value per row; `H <= 15` at every finite point (mpmath); widths of intervals and finite windows `>= 1e-4` times the upper bound; every censored set and every window other than `(0,+inf]` (including left-only `(L,+inf]`) has probability `>= 1e-6` under every vector (mpmath, rev 60); censored rows `<= 0`; values equal 50-digit mpmath of the spec 2 table at float64 tolerances | `test_fixture_covers_exactly_the_ten_comparable_cells`, `test_fixture_has_at_least_five_rows_per_cell`, `test_fixture_has_an_interval_ending_at_upper`, `test_fixture_has_an_exact_time_at_upper`, `test_fixture_rows_match_their_cell`, `test_fixture_has_the_three_families_with_two_or_more_vectors`, `test_fixture_weibull_includes_shape_one`, `test_fixture_parameters_are_valid`, `test_fixture_log_likelihoods_have_one_finite_value_per_row`, `test_fixture_cumulative_hazards_are_at_most_15`, `test_fixture_intervals_are_not_too_narrow`, `test_fixture_censored_sets_and_windows_have_probability_at_least_1e_minus_6`, `test_fixture_censored_rows_have_non_positive_log_likelihood`, `test_fixture_agrees_with_mpmath` |
+| 2/10.4/12.1 | no truncation: exact, right (`observation.censoring`), left, interval (`observation.censoring`) | `test_per_row_log_likelihood_matches_flexsurv_in_each_cell[<family>-untruncated_{exact,right,left,interval}]` |
+| 2/10.4/12.1 | left truncation only: exact; right with `c>L` (`observation.truncation`) | `test_per_row_log_likelihood_matches_flexsurv_in_each_cell[<family>-left_truncated_{exact,right}]` |
+| 2/10.4/12.1 | right truncation only: exact `t<=U` (`observation.truncation`); left `c<U`, interval `b<=U` (both features) | `test_per_row_log_likelihood_matches_flexsurv_in_each_cell[<family>-right_truncated_{exact,left,interval}]` |
+| 2/10.4/12.1 | two-sided truncation: exact (`observation.truncation`) | `test_per_row_log_likelihood_matches_flexsurv_in_each_cell[<family>-two_sided_exact]` |
+| 1/2/7.1/10.4 | all ten cells in one mixed batch (per-row kinds and windows); summed objective | `test_whole_fixture_in_one_batch_matches_flexsurv`, `test_summed_fixture_log_likelihood_matches_flexsurv` |
+
+**Cells 10.4 excludes from the fixture, covered by independent mathematics
+(12.1, 12.2 Slice B gate: "the others by independent mathematics"):**
+
+| Excluded cell (10.4) | Covered by (hand algebra or 50-digit mpmath) |
+| --- | --- |
+| left or interval censoring with left truncation | Exponential, Weibull `k>1`, `k<1`: `test_observation_truncation_values.py::test_truncated_left_and_interval_rows_are_hand_derived` (`left`, `two-sided` windows), `test_full_mixed_matrix_in_one_batch`, `test_mixed_kinds_and_mixed_windows_in_one_batch`; properties `test_two_sided_truncation_conditions_on_the_window`; derivatives `test_weibull_full_matrix_hessian_matches_mpmath`. Log-normal and log-logistic (two vectors each, mpmath): left rows `(0, c]` and interval rows inside, starting at and overlapping `L`, under left-only and two-sided windows, `test_observation_truncation_lognormal_loglogistic.py::test_left_and_interval_rows_with_left_truncation_match_mpmath`; also `test_truncated_interval_row_with_partial_overlap` in the family files |
+| right-censored rows under a finite `U` (`P(c<T<=U)`, not `S(c)`) | Exponential, Weibull: `test_truncated_exact_and_right_rows_are_hand_derived` (`right`, `two-sided`), `test_right_censored_beyond_entry_with_right_truncation_by_hand`. Log-normal, log-logistic: `test_truncated_exact_and_right_rows_match_mpmath` (`right`, `two-sided`) |
+| censored sets reaching beyond `U` (intersected with the window) | Exponential, Weibull: the partial-overlap interval `(1, 4]` with `U=3` in `test_truncated_left_and_interval_rows_are_hand_derived`; covering sets exactly zero and `uninformative` in `test_observation_truncation_diagnostics.py::test_censored_set_covering_the_window_is_exactly_zero_and_uninformative` (left at `c>=U`, intervals containing the window), `test_covering_rows_are_zero_for_extreme_parameters`, and the property `test_censored_sets_covering_the_window_are_exactly_zero`. Log-normal and log-logistic (mpmath; `test_observation_truncation_lognormal_loglogistic.py`): partial overlap at `U` (`(1, 4]`, `(2.5, 10]`, `(1.5, +inf]` with `U=3`; right-only and two-sided windows) `test_censored_sets_reaching_beyond_upper_are_intersected_with_the_window`; covering sets exactly zero and `uninformative` (left at and beyond `U`, also with `L=0`; intervals equal to and containing the window; `(L, +inf]`) `test_censored_set_covering_the_window_is_exactly_zero`; deep windows (`Z ~ 6e-16`, `1e-12`) `test_covering_rows_are_exactly_zero_in_a_deep_window` |
+| rows censored at or before entry | at entry (exactly zero, `uninformative`): `test_right_censored_at_entry_is_exactly_zero_and_uninformative`, property `test_right_censoring_at_entry_is_exactly_zero`; before entry and empty intersections (NaN, invalid): `test_invalid_truncated_exact_or_right_row_is_nan` (`right-before-entry`, `bounds-zero-to-inf-after-entry`), `test_invalid_truncated_censored_row_is_nan` (`left-at-entry`, `left-before-entry`, interval ending at or before `L`). Log-normal and log-logistic (valid row 0 against mpmath): `test_right_censored_at_entry_is_exactly_zero`, `test_right_censored_before_entry_is_invalid`, `test_left_and_interval_rows_at_or_before_entry_are_invalid` |
+| observations outside the window | `test_invalid_truncated_exact_or_right_row_is_nan` (`exact-at-entry`, `exact-before-entry`, `exact-after-upper`, `right-at-upper`, `right-beyond-upper`), `test_invalid_truncated_censored_row_is_nan` (`interval-starting-at-upper`). Log-normal and log-logistic: `test_exact_and_right_rows_outside_the_window_are_invalid`, `test_interval_rows_outside_the_window_are_invalid` (also an interval wholly beyond `U`) |
+| exact zero times | invalid data (3.3), NaN row: `test_a6_likelihood_invalid_data.py::test_invalid_exact_time_is_nan[zero]`; issue bits `test_a2_boundaries.py::test_exact_time_zero_sets_issue`, `test_a3_data_issues.py::test_zero_exact_time_sets_invalid_time`, `test_a2_bounds_constructor.py::test_exact_row_at_zero_sets_issue` |
+
+Markers of `test_observation_truncation_lognormal_loglogistic.py` (rev 60):
+the family feature and `observation.truncation` on every test;
+`observation.censoring` added where the test has left or interval rows.
+
+**Gaps:** none left for the fixture families in the excluded cells. Weibull
+with shape exactly 1 is not used in the excluded truncated cells (the values
+use Exponential, Weibull `k=1.5` and `k=0.6`); Exponential is the same law,
+so this is not a real gap. Derivatives in the excluded cells are tested for
+Exponential and Weibull (truncation derivatives) and, for log-normal and
+log-logistic, through `test_truncated_row_gradients_include_log_z` only (not
+a 10.4 requirement).
+
+Not tested: float32 comparison with the fixture (10.4 rev 60: "compared in
+float64 only"; skipped); "spread over the domain" (no mechanical criterion);
+derivatives and survreg values (10.4: "The fixture records no derivatives and
+no survreg values"); the 10.5 documentation list of cells where survjax and
+flexsurv differ (documentation gate, not a spec test).
 
 ### `family.lognormal`: `test_family_lognormal_*.py` (rev 55)
 
@@ -2195,7 +2285,8 @@ Not tested for `family.lognormal`:
 - **Sampling** (8.6 closed-form draws): feature `sampling`, not requested.
 - **AFT over a log-normal baseline:** Slice D.
 - **Committed R fixtures for the family** (12.1 "Independent references"):
-  maintainer-supplied, none committed.
+  the rev 59 Slice B flexsurv fixture covers log-normal in the comparable
+  cells ("Slice B flexsurv fixture" above); not committed yet.
 
 ### `family.loglogistic`: `test_family_loglogistic_*.py` (rev 55)
 
@@ -2227,8 +2318,9 @@ before use.
 Not tested for `family.loglogistic`: `check_family` (Slice D, 12.2 rev 57;
 Q-070 settled); the declaration order; a violating entry's own values; error
 estimate and counts of the closed-form quantile; the known-infinite entries'
-own reverse-mode derivatives (unspecified, 8.4 rev 57); sampling; AFT;
-R fixtures. The custom-family log-logistic mean tests in
+own reverse-mode derivatives (unspecified, 8.4 rev 57); sampling; AFT.
+R fixtures: the rev 59 Slice B flexsurv fixture covers log-logistic in the
+comparable cells ("Slice B flexsurv fixture" above); not committed yet. The custom-family log-logistic mean tests in
 `test_summary_mean_values.py` are kept: they test the `mean_with_info`
 override contract and the generic heavy-tail path, which the built-in does
 not exercise.
@@ -2241,6 +2333,18 @@ not exercise.
   `check_family` is Slice D and in no feature of the role table.
 - **Higher-order RMST derivatives at `tau=0`:** "carry no guarantee" (8.4,
   rev 51).
+- **Where the RMST cut point `c` lies (8.3, rev 58):** not observable through
+  the public API (the omitted mass is below `tiny`), and the spec fixes only
+  the acceptance window. The search's starting point and the exact step count
+  are open (Q-071).
+- **A forced `work_exhausted` from the RMST cut search (8.3, rev 58):** no
+  static `max_solver_steps` provably exhausts it (Q-072); the one-step tests
+  check exhaustion only when it happens.
+- **`(k, b, tau)` RMST Hessian in the light tail:** in float32 the test
+  family's own `log S` overflows to `-inf` at `tau = 1000*b`, where its
+  parameter tangent is `0 * inf`; `tau` is covered to first order.
+- **The tail cut on PH wrappers without a closure:** the same generic path;
+  covered by the custom families only, as requested.
 - **"All subintervals of a broadcast entry share the same refinement round"
   beyond counts, and the arithmetic-failure NaN error estimate (8.3/8.5,
   rev 52):** only observable through `num_levels` (tested); no public family

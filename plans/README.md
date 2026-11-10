@@ -57,4 +57,5 @@ Imported verbatim; old status/next-step instructions are historical only.
 - [B1b](B1b.md): Exponential interval and conditional overrides, through 6fab866.
 
 - [B1c](B1c.md): Weibull interval and conditional overrides, through 535b854.
+- [Pre-AFT release records](pre-aft.md): prior PLAN.md preserved verbatim.
 - [Pre-demo-audit records](pre-final-demo-evidence.md): verbatim incoming WHEEL.1/RELEASE.A2 plan at cc0e30f; historical authorizations do not apply to this worktree.

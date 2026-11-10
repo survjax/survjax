@@ -1,4 +1,4 @@
-"""mpmath references for Slice B likelihood rows (spec 2, 7.1; rev 51). No survjax calls.
+"""mpmath references for Slice B likelihood rows (spec 2, 7.1; rev 51; fixture helpers rev 59/60). No survjax calls.
 
 Every reference evaluates the spec 2 table in mpmath at 50 digits, at inputs
 first rounded to the active dtype (so a comparison measures only survjax's
@@ -188,6 +188,38 @@ def hessian(family, params, lower, upper=None, *, exact=False, left=0.0, right=m
                 orders[j] += 1
                 out[i, j] = out[j, i] = _partial(family, p, row, orders)
     return out
+
+
+def contribution_float64(family, params, lower, upper=None, *, exact=False, left=0.0, right=math.inf):
+    """As ``contribution``, but at the given float64 inputs, not rounded to the active dtype (rev 59).
+
+    For checking committed fixtures, whose inputs are float64 in either dtype mode.
+    """
+    mp = _mp()
+    upper = lower if upper is None else upper
+    with mp.workdps(DPS):
+        lo, hi, lt, rt = _to_mp([float(lower), float(upper), float(left), float(right)])
+        return float(_contribution(family, _to_mp([float(p) for p in params]), lo, hi, exact, lt, rt))
+
+
+def cumulative_hazard_float64(family, params, t):
+    """``H(t)`` in mpmath at float64 inputs, as a float64 (``H(0) = 0``, ``H(+inf) = +inf``; rev 59)."""
+    mp = _mp()
+    with mp.workdps(DPS):
+        (t,) = _to_mp([float(t)])
+        return float(_cumulative_hazard(family, _to_mp([float(p) for p in params]), t))
+
+
+def log_mass_float64(family, params, a, b):
+    """``log P(a < T <= b)`` in mpmath at float64 inputs, as a float64, for ``0 <= a < b <= +inf`` (rev 60).
+
+    Unconditional (no truncation): the probability of a censored set or of a
+    truncation window, for checking committed fixtures.
+    """
+    mp = _mp()
+    with mp.workdps(DPS):
+        lo, hi = _to_mp([float(a), float(b)])
+        return float(_log_mass(family, _to_mp([float(p) for p in params]), lo, hi))
 
 
 def rows(family, params, table, **window):
