@@ -36,7 +36,7 @@ Each of the use-cases include executable notebooks that you can run in your own 
 
 This pre-release supports exact events and right censoring without truncation
 for likelihoods. Exponential and Weibull distributions, proportional hazards,
-Harrell's concordance and RMST for those built-in families are available.
+accelerated failure time, Harrell's concordance and RMST for those built-in families are available.
 Left/interval censoring and truncation can be represented as data, but their
 likelihoods are not implemented. Each guide states its current limitations.
 
@@ -55,6 +55,7 @@ working-with-distributions
 likelihood
 builtin-families
 proportional-hazards
+accelerated-failure-time
 distributions
 numerical-behaviour
 ```

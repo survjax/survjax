@@ -9,6 +9,30 @@ cc0e30f, also the original worktree base. AFT.1 implementation and validation ar
 rounds concluded with maintainer disposition of F-2: remove the redundant
 boundary substitution; follow-up checks passed.
 
+## AFT.3 — AFT documentation
+
+Documentation implemented and validated; independent review pending.
+Start and previous-step commit 607a11b, original
+worktree base cc0e30f. Files: docs/accelerated-failure-time.md (one tutorial
+in the existing distribution guides), docs/index.md (navigation/status),
+docs/api.md (link from the existing AFT entry), PLAN.md and REVIEW.md.
+No API/docstring/test changes. Follow the PH guide's mathematical exposition,
+with a synthetic Weibull time-ratio example, one survival plot, caller-owned
+regression predictors, right-censored likelihood and draw/arm broadcasting.
+Explain the Weibull PH relationship and theoretical quantile scaling without
+calling unsupported summary APIs. Avoid assertions and property-test-style
+examples. Keep docs within 300 changed lines; execute both dtype builds with
+scripts/build_docs.sh, inspect rendered pages, then independent review.
+
+
+One bounded topic in the existing distribution documentation, plus PLAN.md and
+REVIEW.md; correct docstrings only if wrong. Choose the exact existing page at
+step start. Cover construction, sign convention, caller-owned predictors,
+Weibull equivalence, broadcasting, grids, likelihood and currently unsupported
+summaries. No generic-RMST design or new family documentation in this worktree.
+Spec: 4.4, 5, 10.5. Run scripts/build_docs.sh directly and inspect the rendered
+changed topic. Commit, independent review, then stop.
+
 ## AFT.2 — AFT numerical and integration verification
 
 Active step, starting/previous-step commit 09148c5; original worktree base
@@ -86,16 +110,6 @@ shared generic backend lands. No mean, quantile, inverse-hazard or sampling work
 Keep wrappers.py around 300 lines and the implementation diff around 300 lines;
 if it cannot fit, propose a smaller step or module split before proceeding.
 
-## AFT.3 — AFT documentation
-
-One bounded topic in the existing distribution documentation, plus PLAN.md and
-REVIEW.md; correct docstrings only if wrong. Choose the exact existing page at
-step start. Cover construction, sign convention, caller-owned predictors,
-Weibull equivalence, broadcasting, grids, likelihood and currently unsupported
-summaries. No generic-RMST design or new family documentation in this worktree.
-Spec: 4.4, 5, 10.5. Run scripts/build_docs.sh directly and inspect the rendered
-changed topic. Commit, independent review, then stop.
-
 ## Validation and review for each code step
 
 Run all touched test files in both dtype modes (Tier 0), then
@@ -119,9 +133,11 @@ this worktree. AFT completion does not claim full Slice D or summary support.
 
 ## Docs to-do
 
-AFT.3 closes the direct-wrapper documentation topic after the code steps.
+AFT.3 now covers the direct-wrapper tutorial, with minimal navigation and
+API-guide links. No remaining documentation topic in this AFT plan.
 
 AFT.1 implemented and validated; review rounds complete, F-2 disposed by
 maintainer-directed removal with passing follow-up checks.
-AFT.2 implementation and validation complete; independent review pending.
-Remaining after AFT.2: AFT.3.
+AFT.2 complete; independent review round 1 verdict merge (607a11b).
+AFT.3 written and validated; independent review pending.
+No further implementation sub-steps remain after AFT.3.
