@@ -1,15 +1,16 @@
-"""observation.censoring: the `log_interval_prob(lower, upper)` member (spec 4.2, 7.1, 7.2; rev 51).
+"""observation.censoring: the `log_interval_prob(lower, upper)` member (spec 4.2, 7.1, 7.2, 12.2; rev 51, 54).
 
 4.2: "`log_interval_prob(lower, upper)` | Stable log difference with tail
 selection: `log_survival` when `upper=+inf`, `log_cdf` when `lower=0`,
 otherwise the better-conditioned of the two differences via `log1mexp`";
 overrides "receive endpoints `0` and `+inf` ... and must handle them". 7.1:
 "Direct interval probability with equal endpoints is zero; reversed endpoints
-are invalid." Calling convention and the value for reversed endpoints are
-guesses (Q-065): positional ``(lower, upper)`` broadcasting against
-``batch_shape`` like a direct-method argument, and NaN for reversed
-endpoints (direct methods "never raise on values and carry no issue masks",
-4.5).
+are invalid." Rev 54 (12.2; Q-065 settled): Slice B lists "`log_interval_prob`
+and the `log_conditional_interval_prob` hook", so the member is part of the
+`observation.censoring` stage these tests are marked with. Still guessed
+(Q-065): positional ``(lower, upper)`` broadcasting against ``batch_shape``
+like a direct-method argument, and NaN for reversed endpoints (direct methods
+"never raise on values and carry no issue masks", 4.5).
 
 Exponential ``r = 0.5`` and Weibull ``k = 1.5``, ``b = 2``; interval values
 ``-H(a) + log(-expm1(-(H(b) - H(a))))`` as in

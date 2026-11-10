@@ -609,3 +609,133 @@ def far_reference_log_logistic():
             )
 
     return FarReferenceLogLogistic
+
+
+# ------------------------------------------- mean_with_info overrides (spec 8.1, rev 54, 56)
+
+
+def _override_info(status_code, shape, dtype):
+    """A ``SummaryInfo`` for a family's ``mean_with_info`` override (spec 8.1 rev 56, 8.5 schema; Q-056).
+
+    Rev 56 (8.1): "An analytical answer reports status `converged` (or
+    `known_infinite`), a NaN `error_estimate` and zero work counts." Status
+    codes are ``int32`` (Q-056: integer codes comparing equal to the enum).
+    """
+    zeros = jnp.zeros(shape, dtype=jnp.int32)
+    return survjax.SummaryInfo(
+        status=jnp.broadcast_to(jnp.asarray(status_code, dtype=jnp.int32), shape),
+        error_estimate=jnp.full(shape, jnp.nan, dtype=dtype),
+        num_levels=zeros,
+        num_solver_steps=zeros,
+        num_bracket_steps=zeros,
+    )
+
+
+@jax.custom_jvp
+def _plus_inf_with_nan_tangent(x):
+    """``+inf`` shaped like ``x`` whose tangent is NaN (spec 8.4: known-infinite means get NaN tangents).
+
+    Rev 57 (8.4): "Isolation takes precedence over these NaN tangents ... Its
+    own NaN tangent is guaranteed in forward mode; its own reverse-mode
+    derivative is unspecified, because a zero cotangent times a NaN tangent
+    would otherwise reach every shared parameter." A linear rule ``dx * nan``
+    would do exactly that (its transpose is ``ct * nan``, NaN for ``ct = 0``),
+    so this override would itself break isolation through a shared ``alpha``.
+    The tangent is therefore a constant NaN that does not depend on ``dx``:
+    forward mode gives NaN on the infinite entries; reverse mode has nothing
+    to transpose, so the infinite entries' own reverse derivative is zero
+    (unspecified by the spec, never asserted) and shared parameters are
+    untouched. Callers pass ``x = where(finite, 0, params)`` and select the
+    result with the same ``where``, so the finite entries' tangents are
+    untouched in both modes.
+    """
+    return jnp.full_like(x, jnp.inf)
+
+
+@_plus_inf_with_nan_tangent.defjvp
+def _plus_inf_with_nan_tangent_jvp(primals, tangents):
+    (x,), (dx,) = primals, tangents
+    return _plus_inf_with_nan_tangent(x), jnp.full_like(dx, jnp.nan)
+
+
+@functools.cache
+def known_mean_log_logistic():
+    """Log-logistic ``S(t) = 1/(1 + (t/alpha)**beta)`` reporting its mean through a ``mean_with_info`` override (spec 8.1, rev 54, 56).
+
+    8.1: "A family reports it [a known infinite mean] by overriding
+    `mean_with_info`; `mean` returns the value part of `mean_with_info`, so
+    one override serves both." The override follows the 8.1 table:
+    ``alpha*(pi/beta)/sin(pi/beta)`` with status ``converged`` for
+    ``beta > 1``; ``+inf`` with status ``known_infinite`` for ``beta <= 1``.
+    ``log S = -softplus(beta*(log t - log alpha))`` (spec 4.1 recipe);
+    ``reference_time() = alpha``.
+
+    Rev 56 (8.1) fixes the override contract this family follows: the
+    signature ``mean_with_info(self, *, options=None) -> tuple[Array,
+    SummaryInfo]`` ("may ignore `options`"); an analytical answer reports
+    ``converged`` or ``known_infinite``, a NaN ``error_estimate`` and zero
+    work counts; and "The override is responsible for the section 8.4 NaN
+    tangents of a known infinite mean", so the ``+inf`` entries carry a NaN
+    tangent (``_plus_inf_with_nan_tangent``, forward mode; rev 57 isolation of
+    shared parameters in reverse mode). This is a custom override of
+    the extension interface; the built-in ``LogLogistic`` (feature
+    ``family.loglogistic``) is tested separately.
+    """
+
+    @survjax.register_family
+    @dataclasses.dataclass(frozen=True)
+    class KnownMeanLogLogistic(survjax.SurvivalDistribution):
+        alpha: jax.Array = survjax.param()
+        beta: jax.Array = survjax.param()
+
+        def log_survival(self, t):
+            return -jax.nn.softplus(self.beta * (jnp.log(t) - jnp.log(self.alpha)))
+
+        def reference_time(self):
+            return jnp.broadcast_to(
+                self.alpha,
+                jnp.broadcast_shapes(jnp.shape(self.alpha), jnp.shape(self.beta)),
+            )
+
+        def mean_with_info(self, *, options=None):
+            alpha, beta = jnp.broadcast_arrays(self.alpha, self.beta)
+            finite = beta > 1.0
+            x = jnp.pi / jnp.where(finite, beta, 2.0)
+            infinite = _plus_inf_with_nan_tangent(jnp.where(finite, 0.0, alpha + beta))
+            value = jnp.where(finite, alpha * x / jnp.sin(x), infinite)
+            status = survjax.SummaryInfo.Status
+            code = jnp.where(finite, int(status.converged), int(status.known_infinite))
+            return value, _override_info(code, value.shape, value.dtype)
+
+    return KnownMeanLogLogistic
+
+
+MEAN_SENTINEL = 7.0
+
+
+@functools.cache
+def mean_with_info_sentinel():
+    """``S(t) = exp(-rate*t)`` whose ``mean_with_info`` override returns ``MEAN_SENTINEL`` (not ``1/rate``), to observe dispatch only (spec 8.1, rev 54).
+
+    "`mean` returns the value part of `mean_with_info`, so one override
+    serves both": ``mean()`` must return the sentinel, not the generic
+    quadrature value ``1/rate``. Status ``converged``.
+    """
+
+    @survjax.register_family
+    @dataclasses.dataclass(frozen=True)
+    class MeanWithInfoSentinel(survjax.SurvivalDistribution):
+        rate: jax.Array = survjax.param()
+
+        def log_survival(self, t):
+            return -self.rate * t
+
+        def reference_time(self):
+            return 1.0 / self.rate
+
+        def mean_with_info(self, *, options=None):
+            value = jnp.full(jnp.shape(self.rate), MEAN_SENTINEL, dtype=jnp.result_type(self.rate))
+            code = int(survjax.SummaryInfo.Status.converged)
+            return value, _override_info(code, value.shape, value.dtype)
+
+    return MeanWithInfoSentinel

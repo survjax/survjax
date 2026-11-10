@@ -5,6 +5,8 @@ from survjax.data import SurvivalData
 from survjax.diagnostics import InvalidDataError, InvalidParameterError
 from survjax.distributions import (
     Exponential,
+    LogLogistic,
+    LogNormal,
     ProportionalHazards,
     SurvivalDistribution,
     Weibull,
@@ -18,7 +20,9 @@ from survjax.metrics import concordance_index, concordance_index_with_info
 __all__ = [
     "constraints",
     "Exponential",
+    "LogNormal",
     "Weibull",
+    "LogLogistic",
     "ProportionalHazards",
     "SurvivalData",
     "InvalidDataError",

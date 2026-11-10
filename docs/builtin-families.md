@@ -7,15 +7,15 @@ kernelspec:
   name: python3
 ---
 
-# Exponential and Weibull
+# Built-in families
 
-survjax ships two parametric families so far: the
+survjax provides the
 [exponential](https://en.wikipedia.org/wiki/Exponential_distribution) and the
-[Weibull](https://en.wikipedia.org/wiki/Weibull_distribution) distribution.
+[Weibull](https://en.wikipedia.org/wiki/Weibull_distribution) distributions,
+and the log-normal and log-logistic families described below.
 They have the same methods as the families you write yourself (see
 [Writing a survival distribution](distributions.md) for what each method
-means), but compute every quantity from a closed form instead of from
-automatic differentiation. Log-normal and log-logistic families are planned.
+means), with family-specific formulas for the direct methods.
 
 Throughout this page, $T$ is the time from diagnosis to disease progression,
 in months unless stated otherwise. We use the usual quantities of survival
@@ -128,6 +128,137 @@ fig.tight_layout()
 ```
 
 All three survival curves cross at the scale, $t = b = 10$ (dotted line).
+
+## The log-normal: normally distributed log time
+
+For a log-normal event time, $\log T$ follows a normal distribution with
+location $\mu$ and standard deviation $\sigma$:
+
+$$
+\log T \sim \operatorname{Normal}(\mu, \sigma^2),
+\qquad
+S(t) = \Phi\!\left(\frac{\mu - \log t}{\sigma}\right),
+$$
+
+where $\Phi$ is the standard normal CDF. `meanlog` is the finite real
+location $\mu$ of log time in the chosen time unit; `sdlog` is the positive
+finite, dimensionless standard deviation $\sigma$. Neither is the mean or
+standard deviation of $T$ itself. These names match R's `lnorm` functions
+and flexsurv's `lnorm` family; NumPyro uses `loc=meanlog`, `scale=sdlog`.
+The mathematical median is $\exp(\mu)$, so $\mu=0$ gives $S(1)=1/2$:
+
+```{code-cell} ipython3
+lognormal = survjax.LogNormal(meanlog=0.0, sdlog=0.5)
+assert round(float(lognormal.survival(1.0)), 6) == 0.5
+lognormal.survival(1.0)
+```
+
+`from_log` exponentiates only `log_sdlog`; `meanlog` is already unconstrained
+and stays unchanged. The result stores the natural `sdlog`, just as the
+ordinary constructor does. Overflow or underflow in the exponential can
+produce an invalid parameter; inspect `parameter_issues()` when diagnosing
+model outputs.
+
+```{code-cell} ipython3
+groups = survjax.LogNormal.from_log(
+    meanlog=jnp.array([0.0, 1.0]), log_sdlog=jnp.log(0.5)
+)
+times = jnp.array([0.0, 1.0, 3.0, jnp.inf])
+curves = groups.survival_grid(times)
+assert curves.shape == (4, 2)  # time first, then the distribution batch
+assert bool(jnp.all(curves[0] == 1.0))
+assert bool(jnp.all(curves[-1] == 0.0))
+curves
+```
+
+With valid parameters, density and hazard are zero at both time zero and
+infinity, so `log_prob` and `log_hazard` return `-inf` at those boundaries.
+As with the other families, direct methods accept negative times as before
+the origin and propagate NaN times. Exact event observations still require
+strictly positive times.
+
+Use `log_survival` and `log_cdf` directly when working in the tails. They
+use symmetric normal-tail formulas to retain small negative log probabilities
+that would disappear if a rounded probability were logged afterward:
+
+```{code-cell} ipython3
+log_tails = jnp.stack([
+    lognormal.log_survival(jnp.exp(-3.5)),
+    lognormal.log_cdf(jnp.exp(3.5)),
+])
+assert bool(jnp.all(log_tails < 0.0))
+log_tails
+```
+
+Both float32 and float64 are supported; float64 is recommended for tail and
+reference work. See [Numerical behaviour](numerical-behaviour.md#precision-in-both-tails).
+
+## The log-logistic: logistic log time
+
+The log-logistic family has dimensionless shape $\beta>0$ and time scale
+$\alpha>0$, both finite. Its survival and hazard are
+
+$$
+S(t) = \frac{1}{1+(t/\alpha)^\beta},
+\qquad
+h(t) = \frac{\beta}{\alpha}
+       \frac{(t/\alpha)^{\beta-1}}{1+(t/\alpha)^\beta}.
+$$
+
+At $t=\alpha$, survival is one half for every shape: the scale is the
+mathematical median. With $\beta\leq1$ the hazard decreases; with $\beta>1$
+it first rises, then falls. These parameters match flexsurv's
+`llogis(shape=beta, scale=alpha)`. Equivalently, log time has a logistic
+distribution with location $\mu=\log\alpha$ and scale $s=1/\beta$.
+For example, log-time location $\log 10$ and scale $0.5$ give
+`LogLogistic(shape=2, scale=10)`:
+
+```{code-cell} ipython3
+loglogistic = survjax.LogLogistic(shape=2.0, scale=10.0)
+assert round(float(loglogistic.survival(10.0)), 6) == 0.5
+assert round(float(loglogistic.survival(20.0)), 6) == 0.2
+loglogistic.survival(jnp.array([0.0, 10.0, 20.0, jnp.inf]))
+```
+
+`from_log(log_shape=..., log_scale=...)` exponentiates both inputs and stores
+ordinary shape and scale leaves. It does not retain a log-space representation.
+As with other families, invalid values are stored without automatic raising;
+inspect `parameter_issues()` to diagnose them. Exponentiation can overflow or
+underflow to an invalid natural parameter.
+
+```{code-cell} ipython3
+loglogistic_groups = survjax.LogLogistic.from_log(
+    log_shape=jnp.log(jnp.array([0.5, 1.0, 2.0])), log_scale=jnp.log(10.0)
+)
+loglogistic_times = jnp.array([0.0, 10.0, 20.0, jnp.inf])
+loglogistic_curves = loglogistic_groups.survival_grid(loglogistic_times)
+assert loglogistic_curves.shape == (4, 3)  # time first, then batch
+assert bool(jnp.all(loglogistic_curves[0] == 1.0))
+assert bool(jnp.all(loglogistic_curves[-1] == 0.0))
+assert bool(jnp.all(jnp.round(loglogistic_curves[1], 6) == 0.5))
+loglogistic_curves
+```
+
+At zero, hazard and density have limits $+\infty$, $1/\alpha$ or $0$ for
+$\beta<1$, $\beta=1$ or $\beta>1$, respectively. The hazard tends to zero
+at infinity for every valid shape. The zero-time log density changes
+discontinuously in shape at $\beta=1$, so its shape derivative there is outside
+the guarantee. Its scale derivative is defined. Direct times can include zero;
+exact event observations must remain strictly positive.
+
+Use `log_survival` and `log_cdf` directly in the tails. They evaluate opposite
+softplus tails of $z=\beta(\log t-\log\alpha)$, preserving small negative log
+probabilities that would disappear by logging a probability rounded to one.
+The following tails remain negative in both float32 and float64:
+
+```{code-cell} ipython3
+loglogistic_tails = jnp.stack([
+    loglogistic.log_survival(1e-10),
+    loglogistic.log_cdf(1e10),
+])
+assert bool(jnp.all(loglogistic_tails < 0.0))
+loglogistic_tails
+```
 
 ## Unconstrained parameters: `from_log`
 

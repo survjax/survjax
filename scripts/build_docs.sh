@@ -10,6 +10,13 @@ usage() {
 
 caller_dir="$PWD"
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+# Native Python needs Windows paths and its own search-path separator.
+python_path_separator=:
+if [[ "$OSTYPE" == msys* ]]; then
+  caller_dir="$(cygpath -m "$caller_dir")"
+  repo_dir="$(cygpath -m "$repo_dir")"
+  python_path_separator=';'
+fi
 output_root="$repo_dir/docs/_build"
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -26,20 +33,22 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 case "$output_root" in
-  /*) ;;
+  /*|[A-Za-z]:/*) ;;
   *) output_root="$caller_dir/$output_root" ;;
 esac
 
 cd "$repo_dir"
 # Use this worktree even when invoked by a portal in another environment.
 export UV_PROJECT_ENVIRONMENT="$repo_dir/.venv"
-export PYTHONPATH="$repo_dir/src:$repo_dir"
+export PYTHONPATH="$repo_dir/src$python_path_separator$repo_dir"
 # Invalidate an existing certificate before dependency/path setup can fail.
 if [ -f "$output_root/build-identity.txt" ]; then
   printf 'state: building\n' > "$output_root/build-identity.txt"
 fi
 output_root="$(uv run --project "$repo_dir" --locked --group docs --group examples python -c \
-  'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve())' "$output_root")"
+  'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve().as_posix())' "$output_root")"
+# Windows Python writes CRLF even when its stdout is captured by Git Bash.
+output_root="${output_root%$'\r'}"
 case "$output_root" in
   "$repo_dir"|"$repo_dir/docs")
     echo "Output must be a dedicated build directory, not the repository or docs root." >&2

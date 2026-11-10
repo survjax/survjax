@@ -1,16 +1,25 @@
-"""Feature `summary.mean`: mean derivatives (spec 4.4, 8.4, 8.7, 8.8, 12.1; rev 51).
+"""Feature `summary.mean`: mean derivatives (spec 4.4, 8.4, 8.7, 8.8, 12.1; rev 51, 54, 56, 57).
 
 8.4: "Summaries are differentiable; nothing raises"; generic mean tangent
 "`∫ ∂θ S·dθ dt` ... on a **static** node set ... Forward, reverse and
 higher-order derivatives all work"; "Entries that failed or did not converge
-get NaN tangents, never zeros. ... known-infinite means get NaN or infinite
-tangents." 4.4: PH closures differentiate "by the chain rule". 8.7 isolation
-of valid entries remains as value policy (8.8).
+get NaN tangents, never zeros. So do ... known-infinite means and
+invalid-input entries, even where a one-sided or constant derivative exists"
+(rev 54; Q-062 resolved). Rev 56 (8.1): "The override is responsible for the
+section 8.4 NaN tangents of a known infinite mean; built-ins provide them"
+(Q-067 settled). Rev 57 (8.4): "Isolation takes precedence over these NaN
+tangents. An entry with a NaN tangent never gives NaN derivatives to other
+entries, in forward or reverse mode, including through shared parameters ...
+Its own NaN tangent is guaranteed in forward mode; its own reverse-mode
+derivative is unspecified": NaN tangents are asserted with `jax.jvp` only.
+4.4: PH closures differentiate "by the chain rule".
+8.7 isolation of valid entries remains as value policy (8.8).
 
 Tolerances (12.1 log units): ``|theta (got - want)| <= scale * |value|``,
 higher orders multiplied by every variable once per order; ``scale`` is the
-12.1 ``rtol`` for built-in closed forms and ``generic_rtol()`` for generic
-quadrature (Q-058). References: mpmath ``diff`` of `b*Γ(1+1/k)` at 60 digits.
+12.1 ``rtol`` for built-in closed forms and ``generic_rtol()`` (``10*rtol``,
+12.1 rev 54) for generic quadrature. References: mpmath ``diff`` of
+`b*Γ(1+1/k)` at 60 digits.
 """
 
 import jax
@@ -31,7 +40,17 @@ from helpers import (
     rounded,
 )
 from jax.test_util import check_grads
-from summary_cases import HESSIANS, MEAN, MODES, assert_hessian, grad, valid_subset_grad
+from summary_cases import (
+    HESSIANS,
+    MEAN,
+    MEAN_INFO,
+    MODES,
+    assert_hessian,
+    entry_sum_grad,
+    entry_tangents,
+    grad,
+    valid_subset_grad,
+)
 
 import survjax
 
@@ -167,7 +186,91 @@ def test_mean_isolates_failing_entries_with_shared_scale(generic, mode):
 
 
 @MEAN
-def test_improper_mean_has_a_non_finite_tangent():
-    """spec 8.4, rev 51: an improper family's mean is known infinite ("NaN or infinite tangents") or unresolved ("NaN tangents"); either way never finite."""
-    _, tangent = jax.jvp(lambda r: fam.mixture_cure()(cure=f(0.3), rate=r).mean(), (f(1.0),), (f(1.0),))
-    assert not np.isfinite(np.asarray(tangent))
+def test_improper_mean_has_a_nan_tangent():
+    """spec 8.1/8.4, rev 54: the improper family's mean is known infinite (`log_survival_at_infinity() > -inf`), and "known-infinite means" get NaN tangents, in the rate and in the cure fraction."""
+    in_rate = entry_tangents(lambda r: fam.mixture_cure()(cure=f(0.3), rate=r).mean(), f(1.0))
+    in_cure = entry_tangents(lambda c: fam.mixture_cure()(cure=c, rate=f(1.0)).mean(), f(0.3))
+    assert np.isnan(in_rate)
+    assert np.isnan(in_cure)
+
+
+@MEAN_INFO
+def test_mean_carries_the_tangents_of_a_mean_with_info_override():
+    """spec 8.1/8.4, rev 56: "The override is responsible for the section 8.4 NaN tangents of a known infinite mean", and "`mean` returns the value part of `mean_with_info`", so `mean()` carries the override's tangents.
+
+    ``known_mean_log_logistic`` with ``alpha = 2`` and ``beta = [0.5, 1, 2]``
+    supplies NaN ``alpha`` tangents on its ``+inf`` entries; at ``beta = 2``
+    the mean ``alpha*(pi/2)/sin(pi/2) = alpha*pi/2`` has ``d/dalpha = pi/2``.
+    """
+    make = fam.known_mean_log_logistic()
+    beta = f([0.5, 1.0, 2.0])
+    via_mean = entry_tangents(lambda a: make(alpha=a, beta=beta).mean(), f([2.0, 2.0, 2.0]))
+    via_info = entry_tangents(lambda a: make(alpha=a, beta=beta).mean_with_info()[0], f([2.0, 2.0, 2.0]))
+    for tangent in (via_mean, via_info):
+        assert np.isnan(tangent[:2]).all()
+        assert_close(tangent[2], np.pi / 2)
+
+
+@pytest.mark.parametrize("generic", [False, True], ids=["builtin", "generic"])
+@MEAN
+def test_parameter_violation_entry_has_a_nan_mean_tangent(generic):
+    """spec 8.4/8.5, rev 54: a parameter-issue entry ("invalid-input entries") gets a NaN tangent; the valid entries' tangents `-1/r**2` are finite.
+
+    Rates ``[0.5, 0, 0.7]``: ``rate = 0`` violates ``positive`` (Exponential;
+    ``constrained_rate`` declares the same constraint and uses the generic
+    mean).
+    """
+    make = fam.constrained_rate() if generic else survjax.Exponential
+    tangent = entry_tangents(lambda r: make(rate=r).mean(), f([0.5, 0.0, 0.7]))
+    assert np.isnan(tangent[1])
+    assert np.isfinite(tangent[[0, 2]]).all()
+
+
+# ---------------------------------- rev 57: isolation over NaN tangents, forward and reverse
+
+
+@pytest.mark.parametrize("mode", MODES)
+@MEAN_INFO
+def test_finite_mean_keeps_its_derivative_beside_an_override_known_infinite_entry(mode):
+    """spec 8.4, rev 57: "An entry with a NaN tangent never gives NaN derivatives to other entries, in forward or reverse mode, including through shared parameters": a `mean_with_info` override (8.1) with one shared `alpha`.
+
+    ``known_mean_log_logistic`` with scalar ``alpha`` and ``beta = [0.5, 2]``:
+    entry 0 is known infinite (NaN tangent); entry 1 is ``alpha*(pi/2)/sin(pi/2)
+    = alpha*pi/2``, so ``d/dalpha = pi/2``.
+    """
+    (aa,) = rounded(2.0)
+    g = entry_sum_grad(lambda a: fam.known_mean_log_logistic()(alpha=a, beta=f([0.5, 2.0])).mean(), [1], (f(aa),), mode)
+    assert_log_parameter_derivative(g, np.pi / 2, aa, aa * np.pi / 2, "dm/dalpha")
+
+
+@pytest.mark.parametrize("mode", MODES)
+@MEAN
+def test_finite_mean_keeps_its_derivative_beside_a_known_infinite_improper_entry(mode):
+    """spec 8.1/8.4, rev 57: isolation "in forward or reverse mode, including through shared parameters" beside a generic known-infinite mean (`log_survival_at_infinity() > -inf`).
+
+    ``mixture_cure`` with ``cure = [0.3, 0]`` and one shared ``rate = r``: entry 0
+    is improper (mean ``+inf``, NaN tangent); entry 1 has ``S = exp(-r t)``
+    (``log c = -inf``, so ``log_survival_at_infinity() = -inf``), mean ``1/r``
+    by the generic quadrature, ``dm/dr = -1/r**2`` (12.1 ``10*rtol``).
+    """
+    (rr,) = rounded(0.7)
+    g = entry_sum_grad(lambda r: fam.mixture_cure()(cure=f([0.3, 0.0]), rate=r).mean(), [1], (f(rr),), mode)
+    assert_generic_log_derivative(g, -1 / rr**2, rr, 1 / rr, "dm/dr")
+
+
+@pytest.mark.parametrize("mode", MODES)
+@pytest.mark.parametrize("generic", [False, True], ids=["ph-exponential", "ph-custom"])
+@MEAN
+def test_valid_means_keep_hand_derived_derivatives_beside_an_invalid_input_entry(generic, mode):
+    """spec 8.4, rev 57: an invalid-input entry (non-finite `eta`, a parameter issue, 4.4/4.7) gives no NaN derivative to the others through the shared baseline rate, in either mode.
+
+    ``ph(base(rate=r), eta = [0.1, +inf, -0.2])``: ``H = r exp(eta) t``, so
+    ``m_i = 1/(r exp(eta_i))`` and ``d(m_0 + m_2)/dr = -(m_0 + m_2)/r``.
+    The baseline is ``Exponential`` (PH closure) or ``const_hazard`` (generic).
+    """
+    rr, e0, e2 = rounded(0.5, 0.1, -0.2)
+    base = fam.const_hazard() if generic else survjax.Exponential
+    total = 1 / (rr * np.exp(e0)) + 1 / (rr * np.exp(e2))
+    g = entry_sum_grad(lambda r: ph(base(rate=r), f([e0, np.inf, e2])).mean(), [0, 2], (f(rr),), mode)
+    check = assert_generic_log_derivative if generic else assert_log_parameter_derivative
+    check(g, -total / rr, rr, total, "d(m0+m2)/dr")

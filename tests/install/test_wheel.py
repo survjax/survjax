@@ -143,7 +143,7 @@ def test_wheel_metadata_contains_readme_and_release_links(wheel):
         metadata = BytesParser().parsebytes(archive.read(metadata_paths[0]))
     assert metadata["Description-Content-Type"] == "text/markdown"
     description = metadata.get_payload(decode=True).decode("utf-8")
-    assert description == (ROOT / "README.md").read_text()
+    assert description == (ROOT / "README.md").read_text(encoding="utf-8")
     assert set(metadata.get_all("Project-URL")) == {
         "Repository, https://github.com/survjax/survjax",
         "Documentation, https://survjax.readthedocs.io",
@@ -177,7 +177,7 @@ def test_installed_core_uses_wheel_without_demo_dependencies(installed, x64_enab
 
         assert Path(sys.prefix) in Path(survjax.__file__).resolve().parents
         assert set(survjax.__all__) == {
-            "constraints", "Exponential", "Weibull", "ProportionalHazards", "SurvivalData",
+            "constraints", "Exponential", "Weibull", "LogLogistic", "LogNormal", "ProportionalHazards", "SurvivalData",
             "InvalidDataError", "InvalidParameterError", "SurvivalDistribution",
             "register_family", "param", "distribution", "static",
             "concordance_index", "concordance_index_with_info",

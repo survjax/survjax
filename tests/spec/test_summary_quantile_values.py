@@ -1,4 +1,4 @@
-"""Feature `summary.quantile`: quantile, median and inverse cumulative hazard values (spec 4.4, 8.1, 8.2, 8.8, 12.1; rev 51).
+"""Feature `summary.quantile`: quantile, median and inverse cumulative hazard values (spec 4.4, 8.1, 8.2, 8.8, 12.1; rev 51, 54).
 
 8.1: `quantile(p) = H⁻¹(-log1p(-p))` for `0<p<1`, "endpoints from
 `support()`"; `median() = quantile(0.5)`; `inverse_cumulative_hazard(e)` is
@@ -10,11 +10,14 @@ closed forms "exponential `e/r`; Weibull `b*e**(1/k)`". 4.4: PH
 `inverse_cumulative_hazard` is the closure's "otherwise `H0⁻¹(e*exp(-eta))`";
 median and quantile use the closure, "otherwise via
 `inverse_cumulative_hazard`". 8.8: gated by the 12.1 Summaries row
-"including ... the section 8.1 endpoints".
+"including ... the section 8.1 endpoints". Rev 54 (8.1): for
+`inverse_cumulative_hazard`, "`e=0` gives the lower and `e=+inf` the upper
+end of `support()`".
 
 References: closed forms (hand algebra in the docstrings, or
 ``summary_reference`` at 60 digits). Built-in values use the 12.1 ``rtol``
-with no absolute floor; generic solver values use ``generic_rtol()`` (Q-058).
+with no absolute floor; generic solver values use ``generic_rtol()``
+(``10*rtol``, 12.1 rev 54).
 """
 
 import math
@@ -129,8 +132,23 @@ def test_bounded_support_quantile_endpoints_come_from_support():
 @pytest.mark.parametrize("family", FAMILIES)
 @QUANTILE
 def test_inverse_cumulative_hazard_at_zero_is_zero(family):
-    """spec 8.1, rev 51: the `t` with `H(t)=0` is `t=0` (every family here has `H(t)>0` for `t>0`, and `H(0)=0` by 4.5)."""
+    """spec 8.1, rev 54: "`e=0` gives the lower ... end of `support()`", `0` for the default `(0, +inf)`."""
     assert np.asarray(families()[family]().inverse_cumulative_hazard(f(0.0))) == 0.0
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@QUANTILE
+def test_inverse_cumulative_hazard_at_infinity_is_the_upper_support_end(family):
+    """spec 8.1, rev 54: "`e=+inf` gives ... the upper end of `support()`", `+inf` for the default `(0, +inf)`."""
+    assert np.asarray(families()[family]().inverse_cumulative_hazard(f(INF))) == INF
+
+
+@QUANTILE
+def test_bounded_support_inverse_cumulative_hazard_endpoints():
+    """spec 8.1, rev 54: uniform `(0, end]` with `support() = (0, end)` (Q-059): `H⁻¹(0) = 0` and `H⁻¹(+inf) = end`."""
+    got = np.asarray(fam.uniform_support()(end=f(2.0)).inverse_cumulative_hazard(f([0.0, INF])))
+    assert got[0] == 0.0
+    assert_rel_close(got[1], 2.0)
 
 
 # --------------------------------------------------------------- generic fallbacks
@@ -310,9 +328,9 @@ def test_improper_family_inverse_cumulative_hazard_below_the_cure_level(e):
     assert_generic_close(got, math.log((1 - c) / (math.exp(-ee) - c)) / r)
 
 
-@pytest.mark.parametrize("e", [1.3, 5.0, 100.0])
+@pytest.mark.parametrize("e", [1.3, 5.0, 100.0, INF])
 @QUANTILE
 def test_improper_family_inverse_cumulative_hazard_beyond_the_cure_level_is_infinite(e):
-    """spec 8.2, rev 51: `e >= H(+inf) = -log 0.3 ≈ 1.204` gives `+inf`."""
+    """spec 8.1/8.2, rev 51, 54: `e >= H(+inf) = -log 0.3 ≈ 1.204` gives `+inf`; at `e = +inf` this agrees with the upper end of the default support (8.1, rev 54)."""
     got = np.asarray(fam.mixture_cure()(cure=f(0.3), rate=f(1.0)).inverse_cumulative_hazard(f(e)))
     assert got == INF
