@@ -1,6 +1,6 @@
 # B3.3 — Slice B evidence audit
 
-Independent review: round 1/3 (not launched; reviewer checkout repair pending).
+Independent review: round 1/3
 
 Base / previous step: ccb885d33231809ae757d75f878cb5ec3181d1ee (B3.2).
 Original worktree base: cc0e30f. Cumulative gate: A12 with both observation
@@ -142,7 +142,7 @@ tests and overrides only feature selection, not assertions or tolerances.
 
 ## Review setup
 
-The registered reviewer checkout still reports tests/spec/SOURCE_COMMIT modified
-after B3.2 round 3. The maintainer has been asked to restore it; per the
-independent-review skill the implementer does not repair the checkout or launch
-on a dirty tree. No B3.3 review or verdict exists yet.
+The maintainer restored the reviewer checkout and requested review. Read-only
+checks confirm it is clean, detached at ccb885d and registered in this repository.
+No implementer repair or reviewer-configuration change was made. Investigation
+of the recurring checkout problems is deferred, as requested by the maintainer.
