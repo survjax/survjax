@@ -19,6 +19,9 @@ DERIVATIVE_RTOL = {True: 1e-7, False: 1e-3}
 # shape/scale parameters >=0.75 and positive finite endpoints in [0.25, 5]. The same
 # O(h**2) / O(eps/h) finite-difference scales apply on these smooth interiors.
 # Its independent 80-digit derivative comparisons use ordinary ATOL/RTOL.
+# B3.5 uses moderate wrapper predictors (|eta|<=0.375) and averages 21 such
+# rows, keeping the same O(h**2)/O(eps/h) scales for parameter differences.
+# Its baseline/eta multiprecision Jacobians and Hessians use ordinary ATOL/RTOL.
 LIKELIHOOD_GRAD_EPS = {True: 1e-4, False: 1e-3}
 
 ATOL = {True: 1e-10, False: 1e-5}
