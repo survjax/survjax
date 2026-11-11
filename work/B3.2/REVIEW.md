@@ -1,4 +1,4 @@
-Independent review: rounds 1 and 2 complete; round 3/3 pending clean reviewer checkout.
+Independent review: round 3/3
 
 # B3.2 — Committed Slice B R fixture integration
 
@@ -89,9 +89,10 @@ Round 2 also independently checked all three fixture families (80 combined
 spec/reference tests passed in float64), hashes and a fixture-corruption mutant.
 The committed family feature flags remain outside this step's scope.
 
-Round 3 is pending: the reviewer checkout at 316985f still reports the acceptance
-JSON deleted. The maintainer has been asked to restore that path before launch;
-the implementer has not repaired the checkout or changed reviewer configuration.
+The maintainer restored the acceptance JSON and requested round 3. Read-only
+checks confirm the reviewer checkout is clean, detached at 316985f and registered
+in this repository. The implementer has not repaired the checkout or changed
+reviewer configuration.
 
 B3.1 N-1 is explained in the fixture README (schema uses 3.7-0; R uses 3.7.0).
 B3.1 N-2 and the intermediate state in S-1 are addressed: payloads are present

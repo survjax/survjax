@@ -34,8 +34,8 @@ B3.2. The implementation/payload change remains below 300 lines.
 
 Maintainer integration: acceptance fixture installed on main at 6e779b6 and
 merged here at 46de32d. The protected-path diff is now empty and the committed
-fast A12 gate passes. Two review rounds are complete; round 3 remains after
-the reviewer checkout's missing acceptance JSON is restored by the maintainer.
+fast A12 gate passes. Two review rounds are complete; the maintainer restored
+the reviewer checkout's missing acceptance JSON and requested round 3.
 
 ## Docs to-do
 
