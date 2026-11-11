@@ -15,6 +15,10 @@ DERIVATIVE_RTOL = {True: 1e-7, False: 1e-3}
 # also when differencing the O(1) AD derivatives for the second-order check.
 # h=1e-4 in x64 gives scales ~1e-8/2e-12; h=1e-3 in x32 gives ~1e-6/1e-4,
 # within the existing derivative tolerances above, which are unchanged.
+# B3.4 also averages six moderate truncated LogNormal/LogLogistic rows, with
+# shape/scale parameters >=0.75 and positive finite endpoints in [0.25, 5]. The same
+# O(h**2) / O(eps/h) finite-difference scales apply on these smooth interiors.
+# Its independent 80-digit derivative comparisons use ordinary ATOL/RTOL.
 LIKELIHOOD_GRAD_EPS = {True: 1e-4, False: 1e-3}
 
 ATOL = {True: 1e-10, False: 1e-5}
