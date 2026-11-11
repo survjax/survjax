@@ -32,6 +32,11 @@ review. Keep the generated 479-line timing refresh in a separate preparatory
 commit, followed by the fixture integration and these records; both belong to
 B3.2. The implementation/payload change remains below 300 lines.
 
+Maintainer integration: acceptance fixture installed on main at 6e779b6 and
+merged here at 46de32d. The protected-path diff is now empty and the committed
+fast A12 gate passes. Two review rounds are complete; round 3 remains after
+the reviewer checkout's missing acceptance JSON is restored by the maintainer.
+
 ## Docs to-do
 
 Later likelihood docs can cite committed flexsurv agreement for these ten cells;

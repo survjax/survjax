@@ -1,4 +1,4 @@
-Independent review: round 1/3
+Independent review: rounds 1 and 2 complete; round 3/3 pending clean reviewer checkout.
 
 # B3.2 — Committed Slice B R fixture integration
 
@@ -50,7 +50,9 @@ vectors, boundaries, mass/hazard/width constraints and high-precision identities
   3867 passed, 32 skipped. The script deletes its temporary timing logs;
   the final float32 spec summary was not retained. Its exit status alone
   is not test-pass evidence because it tolerates pytest failures.
-- scripts/check.sh --fast --through A12: exit 0, all gates passed.
+- Before the fixture commit, scripts/check.sh --fast --through A12: exit 0,
+  all gates passed. This did not exercise the committed protected-path diff;
+  rounds 1 and 2 correctly found that the committed version failed the guard.
   Formatting 252 files; Ruff clean; mypy 25 source files clean.
   Implementation: float64 1211 passed, 8 skipped; float32 1212 passed,
   7 skipped. Source doctests: 4 passed in each mode.
@@ -67,10 +69,29 @@ Following the maintainer's request to resume review, keep the timing refresh
 in a separate preparatory commit, then commit fixture integration and records.
 Both commits comprise B3.2; no next implementation step is started.
 
-The maintainer cleaned the eleven modified/deleted tests/spec paths left by
-B3.1's failed checkout. Read-only setup checks now confirm the reviewer checkout
-is registered, detached at 6353c04, belongs to this repository, and is clean.
-Round 1 can proceed after the implementation commits. No prior B3.2 verdict exists.
+Rounds 1 and 2 reviewed 316985f and returned maintainer. B-1 was the protected
+acceptance payload addition. N-1 concerned the identity test's dependence on
+that payload: it passed in round 2's clean throwaway checkout, confirming that
+round 1's FileNotFoundError was a reviewer-checkout artifact.
+
+The maintainer installed the acceptance fixture on main in 6e779b6 and merged
+main here in 46de32d. The acceptance and implementation JSON remain byte-identical;
+git diff main...HEAD -- tests/spec is empty. No guard or test changes were needed.
+
+On 2026-11-11, scripts/check.sh --fast --through A12 at 46de32d exited 0:
+guard passed; 253 files formatted, Ruff clean, mypy clean (25 source files).
+Implementation: float64 1211 passed/8 skipped; float32 1212 passed/7 skipped.
+Doctests: 4 passed per mode. Spec: float64 3444 passed/32 skipped;
+float32 3426 passed/46 skipped, with the same two PH reference warnings per mode.
+The full nonfast gate and R regeneration were not run in this resumption.
+
+Round 2 also independently checked all three fixture families (80 combined
+spec/reference tests passed in float64), hashes and a fixture-corruption mutant.
+The committed family feature flags remain outside this step's scope.
+
+Round 3 is pending: the reviewer checkout at 316985f still reports the acceptance
+JSON deleted. The maintainer has been asked to restore that path before launch;
+the implementer has not repaired the checkout or changed reviewer configuration.
 
 B3.1 N-1 is explained in the fixture README (schema uses 3.7-0; R uses 3.7.0).
 B3.1 N-2 and the intermediate state in S-1 are addressed: payloads are present
