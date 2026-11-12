@@ -143,7 +143,9 @@ README under `tests/fixtures/`.
 
 ## Reproduce the CPU baseline
 
-Run these commands sequentially from the repository root:
+The following commands belong to the historical Slice A baseline. They require
+the baseline checkout at `51319c8`, where the harness and artifact were
+committed together. Run them sequentially from that checkout's repository root:
 
 ```bash
 JAX_ENABLE_X64=1 JAX_PLATFORMS=cpu uv run python \
@@ -152,14 +154,26 @@ JAX_ENABLE_X64=0 JAX_PLATFORMS=cpu uv run python \
   scripts/benchmark_slice_a.py --output /tmp/survjax-cpu.json
 ```
 
-The output retains both dtype runs. The committed baseline is
-`benchmarks/slice_a_cpu.json`. Each mode covers both families, 1,000, 10,000
+The output retains both dtype runs. The committed **historical Slice A** baseline
+is `benchmarks/slice_a_cpu.json`, recorded at source revision `0a200085`.
+Each mode covers both families, 1,000, 10,000
 and 100,000 observations, shared/per-observation parameters, and two data paths:
 
-| Path | Construction | Static metadata |
+| Path | Construction | Static metadata in the historical run |
 | --- | --- | --- |
 | Prepared | Concrete `SurvivalData` before the compiled call | Exact/right present; other modes absent |
 | Traced | Ordinary constructor inside `jit` | All may-contain flags true |
+
+Current traced construction uses argument-form metadata: this harness supplies
+`time` and `event` without truncation arguments, so it now carries exact/right
+flags without truncation, just like its prepared data. General traced bounds
+construction can retain more possibilities. See
+[Metadata, pruning and compilation reuse](../survival-data.md#metadata-pruning-and-compilation-reuse)
+for the full rules, including supplied default values. The legacy harness still
+asserts all-true metadata for its traced path, so the commands above fail that
+assertion on the current checkout. Current pruning benchmarks are maintained
+in the separate experiments project. The recorded timings below describe the
+earlier implementation, not current performance or an isolated pruning effect.
 
 Both paths return data and parameter diagnostics alongside the summed
 likelihood and parameter gradient, so validation is part of the measured

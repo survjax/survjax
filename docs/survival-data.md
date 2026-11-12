@@ -274,6 +274,99 @@ compiled_issues.raise_if_invalid()
 Calling `raise_if_invalid()` inside the compiled function raises a
 `ValueError`, because the values are not known there yet.
 
+### Metadata, pruning and compilation reuse
+
+Alongside its array leaves, a `SurvivalData` PyTree carries static flags for
+which observation kinds it may contain and whether left or right truncation
+may be present. The likelihood evaluator trusts these flags to omit work at
+trace time: for example, exact/right observations without truncation need only
+the density and survival functions. Pruning changes the work performed, not
+the likelihood or its diagnostics.
+
+When all observation inputs are concrete, both constructors derive the flags
+from every normalized row, including rows with issues. Left truncation is
+present if any `left_trunc > 0`; right truncation if any `right_trunc < inf`.
+These flags are not validity checks: an invalid bound can fail those comparisons
+and still be reported by `data.issues`.
+
+When **any observation input is traced**, only whether each argument is `None`
+or supplied determines the flags. Neither traced values nor concrete values
+supplied alongside them are inspected to specialize the computation:
+
+| Constructor arguments under tracing | Kinds that may occur |
+| --- | --- |
+| Flag form, `event` and all censoring flags omitted | Exact only |
+| Flag form, `event` supplied, or only `right_censored` supplied | Exact and right |
+| Flag form, `left_censored` or `interval_censored` supplied | All four kinds |
+| Bounds form, `exact` omitted | Right, left and interval |
+| Bounds form, `exact` supplied | All four kinds |
+
+In either form, each truncation flag is false only when its argument is
+omitted or `None`. Thus supplying `left_trunc=0` or `right_trunc=inf` retains
+the corresponding possibility under tracing. Similarly, `left_censored=False`
+still retains all four kinds, and `exact=False` still retains the exact kind
+in the bounds form. Supplying these default values can change specialization
+without changing the represented observations. The raw likelihood call
+`dist.log_likelihood(time=time, event=status)` follows the same exact/right,
+untruncated rule as `SurvivalData(time, status)`.
+
+Classification happens at constructor entry. A tracer nested in a Python list
+or tuple counts; an unrelated traced distribution parameter does not. Python
+constants, NumPy arrays and concrete JAX arrays captured from outside a
+transformed function remain concrete inputs. Arrays created with `jax.numpy`
+inside that function are traced even if their values are constant. Being
+inside `jit` alone therefore does not select the traced rule.
+
+Here the two traced constructions have identical leaves but different static
+structures. One explicitly supplies default truncation bounds; the other also
+matches the structure of the prepared data:
+
+```{code-cell} ipython3
+times = jnp.array([4.0, 12.0])
+status = jnp.array([1, 0])
+prepared = survjax.SurvivalData(times, status)
+traced = jax.jit(survjax.SurvivalData)(times, status)
+supplied_defaults = jax.jit(
+    lambda t, e: survjax.SurvivalData(t, e, left_trunc=0, right_trunc=jnp.inf)
+)(times, status)
+assert jax.tree.structure(prepared) == jax.tree.structure(traced)
+assert jax.tree.structure(traced) != jax.tree.structure(supplied_defaults)
+for actual, expected in zip(
+    jax.tree.leaves(supplied_defaults), jax.tree.leaves(traced), strict=True
+):
+    assert jnp.array_equal(actual, expected)
+```
+
+Slices keep their parent's flags, even if the selected rows happen to contain
+fewer kinds. Use `data[index]` or apply the same observation-axis slice to all
+leaves with `jax.tree.map`. If you change observation kinds or truncation
+windows, construct new data through one of the ordinary constructors so the
+flags and stored input issues are computed together. Do not manually change
+private flags or replace leaves while retaining stale metadata.
+
+Changing dynamic values reuses compilation for the same function and device
+when shapes, dtypes (including weak typing), PyTree structure and static
+configuration stay the same. Different flags can require separate compilations;
+equal flags alone do not guarantee reuse if, for example, the batch shape
+changes. The following trace counter stays at one as valid and invalid event
+values change, while diagnostics still follow the inputs:
+
+```{code-cell} ipython3
+traces = []
+
+@jax.jit
+def construct(status):
+    traces.append(None)  # Python runs at tracing, not on each compiled call.
+    return survjax.SurvivalData(times, status)
+
+for values in ([1, 1], [0, 0], [2, 0]):
+    status_values = jnp.asarray(values)
+    result = construct(status_values)
+    assert jnp.array_equal(result.issues.invalid_indicator, status_values == 2)
+assert len(traces) == 1
+print("Traces:", len(traces))
+```
+
 ## Floating-point precision
 
 Times and bounds share one floating dtype. survjax follows JAX's setting: the
