@@ -1,6 +1,6 @@
 # Test map
 
-Spec: revision 59 (see `.spec-seen`). Unchanged requirements keep their
+Spec: revision 62 (see `.spec-seen`). Unchanged requirements keep their
 earlier revision tags. Tests from the revision 10 decision (sections 6.2, 10.2,
 13) are tagged `rev 10`. Tests from the performance amendment (section 7.2),
 accepted in revision 11, are tagged `rev 11`. A4 tests derive from revision 11 and
@@ -229,6 +229,24 @@ A clarification of revision 60 (10.4, no revision bump) applies the minimum
 probability to every truncation window other than `(0,+inf]`, so left-only
 windows `(L,+inf]` are included; the minimum-probability integrity test now
 checks them too (still tagged `rev 60`).
+Revision 62 (decision 0060; 3.2, 7.2, 12.1–12.3) makes the static metadata of
+traced construction follow the constructor's argument form instead of being
+all true, staged in Slice B as the maintainer's feature
+`observation.traced_metadata`. New: `test_observation_traced_metadata.py`
+(tagged `rev 62`; see "Post-release features" below). Four
+`test_a3_static_metadata.py` tests whose arguments leave a flag false under
+the new rule keep `step("A3")` and gain `until("observation.traced_metadata")`:
+`test_single_traced_observation_input_sets_all_flags`,
+`test_traced_bounds_construction_sets_all_flags`,
+`test_traced_construction_sets_all_flags`,
+`test_traced_and_eager_all_flag_data_share_one_compilation`.
+`test_traced_construction_of_full_data_matches_eager_structure` supplies every
+kind and both truncation bounds, so it holds under both rules and is
+unchanged. Value-only tests that consume traced construction (concordance,
+likelihood entry points, censoring and truncation transformations) still hold,
+since pruning gives identical results (7.2) and supported rows are found by
+value; only their docstrings, which said "all metadata true", are reworded and
+retagged `rev 62`.
 Revision 55 (8.8, 12.2) brings
 the log-normal and log-logistic families forward; they are covered by the new
 features `family.lognormal` and `family.loglogistic` (`test_family_*.py`,
@@ -638,13 +656,13 @@ been executed against survjax. Test names below are relative to `tests/spec/`.
 | 3.2 | traced arguments that are not observation inputs do not force all flags true. | `test_ordinary_construction_inside_jit_with_other_traced_args_computes_flags_from_values` |
 | 3.2 | slices inherit flags unchanged, even when the slice lacks a parent kind. | `test_slice_inherits_parent_flags` |
 | 3.2 | a scalar observation taken from a parent keeps the parent's flags. | `test_integer_index_inherits_parent_flags` |
-| 3.2 | any one traced observation input (here only \`left_trunc\`) makes all flags true. | `test_single_traced_observation_input_sets_all_flags` |
-| 3.2 | the bounds constructor with a traced observation input gives all flags true. | `test_traced_bounds_construction_sets_all_flags` |
-| 3.2 | when any observation input is traced (ordinary constructor), all flags are true, whatever the values. | `test_traced_construction_sets_all_flags` |
-| 3.2 | eager data containing every kind and both truncations has all flags true, as traced data does. | `test_traced_construction_of_full_data_matches_eager_structure` |
+| 3.2 | any one traced observation input (here only \`left_trunc\`) makes all flags true. **until `observation.traced_metadata`** (rev 62) | `test_single_traced_observation_input_sets_all_flags` |
+| 3.2 | the bounds constructor with a traced observation input gives all flags true. **until `observation.traced_metadata`** (rev 62) | `test_traced_bounds_construction_sets_all_flags` |
+| 3.2 | when any observation input is traced (ordinary constructor), all flags are true, whatever the values. **until `observation.traced_metadata`** (rev 62) | `test_traced_construction_sets_all_flags` |
+| 3.2 | eager data containing every kind and both truncations has all flags true, as traced data does (every kind and both bounds supplied: all true under rev 62 too). | `test_traced_construction_of_full_data_matches_eager_structure` |
 | 3.2 | datasets with the same flags, shapes and dtypes share one compilation. | `test_same_flags_compile_once` |
 | 3.2 | datasets with different flags have different tree structures and compile separately. | `test_different_flags_compile_separately` |
-| 3.2 | traced-built data (all flags true) and eager data with every kind share one compilation. | `test_traced_and_eager_all_flag_data_share_one_compilation` |
+| 3.2 | traced-built data (all flags true) and eager data with every kind share one compilation. **until `observation.traced_metadata`** (rev 62) | `test_traced_and_eager_all_flag_data_share_one_compilation` |
 | 3.2 | equal-shape slices of one parent keep its flags, so they share one compilation. | `test_slice_reuses_parent_flags_for_compilation` |
 
 ### `test_a3_tracing.py`
@@ -2226,6 +2244,42 @@ float64 only"; skipped); "spread over the domain" (no mechanical criterion);
 derivatives and survreg values (10.4: "The fixture records no derivatives and
 no survreg values"); the 10.5 documentation list of cells where survjax and
 flexsurv differ (documentation gate, not a spec test).
+
+### `observation.traced_metadata`: `test_observation_traced_metadata.py` (Slice B, rev 62)
+
+3.2 (rev 62): with any traced observation input, "only whether each
+observation argument is `None` or supplied counts, never its values (traced or
+concrete)". Every test compares the tree structure of data built inside `jit`
+(or `vmap`) with that of eager concrete data whose value-derived flags are the
+expected ones (`_expected`, one valid row per kind), or counts traces of a
+consumer `jit` (Q-014). Metadata-only tests need no likelihood, so they carry
+only this feature.
+
+| Spec | Requirement | Tests |
+| --- | --- | --- |
+| 3.2 | flag form, no `event` and no censoring flag: only the exact kind (also with unread `time2`, explicit `None` everywhere, a list holding a tracer) | `test_time_only_gives_only_the_exact_kind`, `test_time_with_unread_time2_gives_only_the_exact_kind`, `test_explicit_none_everything_gives_only_the_exact_kind`, `test_list_containing_a_tracer_counts_as_traced` |
+| 3.2 | `event`, or `right_censored` as the only censoring flag: exact and right only; values never clear a flag (all ones, all zeros, int codes, concrete `event` beside traced `time`, right flag all false); explicit `None` flags count as omitted | `test_event_gives_exact_and_right_kinds`, `test_event_of_all_ones_still_has_the_right_kind`, `test_event_of_all_zeros_still_has_the_exact_kind`, `test_numeric_event_codes_follow_the_form`, `test_concrete_event_beside_traced_time_follows_the_form`, `test_right_flag_alone_gives_exact_and_right_kinds`, `test_right_flag_of_all_false_still_has_the_right_kind`, `test_explicit_none_indicators_count_as_omitted` |
+| 3.2 | `left_censored` or `interval_censored` supplied (even all false, or beside `right_censored`): all four kinds | `test_left_flag_makes_all_four_kinds`, `test_interval_flag_makes_all_four_kinds`, `test_right_and_left_flags_make_all_four_kinds` |
+| 3.2 | flag form truncation: each bound omitted or supplied separately; traced `left_trunc` alone; traced zeros, concrete zeros / `+inf` beside a traced input, Python scalars `0.0` / `inf` all count as supplied; explicit `None` counts as omitted | `test_traced_left_trunc_alone_gives_exact_kind_and_left_truncation`, `test_left_trunc_supplied_sets_only_left_truncation`, `test_right_trunc_supplied_sets_only_right_truncation`, `test_both_truncation_bounds_supplied_set_both_flags`, `test_traced_zero_left_trunc_still_has_left_truncation`, `test_concrete_zero_left_trunc_beside_traced_input_still_has_left_truncation`, `test_concrete_infinite_right_trunc_beside_traced_input_still_has_right_truncation`, `test_scalar_default_truncation_values_still_count_as_supplied`, `test_explicit_none_truncation_counts_as_omitted` |
+| 3.2 | bounds form: `exact` omitted (or `None`) gives no exact kind and all three censored kinds even for finite-interval-only rows; `exact` supplied (all true, all false, concrete beside traced `lower`) gives all four; traced truncation alone with concrete right-censored bounds; each bound separately; concrete default truncation values count | `test_bounds_without_exact_have_the_three_censored_kinds_only`, `test_bounds_with_explicit_none_exact_have_no_exact_kind`, `test_bounds_with_exact_have_all_four_kinds`, `test_bounds_with_exact_of_all_false_still_have_the_exact_kind`, `test_bounds_concrete_exact_beside_traced_lower_follows_the_form`, `test_bounds_traced_truncation_alone_follows_the_form`, `test_bounds_left_trunc_supplied_sets_only_left_truncation`, `test_bounds_right_trunc_supplied_sets_only_right_truncation`, `test_bounds_concrete_default_truncation_values_still_count_as_supplied` |
+| 3.2 | both forms with equal rule flags share a tree structure | `test_flag_and_bounds_forms_with_equal_rule_flags_share_a_tree_structure` |
+| 3.2 | "These rules hold for every row, including rows with issue bits": invalid times/event codes, reversed/negative/equal bounds, invalid intervals and conflicting flags, invalid `left_trunc` | `test_invalid_event_rows_do_not_change_the_form_flags`, `test_invalid_bounds_rows_do_not_change_the_form_flags`, `test_invalid_interval_rows_do_not_change_the_form_flags`, `test_invalid_left_trunc_sets_only_the_supplied_truncation_flag` |
+| 3.2/7.2 | slices inherit form-derived flags (eager slice of returned data, integer index of bounds data, slice inside `jit`); `vmap`-mapped inputs are traced | `test_slice_of_traced_data_inherits_form_flags`, `test_integer_index_of_traced_bounds_data_inherits_form_flags`, `test_slice_inside_jit_inherits_form_flags`, `test_construction_under_vmap_follows_the_form` |
+| 3.2/7.2 | compile counts: equal forms with different values share one compilation; traced and concrete data with equal flags share one; different forms compile separately; compiled construction reuses compilation for values whose concrete flags would differ | `test_equal_argument_forms_with_different_values_share_one_compilation`, `test_traced_and_concrete_data_with_equal_flags_share_one_compilation`, `test_traced_time_only_shares_compilation_with_concrete_exact_data`, `test_different_argument_forms_compile_separately`, `test_compiled_construction_reuses_compilation_for_values_that_would_change_concrete_flags` |
+| 3.2/6.1/7.3/12.1 | raw `dist.log_likelihood(time=..., event=...)` under `jit` equals `SurvivalData(time, event)`: Exponential values (hand), event all ones, rate gradient and second derivative (hand); Weibull values, gradients and Hessians in (shape, scale) | `test_raw_form_under_jit_matches_hand_values_and_data_form`, `test_raw_form_with_all_events_matches_data_form`, `test_raw_form_under_jit_matches_data_form_in_rate_derivatives`, `test_raw_form_under_jit_matches_data_form_in_weibull_derivatives` |
+
+Not tested for `observation.traced_metadata`:
+
+- **Metadata of the raw `time`/`event` form** (3.2, 12.1: "carries exact/right
+  flags without truncation"): its internal `SurvivalData` is not returned by
+  any public API, so only values and derivatives are compared with the
+  `SurvivalData(time, event)` form.
+- **Pruning itself, and its performance** (7.2, 12.3): optional and not
+  observable through the public API; value invariance is covered by the
+  censoring and truncation transformation tests.
+- **Construction under `grad` with traced observation values:** observation
+  derivatives are outside 7.3; `jit` and `vmap` tracers cover the "JAX tracer"
+  classification.
 
 ### `family.lognormal`: `test_family_lognormal_*.py` (rev 55)
 
