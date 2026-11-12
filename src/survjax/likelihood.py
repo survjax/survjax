@@ -36,7 +36,7 @@ def _evaluate(
     # 0 exact, 1 right-censored, 2 left-censored, 3 interval-censored,
     # 4 left-truncated, 5 right-truncated. These are dataset-wide possibilities,
     # not per-row masks: False proves absence; True may be conservative.
-    # Traced construction sets all flags true; slices inherit their parent's flags.
+    # Traced flags follow constructor argument form; slices inherit parent flags.
     # Flags 2–5 describe left/interval censoring and both truncation modes.
     # When all are absent, spec 2 gives Z=1 and right-row mass S(c), including
     # any cure mass at infinity. No family-type or proper-family assumption.
