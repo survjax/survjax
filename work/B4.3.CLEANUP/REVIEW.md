@@ -1,6 +1,6 @@
 # B4.3.CLEANUP — Benchmark ownership handoff
 
-Independent review: round 1/3 pending setup; no round launched yet.
+Independent review: round 1/3
 
 Read PLAN.md, the deletion of scripts/benchmark_likelihood_pruning.py and the
 two B4.3 JSONL files, then B4.3/REVIEW.md's shortened benchmark section.
@@ -48,10 +48,11 @@ can link the historical import without changing the active experiment run/pin.
 
 ## Review setup and remaining work
 
-The existing reviewer checkout is detached at 200c1f7 but still has stale
-workflow/spec-test changes from B4.3's review (N-2). The independent-review
-skill prohibits repairing it without maintainer authorization. Review setup
-must be clean before the pending round can start; no verdict is claimed.
+The existing reviewer checkout had stale workflow/spec-test changes from
+B4.3's review (N-2). The maintainer explicitly authorized restoring only its
+tracked files to its current HEAD, leaving untracked files untouched. That
+restore completed; read-only checks confirm a clean detached checkout at
+200c1f7 in the same repository. Round 1 can now start; no verdict is claimed.
 
 Step starting / previous-step commit:
 200c1f7f4b64d147d5d40cbcba44f97e44d3c1f5. Original worktree base: cc0e30f.
