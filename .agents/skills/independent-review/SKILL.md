@@ -86,5 +86,24 @@ prompt below, without inherited implementer conversation or extra context.
 
 ## Report to the maintainer
 
+Optional workspace integration: before reporting a terminal outcome (`merge`,
+`maintainer`, or the round limit), if `../scripts/open_step_diff.py` exists,
+run it from the implementation worktree root:
+
+```bash
+python3 ../scripts/open_step_diff.py <STEP> <START_SHA> <REVIEWED_SHA>
+```
+
+Use `Step starting commit:` from `work/<STEP>/PLAN.md` and the final reviewed
+SHA from the newest saved review round. Preserve the starting SHA across
+sessions; if either SHA is unavailable, skip the display rather than guessing.
+The workspace owns the launcher and its setup documentation. It uses the
+current `TMUX_PANE`; pass `--pane %N` only when the current implementer pane
+is known explicitly. Never guess an old session or an arbitrary client.
+Contributors without the outer workspace, tmux, or Neovim can omit this hook.
+Missing tooling or display errors never block the handoff or change a review
+verdict; report an attempted launch's error without rerunning review.
+
 Rounds used, final verdict, the review file path, findings fixed or open (by ID), and the
-commits added.
+commits added. Also report the starting and reviewed SHAs, and the diff pane
+ID or display error if the workspace hook was used.
