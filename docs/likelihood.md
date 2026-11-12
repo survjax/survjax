@@ -24,6 +24,11 @@ PH and AFT wrappers. The examples below start with untruncated exact/right
 data, then show how the contributions change when inclusion is restricted.
 ```
 
+For the cases checked against committed R outputs, see
+[flexsurv comparison coverage](technical-notes/verification.md#censoring-and-truncation-comparable-flexsurv-cases).
+That note also lists cases where flexsurv uses different conventions and
+survjax is checked against independent mathematics.
+
 ## The cohort
 
 Ten patients were followed from diagnosis. Time is in months and the event

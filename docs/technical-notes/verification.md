@@ -9,18 +9,19 @@ kernelspec:
 
 # Verification and reproducibility
 
-This note records checks of the exact/right-censored likelihood subset,
-compiled derivatives, installed packages and a historical CPU baseline.
+This note records checks of likelihoods, compiled derivatives, installed
+packages and a historical CPU baseline. Its small executable examples use
+exact/right observations; the R comparison section also covers left/interval
+censoring and truncation where the conventions match.
 It is evidence for those specific checks, not a full-release certification.
 The `A9` and `slice_a` names below identify the original verification scope.
 
-`SurvivalData` can represent left/interval censoring and truncation already.
-Their likelihood contributions currently return NaN, including inside
-`jit` and `vmap`; supported neighboring rows still evaluate. Invalid data
-or declared parameter violations also produce NaN, with diagnostics.
-See [likelihood diagnostics](likelihood-diagnostics.md) to
-separate these cases, and [numerical behavior](../numerical-behaviour.md) for
-true zero probability, overflow and underflow.
+All four observation kinds support likelihood evaluation with optional
+truncation. Invalid data or declared parameter violations produce NaN, with
+diagnostics; valid zero-probability observations give `-inf`. See
+[likelihood diagnostics](likelihood-diagnostics.md) for NaN triage, including
+zero inclusion-window mass, and [numerical behavior](../numerical-behaviour.md)
+for overflow and underflow.
 
 ## Construction and derivatives inside JIT
 
@@ -137,9 +138,77 @@ The R comparisons use committed synthetic data generated with R 4.4.2,
 flexsurv 2.3.2 and survival 3.7-0. Exponential and bc-like Weibull per-row
 likelihood/curve references are checked in both dtypes. These compare
 synthetic observations at fixed parameter values. They do not establish
-agreement for a fit to real breast-cancer data or for unsupported observation
-modes. Ordinary tests need no R or network access; see each fixture set's
-README under `tests/fixtures/`.
+agreement for a fit to real breast-cancer data. Ordinary tests need no R or
+network access; see each fixture set's README under `tests/fixtures/`.
+
+### Censoring and truncation: comparable flexsurv cases
+
+The committed Slice B fixture adds Weibull (including shape 1), LogNormal and
+LogLogistic, each at two fixed natural parameter vectors without covariates.
+All six vectors use the same 50 synthetic observations, generated with seed
+20261110: five rows in each of the ten comparable combinations below.
+The 300 reference values are per-row `flexsurvreg(..., fixedpars=TRUE)$logliki`
+outputs. Parameters are held fixed; these are not comparisons of fitted estimates.
+
+Write the inclusion window as `(L, U]`, an exact time as `t`, a censoring
+time as `c`, and a finite censored interval as `(a, b]`.
+
+| Truncation | Observation kinds compared | Restrictions |
+| --- | --- | --- |
+| None: `L=0`, `U=inf` | Exact, right, left, interval | Ordinary valid observations |
+| Left only: `L>0`, `U=inf` | Exact, right | Exact `t>L`; right censoring `c>L` |
+| Right only: `L=0`, finite `U` | Exact, left, interval | Exact `t<=U`; left censoring `c<U`; interval `b<=U` |
+| Two-sided: `L>0`, finite `U` | Exact | `L<t<=U` |
+
+The fixture includes exact events at `U` and intervals ending at `U` in the
+applicable cells. Its numerical range is deliberately moderate: cumulative
+hazard is at most 15 at every finite endpoint or truncation bound; finite
+intervals and two-sided windows have width at least `1e-4` times their upper
+bound; each censored set and nontrivial inclusion window has probability at
+least `1e-6` under every parameter vector. These limits keep the probability
+differences used by flexsurv suitable as reference values. They are fixture
+restrictions, not restrictions on survjax inputs or evidence for deep tails.
+
+The R values are compared **in float64 only**, with absolute tolerance `1e-10`
+and relative tolerance `1e-8`. The implementation reference test checks all
+300 values eagerly, under `jit`, and with row-wise `vmap`; independent
+acceptance tests check per-cell, batched and summed values and audit the
+fixture with high-precision mathematics. Manifest hashes, pinned provenance,
+CSV/JSON alignment and the identical acceptance payload are also checked.
+Integrity checks remain active in float32; numerical float32 and derivative
+evidence comes from separate analytical and high-precision tests. This R
+fixture contains neither derivatives nor `survreg` values.
+
+### Where flexsurv is not the reference
+
+The following cases are excluded because flexsurv cannot express them or uses
+a different likelihood convention:
+
+- Left or interval censoring with left truncation, including two-sided windows.
+- Right censoring under a finite `U`: flexsurv uses `S(c)` for the numerator,
+  whereas survjax uses `P(c<T<=U)`.
+- Censored sets extending beyond `U`: survjax intersects the set with the
+  inclusion window. flexsurv does not, so a set covering that window can
+  contribute a positive log likelihood there.
+- Censoring at or before entry: survjax treats right censoring at `c=L` as
+  valid and uninformative (zero contribution), and `c<L` as invalid.
+- Observations outside the inclusion window.
+- Exact events at time zero.
+
+These exclusions do not mean the modes are unimplemented. The
+[likelihood guide](../likelihood.md#left-and-interval-censoring-with-truncation)
+explains intersection, conditioning and invalid-data behavior. Independent
+mathematical tests cover these cases, including boundary diagnostics, tails
+and transformed derivatives; they do not require matching a different R
+convention. In the source tree, see `tests/spec/test_observation_truncation_*.py`
+and `tests/spec/test_observation_censoring_*.py`, with family-specific evidence
+in the LogNormal and LogLogistic suites.
+
+The {download}`Slice B fixture README <../../tests/fixtures/slice_b/README.md>`
+records generation and integrity checks. The generator is
+`scripts/fixtures/generate_slice_b.R`; reference comparisons are in
+`tests/reference/test_slice_b_r.py` and the independent
+`tests/spec/test_observation_censoring_flexsurv_fixture.py`.
 
 ## Reproduce the CPU baseline
 
