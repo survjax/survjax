@@ -2,7 +2,8 @@
 
 3.2: the static metadata carry "whether any left truncation is present (any
 `left_trunc > 0`), and, as a separate flag, whether any right truncation is
-present"; traced construction makes every flag true. 7.2: pruning by these
+present"; traced construction sets them from the argument form (rev 62; all
+true before Slice B), so a supplied bound sets its flag. 7.2: pruning by these
 flags is an optimization "with identical results"; new values with unchanged
 shapes, dtypes, tree structure and static configuration reuse compilation.
 Hand values as in ``test_observation_truncation_values.py``: Exponential
@@ -48,7 +49,7 @@ def test_prepared_truncated_data_under_jit_matches_hand_values():
 
 @TRUNC
 def test_traced_construction_with_truncation_matches_eager():
-    """spec 3.2, 6.2 and 7.2, rev 51: construction from traced inputs, truncation included (all metadata true), gives the same values."""
+    """spec 3.2, 6.2 and 7.2, rev 62: construction from traced inputs, truncation included (form-derived metadata: exact/right kinds, both truncations), gives the same values."""
 
     def run(rate, time, event, lt, rt):
         data = survjax.SurvivalData(time, event, left_trunc=lt, right_trunc=rt)

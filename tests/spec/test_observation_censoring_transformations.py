@@ -51,7 +51,7 @@ def test_prepared_data_under_jit_matches_eager():
 
 @FEATURE
 def test_traced_flag_construction_inside_jit_matches_eager():
-    """spec 3.2, 6.2 and 7.2, rev 51: flag-form construction from traced inputs (all metadata true) gives the same values as concrete data."""
+    """spec 3.2, 6.2 and 7.2, rev 62: flag-form construction from traced inputs (form-derived metadata: all four kinds, no truncation; all true before Slice B) gives the same values as concrete data."""
 
     def run(rate, time, time2, right, left, interval):
         data = survjax.SurvivalData(
