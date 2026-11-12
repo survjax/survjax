@@ -37,18 +37,27 @@ def _evaluate(
     # 4 left-truncated, 5 right-truncated. These are dataset-wide possibilities,
     # not per-row masks: False proves absence; True may be conservative.
     # Traced construction sets all flags true; slices inherit their parent's flags.
+    # Flags 2–5 describe left/interval censoring and both truncation modes.
+    # When all are absent, spec 2 gives Z=1 and right-row mass S(c), including
+    # any cure mass at infinity. No family-type or proper-family assumption.
+    untruncated_exact_right = not any(data._may_contain[2:6])
     # Zeros are placeholders for omitted pieces, never active row contributions;
     # the final exact_rows mask selects the appropriate piece for each row.
     interval = jnp.zeros(bad.shape, dtype=common)
     # spec 7.2: flags 1–3 cover all censored kinds, each needing conditional
     # set probability. Skip this work only when none of those kinds can occur.
     if any(data._may_contain[1:4]):
-        lo = jnp.maximum(time, left)
-        hi = jnp.minimum(jnp.asarray(data.upper, dtype=common), right)
         active_set = ~bad & ~exact_rows
-        lower = jnp.where(active_set, lo, jax.lax.stop_gradient(left))
-        upper = jnp.where(active_set, hi, jax.lax.stop_gradient(right))
-        interval = prepared.log_conditional_interval_prob(lower, upper, left, right)
+        if untruncated_exact_right:
+            # The inactive set is (0,+inf], so use its lower endpoint, 0.
+            survival_time = jnp.where(active_set, time, 0.0)
+            interval = prepared.log_survival(survival_time)
+        else:
+            lo = jnp.maximum(time, left)
+            hi = jnp.minimum(jnp.asarray(data.upper, dtype=common), right)
+            lower = jnp.where(active_set, lo, jax.lax.stop_gradient(left))
+            upper = jnp.where(active_set, hi, jax.lax.stop_gradient(right))
+            interval = prepared.log_conditional_interval_prob(lower, upper, left, right)
 
     density = jnp.zeros(bad.shape, dtype=common)
     # spec 7.2: flag 0 allows exact observations, which need log density minus
@@ -60,14 +69,16 @@ def _evaluate(
             jnp.asarray(prepared.reference_time(), dtype=common)
         )
         density_time = jnp.where(~bad & exact_rows, time, reference)
+        density = prepared.log_prob(density_time)
         # Only exact rows subtract log Z: censored rows use the conditional hook
         # to avoid cancellation of large common tail terms (spec 4.2/7.2).
-        exact_left = jnp.where(~bad & exact_rows, left, 0.0)
-        exact_right = jnp.where(~bad & exact_rows, right, jnp.inf)
-        log_z = prepared.log_interval_prob(exact_left, exact_right)
-        usable_z = jnp.isfinite(log_z)
-        density = prepared.log_prob(density_time) - jnp.where(usable_z, log_z, 0.0)
-        bad = bad | (exact_rows & ~usable_z)
+        if not untruncated_exact_right:
+            exact_left = jnp.where(~bad & exact_rows, left, 0.0)
+            exact_right = jnp.where(~bad & exact_rows, right, jnp.inf)
+            log_z = prepared.log_interval_prob(exact_left, exact_right)
+            usable_z = jnp.isfinite(log_z)
+            density = density - jnp.where(usable_z, log_z, 0.0)
+            bad = bad | (exact_rows & ~usable_z)
     # spec 3.3: custom overrides can return fixed lower-precision arrays even
     # after their inputs are promoted; contributions still use the common dtype.
     values = jnp.asarray(jnp.where(exact_rows, density, interval), dtype=common)
