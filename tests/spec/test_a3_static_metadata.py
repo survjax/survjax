@@ -3,6 +3,12 @@
 The flags live in PyTree auxiliary data, which has no public accessor, so the
 tests observe them through tree structures and jit retracing: datasets with
 different flags have different tree structures and compile separately.
+
+Rev 62 makes traced metadata follow the constructor's argument form (Slice B,
+feature ``observation.traced_metadata``; ``test_observation_traced_metadata.py``).
+The all-true traced tests below whose arguments leave a flag false under that
+rule carry ``until("observation.traced_metadata")``; 3.2 keeps them valid
+"Before this rule is delivered".
 """
 
 import jax
@@ -297,6 +303,7 @@ def test_integer_index_inherits_parent_flags():
 
 
 @pytest.mark.step("A3")
+@pytest.mark.until("observation.traced_metadata")
 def test_single_traced_observation_input_sets_all_flags():
     """spec 3.2, rev 6: any one traced observation input (here only `left_trunc`) makes all flags true."""
     data = jax.jit(
@@ -306,6 +313,7 @@ def test_single_traced_observation_input_sets_all_flags():
 
 
 @pytest.mark.step("A3")
+@pytest.mark.until("observation.traced_metadata")
 def test_traced_bounds_construction_sets_all_flags():
     """spec 3.2, rev 6: the bounds constructor with a traced observation input gives all flags true."""
     data = jax.jit(
@@ -317,6 +325,7 @@ def test_traced_bounds_construction_sets_all_flags():
 
 
 @pytest.mark.step("A3")
+@pytest.mark.until("observation.traced_metadata")
 def test_traced_construction_sets_all_flags():
     """spec 3.2, rev 9: when any observation input is traced (ordinary constructor), all flags are true, whatever the values."""
     full = _full()
@@ -363,6 +372,7 @@ def test_different_flags_compile_separately():
 
 
 @pytest.mark.step("A3")
+@pytest.mark.until("observation.traced_metadata")
 def test_traced_and_eager_all_flag_data_share_one_compilation():
     """spec 3.2, rev 6: traced-built data (all flags true) and eager data with every kind share one compilation."""
     total, traces = _counting_jit()

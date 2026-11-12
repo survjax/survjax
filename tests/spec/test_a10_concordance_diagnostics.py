@@ -197,7 +197,7 @@ def test_unsupported_row_gives_nan_under_jit(case):
 
 @pytest.mark.step("A10")
 def test_unsupported_row_from_traced_construction_gives_nan():
-    """spec 3.2 and 9.1, rev 34: traced construction (all metadata flags true) still finds the unsupported row by value."""
+    """spec 3.2 and 9.1, rev 62: traced construction (`left_censored` supplied: all four kind flags true, before and after Slice B) still finds the unsupported row by value."""
 
     def run(scores, time, flags):
         return survjax.concordance_index_with_info(
@@ -210,7 +210,7 @@ def test_unsupported_row_from_traced_construction_gives_nan():
 
 @pytest.mark.step("A10")
 def test_traced_construction_of_supported_rows_is_not_unsupported():
-    """spec 3.2 and 9.1, rev 34: all-true traced metadata do not make supported rows unsupported."""
+    """spec 3.2 and 9.1, rev 62: traced metadata (all true before Slice B; exact/right untruncated from the `event` form after) do not make supported rows unsupported."""
 
     def run(scores, time, event):
         return survjax.concordance_index_with_info(scores, survjax.SurvivalData(time, event))

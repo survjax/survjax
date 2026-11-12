@@ -47,6 +47,7 @@ FEATURES = frozenset(
         "observation.truncation",
         "family.lognormal",
         "family.loglogistic",
+        "observation.traced_metadata",
     }
 )
 

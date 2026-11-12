@@ -153,7 +153,8 @@ on it. Guessed exception types and call shapes are centralised in
 - **Still true:** the flags have no public accessor, so tests observe them
   through `jax.tree_util.tree_structure` and jit retrace counts; that is now
   spec-backed rather than guessed.
-- **Depends:** every test in `test_a3_static_metadata.py`,
+- **Depends:** every test in `test_a3_static_metadata.py` and
+  `test_observation_traced_metadata.py` (rev 62),
   `test_data_passes_through_jit_unchanged`,
   `test_indexing_carries_every_leaf_including_issue_bitfield`.
 

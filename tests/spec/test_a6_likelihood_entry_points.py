@@ -153,7 +153,7 @@ def test_likelihood_under_jit_matches_eager():
 
 @pytest.mark.step("A6")
 def test_traced_construction_inside_jit_matches_eager():
-    """spec 6.2 and 12.1, rev 35: ordinary construction and likelihood compose inside `jit` (traced metadata all true)."""
+    """spec 3.2, 6.2 and 12.1, rev 62: ordinary construction and likelihood compose inside `jit` (traced metadata: all true before Slice B, exact/right untruncated after)."""
 
     def run(rate, time, event):
         data = survjax.SurvivalData(time, event)
