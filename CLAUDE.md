@@ -102,6 +102,13 @@ The maintainer reviews all code, so optimise for reviewability over speed.
     previous step and the last commit the working-tree was based on.
     This is to ensure that the maintainer can easily track the
     progress of the work for every step and on the entire worktree.
+    Before the first change for a step, save the full `git rev-parse HEAD`
+    as `Step starting commit:` in `work/<STEP>/PLAN.md`. This is the end of
+    the preceding step, distinct from the branch/worktree base. Reuse this
+    saved SHA after a restart; never replace it with the resumed HEAD.
+    After the independent-review loop stops, follow the skill's optional
+    workspace diff-display hook when available. Its absence or failure never
+    blocks review or the step handoff.
 12. **Mention remaining sub-steps** when reporting back.
     If a step has multiple sub-steps, mention which sub-step you are reporting
     back on, and which sub-steps remain to be done. This helps the maintainer
