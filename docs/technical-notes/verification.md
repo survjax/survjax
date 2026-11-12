@@ -112,34 +112,58 @@ Weibull, forward/reverse derivatives, custom-family defaults and isolation
 of invalid parameter rows. [Custom distributions](../distributions.md) explains
 the extension contract; [time grids](../grids.md) explains time-first axes.
 
-## Check the installed wheel
+## Comparisons with R
 
-From the repository root in the locked development environment, run:
+The committed fixtures contain synthetic observations and their R outputs,
+using R 4.4.2, flexsurv 2.3.2 and survival 3.7-0 as applicable. Ordinary
+reference tests read them without R or network access. Likelihood and curve
+comparisons evaluate fixed parameter vectors; they do not fit models in
+survjax or establish agreement for fits to real patient data. The subsections
+below distinguish the observation modes, quantities and dtypes checked by
+each fixture set.
 
-```bash
-scripts/check_wheel.sh --through A9
-```
+### Exact/right likelihoods and predictions
 
-The runner builds a fresh wheel, sets its absolute `SURVJAX_WHEEL` path,
-and runs the unchanged gate. Lint and type checks run once; own tests,
-source doctests and independent tests through A9 each run in separate
-float32/float64 processes. Plain `scripts/check.sh --through A9` needs that wheel variable
-already set; it does not build an artifact itself.
+| Fixture | Observations and parameter cases | R quantities compared |
+| --- | --- | --- |
+| Exponential | 16 rows, seed 8101; rates 0.1, 0.35 and 1.2 per year | Every row's log likelihood, survival and log survival; separate total log likelihood |
+| Weibull AFT | 686 rows, seed 8201; three common-shape, group-scale vectors | Every row's log likelihood, survival and log survival; separate totals; a time-first survival grid |
 
-Own installation checks create a fresh environment outside the source tree,
-install the locked core dependencies and wheel offline, and check exports,
-metadata, `py.typed`, a hand-derived likelihood and absence of demo packages.
-An out-of-tree custom family is checked at runtime and with strict mypy.
-Cached locked build/install artifacts must be available; missing artifacts
-are failures, not skipped tests. A source archive remains a separate
-pre-release check. No publication or remote setup is performed.
+Both fixtures contain exact events and right censoring without truncation.
+The Weibull fixture uses Good/Medium/Poor groups of sizes 229/229/228,
+with scales $b_g = b_{\mathrm{Good}}\exp(\beta_g)$. Its three vectors are
+named `fitted`, `unit_shape` and `alternative`. `fitted` identifies the
+recorded vector used to simulate the data, rather than a fit to these
+synthetic rows. The rows are newly simulated; no patient observations from
+`flexsurv::bc` are loaded or committed. Fixture times are in **years**,
+while the built-in distribution guide uses months.
 
-The R comparisons use committed synthetic data generated with R 4.4.2,
-flexsurv 2.3.2 and survival 3.7-0. Exponential and bc-like Weibull per-row
-likelihood/curve references are checked in both dtypes. These compare
-synthetic observations at fixed parameter values. They do not establish
-agreement for a fit to real breast-cancer data. Ordinary tests need no R or
-network access; see each fixture set's README under `tests/fixtures/`.
+The Weibull grid has shape `(141, 3)`: times from 0 to 7 years in rows,
+Good/Medium/Poor in columns. Tests use the stored R times; rebuilding R's
+`seq` with JAX `arange` or `linspace` can shift a time by one ULP. The survreg
+grid route evaluates `psurvreg` directly at supplied AFT locations and is
+cross-checked against flexsurv. Singleton-fit and full-data likelihood checks
+cover the observed-time contributions, not individual grid cells.
+
+These exact/right comparisons exercise eager execution, `jax.jit` and
+`jax.vmap` in separate float64 and float32 processes. Weibull checks include both natural and
+`from_log` constructors, a common shape with batched scales, and raw and
+prepared likelihood inputs through the distribution method.
+Expected R values retain their stored float64 precision; only inputs are cast
+to the active JAX dtype. The central test tolerances are:
+
+| Active dtype | Absolute tolerance | Relative tolerance |
+| --- | --- | --- |
+| float64 | `1e-10` | `1e-8` |
+| float32 | `1e-5` | `1e-4` |
+
+These finite reference cases complement the independent mathematical and
+[numerical boundary tests](../numerical-behaviour.md). The two R package paths
+are related: flexsurv uses survreg on this route, so their agreement is not
+fully independent numerical evidence. These two fixtures provide evidence only
+for untruncated exact/right observations; the broader likelihood comparisons
+follow below. They do not
+establish fitting accuracy.
 
 ### Censoring and truncation: comparable flexsurv cases
 
@@ -179,7 +203,13 @@ Integrity checks remain active in float32; numerical float32 and derivative
 evidence comes from separate analytical and high-precision tests. This R
 fixture contains neither derivatives nor `survreg` values.
 
-### Where flexsurv is not the reference
+The {download}`Slice B fixture README <../../tests/fixtures/slice_b/README.md>`
+records generation and integrity checks. The generator is
+`scripts/fixtures/generate_slice_b.R`; reference comparisons are in
+`tests/reference/test_slice_b_r.py` and the independent
+`tests/spec/test_observation_censoring_flexsurv_fixture.py`.
+
+#### Where flexsurv is not the reference
 
 The following cases are excluded because flexsurv cannot express them or uses
 a different likelihood convention:
@@ -204,11 +234,79 @@ convention. In the source tree, see `tests/spec/test_observation_truncation_*.py
 and `tests/spec/test_observation_censoring_*.py`, with family-specific evidence
 in the LogNormal and LogLogistic suites.
 
-The {download}`Slice B fixture README <../../tests/fixtures/slice_b/README.md>`
-records generation and integrity checks. The generator is
-`scripts/fixtures/generate_slice_b.R`; reference comparisons are in
-`tests/reference/test_slice_b_r.py` and the independent
-`tests/spec/test_observation_censoring_flexsurv_fixture.py`.
+### Concordance reference evidence
+
+`tests/reference/test_concordance_r.py` compares values, counts and masks
+against committed R-generated synthetic fixtures, with prepared/raw inputs
+and eager/jit/vmap execution in float32 and float64. The fixtures contain
+100 heavily tied rows and a small untied cohort, three score vectors each.
+Their provenance and regeneration commands are recorded in
+`tests/fixtures/concordance/README.md`. Regular tests and this guide need no R.
+
+The concordance reference uses survival with
+`reverse=TRUE`, `timewt="n"` and `timefix=FALSE`. R's `concordant`,
+`discordant` and `tied.x` map to our counts; their sum is comparable.
+`tied.y` and `tied.xy` are excluded. These fixtures agree with the pair rules
+in the [concordance guide](../concordance.md), including event/censor time ties. The comparisons establish evidence
+for these cases, rather than every possible dataset.
+
+### Integrity and regeneration
+
+The reference suites use the shared fixture loader in `tests/conftest.py`.
+It verifies all required payloads against each fixture's `SHA256SUMS` before
+parsing them, then checks provenance, row alignment, dimensions and labels.
+The Weibull loader also checks that the acceptance-schema export preserves
+the original observations, parameters, source results and grid.
+
+Regenerate only with the pinned R/package versions above and the instructions
+for the relevant fixture. The generators in `scripts/fixtures/` support
+`--check-only` without writing. A normal run **overwrites payload files** in
+its destination. The exponential and bc-like generators default to their
+committed fixture directories; the Slice B generator requires a destination.
+To inspect fresh outputs first, pass a new scratch directory, for example
+from the repository root:
+
+```sh
+Rscript --vanilla scripts/fixtures/generate_bc_like.R --check-only
+Rscript --vanilla scripts/fixtures/generate_bc_like.R /tmp/bc-like-review-run1
+```
+
+Follow the full two-run comparison and checksum recipes in the fixture
+READMEs: {download}`exponential regeneration <../../tests/fixtures/exponential/README.md>`,
+{download}`Weibull regeneration <../../tests/fixtures/bc_like/README.md>`,
+{download}`Slice B regeneration <../../tests/fixtures/slice_b/README.md>` and
+{download}`concordance regeneration <../../tests/fixtures/concordance/README.md>`.
+Compare fresh outputs with each other and with committed payloads before
+replacing anything. Exports use 17 significant digits and record seed,
+versions, generating scripts and checksums. For the exponential and bc-like
+fixtures, Python separately checked decimal read-back against original R
+hexadecimal doubles; Python did not generate expected numerical values.
+
+The Weibull directory also holds the same R outputs in the acceptance-test schema
+(`bc_synthetic_weibull.json`); ordinary regeneration never writes to
+the independent acceptance-test directory.
+
+## Check the installed wheel
+
+From the repository root in the locked development environment, run:
+
+```bash
+scripts/check_wheel.sh --through A9
+```
+
+The runner builds a fresh wheel, sets its absolute `SURVJAX_WHEEL` path,
+and runs the unchanged gate. Lint and type checks run once; own tests,
+source doctests and independent tests through A9 each run in separate
+float32/float64 processes. Plain `scripts/check.sh --through A9` needs that wheel variable
+already set; it does not build an artifact itself.
+
+Own installation checks create a fresh environment outside the source tree,
+install the locked core dependencies and wheel offline, and check exports,
+metadata, `py.typed`, a hand-derived likelihood and absence of demo packages.
+An out-of-tree custom family is checked at runtime and with strict mypy.
+Cached locked build/install artifacts must be available; missing artifacts
+are failures, not skipped tests. A source archive remains a separate
+pre-release check. No publication or remote setup is performed.
 
 ## Reproduce the CPU baseline
 
@@ -290,6 +388,8 @@ under `docs/_build/mnist`) before invoking the script directly. An explicit
 value is never replaced. The first download needs network; warm-cache success
 does not establish cold-cache portability.
 
+### Verify and open the built pages
+
 The script prints absolute HTML paths and `DIR/build-identity.txt`
 (`docs/_build/build-identity.txt` by default).
 Before inspection, read that record: its **last** `state:` must be `success`,
@@ -314,6 +414,8 @@ preview server or Quarto command is needed for this Sphinx/MyST-NB site.
 MathJax currently loads from a CDN, so offline HTML does not guarantee
 rendered equations.
 
+### Explore use-case notebooks
+
 The MNIST use case executes its smoke example in float32 and downloads
 hash-checked images on first use. A warm cache at `SURVJAX_EXAMPLES_DATA`
 (default `~/.cache/survjax-examples/mnist`) avoids later downloads.
@@ -328,99 +430,3 @@ uv run --locked --group docs --group examples jupyter lab examples/survival_mnis
 
 The notebook has editable smoke/full settings; see the MNIST use case for
 reproduction instructions and the distinction between live and recorded results.
-
-## Comparisons with R
-
-The committed synthetic fixtures compare exponential and Weibull likelihoods
-and predictions with R's **flexsurv 2.3.2** and **survival 3.7-0**, generated
-with **R 4.4.2**. Only simulated observations and their R outputs are stored.
-The reference tests read those files without running R or accessing a network.
-They evaluate fixed parameter vectors; they do not fit models in survjax.
-
-| Fixture | Observations and parameter cases | R quantities compared |
-| --- | --- | --- |
-| Exponential | 16 rows, seed 8101; rates 0.1, 0.35 and 1.2 per year | Every row's log likelihood, survival and log survival; separate total log likelihood |
-| Weibull AFT | 686 rows, seed 8201; three common-shape, group-scale vectors | Every row's log likelihood, survival and log survival; separate totals; a time-first survival grid |
-
-Both fixtures contain exact events and right censoring without truncation.
-The Weibull fixture uses Good/Medium/Poor groups of sizes 229/229/228,
-with scales $b_g = b_{\mathrm{Good}}\exp(\beta_g)$. Its three vectors are
-named `fitted`, `unit_shape` and `alternative`. `fitted` identifies the
-recorded vector used to simulate the data, rather than a fit to these
-synthetic rows. The rows are newly simulated; no patient observations from
-`flexsurv::bc` are loaded or committed. Fixture times are in **years**,
-while the built-in distribution guide uses months.
-
-The Weibull grid has shape `(141, 3)`: times from 0 to 7 years in rows,
-Good/Medium/Poor in columns. Tests use the stored R times; rebuilding R's
-`seq` with JAX `arange` or `linspace` can shift a time by one ULP. The survreg
-grid route evaluates `psurvreg` directly at supplied AFT locations and is
-cross-checked against flexsurv. Singleton-fit and full-data likelihood checks
-cover the observed-time contributions, not individual grid cells.
-
-The comparisons exercise eager execution, `jax.jit` and `jax.vmap` in separate
-float64 and float32 processes. Weibull checks include both natural and
-`from_log` constructors, a common shape with batched scales, and raw and
-prepared likelihood inputs through the distribution method.
-Expected R values retain their stored float64 precision; only inputs are cast
-to the active JAX dtype. The central test tolerances are:
-
-| Active dtype | Absolute tolerance | Relative tolerance |
-| --- | --- | --- |
-| float64 | `1e-10` | `1e-8` |
-| float32 | `1e-5` | `1e-4` |
-
-These finite reference cases complement the independent mathematical and
-[numerical boundary tests](../numerical-behaviour.md). The two R package paths
-are related: flexsurv uses survreg on this route, so their agreement is not
-fully independent numerical evidence. The fixtures provide no evidence for
-unimplemented censoring or truncation likelihoods, or for fitting accuracy.
-
-### Integrity and regeneration
-
-In a source checkout, `tests/reference/test_exponential_r.py` and
-`tests/reference/test_weibull_bc_like_r.py` use one shared fixture loader.
-It verifies all required payloads against each fixture's `SHA256SUMS` before
-parsing them, then checks provenance, row alignment, dimensions and labels.
-The Weibull loader also checks that the acceptance-schema export preserves
-the original observations, parameters, source results and grid.
-
-Regenerate only with the pinned R/package versions above. The generators in
-`scripts/fixtures/` support `--check-only` without writing. A normal run
-**overwrites payload files** in its destination; without a destination it
-writes into the committed fixture directory. To inspect fresh outputs first,
-pass a new scratch directory, for example from the repository root:
-
-```sh
-Rscript --vanilla scripts/fixtures/generate_bc_like.R --check-only
-Rscript --vanilla scripts/fixtures/generate_bc_like.R /tmp/bc-like-review-run1
-```
-
-Follow the full two-run comparison and checksum recipes in the fixture
-READMEs: {download}`exponential regeneration <../../tests/fixtures/exponential/README.md>`
-and {download}`Weibull regeneration <../../tests/fixtures/bc_like/README.md>`.
-Compare fresh outputs with each other and with committed payloads before
-replacing anything. Exports use 17 significant digits and record seed,
-versions, generating scripts and checksums. During fixture validation,
-Python separately checked decimal read-back against original R hexadecimal
-doubles; Python did not generate expected numerical values.
-
-The directory also holds the same R outputs in the acceptance-test schema
-(`bc_synthetic_weibull.json`); ordinary regeneration never writes to
-the independent acceptance-test directory.
-
-## Concordance reference evidence
-
-`tests/reference/test_concordance_r.py` compares values, counts and masks
-against committed R-generated synthetic fixtures, with prepared/raw inputs
-and eager/jit/vmap execution in float32 and float64. The fixtures contain
-100 heavily tied rows and a small untied cohort, three score vectors each.
-Their provenance and regeneration commands are recorded in
-`tests/fixtures/concordance/README.md`. Regular tests and this guide need no R.
-
-The pinned reference uses R 4.4.2 and survival 3.7-0, with
-`reverse=TRUE`, `timewt="n"` and `timefix=FALSE`. R's `concordant`,
-`discordant` and `tied.x` map to our counts; their sum is comparable.
-`tied.y` and `tied.xy` are excluded. These fixtures agree with the pair rules
-in the [concordance guide](../concordance.md), including event/censor time ties. The comparisons establish evidence
-for these cases, rather than every possible dataset.
