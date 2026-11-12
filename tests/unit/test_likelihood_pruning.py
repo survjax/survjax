@@ -86,14 +86,19 @@ def test_pruned_derivatives_match_delayed_entry_algebra(exact, x64_enabled):
             )
 
 
-def test_censored_only_mixed_kinds_and_windows_match_ratios(x64_enabled):
-    """Spec 2/7.2: pruned left, interval and right rows retain the conditional hook."""
-    data = survjax.SurvivalData.from_bounds(
-        [0.0, 0.5, 1.0], [2.0, 3.0, np.inf], right_trunc=4.0
-    )
+@pytest.mark.parametrize("kind", ["mixed", "right", "left", "interval"])
+def test_censored_only_kinds_and_windows_match_ratios(kind, x64_enabled):
+    """Spec 2/7.2: each censored kind alone must retain the conditional hook."""
+    lower, upper = {
+        "mixed": ([0.0, 0.5, 1.0], [2.0, 3.0, np.inf]),
+        "right": ([0.5, 1.0], [np.inf, np.inf]),
+        "left": ([0.0, 0.0], [2.0, 3.0]),
+        "interval": ([0.5, 1.0], [2.0, 3.0]),
+    }[kind]
+    data = survjax.SurvivalData.from_bounds(lower, upper, right_trunc=4.0)
     # Unit-rate exponential: P(a<T<=b | T<=4)=(exp(-a)-exp(-min(b,4)))/(1-exp(-4)).
     expected = np.log(
-        (np.exp(-np.array([0.0, 0.5, 1.0])) - np.exp(-np.array([2.0, 3.0, 4.0])))
+        (np.exp(-np.asarray(lower)) - np.exp(-np.minimum(np.asarray(upper), 4.0)))
         / -np.expm1(-4.0)
     )
     for observations in (data, _conservative(data)):

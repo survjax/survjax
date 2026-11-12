@@ -1,6 +1,6 @@
 # B4.1 — Prune unused exact and censored pieces
 
-Independent review: round 1/3
+Independent review: round 2/3
 
 Base / previous step: da4dd733aa92bf7040e918a5fc0e8ef82ba0b85f (B3.5).
 Original worktree base: cc0e30f. Cumulative gate: A12 with the existing
@@ -157,3 +157,33 @@ This narrow benchmark supplements, rather than replaces, Slice A's baseline
 B4.2 mixed exact/right optimization and measurements; family feature activation;
 likelihood documentation. No Slice B completion claim. Reviewer-workflow
 investigation remains deferred. No new spec ambiguity identified.
+
+## Round 1 findings and follow-up
+
+Reviewed commit: 8dde3ffb1a919fe5975244b40cb3a6ca867b9fab.
+Verdict: fix-first. F-1 (should-fix) identified a surviving mutation that
+omitted the interval-kind flag; the original mass-ratio test mixed all censored
+kinds, so other flags still activated the branch. N-1 required no action.
+
+F-1: extend the analytical mass-ratio test with right-only, left-only and
+interval-only batches, each checked with concrete and conservative metadata.
+The existing mixed case remains. No production code or tolerance change.
+Complete new-file runs: float64 12 passed in 8.44s; float32 12 passed in 8.57s.
+Each new single-kind case took at most 0.46s; no further timing-list refresh
+was needed for these additions. Ruff formatting and lint passed.
+
+Negative controls, float64, separate Python processes: replace only _evaluate
+in memory using its inspected source, then invoke pytest without xdist on the
+matching single-kind test. The `[1:3]` mutant fails the interval-only assertion
+(actual zeros versus negative analytical log probabilities); `[1:2]` fails
+the left-only assertion. Each run exits pytest with 1 as expected; no repository
+or reviewer checkout is mutated. The tests now detect both omitted-kind faults.
+Fast A12 gate after the test extension: exit 0, all gates passed. Formatting
+(265 files), Ruff, mypy (25 files) and guard clean. Implementation: float64
+1192 passed/8 skipped; float32 1193 passed/7 skipped. Doctests: 4 per mode.
+Acceptance: float64 3385 passed/32 skipped; float32 3373 passed/40 skipped;
+the same two PH reference-arithmetic warnings per mode. git diff --check clean.
+
+The round-1 reviewer did not rerun the benchmark; the performance table remains
+implementer-measured evidence. Reviewer mutation-checkout cleanup was blocked
+by its permissions; no implementer cleanup or reviewer configuration change.
