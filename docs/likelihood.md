@@ -17,10 +17,11 @@ likelihood. survjax supplies the contributions; the fitting loop is ordinary
 JAX code that you write yourself.
 
 ```{note}
-survjax currently evaluates likelihoods for exact events and right
-censoring, without truncation. Interval and left censoring and truncation
-can already be described with `SurvivalData`, but their likelihood
-contributions are NaN for now (see the last section).
+Likelihoods support exact events, right, left and interval censoring, with
+optional left, right or two-sided truncation on each row. These use the same
+evaluator for the built-in families and registered custom families, including
+PH and AFT wrappers. The examples below start with untruncated exact/right
+data, then show how the contributions change when inclusion is restricted.
 ```
 
 ## The cohort
@@ -78,8 +79,8 @@ where $D = \sum_i d_i$ is the number of events.
 ## Contributions in survjax
 
 `dist.log_likelihood(...)` returns the contributions $\ell_i$, one per patient. Each
-event row uses the distribution's log density and each censored row its log
-survival. Here is the exponential with rate 0.05 per month:
+event row in this cohort uses the distribution's log density and each
+right-censored row its log survival. Here is the exponential with rate 0.05 per month:
 
 ```{code-cell} ipython3
 model = survjax.Exponential(rate=0.05)
@@ -132,7 +133,78 @@ model.log_likelihood(months)
 Constructor options, such as a dtype or a richer censoring type, are not
 accepted by the likelihood; build a `SurvivalData` for those.
 
+## Left and interval censoring, with truncation
+
+Censoring tells us which event times remain possible. Truncation determines
+which individuals can enter the sample: only those with $L<T\le U$. The
+likelihood therefore conditions on inclusion, whose probability is
+$Z=P(L<T\le U)$. Omitted bounds mean $L=0$, $U=+\infty$ and $Z=1$.
+Under ignorable censoring and this inclusion mechanism, contributions are:
+
+| Observation | Conditional likelihood contribution |
+| --- | --- |
+| Exact at $t$ | $f(t)/Z$, requiring $L<t\le U$ |
+| Right censored at $c$ | $P(\max(c,L)<T\le U)/Z$ |
+| Left censored at $c$ | $P(L<T\le\min(c,U))/Z$ |
+| Interval censored in $(a,b]$ | $P(\max(a,L)<T\le\min(b,U))/Z$ |
+
+survjax evaluates the logarithms directly. It does not subtract small
+probabilities or floor a tiny positive $Z$. These are conditional event-time
+likelihoods, not a joint model of informative censoring or arbitrary selection.
+Ordinary predictions such as `model.survival(t)` remain unconditional.
+
+Consider four observations with inclusion window $(1,4]$ months: an exact
+event at 2, right censoring at 3, left censoring at 3, and an interval $(2,5]$.
+The last two sets overlap the window only partly; the numerator uses their
+intersection with it. Both observation constructors can describe these rows;
+here the [bounds form](survival-data.md#other-observation-encodings) makes the sets explicit:
+
+```{code-cell} ipython3
+windowed = survjax.SurvivalData.from_bounds(
+    [2.0, 3.0, 0.0, 2.0],
+    [2.0, jnp.inf, 3.0, 5.0],
+    exact=[True, False, False, False],
+    left_trunc=1.0,
+    right_trunc=4.0,
+)
+unit_rate = survjax.Exponential(rate=1.0)
+windowed.issues.raise_if_invalid()
+windowed_ll = unit_rate.log_likelihood(windowed)
+
+# Independent algebra: P(a<T<=b) = exp(-a) * (1-exp(-(b-a))).
+log_z = -1.0 + jnp.log(-jnp.expm1(-3.0))
+expected = jnp.array([
+    -2.0,                                     # density at 2
+    -3.0 + jnp.log(-jnp.expm1(-1.0)),           # mass in (3,4]
+    -1.0 + jnp.log(-jnp.expm1(-2.0)),           # mass in (1,3]
+    -2.0 + jnp.log(-jnp.expm1(-2.0)),           # mass in (2,4]
+]) - log_z
+assert jnp.allclose(windowed_ll, expected)
+assert jnp.allclose(jax.jit(unit_rate.log_likelihood)(windowed), expected)
+windowed_ll
+```
+
+Bounds can vary by row and follow the constructor's broadcasting rules.
+Right censoring before entry ($c<L$), an exact event outside $(L,U]$, and an
+empty intersection are invalid observations and produce NaN. An empty
+observation is different from a valid set to which the model assigns zero mass.
+
+A censored set covering the entire inclusion window is `uninformative`, not
+invalid. For example, right censoring exactly at entry gives no information
+beyond inclusion and contributes exactly zero when $Z>0$:
+
+```{code-cell} ipython3
+at_entry = survjax.SurvivalData(1.0, event=False, left_trunc=1.0, right_trunc=4.0)
+assert at_entry.issues.ok & at_entry.issues.uninformative
+assert unit_rate.log_likelihood(at_entry) == 0.0
+unit_rate.log_likelihood(at_entry)
+```
+
 ## The exponential in closed form
+
+Returning to the original untruncated exact/right cohort, we can fit the rate
+in closed form. The calculation below does not apply unchanged to the general
+censored/truncated example above.
 
 Setting the derivative of $\ell(\lambda)$ to zero,
 
@@ -242,9 +314,10 @@ and its derivative limits. NaN means the contribution could not be computed. Sin
 $0 \times \text{NaN}$ is still NaN, a NaN cannot be masked away by a zero
 weight; fix or drop the row first.
 
-The third cause of NaN is an observation that is valid but whose likelihood
-is not implemented yet, such as interval censoring, left censoring or any
-truncation. An unsupported mode is not bad data, so it adds no data or
-parameter issue.
+Even with clear data and parameter diagnostics, conditioning on zero model
+mass ($Z=0$) gives NaN, including for a structurally uninformative row.
+Detected numerical failures can also give NaN. The diagnostics do not promise
+to identify every numerical failure. By contrast, a valid observation with
+zero numerator and positive $Z$ contributes $-\infty$.
 
 For a mixed-batch triage recipe, see [Diagnosing likelihood NaNs](technical-notes/likelihood-diagnostics.md).

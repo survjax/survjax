@@ -14,8 +14,8 @@ its density or survival probability is too small to store. This page shows how t
 values, distinguish them from numerical overflow and invalid inputs, and
 check a loss before using its gradient in a fit.
 
-We use the current likelihood subset: exact events and right censoring,
-without truncation. For call signatures and fitting examples, see
+The examples here use exact events and right censoring without truncation.
+For all supported censoring/truncation combinations and fitting examples, see
 [Log likelihoods](likelihood.md).
 
 ## Keep the logarithm
@@ -112,7 +112,7 @@ model assigns exactly zero mass. Both can return $-\infty$:
 | Finite log contribution | A representable log density or log survival, even if the corresponding density/probability underflows |
 | $-\infty$ from true zero | The model has zero density or mass for the observation, for example outside a custom family's bounded support |
 | $-\infty$ from overflow | The mathematical log contribution is below the dtype's finite range |
-| NaN | Invalid data/declared parameters, an unsupported mode, or a numerical failure |
+| NaN | Invalid data/declared parameters, zero inclusion-window mass, or a numerical failure |
 
 The scalar value alone does not identify the cause. Use data and parameter
 diagnostics and the model's support. A nonzero contribution representable in

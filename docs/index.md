@@ -34,11 +34,11 @@ Three documented use cases show how to [fit a Weibull distribution](use-cases/we
 using survival likelihoods in neural networks on [MNIST](use-cases/survival-mnist.md), and how to do [Bayesian survival analysis](use-cases/bayesian-rmst.md) with survjax.
 Each of the use-cases include executable notebooks that you can run in your own environment.
 
-This pre-release supports exact events and right censoring without truncation
-for likelihoods. Exponential and Weibull distributions, proportional hazards,
-accelerated failure time, Harrell's concordance and RMST for those built-in families are available.
-Left/interval censoring and truncation can be represented as data, but their
-likelihoods are not implemented. Each guide states its current limitations.
+Likelihoods support exact events and right, left and interval censoring, with
+optional left/right truncation. Exponential, Weibull, LogNormal and LogLogistic
+distributions, proportional hazards and accelerated failure time are available.
+Harrell's concordance and RMST have their own supported subsets; see their
+guides for the current observation modes and families.
 
 ```{toctree}
 :maxdepth: 1

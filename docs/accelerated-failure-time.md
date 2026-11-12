@@ -256,7 +256,9 @@ between paired evaluations and a shared grid.
 ## Current scope
 
 The AFT wrapper supports direct distribution methods, their grid forms,
-indexing and exact/right-censored likelihoods without truncation. Baselines
+indexing and likelihoods for all four observation kinds with optional
+left/right truncation. See [Log likelihoods](likelihood.md) for the conditional
+contributions and observation diagnostics. Baselines
 can be built-in or registered custom distributions. AFT RMST, mean, median,
 quantile and sampling methods are not implemented yet, including for a
 Weibull baseline; see [RMST](rmst.md) for the currently supported families.

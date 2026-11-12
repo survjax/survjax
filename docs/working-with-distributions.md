@@ -168,11 +168,11 @@ Exponential and Weibull overrides provide the stable increment calculations
 above; custom families can override the methods for their own tails.
 
 ```{note}
-The interval methods are available directly on distributions. Integration into
-`log_likelihood(data)` is still pending: that method currently supports exact
-and right-censored observations without truncation. Also, an empty intersection
-is invalid observation data, even though the direct conditional-probability
-method returns `-inf`. See [Log likelihoods](likelihood.md).
+The shared `log_likelihood(data)` evaluator uses interval probabilities for
+censoring and truncation. Observation validation is stricter than these direct
+methods: an empty intersection is invalid observation data and yields NaN in
+the likelihood, even though the direct conditional-probability method returns
+`-inf`. See [Log likelihoods](likelihood.md).
 ```
 
 ## Many distributions at once

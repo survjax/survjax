@@ -11,11 +11,10 @@ kernelspec:
 
 ```{note}
 This page describes and checks observations with `SurvivalData`.
-For exact/right-censored likelihoods without truncation, see
+For likelihoods of all four observation kinds, with optional truncation, see
 [Log likelihoods](likelihood.md); for evaluating caller-supplied risk scores,
-see [Harrell's concordance](concordance.md). Left/interval censoring and
-truncation can be represented here, but their likelihoods are not yet
-implemented.
+see [Harrell's concordance](concordance.md), whose observation-mode support
+is narrower than the likelihood's.
 ```
 
 This page follows a small synthetic cohort of six patients. Time is months
@@ -79,8 +78,8 @@ conversion. See [Finding bad rows](#finding-bad-rows) for detailed diagnostics.
 ## Other observation encodings
 
 The remaining examples explain bounds, left/interval censoring and truncation.
-These can be represented and validated, but their likelihoods are not currently
-implemented. For fitting exact/right-censored data, continue to
+These can be represented, validated and used in likelihoods. For their
+contributions and an exact/right-censored fitting example, continue to
 [Log likelihoods](likelihood.md).
 
 ### The event happened between two visits
@@ -302,8 +301,8 @@ Distribution parameters follow the same policy; see the
 
 The R calls below follow the official
 [`Surv` help page](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/Surv.html).
-They compare how the input is written. Numerical agreement with R is checked
-only for exact and right-censored rows without truncation; see
+They compare how the input is written. For numerical checks and their
+reference-data scope, see
 [Comparisons with R](technical-notes/verification.md#comparisons-with-r).
 
 | Situation | R | survjax | Notes |
