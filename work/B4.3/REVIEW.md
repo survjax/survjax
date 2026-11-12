@@ -8,7 +8,7 @@ Independent review: round 1/3
 2. src/survjax/data.py: only the two metadata selection sites change.
 3. tests/unit/test_data_metadata.py and the independently synced
    tests/spec/test_observation_traced_metadata.py (51 acceptance tests).
-4. scripts/spec-features.txt and scripts/benchmark_likelihood_pruning.py.
+4. scripts/spec-features.txt and the experiment archive record linked below.
 5. The benchmark records below and DEVIATIONS.md's historical test discrepancy.
 
 ## Invariants and evidence
@@ -70,88 +70,21 @@ JAX_ENABLE_X64=1 SPEC_THROUGH=A12 SPEC_FEATURES=observation.censoring,observatio
 - git diff --check: clean.
 - No full non-fast cumulative gate, docs build or R fixture regeneration run.
 
-## Benchmark method and results
+## Benchmark evidence (owned by the experiments repository)
 
-Run sequentially, after focused tests completed:
+At the maintainer's request, B4.3.CLEANUP moved the benchmark and measured
+results out of the library's current tree. The existing independent
+likelihood-pruning experiment owns the [historical B4.3 record](../../../experiments/projects/likelihood-pruning/runs/20261112-library-b43-import.md)
+and [checksum manifest](../../../experiments/projects/likelihood-pruning/runs/20261112-library-b43-import.json),
+committed as aca9b2300a6216bf47dd24eb0d9c8eb61ffbb7c3 in that repository.
 
-```bash
-JAX_ENABLE_X64=1 uv run python scripts/benchmark_likelihood_pruning.py > work/B4.3/benchmark-float64.jsonl
-JAX_ENABLE_X64=0 uv run python scripts/benchmark_likelihood_pruning.py > work/B4.3/benchmark-float32.jsonl
-```
-
-Both exited 0. The committed JSONL files retain every case's metadata,
-first-call cost, warmed median, input/output bytes and compilation-reuse result.
-Reported host: macOS 26.7.2 arm64, Python 3.12.9, JAX 0.11.2, CpuDevice(0),
-processor arm. B4.1/B4.2 identify this host as Apple M4 Max, 16 cores, 48 GiB;
-a fresh sysctl model query was sandbox-denied, so this run's automatic hardware
-record is limited to the reported platform/processor/device fields.
-
-Seed 20261112; uniform times in [0.5,4), exact-only, right-only and alternating
-mixed rows, without truncation. Shared Exponential rate=.75 or Weibull
-shape=1.5/scale=2; N=1,000/10,000/100,000. Each route returns summed likelihood,
-its parameter gradient and data.issues.ok, so diagnostic work is consumed.
-Three warmups precede 30 interleaved repetitions, with rotating/reversed route
-order; every measured output is synchronized. All route values/gradients agree
-at unchanged implementation tolerances and all returned diagnostic checks pass.
-
-Prepared concrete metadata derives from observed kinds. Prepared all-true
-metadata now comes from traced bounds with exact and both windows supplied;
-the benchmark asserts all six flags. Traced construction calls the ordinary
-time/event constructor inside jit and records its actual auxiliary flags:
-exact/right true, left/interval and both truncations false, even for single-kind
-values. Changed parameters, reversed prepared data, and changed traced times
-and events reuse compilation (trace counters checked in every case).
-
-Median warmed microseconds: prepared concrete / prepared all-true / traced
-construction plus evaluation and diagnostics.
-
-| N | Kind | Family | float64 | float32 |
-|---|---|---|---:|---:|
-| 1,000 | exact | exponential | 63.8 / 199.8 / 46.5 | 46.6 / 159.1 / 43.2 |
-| 1,000 | exact | weibull | 138.0 / 347.7 / 122.9 | 92.7 / 370.1 / 85.4 |
-| 1,000 | censored | exponential | 50.9 / 207.9 / 51.0 | 35.4 / 157.4 / 36.5 |
-| 1,000 | censored | weibull | 72.8 / 377.6 / 112.9 | 48.2 / 362.5 / 82.3 |
-| 1,000 | mixed | exponential | 65.5 / 177.3 / 41.9 | 49.8 / 147.3 / 39.1 |
-| 1,000 | mixed | weibull | 146.3 / 364.0 / 123.6 | 105.7 / 371.6 / 78.4 |
-| 10,000 | exact | exponential | 130.1 / 548.7 / 130.0 | 114.2 / 333.4 / 126.4 |
-| 10,000 | exact | weibull | 270.1 / 1281.4 / 230.2 | 198.1 / 925.1 / 207.0 |
-| 10,000 | censored | exponential | 118.0 / 578.6 / 125.5 | 87.6 / 312.9 / 131.6 |
-| 10,000 | censored | weibull | 173.3 / 1347.5 / 270.1 | 117.8 / 915.9 / 209.3 |
-| 10,000 | mixed | exponential | 132.3 / 498.0 / 117.4 | 124.5 / 325.2 / 120.8 |
-| 10,000 | mixed | weibull | 254.0 / 1302.7 / 244.2 | 195.0 / 903.4 / 215.9 |
-| 100,000 | exact | exponential | 345.6 / 1789.2 / 306.0 | 234.9 / 787.0 / 227.2 |
-| 100,000 | exact | weibull | 810.7 / 7146.8 / 746.0 | 509.5 / 2449.4 / 480.3 |
-| 100,000 | censored | exponential | 254.6 / 1696.8 / 311.5 | 237.6 / 1198.0 / 284.0 |
-| 100,000 | censored | weibull | 477.9 / 6567.3 / 705.4 | 311.3 / 2452.1 / 476.0 |
-| 100,000 | mixed | exponential | 384.7 / 1909.1 / 337.0 | 262.2 / 788.8 / 214.9 |
-| 100,000 | mixed | weibull | 844.4 / 7394.3 / 744.9 | 542.7 / 2411.5 / 477.0 |
-
-For mixed rows, all-true/prepared-concrete median ratios are 2.49–8.76 in
-float64 and 2.61–4.63 in float32. Traced/prepared-concrete ratios are
-0.64–0.96 and 0.74–1.11 respectively. The traced route has fewer input arrays
-and can fuse normalization/validation with evaluation; these observations
-measure whole routes, not isolated construction overhead or a guaranteed
-pruning speedup. Right-only traced construction retains a possible exact
-branch and is slower than prepared right-only data in several cases. This is
-expected conservative form specialization, not a reason to inspect event values.
-
-First-call ranges (compilation plus execution), concrete / all-true / traced:
-float64 0.050–0.189 / 0.163–0.703 / 0.080–0.197s;
-float32 0.055–0.114 / 0.147–0.509 / 0.073–0.136s.
-Data preparation/placement plus control-constructor compilation, outside the
-evaluation timers: float64 0.030–0.615s, float32 0.035–0.505s. Parameter
-preparation/placement: 0.000082–0.003313s and 0.000079–0.003334s respectively.
-Prepared input bytes: 37,008–3,700,016 float64; 21,004–2,100,008 float32.
-Traced input bytes: 9,008–900,016 float64; 5,004–500,008 float32.
-Output bytes (including diagnostic bool): 17/25 float64; 9/13 float32.
-Peak memory was not measured; array sizes are not peak-memory evidence.
-
-Limits: one local CPU run per dtype, shared parameters only, no accelerator
-claim, fixed small workload matrix, no statistical confidence intervals or
-performance gate. Unlike B4.2, these timings also return data.issues.ok;
-comparisons across those runs do not isolate the metadata change. Per-row
-parameters and the wider performance baseline are outside this narrow rerun.
-No general Slice B completion claim is made.
+The archive preserves the exact benchmark, tolerance source, both dtype outputs
+and this handoff's original timing tables/methodology from library commit
+200c1f7f4b64d147d5d40cbcba44f97e44d3c1f5. Checksums and retrieval instructions
+are in the experiment record. Both original runs exited 0 with agreement and
+compilation-reuse checks passing. No benchmark rerun was performed for relocation.
+The active experiment remains independently pinned to 82c1826; these later
+B4.3 measurements are historical evidence, not part of that active run.
 
 ## Commits and remaining work
 
