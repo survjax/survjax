@@ -126,7 +126,25 @@ class SurvivalData:
                 right_trunc,
                 dtype,
             )
-            flags = (True,) * 6 if traced else may_contain(*fields[:5])
+            if traced:
+                # spec 3.2: only argument presence can rule out normalized kinds.
+                # Left/interval input may normalize to any kind, even if a
+                # supplied flag is concretely false. time2 alone adds no kind.
+                general_censoring = (
+                    left_censored is not None or interval_censored is not None
+                )
+                flags: tuple[bool, ...] = (
+                    True,  # exact remains possible for every flag-form call
+                    general_censoring
+                    or event is not None
+                    or right_censored is not None,
+                    general_censoring,  # left
+                    general_censoring,  # interval
+                    left_trunc is not None,
+                    right_trunc is not None,
+                )
+            else:
+                flags = may_contain(*fields[:5])
         self._assign(*fields, may_contain=flags)
 
     @classmethod
@@ -193,7 +211,17 @@ class SurvivalData:
                 else to_shape(right_trunc, shape, common)
             )
             flags = (
-                (True,) * 6
+                # spec 3.2: bounds can describe every censored kind. Only an
+                # omitted exact indicator or truncation bound proves absence;
+                # supplied False, zero and infinity still count as supplied.
+                (
+                    exact is not None,
+                    True,  # right
+                    True,  # left
+                    True,  # interval
+                    left_trunc is not None,
+                    right_trunc is not None,
+                )
                 if traced
                 else may_contain(
                     exact_mask, first, normalized_upper, lower_bound, upper_bound

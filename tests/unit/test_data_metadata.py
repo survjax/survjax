@@ -146,8 +146,8 @@ def test_concrete_data_checkpoint_inside_jit_remains_host_only(bounds: bool) -> 
 
 
 @pytest.mark.parametrize("bounds", [False, True], ids=["flags", "bounds"])
-def test_vmap_construction_has_all_presence_flags(bounds: bool) -> None:
-    """Spec 6.2/12.1: observation inputs passed through vmap are traced."""
+def test_vmap_construction_has_argument_form_flags(bounds: bool) -> None:
+    """Spec 3.2/6.2: vmap uses argument presence, not each row's values."""
     times = jnp.ones((2, 2))
     build = (
         (lambda t: SurvivalData.from_bounds(t, t, exact=True))
@@ -155,27 +155,72 @@ def test_vmap_construction_has_all_presence_flags(bounds: bool) -> None:
         else SurvivalData
     )
     data = jax.vmap(build)(times)
-    assert data.tree_flatten()[1] == (True,) * 6
+    assert data.tree_flatten()[1] == (True, bounds, bounds, bounds, False, False)
     np.testing.assert_array_equal(data.lower, [[1, 1], [1, 1]])
 
 
-def test_observation_tracers_force_all_flags_without_changing_leaves() -> None:
-    """Spec 3.2/6.2: nested and single-argument tracers conservatively set every flag."""
+def test_observation_tracers_use_argument_form_without_changing_leaves() -> None:
+    """Spec 3.2/6.2: nested or single-argument tracers select the same form rules."""
     builders = (
         lambda x: SurvivalData([[1.0, x]]),
         lambda x: SurvivalData.from_bounds(((1.0, x),), ((1.0, 2.0),), exact=True),
         lambda x: SurvivalData([1.0, 2.0], left_trunc=x),
     )
-    for build, value in zip(builders, (2.0, 2.0, 0.0), strict=True):
+    expected_flags = (
+        (True, False, False, False, False, False),
+        (True, True, True, True, False, False),
+        (True, False, False, False, True, False),
+    )
+    for build, value, flags in zip(
+        builders, (2.0, 2.0, 0.0), expected_flags, strict=True
+    ):
         eager = build(value)
         traced = jax.jit(build)(jnp.array(value))
-        assert traced.tree_flatten()[1] == (True,) * 6
+        assert traced.tree_flatten()[1] == flags
         for actual, expected in zip(
             jax.tree.leaves(traced), jax.tree.leaves(eager), strict=True
         ):
             np.testing.assert_array_equal(actual, expected)
     created = jax.jit(lambda: SurvivalData(jnp.asarray([1.0, 2.0])))()
-    assert created.tree_flatten()[1] == (True,) * 6
+    assert created.tree_flatten()[1] == expected_flags[0]
+
+
+@pytest.mark.parametrize(
+    "indicator", ["event", "right_censored", "left_censored", "interval_censored"]
+)
+def test_supplied_false_indicator_keeps_possible_kinds(indicator: str) -> None:
+    """Spec 3.2 rev 62: concrete False beside traced time is still supplied."""
+    data = jax.jit(lambda t: SurvivalData(t, **{indicator: False}))(jnp.array([1.0]))
+    general = indicator in ("left_censored", "interval_censored")
+    assert data.tree_flatten()[1] == (True, True, general, general, False, False)
+
+
+def test_traced_bounds_without_exact_keep_only_censored_kinds() -> None:
+    """Spec 3.2: omitted exact rules out events; supplied default bounds stay possible."""
+    data = jax.jit(
+        lambda t: SurvivalData.from_bounds(
+            t, np.inf, left_trunc=0.0, right_trunc=np.inf
+        )
+    )(jnp.array([1.0]))
+    assert data.tree_flatten()[1] == (False, True, True, True, True, True)
+
+
+def test_traced_event_values_reuse_compilation_and_preserve_issues() -> None:
+    """Spec 3.2/7.2: changed valid/invalid values cannot specialize the form."""
+    traces = []
+
+    @jax.jit
+    def build(event):
+        traces.append(None)
+        return SurvivalData([1.0, 2.0], event)
+
+    for event in ([1, 1], [0, 0], [2, 0]):
+        data = build(jnp.asarray(event))
+        assert data.tree_flatten()[1] == (True, True, False, False, False, False)
+        np.testing.assert_array_equal(
+            data.issues.invalid_indicator, np.asarray(event) == 2
+        )
+    assert len(traces) == 1
 
 
 def test_static_flags_control_compilation_reuse() -> None:
