@@ -537,10 +537,11 @@ def test_equal_argument_forms_with_different_values_share_one_compilation():
 
 @FEATURE
 def test_traced_and_concrete_data_with_equal_flags_share_one_compilation():
-    """spec 3.2 and 7.2, rev 62: traced `event`-form data and concrete exact/right data have equal flags and share one compilation."""
+    """spec 3.2 and 7.2, rev 62: traced `event`-form data and concrete exact/right data of the same shapes and dtypes have equal flags and share one compilation."""
     total, traces = _counting_jit()
     total(_flag({"time": f(TIME), "event": b(EVENT)}))
-    total(survjax.SurvivalData(f([1.0, 2.0]), b([True, False])))
+    # Same shape (4,) and dtypes as the traced inputs (7.2); concretely exact and right rows.
+    total(survjax.SurvivalData(f([3.0, 1.0, 4.0, 2.0]), b([False, True, True, False])))
     assert len(traces) == 1
 
 
