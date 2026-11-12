@@ -1,6 +1,6 @@
 # B6.4 — Verification page organization
 
-Independent review: round 1/3
+Independent review: round 2/3
 
 ## Read first
 
@@ -61,6 +61,24 @@ are retained; this is organization and scope clarification, not new evidence.
   B6.3 focused reference evidence remains applicable to the unchanged claims.
 
 ## Commits and remaining work
+
+Round 1 reviewed 850ec2bfd345485dd4820716bb06f512a9e67b47 and returned
+fix-first. F-1: the shared regeneration paragraph now explicitly lists
+concordance alongside exponential and bc-like as defaulting to committed
+directories. Checked all four generators' argument/output handling.
+N-1: rewrapped the cited paragraphs. N-2: named the Slice B R comparison
+explicitly in the exclusions introduction. No heading, code cell or link
+changed in the fix-up.
+
+After the fixes, scripts/build_docs.sh again exited 0 with both dtypes verified;
+final build identity is base 850ec2b, dirty with the fix-up, completed
+2026-11-12T18:06:58Z, state success. Final HTML in both modes contains the
+corrected destination sentence and exclusions scope with the same 13 headings
+and parent relationships. Python cells remain byte-identical to step start.
+The fast A12 gate passed again: format 284 files, Ruff/mypy clean, the same
+pass/skip counts as above in both modes, and the same two known spec warnings.
+Implementation times were 14.60s/15.22s; spec times 35.85s/35.87s. No unresolved
+finding remains from round 1 in the implementer's assessment.
 
 Step starting / previous-step final:
 1c47d6a0acce393cf57ff4727f78bf80baa6f398 (B6.3).

@@ -146,9 +146,9 @@ cross-checked against flexsurv. Singleton-fit and full-data likelihood checks
 cover the observed-time contributions, not individual grid cells.
 
 These exact/right comparisons exercise eager execution, `jax.jit` and
-`jax.vmap` in separate float64 and float32 processes. Weibull checks include both natural and
-`from_log` constructors, a common shape with batched scales, and raw and
-prepared likelihood inputs through the distribution method.
+`jax.vmap` in separate float64 and float32 processes. Weibull checks include
+both natural and `from_log` constructors, a common shape with batched scales,
+and raw and prepared likelihood inputs through the distribution method.
 Expected R values retain their stored float64 precision; only inputs are cast
 to the active JAX dtype. The central test tolerances are:
 
@@ -162,8 +162,7 @@ These finite reference cases complement the independent mathematical and
 are related: flexsurv uses survreg on this route, so their agreement is not
 fully independent numerical evidence. These two fixtures provide evidence only
 for untruncated exact/right observations; the broader likelihood comparisons
-follow below. They do not
-establish fitting accuracy.
+follow below. They do not establish fitting accuracy.
 
 ### Censoring and truncation: comparable flexsurv cases
 
@@ -211,8 +210,8 @@ records generation and integrity checks. The generator is
 
 #### Where flexsurv is not the reference
 
-The following cases are excluded because flexsurv cannot express them or uses
-a different likelihood convention:
+The following cases are excluded from the Slice B R comparison because
+flexsurv cannot express them or uses a different likelihood convention:
 
 - Left or interval censoring with left truncation, including two-sided windows.
 - Right censoring under a finite `U`: flexsurv uses `S(c)` for the numerator,
@@ -247,8 +246,9 @@ The concordance reference uses survival with
 `reverse=TRUE`, `timewt="n"` and `timefix=FALSE`. R's `concordant`,
 `discordant` and `tied.x` map to our counts; their sum is comparable.
 `tied.y` and `tied.xy` are excluded. These fixtures agree with the pair rules
-in the [concordance guide](../concordance.md), including event/censor time ties. The comparisons establish evidence
-for these cases, rather than every possible dataset.
+in the [concordance guide](../concordance.md), including event/censor time ties.
+The comparisons establish evidence for these cases, rather than every possible
+dataset.
 
 ### Integrity and regeneration
 
@@ -261,8 +261,8 @@ the original observations, parameters, source results and grid.
 Regenerate only with the pinned R/package versions above and the instructions
 for the relevant fixture. The generators in `scripts/fixtures/` support
 `--check-only` without writing. A normal run **overwrites payload files** in
-its destination. The exponential and bc-like generators default to their
-committed fixture directories; the Slice B generator requires a destination.
+its destination. The exponential, bc-like and concordance generators default
+to their committed fixture directories; the Slice B generator requires a destination.
 To inspect fresh outputs first, pass a new scratch directory, for example
 from the repository root:
 
