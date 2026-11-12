@@ -32,9 +32,16 @@ def _evaluate(
     # own window. Invalid rows use the untruncated window throughout.
     left = jnp.where(~bad, jnp.asarray(data.left_trunc, dtype=common), 0.0)
     right = jnp.where(~bad, jnp.asarray(data.right_trunc, dtype=common), jnp.inf)
-    # spec 3.2/7.2: only static absence prunes a piece; traced construction
-    # keeps every flag true, and slices retain their parent's conservative flags.
+    # spec 3.2: _may_contain uses the order defined in _data_metadata.may_contain:
+    # 0 exact, 1 right-censored, 2 left-censored, 3 interval-censored,
+    # 4 left-truncated, 5 right-truncated. These are dataset-wide possibilities,
+    # not per-row masks: False proves absence; True may be conservative.
+    # Traced construction sets all flags true; slices inherit their parent's flags.
+    # Zeros are placeholders for omitted pieces, never active row contributions;
+    # the final exact_rows mask selects the appropriate piece for each row.
     interval = jnp.zeros(bad.shape, dtype=common)
+    # spec 7.2: flags 1–3 cover all censored kinds, each needing conditional
+    # set probability. Skip this work only when none of those kinds can occur.
     if any(data._may_contain[1:4]):
         lo = jnp.maximum(time, left)
         hi = jnp.minimum(jnp.asarray(data.upper, dtype=common), right)
@@ -44,6 +51,8 @@ def _evaluate(
         interval = prepared.log_conditional_interval_prob(lower, upper, left, right)
 
     density = jnp.zeros(bad.shape, dtype=common)
+    # spec 7.2: flag 0 allows exact observations, which need log density minus
+    # log window mass. With no possible exact rows, neither piece is needed here.
     if data._may_contain[0]:
         # spec 3.3/7.2: promote a fixed-dtype family reference, and stop only
         # this substituted value, never the active times or parameters.
