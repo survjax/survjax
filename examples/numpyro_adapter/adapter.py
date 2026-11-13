@@ -49,6 +49,8 @@ class _Observations(constraints.Constraint):
         return (self.survival,), (("survival",), {})
 
     def feasible_like(self, value):
+        # Spec 7.2 convention: substitute times carry no parameter derivatives.
+        # The outer zero mask can already cancel those derivatives in these cases.
         if not isinstance(value, survjax.SurvivalData):
             return jnp.broadcast_to(
                 jax.lax.stop_gradient(self.survival.reference_time()),

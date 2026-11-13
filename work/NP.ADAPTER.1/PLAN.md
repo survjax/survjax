@@ -46,3 +46,16 @@ from issue #1. Publishing remains a separate action.
 
 Integration: retain the experimental example on adapter; do not publish or
 claim production compatibility. Stop after this step and independent review.
+
+## Minimal review follow-up (2026-11-13)
+
+The maintainer approved the proposed minimal response to round 1. Add one
+eager-validation regression test: excluded invalid records must not emit a
+support warning. Explain in the example README that core likelihood safeguards
+already protect the tested gradients; replacement additionally makes excluded
+records valid before adapter validation. Explain the stop_gradient convention
+without claiming its necessity for these masked derivatives. Keep the scoped
+ndim shim and the documented incremental timing-list update as prototype
+boundaries. No API or numerical implementation changes. Verify both dtypes,
+confirm the new test detects omitted replacement, run the fast A12 gate,
+and request review round 2 after a fix-up commit.

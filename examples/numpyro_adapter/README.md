@@ -23,6 +23,11 @@ plate/mask ordering, nested masks, broadcasting, and invalid excluded rows.
 SVI, generic distribution wrappers and structured `obs_mask` imputation have
 not been demonstrated. The adapter inherits the core's available modes.
 
+The core already guards likelihood evaluation numerically. Record replacement
+also prevents excluded invalid observations from emitting support-validation
+warnings. The tests check that behavior and finite masked derivatives; they do
+not establish that replacement is necessary for gradient safety in these cases.
+
 The example and tests explicitly enter `prototype_compatibility()`: a temporary
 `SurvivalData.ndim` property, restored on exit. Do not use this shim concurrently
 with other work. A production property requires coordinated spec/test changes.

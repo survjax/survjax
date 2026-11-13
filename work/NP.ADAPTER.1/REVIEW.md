@@ -1,8 +1,52 @@
 # NP.ADAPTER.1 handoff
 
-Independent review: round 1/3.
+Independent review: round 2/3.
 The maintainer approved the explicitly requested prototype-only ndim shim.
 The adapter remains experimental example code, not a package API addition.
+
+## Round 1 follow-up
+
+Previous reviewed commit: dca1bdb318b122d5bf340329d7944d380e0df1e1.
+The maintainer approved this minimal follow-up after discussing the findings
+as a proposal for a co-contributor, not a production integration claim.
+
+- F-1: added test_excluded_invalid_records_do_not_warn with eager validation
+  explicitly enabled and the support warning treated as an error. This tests
+  the user-visible reason for replacement: excluded invalid observations do
+  not produce support-validation warnings. The README now explicitly says
+  that core numerical safeguards already protect the tested likelihoods and
+  that the tests do not establish replacement's necessity for gradient safety.
+  This takes the finding's alternative of explaining the need and narrowing
+  the claim, rather than constructing an unsafe family to force a NaN gradient.
+- N-2: documented stop_gradient as the existing spec 7.2 substitution convention;
+  the outer zero mask can already cancel dummy-time derivatives in these cases.
+  No artificial mutation-sensitive derivative test was added.
+- N-1: retained the explicitly documented incremental timing-list provenance
+  instead of introducing unrelated timing churn. The maintainer accepted the
+  minimal scope after this bookkeeping tradeoff was discussed.
+- S-1: retained the already authorized, scoped prototype shim. No core/spec
+  contract changes are made or claimed. Deviation status remains maintainer-owned.
+
+Follow-up validation:
+- Focused file, both dtypes, no marker filter: 8 passed in each (8.94s/9.32s).
+- In a fresh x64 Python process, temporarily replaced _select_records with
+  a function returning the original value, then ran only the new regression:
+  1 failed/7 deselected with the expected out-of-support UserWarning. The
+  harness asserted TESTS_FAILED and exited 0. No source file was mutated.
+- Isolated unmodified regression: 1 passed/7 deselected per dtype. Initial
+  concurrent-run call timings were 1.58s/1.31s, triggering the scoped timing
+  refresh required for a new slow test.
+- Fast A12 gate passed: Ruff 236 files formatted/lint clean, mypy 24 source
+  files clean; implementation x64 1091 passed/8 skipped, x32 1096 passed/3
+  skipped; doctests 4 passed each; spec x64 3271 passed/32 skipped, x32
+  3273 passed/30 skipped (two existing NumPy warnings per spec run).
+- Ran scripts/update_slow_tests.sh --through A12 with PYTEST_ADDOPTS scoped
+  to the new regression. It classified that one case as slow; preserved all
+  previous classifications and appended its generated scoped timing summary
+  verbatim. No unrelated timing changes. The gate above included the new test
+  before this classification; focused runs always included every adapter case.
+- No numerical implementation changes; NUTS demo, full non-fast gate and docs
+  build were not repeated for this follow-up.
 
 Read PLAN.md, examples/numpyro_adapter/README.md, examples/numpyro_adapter/adapter.py,
 tests/unit/test_numpyro_adapter.py, then examples/numpyro_adapter/run.py.

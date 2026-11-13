@@ -129,3 +129,15 @@ def test_arrays_validation_and_sampling_boundary(x64_enabled):
     assert_close(fn.mask(False).log_prob(bad), jnp.zeros(1), x64_enabled)
     with pytest.raises(NotImplementedError, match="sampling"):
         fn.sample(jax.random.key(0))
+
+
+@pytest.mark.filterwarnings(
+    "error:Out-of-support values provided to log prob method:UserWarning"
+)
+def test_excluded_invalid_records_do_not_warn(x64_enabled):
+    """Excluded records are replaced before the adapter validates support."""
+    data = survjax.SurvivalData(jnp.array([1.0, 2.0]), [1, 7])
+    fn = adapter.SurvivalLikelihood(survjax.Exponential(rate=0.5), validate_args=True)
+    actual = fn.mask(jnp.array([True, False])).log_prob(data)
+    # One observed exponential event: log(rate) - rate*time; excluded row is zero.
+    assert_close(actual, jnp.array([jnp.log(0.5) - 0.5, 0.0]), x64_enabled)
