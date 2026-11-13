@@ -52,3 +52,29 @@ No timed inventory regeneration is needed for these sub-second unit cases.
 Starting/previous-step/original base: 65340045dce1e894c25b1fd7a78086775572138f.
 Remaining: independent review, documentation-only Q-066 sync, root tracker
 commit. No publication or main integration is claimed by this step.
+
+## Independent review outcome
+
+Round 1 reviewed 0278ecf18d19e00caf171891118e8cc735862bd0; saved in
+review/slices/META.FEATURE-GATE.md. Verdict: maintainer. No logic problems
+identified; all 7 touched regression tests passed independently in each dtype,
+and Ruff passed. The reviewer could not run the fast gate because the
+pre-existing protected-path guard rejects authorized meta edits from detached
+HEAD, and could not create its mutation worktree under sandbox permissions.
+Do not relabel these checks as passed or bypass the guard.
+
+S-1 requests confirmation of protected-path authorization. The maintainer's
+explicit instruction in this task was: "ok you do these steps; the other step
+i want you to do is change the check.sh script to not require the --through A12
+flag as this is now outdated, there's a new contract with spec features".
+"These steps" refers to the immediately preceding protected role/spec
+bookkeeping list. Authorization is already present; no renewed permission is
+needed. The independent end-to-end gate limitation remains for maintainer
+integration disposition, distinct from our successful full local gate.
+
+N-1 (line wrapping) and N-2 (wheel-wrapper test coverage) are nonblocking nits;
+N-3 notes that historical bookkeeping was outside the reviewer's scope. No
+runtime fix was requested. No second review was run to seek another verdict.
+Q-066 record sync is complete separately at 1de8b3d on
+spectests-q066-disposition; only assumptions/provenance and .spec-seen changed.
+Root bookkeeping is committed separately. Main integration remains outstanding.
