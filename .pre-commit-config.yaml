@@ -9,8 +9,10 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
+      # tests/spec/ is read-only and plans/ is legacy history: neither is
+      # rewritten to satisfy a hook (CLAUDE.md, "Spec tests", "Step records").
       - id: end-of-file-fixer
-        exclude: ^examples/survival_mnist/results/.*\.svg$
+        exclude: ^(examples/survival_mnist/results/.*\.svg|tests/spec/.*|plans/.*)$
       - id: trailing-whitespace
         exclude: ^examples/survival_mnist/results/.*\.svg$
       - id: check-yaml

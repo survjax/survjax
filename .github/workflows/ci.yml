@@ -33,23 +33,38 @@ jobs:
     outputs:
       run: ${{ steps.plan.outputs.run }}
     steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - id: plan
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          run=true
-          if [ "$GITHUB_EVENT_NAME" = schedule ]; then
-            last="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?event=schedule&status=success&per_page=1" \
-              --jq '.workflow_runs[0].head_sha // ""')"
-            if [ "$last" = "$GITHUB_SHA" ]; then
-              run=false
-              echo "Weekly run skipped: $GITHUB_SHA already passed the weekly matrix." >> "$GITHUB_STEP_SUMMARY"
-            fi
-          fi
-          echo "run=$run" >> "$GITHUB_OUTPUT"
+        run: bash scripts/ci_plan.sh
+
+  # Every hook in .pre-commit-config.yaml, once, on every file (prek, locked in
+  # uv.lock). The matrix waits for it.
+  hooks:
+    needs: plan
+    if: needs.plan.outputs.run == 'true'
+    name: Hooks (prek)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      UV_LOCKED: "true"
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.11.19"
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --locked --group dev
+      - run: uv run prek run --all-files --show-diff-on-failure
 
   check:
-    needs: plan
+    needs: [plan, hooks]
     if: needs.plan.outputs.run == 'true'
     name: CPU / ${{ matrix.os }} / x64=${{ matrix.x64 }} / Python 3.12
     runs-on: ${{ matrix.os }}
@@ -80,19 +95,7 @@ jobs:
       - name: Prepare branch references for the protected-path guard
         env:
           CI_SOURCE_BRANCH: ${{ github.head_ref }}
-        run: |
-          if ! git show-ref --verify --quiet refs/heads/main; then
-            git branch main refs/remotes/origin/main
-          fi
-          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            guard_branch="$CI_SOURCE_BRANCH"
-            # Preserve the baseline for PRs from a branch also named main.
-            if [ "$guard_branch" = main ]; then
-              guard_branch=ci-pr-main
-            fi
-            # Attach a name at the merge commit; keep its tree and parents.
-            git switch -c "$guard_branch"
-          fi
+        run: bash scripts/ci_branch_refs.sh
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "0.11.19"
@@ -103,24 +106,7 @@ jobs:
           uv sync --locked --group dev
           uv build --wheel
       - name: Record wheel and CPU environment
-        run: |
-          uv run python - <<'PY'
-          import os
-          import platform
-          import sys
-          from pathlib import Path
-
-          import jax
-          import numpy
-
-          wheel, = Path("dist").glob("*.whl")
-          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
-              env.write(f"SURVJAX_WHEEL={wheel.resolve()}\n")
-          print(platform.platform(), platform.machine(), sys.version)
-          print(f"JAX {jax.__version__}, NumPy {numpy.__version__}")
-          print(jax.devices())
-          assert all(device.platform == "cpu" for device in jax.devices())
-          PY
+        run: uv run python scripts/ci_environment.py
       - name: Restore the JAX compilation cache
         uses: actions/cache@v4
         with:

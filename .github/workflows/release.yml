@@ -42,9 +42,7 @@ jobs:
           echo "SURVJAX_WHEEL=$wheel" >> "$GITHUB_ENV"
       - name: Run release checks on the built artifact in both dtypes
         run: |
-          if ! git show-ref --verify --quiet refs/heads/main; then
-            git branch main origin/main
-          fi
+          bash scripts/ci_branch_refs.sh
           scripts/check.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

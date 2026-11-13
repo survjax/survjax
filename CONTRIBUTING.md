@@ -18,6 +18,17 @@ From its root, install development dependencies into its own `.venv`:
 uv sync --locked --group dev
 ```
 
+`make setup` runs the same command; `make help` lists the other entry points
+(lint, format, typecheck, tests, the gate, docs). Each target wraps one command
+or script named in this guide. Install the git hook from
+`.pre-commit-config.yaml` with [prek](https://github.com/j178/prek), a
+drop-in replacement for pre-commit, locked in the dev group:
+
+```sh
+make install-hooks   # uv run prek install
+make hooks           # every hook on every file, as the CI hooks job runs it
+```
+
 Runtime dependencies are JAX and NumPy only. Example, inference and plotting
 packages stay in optional development groups. Discuss dependency changes first;
 keep `pyproject.toml` and `uv.lock` consistent. Never enable JAX float64 globally
