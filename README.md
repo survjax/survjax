@@ -1,6 +1,6 @@
 # survjax
 
-<!-- [![GPU CI on NVIDIA T4 / CUDA 12: latest manual run on main](https://github.com/survjax/survjax/actions/workflows/gpu.yml/badge.svg?branch=main&event=workflow_dispatch)](https://github.com/survjax/survjax/actions/workflows/gpu.yml) -->
+<!-- [![GPU CI on NVIDIA T4 / CUDA 12: latest manual run on main](https://github.com/vanamsterdam/survjax/actions/workflows/gpu.yml/badge.svg?branch=main&event=workflow_dispatch)](https://github.com/vanamsterdam/survjax/actions/workflows/gpu.yml) -->
 
 **Survival analysis in JAX**
 
@@ -17,7 +17,7 @@ libraries such as Optimistix, Optax, Equinox, and NumPyro.
 
 `survjax` is an alpha pre-release. The current source checkout includes
 `Exponential`, `Weibull`, `LogNormal` and `LogLogistic`, and Harrell's
-`concordance_index`. See the [changelog](https://github.com/survjax/survjax/blob/main/CHANGELOG.md) for released versus
+`concordance_index`. See the [changelog](https://github.com/vanamsterdam/survjax/blob/main/CHANGELOG.md) for released versus
 unreleased changes. More distribution families and metrics will follow.
 
 Currently available:
@@ -27,15 +27,15 @@ Currently available:
 - **Likelihoods:** `model.log_likelihood(data)` returns per-observation log
   likelihoods for exact events and right, left and interval censoring, with
   optional left, right or two-sided truncation. See the
-  [likelihood guide](https://github.com/survjax/survjax/blob/main/docs/likelihood.md) for conditional contributions and diagnostics.
+  [likelihood guide](https://github.com/vanamsterdam/survjax/blob/main/docs/likelihood.md) for conditional contributions and diagnostics.
 - **Survival and hazard calculations:** survival probabilities, log survival,
   log density, log CDF, hazard, log hazard, and cumulative hazard, with grid
   methods for evaluation across times.
 - **Proportional hazards:** `ProportionalHazards` wraps a baseline with a
-  caller-computed log hazard ratio; see the [PH guide](https://github.com/survjax/survjax/blob/main/docs/proportional-hazards.md)
+  caller-computed log hazard ratio; see the [PH guide](https://github.com/vanamsterdam/survjax/blob/main/docs/proportional-hazards.md)
   for broadcasting, likelihoods and derivative limits.
 - **Accelerated failure time:** `AcceleratedFailureTime` wraps a baseline with
-  a caller-computed log time ratio; see the [AFT guide](https://github.com/survjax/survjax/blob/main/docs/accelerated-failure-time.md).
+  a caller-computed log time ratio; see the [AFT guide](https://github.com/vanamsterdam/survjax/blob/main/docs/accelerated-failure-time.md).
 - **Evaluation:** Harrell's concordance for exact and right-censored data
   without truncation.
 - **Custom distributions:** register a family with parameter declarations,
@@ -43,7 +43,7 @@ Currently available:
   including an autodiff-based log density.
 
 Restricted mean survival time, `model.rmst(tau)`, is available for Exponential,
-Weibull and their PH wrappers; see the [RMST guide](https://github.com/survjax/survjax/blob/main/docs/rmst.md) for cutoff
+Weibull and their PH wrappers; see the [RMST guide](https://github.com/vanamsterdam/survjax/blob/main/docs/rmst.md) for cutoff
 broadcasting, derivatives and numerical-failure limits. Unrestricted means,
 medians and quantiles remain planned.
 
@@ -125,7 +125,7 @@ higher scores indicate higher risk.
 
 ## Documentation
 
-The [documentation sources](https://github.com/survjax/survjax/tree/main/docs)
+The [documentation sources](https://github.com/vanamsterdam/survjax/tree/main/docs)
 contain the user guide, API reference and examples. Build the executable site
 locally with `scripts/build_docs.sh`. Read the Docs hosting is not set up yet;
 `https://survjax.readthedocs.io` is the intended Community address, subject to

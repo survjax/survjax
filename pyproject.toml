@@ -18,9 +18,9 @@ classifiers = [
 ]
 
 [project.urls]
-Repository = "https://github.com/survjax/survjax"
+Repository = "https://github.com/vanamsterdam/survjax"
 Documentation = "https://survjax.readthedocs.io"
-Issues = "https://github.com/survjax/survjax/issues"
+Issues = "https://github.com/vanamsterdam/survjax/issues"
 
 [dependency-groups]
 examples = [

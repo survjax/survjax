@@ -30,7 +30,7 @@ according to their own guidance as well.
 
 ## Repository location and release metadata
 
-The repository is **`https://github.com/survjax/survjax`**. Use that URL and
+The repository is **`https://github.com/vanamsterdam/survjax`**. Use that URL and
 the exact version or commit for the source you used. Hosting ownership and
 software author attribution are separate metadata.
 

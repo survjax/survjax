@@ -1,7 +1,7 @@
 # Contributing to survjax
 
 Bug reports, focused improvements and co-maintenance are welcome. The
-repository is [survjax/survjax](https://github.com/survjax/survjax).
+repository is [vanamsterdam/survjax](https://github.com/vanamsterdam/survjax).
 
 Open an issue before a substantial API change, new dependency or large feature.
 Describe the problem and a small proposed scope. For bugs, include a minimal

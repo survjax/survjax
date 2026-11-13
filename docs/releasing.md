@@ -34,10 +34,10 @@ the hosting checks below have evidence.
 
 ## Check repository and publishing access
 
-The canonical repository is **`https://github.com/survjax/survjax`**.
+The canonical repository is **`https://github.com/vanamsterdam/survjax`**.
 Package repository/issues URLs, README badge/links, `CITATION.cff`, release
 guard and artifact metadata tests use that identity. The guard permits only
-that namespace. Confirm organization access, `pypi` environment protections,
+that namespace. Confirm repository-owner access, `pypi` environment protections,
 Actions permissions and GitHub App access. Configure the PyPI publisher with
 that owner; URL redirects do not replace publisher identity. Check other
 clones' remotes separately. Verify repository pages, issues and badges while
@@ -56,8 +56,8 @@ advertising that address as live documentation.
 2. Use Community hosting for the public repository. Confirm signed-out
    repository access before connecting the service.
 3. Sign in to the chosen RTD service with GitHub, authorize/install its GitHub
-   App for the `survjax` organization and this repository, then select
-   **Add project**, choose **survjax/survjax**, and **Continue**. Confirm the
+   App for the `vanamsterdam` account and this repository, then select
+   **Add project**, choose **vanamsterdam/survjax**, and **Continue**. Confirm the
    repository/default branch and project slug, then **Next**. When asked about
    configuration, select **This file exists** for root `.readthedocs.yaml`.
 4. Creation triggers a build. Inspect the build log for the correct source
