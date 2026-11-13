@@ -2,7 +2,7 @@
 orphan: true
 ---
 
-# First release operator handoff
+# Release operator handoff
 
 Version **`0.0.1a2`**, Git tag **`v0.0.1a2`**, was published on GitHub and
 PyPI on 6 November 2026. The earlier `v0.0.1a1` GitHub prerelease remains;
@@ -10,8 +10,10 @@ its PyPI build failed before upload. The alpha-2 artifact checks passed and
 its upload succeeded after allowing release tags in the `pypi` environment.
 The public-index install smoke check passed in both dtype modes.
 
-This page retains the reusable release procedure. Examples use `0.0.1a2`;
-select a new version for the next release and never move an existing tag.
+The next candidate is **`0.0.1a3`**, intended tag **`v0.0.1a3`**. It is
+prepared, not published. The commands below use this candidate; never move an
+existing tag. Assign the actual release date in CITATION.cff and CHANGELOG.md
+before the final release-commit checks.
 See `RELEASE-A2-LOG.md` in the repository for the execution record. Read the
 Docs hosting and broader acceptance gates are not certified by this release.
 
@@ -96,7 +98,7 @@ hosting fits that budget. MathJax rendering also uses the existing external CDN.
 Activate and build `latest` from `main`. After the release tag exists, sync RTD
 versions, activate its tag version, verify the actual URL slug, and build that
 exact commit. For the intended Community slug, the release URL would be
-`https://survjax.readthedocs.io/en/v0.0.1a2/`; use the actual dashboard domain. Choose the checked tag version as
+`https://survjax.readthedocs.io/en/v0.0.1a3/`; use the actual dashboard domain. Choose the checked tag version as
 the site's default for the launch, keeping `latest` available. For Business
 hosting, set the version privacy to **Public**; project privacy separately
 controls public dashboard/build visibility. An active or hidden version is not
@@ -124,7 +126,7 @@ Register a pending GitHub publisher with these exact fields:
 | Field | Value |
 | --- | --- |
 | PyPI project name | `survjax` |
-| GitHub owner | `survjax` |
+| GitHub owner | `vanamsterdam` |
 | GitHub repository | `survjax` |
 | Workflow filename | `release.yml` |
 | GitHub environment | `pypi` |
@@ -157,11 +159,11 @@ Account setup and environment protection remain manual operator actions.
    isolation. Confirm full CPU CI on that same commit and the remaining
    acceptance/demo evidence. Do not substitute a fast gate for release checks.
 3. Through the maintainer's separately authorized release procedure, tag that
-   reviewed commit `v0.0.1a2` and make the tag available to RTD. Complete the
+   reviewed commit `v0.0.1a3` and make the tag available to RTD. Complete the
    tagged hosted/public docs checks before publishing the GitHub Release.
    This page creates no tag, pushes no commit and changes no visibility.
 4. Publish a GitHub Release for that exact tag (mark it as a prerelease for
-   `0.0.1a2`). This is the publishing workflow's trigger; ordinary CI, a tag
+   `0.0.1a3`). This is the publishing workflow's trigger; ordinary CI, a tag
    push alone or saving a draft release does not publish the package.
 5. The workflow rebuilds a wheel from its sdist, validates tag/version and
    metadata, and runs its configured full checks on that wheel. It hands the
@@ -184,14 +186,14 @@ uv sync --locked --group dev
 release_check_dir="$(mktemp -d)"
 printf 'uv_build==0.11.19\n' > "$release_check_dir/build-constraints.txt"
 uv build --build-constraints "$release_check_dir/build-constraints.txt" --out-dir "$release_check_dir/dist"
-release_wheel="$(uv run python scripts/validate_release.py "$release_check_dir/dist" v0.0.1a2)"
+release_wheel="$(uv run python scripts/validate_release.py "$release_check_dir/dist" v0.0.1a3)"
 SURVJAX_WHEEL="$release_wheel" scripts/check.sh
 scripts/build_docs.sh
 ```
 
-The A12 gate matches the current CI and publishing workflows and also includes
-the completed feature list. Keep this rehearsal aligned with those workflows
-when preparing a later release.
+The default gate matches the current CI and publishing workflows: all baseline
+tests plus the completed feature list, without a historical `--through` limit.
+Keep this rehearsal aligned with those workflows when preparing a later release.
 
 ## Check the public package from outside a checkout
 
@@ -202,7 +204,7 @@ checkout or demo groups:
 ```sh
 public_check_dir="$(mktemp -d)"
 uv venv --python 3.12 "$public_check_dir/venv"
-uv pip install --python "$public_check_dir/venv/bin/python" --index-url https://pypi.org/simple --only-binary :all: 'survjax==0.0.1a2'
+uv pip install --python "$public_check_dir/venv/bin/python" --index-url https://pypi.org/simple --only-binary :all: 'survjax==0.0.1a3'
 "$public_check_dir/venv/bin/python" -I - <<'PY'
 import importlib.metadata as metadata
 import importlib.util
@@ -210,7 +212,7 @@ from pathlib import Path
 import sys
 import survjax
 
-assert metadata.version("survjax") == "0.0.1a2"
+assert metadata.version("survjax") == "0.0.1a3"
 assert Path(sys.prefix) in Path(survjax.__file__).resolve().parents
 assert importlib.util.find_spec("numpyro") is None
 assert importlib.util.find_spec("matplotlib") is None
