@@ -36,18 +36,19 @@ JAX_ENABLE_X64=0 uv run --group test pytest -n 6 tests/unit/test_data_boundaries
 The step check runs formatting, lint, typing, tests and source doctests:
 
 ```sh
-scripts/check.sh --fast --through A10
+scripts/check.sh --fast --through A12
 ```
 
 Before a PR is ready, run the full gate or obtain its CI result for that commit:
 
 ```sh
-scripts/check.sh --through A10
+scripts/check.sh --through A12
 ```
 
-The committed gate currently selects independent acceptance through A10.
-It does not establish forthcoming A11/A12 acceptance or overall release
-readiness; maintainers integrate those separately. The fast gate excludes listed
+The committed gate selects independent acceptance through A12 and the completed
+features listed in `scripts/spec-features.txt`, including censoring/truncation
+and LogNormal/LogLogistic. Passing it does not certify all planned slices or
+overall release readiness. The fast gate excludes listed
 slow cases; CI runs the full gate. `scripts/run_tests.sh` runs the implementation
 suite in both dtypes and excludes the independently authored `tests/spec/`.
 Coordinate acceptance/contract changes with the maintainer; do not edit, skip,

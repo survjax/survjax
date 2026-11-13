@@ -147,6 +147,17 @@ family overrides this method with its log cure fraction.
 .. automethod:: survjax.SurvivalDistribution.hazard
 ```
 
+### Interval and conditional probabilities
+
+See [interval probabilities and truncation](working-with-distributions.md)
+for the interval conventions and examples. Families inherit generic defaults
+and may override these methods for numerical stability.
+
+```{eval-rst}
+.. automethod:: survjax.SurvivalDistribution.log_interval_prob
+.. automethod:: survjax.SurvivalDistribution.log_conditional_interval_prob
+```
+
 ### Grid methods, one shared vector of times against the whole batch
 
 ```{eval-rst}

@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+Changes in the current source checkout since alpha 2:
+
+- Likelihoods now support left and interval censoring and left, right or
+  two-sided truncation, alongside exact events and right censoring.
+- Add `log_interval_prob` and `log_conditional_interval_prob` for interval
+  masses and conditional probabilities, with stable Exponential/Weibull methods.
+- Add LogNormal and LogLogistic distributions and the AcceleratedFailureTime
+  wrapper. PH and AFT likelihoods support the expanded observation modes.
+- Derive traced observation metadata from constructor argument form, allowing
+  unused likelihood paths to be pruned while retaining diagnostics.
+- Document the expanded likelihoods, metadata and committed flexsurv comparison
+  coverage. CI and release checks select acceptance through A12 plus the
+  completed features in `scripts/spec-features.txt`.
+
+Concordance still requires exact/right-censored data without truncation.
+RMST remains limited to Exponential, Weibull and their PH wrappers, with the
+[documented derivative limits](docs/rmst.md). These changes do not imply a new
+published release or support for all planned slices.
+
 ## 0.0.1a2 — 2026-11-06
 
 - Fix installed-version checks to follow project metadata after version bumps.

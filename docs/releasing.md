@@ -20,12 +20,11 @@ Docs hosting and broader acceptance gates are not certified by this release.
 The draft changelog, citation metadata and contribution guidance are prepared.
 Before publishing, reconcile them with the final release commit and agreed
 credits. Confirm license/notices, fixture provenance, package-name availability and the
-actually tested Python/JAX configurations. The simulation demonstration,
-documentation cleanup and independent A11/A12 acceptance integration have
-separate owners: obtain their merged completion evidence without importing
-unfinished branches. A passing through-A10 gate does not cover A11/A12 or
-certify the whole release. Reconcile the publishing gate with the completed
-acceptance integration before launch, through its owner's reviewed change.
+actually tested Python/JAX configurations. The current CPU CI and publishing
+workflow run acceptance through A12 plus the completed features listed in
+`scripts/spec-features.txt`. Consult the merged step evidence, including
+`work/B7.AUDIT/REVIEW.md` for Slice B, and obtain fresh checks on the release
+commit. These gates do not certify all planned slices or the whole release.
 
 Run full CPU CI on the final release commit. If advertising the recorded
 NVIDIA T4/CUDA 12 configuration, also obtain the manual GPU check for that
@@ -186,13 +185,13 @@ release_check_dir="$(mktemp -d)"
 printf 'uv_build==0.11.19\n' > "$release_check_dir/build-constraints.txt"
 uv build --build-constraints "$release_check_dir/build-constraints.txt" --out-dir "$release_check_dir/dist"
 release_wheel="$(uv run python scripts/validate_release.py "$release_check_dir/dist" v0.0.1a2)"
-SURVJAX_WHEEL="$release_wheel" scripts/check.sh --through A10
+SURVJAX_WHEEL="$release_wheel" scripts/check.sh --through A12
 scripts/build_docs.sh
 ```
 
-The command currently names A10 because that is the prepared workflow's gate.
-It is not evidence for forthcoming acceptance steps; use the reviewed gate
-selected by the independent acceptance integration before public launch.
+The A12 gate matches the current CI and publishing workflows and also includes
+the completed feature list. Keep this rehearsal aligned with those workflows
+when preparing a later release.
 
 ## Check the public package from outside a checkout
 

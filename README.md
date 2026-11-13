@@ -15,24 +15,27 @@ libraries such as Optimistix, Optax, Equinox, and NumPyro.
 
 ## Current scope
 
-`survjax` is an alpha pre-release. Its first built-in distributions are
-`Exponential` and `Weibull`, and its first evaluation metric is Harrell's
-`concordance_index`. More distribution families and metrics will follow.
+`survjax` is an alpha pre-release. The current source checkout includes
+`Exponential`, `Weibull`, `LogNormal` and `LogLogistic`, and Harrell's
+`concordance_index`. See the [changelog](https://github.com/survjax/survjax/blob/main/CHANGELOG.md) for released versus
+unreleased changes. More distribution families and metrics will follow.
 
 Currently available:
 
 - **Survival data:** `SurvivalData` represents mixtures of exact, right-, left-,
   and interval-censored observations, with left and/or right truncation.
 - **Likelihoods:** `model.log_likelihood(data)` returns per-observation log
-  likelihoods for exact and right-censored observations **without truncation**.
-  Left/interval censoring and truncation are representable but their likelihoods
-  are not yet implemented; unsupported rows return NaN.
+  likelihoods for exact events and right, left and interval censoring, with
+  optional left, right or two-sided truncation. See the
+  [likelihood guide](https://github.com/survjax/survjax/blob/main/docs/likelihood.md) for conditional contributions and diagnostics.
 - **Survival and hazard calculations:** survival probabilities, log survival,
   log density, log CDF, hazard, log hazard, and cumulative hazard, with grid
   methods for evaluation across times.
 - **Proportional hazards:** `ProportionalHazards` wraps a baseline with a
   caller-computed log hazard ratio; see the [PH guide](https://github.com/survjax/survjax/blob/main/docs/proportional-hazards.md)
   for broadcasting, likelihoods and derivative limits.
+- **Accelerated failure time:** `AcceleratedFailureTime` wraps a baseline with
+  a caller-computed log time ratio; see the [AFT guide](https://github.com/survjax/survjax/blob/main/docs/accelerated-failure-time.md).
 - **Evaluation:** Harrell's concordance for exact and right-censored data
   without truncation.
 - **Custom distributions:** register a family with parameter declarations,
