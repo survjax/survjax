@@ -49,7 +49,11 @@ No library behaviour changes, so no new tests. Checks run:
 - `scripts/ci_environment.py` in a temp dir with one wheel in `dist/`:
   prints environment, CPU device check passes, writes `SURVJAX_WHEEL=...`.
 - `actionlint` on `ci.yml` and `release.yml`: clean.
-- `scripts/check.sh --fast`: see the step report.
+- `scripts/check.sh --fast` (macOS arm64, working tree of `56b5b35`):
+  "check: all gates passed (baseline=all, features=observation.censoring,
+  observation.truncation,observation.traced_metadata,family.lognormal,
+  family.loglogistic) (fast: slow tests skipped)"; last spec-test process
+  4595 passed, 95 skipped. The full gate (`scripts/check.sh`) was not run.
 
 Not verified: the workflows on GitHub Actions (hooks job, Windows weekly cell).
 
