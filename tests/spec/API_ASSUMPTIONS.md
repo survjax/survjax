@@ -1143,6 +1143,11 @@ on it. Guessed exception types and call shapes are centralised in
   the likelihood equal to the closed form; nothing asserts that the
   likelihood calls the override.
 - **Depends:** `test_observation_truncation_hook.py`.
+- **Status:** confirmed by maintainer-authorized bookkeeping, 2026-11-13.
+  The public four-argument method, broadcasting, mathematical value contract
+  and joint observation-feature selection above are confirmed against spec
+  4.2 and 12.2. This does not require a particular hook invocation pattern
+  or evaluating exact rows through the conditional hook. Tests remain unchanged.
 
 ## Q-067: writing a `mean_with_info` override in a custom family (spec 4.2, 8.1, 8.4, 8.5; rev 54)
 
