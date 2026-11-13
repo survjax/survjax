@@ -14,8 +14,8 @@ The next candidate is **`0.0.1a3`**, intended tag **`v0.0.1a3`**. It is
 prepared, not published. The commands below use this candidate; never move an
 existing tag. Assign the actual release date in CITATION.cff and CHANGELOG.md
 before the final release-commit checks.
-See `RELEASE-A2-LOG.md` in the repository for the execution record. Read the
-Docs hosting and broader acceptance gates are not certified by this release.
+See `RELEASE-A2-LOG.md` in the repository for the alpha-2 execution record.
+That release does not certify Read the Docs hosting or broader acceptance gates.
 
 ## Complete the release prerequisites
 
@@ -23,8 +23,8 @@ The draft changelog, citation metadata and contribution guidance are prepared.
 Before publishing, reconcile them with the final release commit and agreed
 credits. Confirm license/notices, fixture provenance, package-name availability and the
 actually tested Python/JAX configurations. The current CPU CI and publishing
-workflow run acceptance through A12 plus the completed features listed in
-`scripts/spec-features.txt`. Consult the merged step evidence, including
+workflow run all baseline acceptance tests plus the completed features listed
+in `scripts/spec-features.txt`, without a historical `--through` limit. Consult the merged step evidence, including
 `work/B7.AUDIT/REVIEW.md` for Slice B, and obtain fresh checks on the release
 commit. These gates do not certify all planned slices or the whole release.
 

@@ -1,6 +1,6 @@
 # RELEASE.A3 — Alpha 3 preparation handoff
 
-Independent review: round 1/3
+Independent review: round 2/3
 
 ## Reading order and invariants
 
@@ -80,3 +80,20 @@ Starting / previous-step final / original worktree base:
 cd383be231739ee8851d2dac540b00289128f622.
 Roadmap handoff: alpha-3 preparation ready for independent review; publication
 is a separate maintainer action. No shared roadmap was edited.
+
+## Round 1 corrections
+
+Reviewer file: ../../../review/slices/RELEASE.A3.md; reviewed 66c3781;
+verdict fix-first. Independent scripts/check.sh --fast passed. F-1 corrected:
+the prerequisite paragraph now says all baseline acceptance tests plus the
+completed features, matching the commands and rehearsal paragraph. N-1 fixed
+by making the alpha-2 hosting caveat a separate sentence. N-2 needs no change;
+published history remains above the candidate instructions as context.
+The stale through-A12 CI step label is outside this preparation's files;
+its command already selects the correct gate. Flag it for maintainer cleanup.
+
+After these prose-only corrections, scripts/build_docs.sh again exited 0 for
+both strict executable sites. HTMLParser checks in both rendered release pages
+confirmed the corrected prerequisite/caveat and absence of through-A12 prose.
+No package/runtime changes; no repeat full numerical gate was needed.
+git diff --check passed. Round 2 requested after this fix-up commit.
