@@ -39,8 +39,8 @@ URL. Update `CITATION.cff` with the actual released version and release date
 when assigned, consistently with the package and release notes. DOI and ORCID
 fields are currently omitted; add identifiers only when assigned and verified.
 Version `0.0.1a2` was published on PyPI on 6 November 2026. The current citation
-metadata prepares version `0.0.1a3`; its release date is omitted until assigned.
-Alpha 3 is not yet published by this preparation; no DOI is assigned.
+metadata prepares version `0.0.1a3`, scheduled for 13 November 2026.
+Publication remains pending the release checks; no DOI is assigned.
 
 The [operator handoff](docs/releasing.md)
 records publisher setup, documentation hosting and remaining launch

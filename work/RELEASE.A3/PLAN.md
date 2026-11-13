@@ -42,3 +42,27 @@ Covered here: release notes, candidate commands, citation and publication
 handoff. Operator retains final-commit CPU CI, hosted/tag documentation checks,
 publication-date assignment, tagging, publishing and public install checks.
 GPU validation is needed only for a new accelerator-support release claim.
+
+## Authorized release completion — 2026-11-13
+
+After approving the reviewed preparation, the maintainer instructed: "approved;
+go as far as you can, stop only when you need my interaction". Continue this
+release through final date assignment, reviewed integration, remote push,
+final-commit CI, tagging, hosted docs and publication where access allows.
+This explicitly supersedes the preparation-only scope above for these operator
+actions; do not rewrite or move published history/tags or unrelated work.
+Assign 2026-11-13 for alpha 3 in CITATION.cff and CHANGELOG.md, retain honest
+pending-publication wording, clarify the release guide and citation prose.
+Commit the dated metadata with this authorization record and request review
+round 3 before integration. Runtime/dependencies/tests/features stay unchanged.
+
+Validate fresh wheel/sdist and full exact-wheel gate plus both docs builds on
+the final dated snapshot; reviewer runs the fast gate. Integrate by fast-forward
+only after checking main has not advanced; retain both implementation and
+reviewer worktrees. Push main, wait for its full CPU CI, then tag the exact
+validated commit, verify tagged hosted documentation, publish the GitHub
+prerelease, inspect workflow artifacts/hashes and public PyPI install. Preserve
+existing account protections. Stop for authentication, approval gates or
+unavailable permissions rather than changing credentials or weakening controls.
+Keep operator execution evidence in work/RELEASE.A3/RELEASE-LOG.md; no shared
+roadmap edit. Service/account and CI results must be observed, not assumed.

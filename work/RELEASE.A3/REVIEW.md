@@ -1,6 +1,6 @@
 # RELEASE.A3 — Alpha 3 preparation handoff
 
-Independent review: round 2/3
+Independent review: round 3/3
 
 ## Reading order and invariants
 
@@ -97,3 +97,27 @@ both strict executable sites. HTMLParser checks in both rendered release pages
 confirmed the corrected prerequisite/caveat and absence of through-A12 prose.
 No package/runtime changes; no repeat full numerical gate was needed.
 git diff --check passed. Round 2 requested after this fix-up commit.
+
+## Authorized final metadata
+
+Round 2 at f40fb07591ef2d8142fd428e7cac9b87a611cfef ended VERDICT: merge.
+F-1/N-1 fixed, N-2 withdrawn; the optional N-3 line wrapping is fixed here.
+The maintainer then approved proceeding as far as access allows, including
+operator actions; see the scope extension in PLAN.md. Assign 2026-11-13 as the
+scheduled release date in citation/changelog, updating adjacent prose while
+keeping publication explicitly pending. These date statements supersede the
+initial intentionally undated candidate invariant above. No API, code, tests,
+dependencies or completed-feature list changes. Round 3 reviews this final
+metadata before integration. Fresh final-snapshot checks are recorded below.
+
+Final dated-snapshot validation: pinned sdist→wheel build and validator passed;
+both SHA256 hashes exactly match the earlier rehearsal pair. Full exact-wheel
+scripts/check.sh exited 0: Ruff format 293 files/lint/mypy clean;
+implementation float64 1527 passed/8 skipped (196.87s), float32 1526 passed/9
+skipped (167.84s); doctests 4 per mode. Both full acceptance runs passed;
+float32 4776 passed/124 skipped (62.08s); the float64 summary was truncated
+in captured output, so no separate count/timing is claimed for this rerun.
+The same two existing PH reference warnings remain per mode. Both strict docs
+builds passed, completed 2026-11-13T13:05:18Z. Parsed dated release/changelog/
+citation pages passed in both outputs. git diff --check passed. Local main and
+remote main still equal cd383be before requesting the final review round.

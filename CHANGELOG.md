@@ -1,8 +1,9 @@
 # Changelog
 
-## 0.0.1a3 — Unreleased
+## 0.0.1a3 — 2026-11-13
 
-Prepared changes since alpha 2; publication and release date are pending:
+Changes since alpha 2, scheduled for release on 13 November 2026.
+Publication is pending completion of the release checks:
 
 - Likelihoods now support left and interval censoring and left, right or
   two-sided truncation, alongside exact events and right censoring.

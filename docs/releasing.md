@@ -11,9 +11,9 @@ its upload succeeded after allowing release tags in the `pypi` environment.
 The public-index install smoke check passed in both dtype modes.
 
 The next candidate is **`0.0.1a3`**, intended tag **`v0.0.1a3`**. It is
-prepared, not published. The commands below use this candidate; never move an
-existing tag. Assign the actual release date in CITATION.cff and CHANGELOG.md
-before the final release-commit checks.
+scheduled for **13 November 2026**; publication remains pending release checks.
+The commands below use this candidate; never move an existing tag. CITATION.cff
+and CHANGELOG.md carry the scheduled date; reconcile it if publication is delayed.
 See `RELEASE-A2-LOG.md` in the repository for the alpha-2 execution record.
 That release does not certify Read the Docs hosting or broader acceptance gates.
 
@@ -24,7 +24,8 @@ Before publishing, reconcile them with the final release commit and agreed
 credits. Confirm license/notices, fixture provenance, package-name availability and the
 actually tested Python/JAX configurations. The current CPU CI and publishing
 workflow run all baseline acceptance tests plus the completed features listed
-in `scripts/spec-features.txt`, without a historical `--through` limit. Consult the merged step evidence, including
+in `scripts/spec-features.txt`, without a historical `--through` limit.
+Consult the merged step evidence, including
 `work/B7.AUDIT/REVIEW.md` for Slice B, and obtain fresh checks on the release
 commit. These gates do not certify all planned slices or the whole release.
 
