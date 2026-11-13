@@ -1,6 +1,6 @@
 # D-B2.1-001 — Tiny left-tail acceptance reference loses positive mass
 
-- Step: B2.1; status: open.
+- Step: B2.1; status: resolved (maintainer-authorized bookkeeping, 2026-11-13).
 - Spec: 4.1, 7.1, 7.2 and 12.1 require representable finite log CDFs even
   when probability/cumulative hazard underflows; precision loss is not zero.
 - Evidence: test_observation_censoring_numerics.py::
@@ -16,3 +16,11 @@
   (or enough precision) for this tiny-tail case. No protected test, tolerance,
   marker or feature flag has been weakened; observation.censoring stays enabled.
 - Stop for maintainer resolution. Do not claim the B2.1 gate passed.
+
+## Resolution — 2026-11-13
+
+Independent sync `0cc6d18` is integrated on main. The independent reference uses stable cumulative-hazard arithmetic.
+B7.AUDIT records the corrected test passing in the focused both-dtype run.
+The maintainer authorized formal closure in this bookkeeping task. Earlier
+stop/resume instructions above are historical; no implementation workaround
+or acceptance weakening is required.

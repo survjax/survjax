@@ -36,13 +36,13 @@ JAX_ENABLE_X64=0 uv run --group test pytest -n 6 tests/unit/test_data_boundaries
 The step check runs formatting, lint, typing, tests and source doctests:
 
 ```sh
-scripts/check.sh --fast --through A12
+scripts/check.sh --fast
 ```
 
 Before a PR is ready, run the full gate or obtain its CI result for that commit:
 
 ```sh
-scripts/check.sh --through A12
+scripts/check.sh
 ```
 
 The committed gate selects independent acceptance through A12 and the completed

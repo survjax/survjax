@@ -185,7 +185,7 @@ release_check_dir="$(mktemp -d)"
 printf 'uv_build==0.11.19\n' > "$release_check_dir/build-constraints.txt"
 uv build --build-constraints "$release_check_dir/build-constraints.txt" --out-dir "$release_check_dir/dist"
 release_wheel="$(uv run python scripts/validate_release.py "$release_check_dir/dist" v0.0.1a2)"
-SURVJAX_WHEEL="$release_wheel" scripts/check.sh --through A12
+SURVJAX_WHEEL="$release_wheel" scripts/check.sh
 scripts/build_docs.sh
 ```
 

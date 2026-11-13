@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# The maintainer's gate. Usage: scripts/check.sh [--fast] --through A<N>
+# The maintainer's gate. Usage: scripts/check.sh [--fast] [--through A<N>]
 #
 # 1. protected-path guard (branch name decides what a branch may touch)
 # 2. ruff format + lint, mypy
 # 3. the implementer's own tests, both dtype modes (scripts/run_tests.sh)
 # 4. source doctests, both dtype modes
-# 5. independent spec tests up to step <N>, both dtype modes
+# 5. all baseline spec tests plus committed features, both dtype modes
 #
 # --fast deselects the tests listed in tests/slow_tests.txt (marker `slow`) in
 # steps 3 and 5: the step gate for the implementer-reviewer loop. Without it
@@ -19,17 +19,20 @@
 # tests; when unset, one is built into a temporary directory.
 set -euo pipefail
 
-usage() { echo "usage: scripts/check.sh [--fast] --through A<N>" >&2; exit 2; }
+usage() { echo "usage: scripts/check.sh [--fast] [--through A<N>]" >&2; exit 2; }
 through=""
 fast=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --through) through="${2:-}"; shift 2 ;;
+    --through)
+      [[ "${2:-}" =~ ^A[0-9]+$ ]] || usage
+      through="$2"; shift 2 ;;
     --fast) fast="--fast"; shift ;;
     *) usage ;;
   esac
 done
-[ -n "$through" ] || usage
+# Empty overrides inherited SPEC_THROUGH: the default never narrows baseline tests.
+# --through is retained only for explicit historical diagnostics.
 workers="${PYTEST_WORKERS:-6}"
 export PYTEST_WORKERS="$workers"
 modes="${SURVJAX_X64_MODES:-1 0}"
@@ -113,7 +116,7 @@ SPEC_FEATURES="$(sed 's/#.*//; s/^[[:space:]]*//; s/[[:space:]]*$//; /^[[:space:
 export SPEC_FEATURES
 # pytest exit code 5 means "no tests collected": fine while tests/spec is empty.
 for x64 in $modes; do
-  echo "spec tests through $through, features=${SPEC_FEATURES:-none}, JAX_ENABLE_X64=$x64${fast:+, fast}"
+  echo "spec tests baseline=${through:-all}, features=${SPEC_FEATURES:-none}, JAX_ENABLE_X64=$x64${fast:+, fast}"
   set +e
   JAX_ENABLE_X64=$x64 SPEC_THROUGH="$through" uv run --group test pytest tests/spec -q -n "$workers" -m "$marker"
   rc=$?
@@ -124,4 +127,4 @@ for x64 in $modes; do
   fi
 done
 
-echo "check: all gates passed through $through${fast:+ (fast: slow tests skipped)}"
+echo "check: all gates passed (baseline=${through:-all}, features=${SPEC_FEATURES:-none})${fast:+ (fast: slow tests skipped)}"

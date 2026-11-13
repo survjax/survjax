@@ -132,4 +132,4 @@ jobs:
         env:
           UV_OFFLINE: "1"
           UV_PYTHON_DOWNLOADS: never
-        run: bash scripts/check.sh --through A12
+        run: bash scripts/check.sh

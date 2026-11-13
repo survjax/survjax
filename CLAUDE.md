@@ -23,9 +23,11 @@ use case's main doc and details file. The other files in `spec/` and the spec's
 links into the design repo are background for the maintainer. You do not need
 them.
 
-Current target: **Slice A** (spec section 12.2). Do not implement anything
-belonging to slices B to F. Unimplemented observation modes must fail
-explicitly, never return plausible values (section 12.2).
+Current scope follows the maintainer's explicit assignment and the workspace
+roadmap, not a fixed Slice A target. The baseline and completed features in
+`scripts/spec-features.txt` are the default acceptance gate. Do not implement
+unassigned features or enable incomplete features. Unimplemented methods retain
+their specified failure behavior; merged observation support is not unsupported.
 
 ## How we work (a human reads every line)
 
@@ -120,8 +122,8 @@ The maintainer reviews all code, so optimise for reviewability over speed.
   `DEVIATIONS.md`. Step IDs must be unique across parallel features and review
   files, with no slashes; use letters, digits, dots, underscores and hyphens.
 - Include the step ID, feature, base commit, dependencies and links to preceding
-  steps in the plan. Record the cumulative gate target separately (for example
-  `A12`); a step ID such as `AFT.1` is not a `--through` value. Keep “Docs to-do” there; a follow-up docs step reads the
+  steps in the plan. Record the completed feature selection separately; a step ID such as
+  `AFT.1` is not a gate argument. Keep “Docs to-do” there; a follow-up docs step reads the
   linked code-step plans and records which items it covers.
 - Commit these records with the step. Update only your step's directory; no
   shared index, “latest” pointer, or archive move is needed. Discover records
@@ -240,7 +242,7 @@ Standard commands (keep these working at every commit):
 uv run ruff format --check . && uv run ruff check .
 uv run mypy src
 scripts/run_tests.sh            # your tests, both dtype modes
-scripts/check.sh --through A3   # everything above plus tests/spec up to step A3
+scripts/check.sh                # everything above plus baseline and enabled features
 ```
 
 `scripts/check.sh` exists from the start and is the maintainer's gate; you only
@@ -252,8 +254,8 @@ run it. Step A0 must make `scripts/run_tests.sh`, `ruff` and `mypy` work so that
 | Tier | When | Command |
 | --- | --- | --- |
 | 0 | while coding | `JAX_ENABLE_X64=<1,0> uv run --group test pytest -n 6 <touched test files>`, both modes, no marker filter |
-| 1 | before the step handoff and review; the reviewer each round | `scripts/check.sh --fast --through A<N>` |
-| 2 | before merge (maintainer), CI on `main` and PRs (Linux, macOS) | `scripts/check.sh --through A<N>` |
+| 1 | before the step handoff and review; the reviewer each round | `scripts/check.sh --fast` |
+| 2 | before merge (maintainer), CI on `main` and PRs (Linux, macOS) | `scripts/check.sh` |
 
 `--fast` deselects the tests listed in `tests/slow_tests.txt` (marker `slow`,
 about 10% of the tests and over 70% of the time). Tier 0 runs the touched files
@@ -268,9 +270,9 @@ under the repository's git directory; `SURVJAX_JAX_CACHE=off` disables it.
 reliably inside one process. `scripts/run_tests.sh` runs your tests twice: once
 with `JAX_ENABLE_X64=1` and once without. It passes `--ignore=tests/spec`
 and must keep doing so: the spec tests run only through `check.sh`, which
-selects them by step with `SPEC_THROUGH`; without it, tests for steps not yet
-built would fail. Tests read the mode from the
-environment via a fixture in `conftest.py` and never set it themselves. Tests
+selects completed features with `SPEC_FEATURES` from the committed feature
+list. All baseline tests run by default; optional `--through` is only for
+historical diagnostics. Tests read the mode from the environment via a fixture in `conftest.py` and never set it themselves. Tests
 that are only meaningful in one mode are skipped in the other with an explicit
 reason (for example, mpmath tail checks at float64 precision).
 

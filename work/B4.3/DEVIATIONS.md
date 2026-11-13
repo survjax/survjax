@@ -18,9 +18,16 @@
   same shape, preserving the intended traced/concrete metadata comparison.
   No production shape-specialization workaround is proposed. The protected
   test has not been edited, skipped or xfailed.
-- Status: open. Await maintainer/test-author resolution before the gate and
-  review can establish acceptance of B4.3.
+- Status: resolved (maintainer-authorized bookkeeping, 2026-11-13).
 - Follow-up: the maintainer supplied merge b4b6700 containing independent
   test sync 3d9704a (tester 96e2da5), which makes both datasets shape (4,).
   The maintainer instructed work to resume. Retain the historical entry and
   leave formal status disposition to the maintainer; rerun the corrected test.
+
+## Resolution — 2026-11-13
+
+Independent sync `3d9704a` is integrated on main. The independent compile-count test now compares equal shapes (4,).
+B7.AUDIT records the corrected test passing in the focused both-dtype run.
+The maintainer authorized formal closure in this bookkeeping task. Earlier
+stop/resume instructions above are historical; no implementation workaround
+or acceptance weakening is required.

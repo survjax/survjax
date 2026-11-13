@@ -1,6 +1,6 @@
 # B8.DOCS — Current documentation sync
 
-Independent review: round 1/3 requested; no round written
+Independent review: round 1/3 completed; verdict maintainer; maintainer-accepted 2026-11-13
 
 ## Reading order and scope
 
@@ -49,15 +49,39 @@ review. No other user's files were changed. No publication or integration done.
 
 Starting/previous-step commit: c908176edefe18797e1d1b81eeca55801be7b6b0.
 Original worktree base: cc0e30f89af61d963c8b91b5e2beb6b08a1af810.
-Roadmap handoff: documentation entry-point sync complete, pending this review;
-no change to feature completion status or shared roadmap files.
+Roadmap handoff: documentation entry-point sync merged, review completed and
+maintainer-accepted on 2026-11-13; no further B8 review is pending.
 
-## Independent-review attempt
+## Initial independent-review attempt (historical)
 
 Requested review of d4f6f1f615ec99f79f06754bf72dc169145c6495 using the exact
 skill command. Both the initial attempt and the single permitted retry outside
 the sandbox exited 1: `Failed to authenticate. API Error: 403 Attention Required! | Cloudflare`.
-No review file was written and no verdict or findings are available. Review
-remains pending; no further retry was attempted. The optional diff-display
+At that point no review file was written and no verdict or findings were
+available. Review remained pending; no further retry was attempted then. The optional diff-display
 hook is skipped because there is no reviewed SHA. This record-only follow-up
 does not change the validated documentation snapshot.
+
+
+## Review completion and maintainer disposition — 2026-11-13
+
+The subsequent independent review is recorded in
+[review/slices/B8.DOCS.md](../../../review/slices/B8.DOCS.md), round 1, for
+`d4f6f1f615ec99f79f06754bf72dc169145c6495` against `c908176`.
+It found no blockers or should-fix findings. N-1 is a nonblocking README
+wording nit; the reviewer explicitly found the text acceptable and accurate.
+The reviewer independently passed the fast A12 gate with all five enabled
+features in both dtypes.
+
+The formal verdict is `maintainer`, not `merge`: the reviewer could not run
+the docs build because the sandbox denied the Jupyter kernel's local port
+binding. It did not independently verify rendered HTML or browser layout.
+The successful implementer builds and HTML checks remain recorded above.
+
+The maintainer reported the reviewer was happy and instructed closure of the
+roadmap and outstanding-review tracking. Record this as maintainer acceptance
+of the review's stated verification limitation and N-1, with no required B8
+follow-up or pending review. Preserve the independent verdict unchanged.
+Full release-commit checks remain separate; no new build or test run is claimed
+by this bookkeeping update. The earlier failed authentication attempts are
+historical and no longer block B8.

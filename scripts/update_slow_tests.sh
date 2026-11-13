@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Regenerate tests/slow_tests.txt from measured durations.
-# Usage: scripts/update_slow_tests.sh [--through A<N>]   (default A10)
+# Usage: scripts/update_slow_tests.sh [--through A<N>]   (default: all baseline tests plus committed features)
 #
 # Runs the implementer tests and the spec tests once per dtype mode with
 # --durations=0, sums setup+call+teardown per test, takes the slower mode, and
@@ -10,10 +10,12 @@
 # Re-run after adding expensive tests; stale entries are harmless.
 set -euo pipefail
 
-through="A10"
+through=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --through) through="${2:-}"; shift 2 ;;
+    --through)
+      [[ "${2:-}" =~ ^A[0-9]+$ ]] || { echo "--through requires A<N>" >&2; exit 2; }
+      through="$2"; shift 2 ;;
     *) echo "usage: scripts/update_slow_tests.sh [--through A<N>]" >&2; exit 2 ;;
   esac
 done
@@ -21,6 +23,8 @@ threshold="${SLOW_THRESHOLD:-1.0}"
 workers="${PYTEST_WORKERS:-8}"
 
 cd "$(git rev-parse --show-toplevel)"
+SPEC_FEATURES="$(sed 's/#.*//; s/^[[:space:]]*//; s/[[:space:]]*$//; /^[[:space:]]*$/d' scripts/spec-features.txt | paste -sd, -)"
+export SPEC_FEATURES
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 

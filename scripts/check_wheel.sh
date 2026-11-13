@@ -3,9 +3,6 @@
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
-if [ "$#" -eq 0 ]; then
-  set -- --through A9
-fi
 export UV_OFFLINE=1 UV_PYTHON_DOWNLOADS=never UV_LOCKED=true
 wheel_dir="$(mktemp -d "${TMPDIR:-/tmp}/survjax-wheel.XXXXXX")"
 uv build --wheel --out-dir "$wheel_dir"
